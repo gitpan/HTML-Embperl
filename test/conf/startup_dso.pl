@@ -4,8 +4,9 @@ BEGIN {
     
     if ($EPSESSIONCLASS = $ENV{EMBPERL_SESSION_CLASS})
         {
-        eval " use Apache\:\:Session\:\:$EPSESSIONCLASS; " ;
+        eval " use Apache\:\:Session; " ;
         die $@ if ($@) ;
+        eval " use Apache\:\:Session\:\:$EPSESSIONCLASS; " ;
         }
     }
 

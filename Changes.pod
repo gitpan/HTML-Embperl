@@ -1,5 +1,10 @@
 =pod
 
+=head1 1.2b9 (BETA) 10. Sept 1999
+
+   - Fixed a problem with loading Apache::Session 1.01, when
+     Apache::Session 0.17 is not installed. Spotted by Volker Hess.
+
 =head1 1.2b8 (BETA) 9. Sept 1999
    
    - Fixed behaviour of <INPUT>. <INPUT> now does not overide

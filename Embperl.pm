@@ -74,7 +74,7 @@ use vars qw(
 @ISA = qw(Exporter DynaLoader);
 
 
-$VERSION = '1.2b8';
+$VERSION = '1.2b9';
 
 
 # HTML::Embperl cannot be bootstrapped in nonlazy mode except
