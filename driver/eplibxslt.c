@@ -10,7 +10,7 @@
 #   IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 #   WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 #
-#   $Id: eplibxslt.c,v 1.1.2.6 2001/11/16 11:29:04 richter Exp $
+#   $Id: eplibxslt.c,v 1.1.2.10 2001/11/27 08:37:56 richter Exp $
 #
 ###################################################################################*/
 
@@ -25,6 +25,7 @@
 #include <libxml/DOCBparser.h>
 #include <libxml/xinclude.h>
 #include <libxml/catalog.h>
+#include <libxslt/xsltconfig.h>
 #include <libxslt/xslt.h>
 #include <libxslt/xsltInternals.h>
 #include <libxslt/transform.h>
@@ -163,7 +164,6 @@ int embperl_LibXSLT_Text2Text   (/*in*/  tReq *	  r,
 typedef struct tProviderLibXSLTXSL
     {
     tProvider           Provider ;
-    xmlDocPtr		pXMLDoc ;
     } tProviderLibXSLTXSL ;
 
 
@@ -263,6 +263,7 @@ static int ProviderLibXSLTXSL_AppendKey (/*in*/ req *              r,
     }
 
 
+
 /* ------------------------------------------------------------------------ */
 /*                                                                          */
 /* ProviderLibXSLTXSL_GetContentPtr  				            */
@@ -326,14 +327,12 @@ static int ProviderLibXSLTXSL_GetContentPtr     (/*in*/ req *            r,
 	
     if ((cur = xsltParseStylesheetDoc(doc)) == NULL)
       	{
-	((tProviderLibXSLTXSL *)pProvider) -> pXMLDoc = NULL ;
         xmlFreeDoc(doc) ;
 	Cache_ReleaseContent (r, pFileCache) ;
         strncpy (r -> errdat1, "XSL compile", sizeof (r -> errdat1)) ;
 	return rcLibXSLTError ;
 	}
     
-    ((tProviderLibXSLTXSL *)pProvider) -> pXMLDoc = doc ;
     *pData = (void *)cur ;
 
     return ok ;
@@ -368,20 +367,12 @@ static int ProviderLibXSLTXSL_FreeContent(/*in*/ req *             r,
                                  /*in*/ tCacheItem * pItem)
 
     {
-    xsltStylesheetPtr  pCompiledStylesheet = (xsltStylesheetPtr)pItem -> pData ;
+    xsltStylesheetPtr  pCompiledStylesheet ;
+    
+    pCompiledStylesheet = (xsltStylesheetPtr)pItem -> pData ;
     if (pCompiledStylesheet)
         xsltFreeStylesheet(pCompiledStylesheet) ;
 
-    if (((tProviderLibXSLTXSL *)pItem -> pProvider) -> pXMLDoc)
-        {
-        /*
-        lprintf (r, "free doc %x\n", ((tProviderLibXSLTXSL *)pItem -> pProvider) -> pXMLDoc) ;
-        xmlFreeDoc (((tProviderLibXSLTXSL *)pItem -> pProvider) -> pXMLDoc) ;
-        */
-        }
-
-    ((tProviderLibXSLTXSL *)pItem -> pProvider) -> pXMLDoc = NULL ;
-    
 
     return ok ;
     }
@@ -601,8 +592,9 @@ static int ProviderLibXSLTXML_FreeContent(/*in*/ req *             r,
 
     {
     if (pItem -> pData)
+	{
 	xmlFreeDoc((xmlDocPtr)pItem -> pData) ;
-
+	}
     return ok ;
     }
 
@@ -630,6 +622,7 @@ typedef struct tProviderLibXSLT
     {
     tProvider           Provider ;
     SV *                pOutputSV ;
+    const char * *      pParamArray ;
     } tProviderLibXSLT ;
 
 /* ------------------------------------------------------------------------ */
@@ -642,7 +635,7 @@ typedef struct tProviderLibXSLT
 
 static  int  ProviderLibXSLT_iowrite   (void *context,
 						     const char *buffer,
-						     long unsigned int len)
+						     int len)
 
     {
     sv_catpvn (((tProviderLibXSLT *)context) -> pOutputSV, (char *)buffer, len) ;
@@ -752,6 +745,90 @@ static int ProviderLibXSLT_AppendKey (/*in*/ req *              r,
     }
 
 
+/* ------------------------------------------------------------------------ */
+/*                                                                          */
+/* ProviderLibXSLT_UpdateParam   				            */
+/*                                                                          */
+/*! 
+*   \_en
+*   Update the parameter of the provider
+*   
+*   @param  r               Embperl request record
+*   @param  pProvider       Provider record
+*   @param  pParam          Parameter Hash
+*                               param        hash with parameter 
+*   @param  pKey            Key to which string should be appended
+*   @return                 error code
+*   \endif                                                                       
+*
+*   \_de									   
+*   Aktualisiert die Parameter des Providers
+*   
+*   @param  r               Embperl request record
+*   @param  pProvider       Provider record
+*   @param  pParam          Parameter Hash
+*                               param        hash mit parametern 
+*   @param  pKey            Schlüssel zu welchem hinzugefügt wird
+*   @return                 Fehlercode
+*   \endif                                                                       
+*                                                                          
+* ------------------------------------------------------------------------ */
+
+static int ProviderLibXSLT_UpdateParam(/*in*/ req *              r,
+                                   /*in*/ tProvider *        pProvider,
+                                   /*in*/ HV *               pParam)
+    {
+    int		    rc ;
+    SV           *  pSrc ;
+    HV *	    pParamHV ;
+    HE *	    pEntry ;
+    char *	    pKey ;
+    SV *            pValue ;
+    STRLEN          len ;
+    IV		    l ;
+    int		    n ;
+    const char * *  pParamArray ;
+    
+    if ((rc = GetHashValueHREF  (r, pParam, "param", &pParamHV)) != ok)
+        {
+        if (!r->errdat1[0])
+            strncpy (r -> errdat1, pProvider -> pCache -> sKey, sizeof (r -> errdat1) -1 ) ;
+        return rc ;
+        }
+
+    if (((tProviderLibXSLT *)pProvider) -> pParamArray)
+	{
+	free (((tProviderLibXSLT *)pProvider) -> pParamArray) ;
+	((tProviderLibXSLT *)pProvider) -> pParamArray = NULL ;
+	}
+
+    if (pParamHV)
+	{
+	n = 0 ;
+	hv_iterinit (pParamHV) ;
+	while ((pEntry = hv_iternext (pParamHV)))
+	    {
+	    n++ ;
+	    }
+        
+	if (!(pParamArray = malloc(sizeof (const char *) * (n + 1) * 2)))
+	    return rcOutOfMemory ;
+
+	n = 0 ;
+	hv_iterinit (pParamHV) ;
+	while ((pEntry = hv_iternext (pParamHV)))
+	    {
+	    pKey     = hv_iterkey (pEntry, &l) ;
+	    pValue   = hv_iterval (pParamHV, pEntry) ;
+	    pParamArray[n++] = pKey ;
+	    pParamArray[n++] = SvPV (pValue, len) ;
+	    }
+	pParamArray[n++] = NULL ;
+	((tProviderLibXSLT *)pProvider) -> pParamArray = pParamArray ;
+	}
+    return ok ;
+    }
+
 
 /* ------------------------------------------------------------------------ */
 /*                                                                          */
@@ -806,9 +883,9 @@ static int ProviderLibXSLT_GetContentSV         (/*in*/ req *            r,
     if (((tProviderLibXSLT *)pProvider) -> pOutputSV)
         SvREFCNT_dec (((tProviderLibXSLT *)pProvider) -> pOutputSV) ;
 
-    ((tProviderLibXSLT *)pProvider) -> pOutputSV = newSV(1024) ;
+    ((tProviderLibXSLT *)pProvider) -> pOutputSV = newSVpv("", 0) ;
 
-    res = xsltApplyStylesheet(cur, doc, NULL) ; /*pParamArray);*/
+    res = xsltApplyStylesheet(cur, doc, ((tProviderLibXSLT *)pProvider) -> pParamArray);
     if(res == NULL)
 	{
 	strncpy (r -> errdat1, "XSLT", sizeof (r -> errdat1)) ;
@@ -820,9 +897,10 @@ static int ProviderLibXSLT_GetContentSV         (/*in*/ req *            r,
     xsltSaveResultTo(obuf, res, cur);
 
     xmlFreeDoc(res);
+    xmlOutputBufferClose (obuf) ;
 
     *pData = ((tProviderLibXSLT *)pProvider) -> pOutputSV ;
-
+    SvREFCNT_inc(*pData) ;
 
     return ok ;
     }
@@ -856,11 +934,20 @@ static int ProviderLibXSLT_FreeContent(/*in*/ req *             r,
                                  /*in*/ tCacheItem * pItem)
 
     {
-    if (((tProviderLibXSLT *)pItem -> pProvider) -> pOutputSV)
-        SvREFCNT_dec (((tProviderLibXSLT *)pItem -> pProvider) -> pOutputSV) ;
-
-    ((tProviderLibXSLT *)pItem -> pProvider) -> pOutputSV = NULL ;
+    tProviderLibXSLT * pProvider = ((tProviderLibXSLT *)pItem -> pProvider) ;
     
+    if (pProvider -> pOutputSV)
+	{
+	SvREFCNT_dec (pProvider -> pOutputSV) ;
+	pProvider -> pOutputSV = NULL ;
+	}
+    
+    if (pProvider -> pParamArray)
+	{
+	free (pProvider -> pParamArray) ;
+	pProvider -> pParamArray = NULL ;
+	}
+
     return ok ;
     }
 
@@ -871,7 +958,7 @@ static tProviderClass ProviderClassLibXSLT =
     "text/*", 
     &ProviderLibXSLT_New, 
     &ProviderLibXSLT_AppendKey, 
-    NULL,
+    &ProviderLibXSLT_UpdateParam, 
     &ProviderLibXSLT_GetContentSV,
     NULL,
     NULL,

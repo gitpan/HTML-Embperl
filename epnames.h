@@ -10,7 +10,7 @@
 #   IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 #   WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 #
-#   $Id: epnames.h,v 1.19.4.13 2001/11/12 14:43:19 richter Exp $
+#   $Id: epnames.h,v 1.19.4.14 2001/11/23 14:50:05 richter Exp $
 #
 ###################################################################################*/
 
@@ -55,8 +55,18 @@
 #define GetHtmlArg             EMBPERL_GetHtmlArg        
 #define GetHashValueLen        EMBPERL_GetHashValueLen   
 #define GetHashValue           EMBPERL_GetHashValue      
+#define GetHashValueInt           EMBPERL_GetHashValueInt
+#define GetHashValueCREF           EMBPERL_GetHashValueCREF      
+#define GetHashValueHREF           EMBPERL_GetHashValueHREF      
+#define GetHashValueSV           EMBPERL_GetHashValueSV      
+#define GetHashValueSVinc           EMBPERL_GetHashValueSVinc      
+#define GetHashValueStrOrHash           EMBPERL_GetHashValueStrOrHash      
+#define GetHashValueUInt           EMBPERL_GetHashValueUInt
 #define GetHashValueStrDup     EMBPERL_GetHashValueStrDup      
 #define SetHashValueStr        EMBPERL_SetHashValueStr      
+#define CreateHashRef          EMBPERL_CreateHashRef
+#define ChdirToSource		EMBPERL_ChdirToSource
+#define Char2XML              EMBPERL_Char2XML
 #define Char2Html              EMBPERL_Char2Html         
 #define Html2Char              EMBPERL_Html2Char         
 #define sizeHtml2Char          EMBPERL_sizeHtml2Char     
@@ -174,6 +184,7 @@
 #define Node_toString2		    EMBPERL_Node_toString2		   
 #define ParseFile		    EMBPERL_ParseFile
 #define String2NdxInc		    EMBPERL_String2NdxInc		   
+#define String2UniqueNdx	    EMBPERL_String2UniqueNdx
 #define StringAdd		    EMBPERL_StringAdd		   
 #define StringFree		    EMBPERL_StringFree		   
 #define StringNew		    EMBPERL_StringNew		   

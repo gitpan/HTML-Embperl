@@ -10,7 +10,7 @@
 #   IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 #   WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 #
-#   $Id: EmbperlXSLT.pm,v 1.1.2.2 2001/11/16 08:08:08 richter Exp $
+#   $Id: EmbperlXSLT.pm,v 1.1.2.4 2001/11/27 08:37:56 richter Exp $
 #
 ###################################################################################
  
@@ -39,12 +39,14 @@ sub new
 
     my $ep = HTML::Embperl::Recipe::Embperl -> new ($r, $recipe, $param) ;
     my $xsltproc = $param -> {xsltproc} ;
+    my $xsltparam= $param -> {xsltparam} || \%HTML::Embperl::fdat ;
 
     my $self =
         {
         'provider' => 
             {
             'type' => $xsltproc,
+            'param'  => $xsltparam,
             'source' => 
                 {
                 'cache'    => 0,
@@ -96,3 +98,4 @@ sub new
     return $self ;
     }
 
+1 ;

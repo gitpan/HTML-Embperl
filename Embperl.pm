@@ -10,7 +10,7 @@
 #   IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 #   WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 #
-#   $Id: Embperl.pm,v 1.118.4.62 2001/11/20 15:15:41 richter Exp $
+#   $Id: Embperl.pm,v 1.118.4.65 2001/11/27 10:43:36 richter Exp $
 #
 ###################################################################################
 
@@ -69,7 +69,7 @@ use vars qw(
 
 
 ##ep2##
-$VERSION = '2.0b4' ;
+$VERSION = '2.0b5' ;
 ##/ep2##
 ##ep1##$VERSION = '1.3.4_dev';
 

@@ -10,7 +10,7 @@
 #   IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 #   WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 #
-#   $Id: eputil.c,v 1.15.4.29 2001/11/16 11:29:02 richter Exp $
+#   $Id: eputil.c,v 1.15.4.31 2001/11/23 12:28:20 richter Exp $
 #
 ###################################################################################*/
 
@@ -711,7 +711,7 @@ UV    GetHashValueUInt (/*in*/  HV *           pHash,
     /*EPENTRY (GetHashValueInt) ;*/
     
     ppSV = hv_fetch(pHash, (char *)sKey, strlen (sKey), 0) ;  
-    if (ppSV != NULL && *ppSV)
+    if (ppSV != NULL && *ppSV && SvOK(*ppSV))
         {
         return SvUV ((*ppSV)) ;
         }
@@ -1204,7 +1204,7 @@ void ClearSymtab (/*i/o*/ register req * r,
     if ((symtab = gv_stashpv ((char *)sPackage, 0)) == NULL)
 	return ;
 
-    ppSV = hv_fetch (symtab, EPMAINSUB, sizeof (EPMAINSUB) - 1, 0) ;
+    ppSV = hv_fetch (symtab, "_ep_DomTree", sizeof ("_ep_DomTree") - 1, 0) ;
     if (!ppSV || !*ppSV)
 	{
 	if (bDebug)

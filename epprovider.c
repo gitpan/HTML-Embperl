@@ -9,7 +9,7 @@
 #   IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 #   WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 #
-#   $Id: epprovider.c,v 1.1.2.13 2001/11/16 11:29:02 richter Exp $
+#   $Id: epprovider.c,v 1.1.2.15 2001/11/27 09:35:58 richter Exp $
 #
 ###################################################################################*/
 
@@ -1071,7 +1071,7 @@ static int ProviderEpCompile_AppendKey (/*in*/ req *              r,
     if ((rc = Cache_AppendKey (r, pParam, "source", pKey)) != ok)
         return rc;
 
-    sv_catpv (pKey, "*epcompile") ;
+    sv_catpvf (pKey, "*epcompile:%s", GetHashValueStr  (pParam, "package", "")) ;
     return ok ;
     }
 
@@ -1397,7 +1397,7 @@ static int ProviderEpRun_IsExpired  (/*in*/ req *              r,
 
     {
     int rc ;
-    bool bCache ;
+    bool bCache = pProvider -> pCache -> bCache ;
 
     /* update cache parameters */
     if ((rc =  embperl_PreExecute (r, pProvider -> pCache)) != ok)

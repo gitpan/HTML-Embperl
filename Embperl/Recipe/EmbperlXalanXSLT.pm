@@ -10,7 +10,7 @@
 #   IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 #   WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 #
-#   $Id: EmbperlXalanXSLT.pm,v 1.1.2.2 2001/11/16 08:08:08 richter Exp $
+#   $Id: EmbperlXalanXSLT.pm,v 1.1.2.3 2001/11/27 08:37:56 richter Exp $
 #
 ###################################################################################
  
@@ -42,3 +42,4 @@ sub new
     }
 
 
+1 ;

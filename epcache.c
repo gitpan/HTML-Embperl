@@ -9,7 +9,7 @@
 #   IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 #   WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 #
-#   $Id: epcache.c,v 1.1.2.14 2001/11/16 08:08:07 richter Exp $
+#   $Id: epcache.c,v 1.1.2.16 2001/11/27 09:35:58 richter Exp $
 #
 ###################################################################################*/
 
@@ -55,6 +55,7 @@ int Cache_AddProviderClass (/*in*/ const char *     sName,
 
     {
     SetHashValueInt (pProviders, sName, (IV)pClass) ;
+    return ok ;
     }
 
 /* ------------------------------------------------------------------------ */
@@ -83,6 +84,7 @@ int Cache_Init (void)
     pCacheItems = newHV () ;
 
     ArrayNew (&pCachesToRelease, 16, sizeof (tCacheItem *)) ;
+    return ok ;
     }
 
 
@@ -212,15 +214,26 @@ int Cache_New (/*in*/ req *             r,
         sKey = SvPV(pKey, len) ;
         if (pNew = Cache_GetByKey (r, sKey))
             {
+	    char * exfn ;
 
             pNew -> nExpiresInTime      = GetHashValueInt (pParam, "expires_in", 0) ;
             if (pNew -> pExpiresCV)
                 SvREFCNT_dec (pNew -> pExpiresCV) ;
             if ((rc = GetHashValueCREF  (r, pParam, "expires_func", &pNew -> pExpiresCV)) != ok)
                 return rc ;
-            if (pNew -> sExpiresFilename)
-                free ((void *)pNew -> sExpiresFilename) ;
-            pNew -> sExpiresFilename    = GetHashValueStrDup  (pParam, "expires_filename", NULL) ;
+            exfn = GetHashValueStrDup  (pParam, "expires_filename", NULL) ;
+	    if (pNew -> sExpiresFilename)
+		{
+		if (exfn)
+		    {
+		    lprintf (r, "exfn=%s\n", exfn) ;
+		    free ((void *)pNew -> sExpiresFilename) ;
+		    pNew -> sExpiresFilename    = exfn ;
+		    }
+		}
+	    else
+		pNew -> sExpiresFilename    = exfn ;
+
             pNew -> bCache              = GetHashValueInt   (pParam, "cache", 1) ;
 
             if (r -> bDebug & dbgCache)
@@ -371,16 +384,25 @@ int Cache_AppendKey               (/*in*/ req *              r,
         if (pItem = Cache_GetByKey (r, SvPV(pKey, len)))
             {
             int bCache = pItem -> bCache ;
+	    char * exfn ;
 
             pItem -> nExpiresInTime      = GetHashValueInt (pSubProvider, "expires_in", 0) ;
             if (pItem -> pExpiresCV)
                 SvREFCNT_dec (pItem -> pExpiresCV) ;
             if ((rc = GetHashValueCREF  (r, pSubProvider, "expires_func", &pItem -> pExpiresCV)) != ok)
                 return rc ;
-            if (pItem -> sExpiresFilename)
-                free ((void *)pItem -> sExpiresFilename) ;
-            pItem -> sExpiresFilename    = GetHashValueStrDup  (pSubProvider, "expires_filename", NULL) ;
-            
+            exfn = GetHashValueStrDup  (pSubProvider, "expires_filename", NULL) ;
+	    if (pItem -> sExpiresFilename)
+		{
+		if (exfn)
+		    {
+		    free ((void *)pItem -> sExpiresFilename) ;
+		    pItem -> sExpiresFilename    = exfn ;
+		    }
+		}
+	    else
+		pItem -> sExpiresFilename    = exfn ;
+
             pItem -> bCache              = GetHashValueInt   (pSubProvider, "cache", 1) ;
             if (!pItem -> bCache && bCache)
                 Cache_FreeContent (r, pItem) ;
@@ -397,7 +419,7 @@ int Cache_AppendKey               (/*in*/ req *              r,
             }        
         }
     else
-        sv_catpvf (pKey, "-?", sProvider) ;
+        sv_catpv (pKey, "-?") ;
 
     return ok ;
     }
@@ -628,6 +650,8 @@ int Cache_IsExpired     (/*in*/ req *           r,
 	    return pItem -> bExpired = TRUE ;
             }
 
+        if (r -> bDebug & dbgCache)
+            lprintf (r, "[%d]CACHE: %s stat file %s mtime=%d size=%d\n", r -> nPid, pItem -> sKey, pItem -> sExpiresFilename, pItem -> FileStat.st_mtime, pItem -> FileStat.st_size) ; 
         if (pItem -> nFileModified != pItem -> FileStat.st_mtime)
             {
             if (r -> bDebug & dbgCache)
@@ -712,6 +736,7 @@ int Cache_SetNotExpired (/*in*/ req *       r,
 
     if (!pItem -> bCache)
         pCachesToRelease[ArrayAdd(&pCachesToRelease, 1)] = pItem ;
+    return ok ;
     }
 
 

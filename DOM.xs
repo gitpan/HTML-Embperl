@@ -10,7 +10,7 @@
 #   IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 #   WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 #
-#   $Id: DOM.xs,v 1.1.2.20 2001/11/08 13:14:02 richter Exp $
+#   $Id: DOM.xs,v 1.1.2.21 2001/11/23 07:50:59 richter Exp $
 #
 ###################################################################################
 
@@ -326,7 +326,7 @@ CODE:
     char * sAttrText = NULL ;
     tAttrData * pAttr  ;
     
-    lprintf (pCurrReq, "xDomTree=%d, xAttr=%d pDomTree=%x\n", xDomTree, xAttr, pDomTree) ;
+    /* lprintf (pCurrReq, "xDomTree=%d, xAttr=%d pDomTree=%x\n", xDomTree, xAttr, pDomTree) ;*/
     
     pAttr = Attr_self(pDomTree, xAttr) ;
     Attr_selfValue (pDomTree, pAttr , pCurrReq -> nCurrRepeatLevel, &sAttrText) ;

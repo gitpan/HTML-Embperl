@@ -11,7 +11,7 @@
 #   IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 #   WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 #
-#   $Id: test.pl,v 1.70.4.96 2001/11/20 15:15:41 richter Exp $
+#   $Id: test.pl,v 1.70.4.101 2001/11/23 12:30:27 richter Exp $
 #
 ###################################################################################
 
@@ -885,7 +885,7 @@ for ($i = 0 ; $i < @testdata; $i += 2)
 
 use vars qw ($httpconfsrc $httpconf $EPPORT $EPPORT2 *SAVEERR *ERR $EPHTTPDDLL $EPSTARTUP $EPDEBUG
              $testshare
-            $EPSESSIONDS $EPSESSIONCLASS $EPSESSIONVERSION $EP1COMPAT $EPAPACHEVERSION $EPC_ENABLE
+            $EPSESSIONDS $EPSESSIONCLASS $EPSESSIONVERSION $EPSESSIONXVERSION $EP1COMPAT $EPAPACHEVERSION $EPC_ENABLE
             $opt_offline $opt_ep1 $opt_cgi $opt_modperl $opt_execute $opt_nokill $opt_loop
             $opt_multchild $opt_memcheck $opt_exitonmem $opt_exitonsv $opt_config $opt_nostart $opt_uniquefn
             $opt_quite $opt_qq $opt_ignoreerror $opt_tests $opt_blib $opt_help $opt_dbgbreak $opt_finderr
@@ -1266,24 +1266,16 @@ sub REQ
 
     {
     my ($loc, $file, $query, $ofile, $content, $upload, $cookieaction, $respheader) = @_ ;
-	
+    
     eval 'require LWP::UserAgent' ;
+    return "LWP not installed\n" if ($@) ;
+    eval 'use HTTP::Request::Common'  ;
+    return "HTTP::Request::Common not installed\n" if ($@) ;
+    eval 'require URI::URL';
+    return "URI::URL not installed\n" if ($@) ;
     
-    $cookieaction |= '' ;
-
-    if ($@)
-	{
-	return "LWP not installed\n" ;
-	}
-    
-    eval 'use HTTP::Request::Common' ;
-    if ($@)
-	{
-	return "HTTP::Request::Common not installed\n" ;
-	}
-    
-    
-    $query ||= '' ;     
+    $query          ||= '' ;     
+    $cookieaction   ||= '' ;
 	
     my $ua = new LWP::UserAgent;    # create a useragent to test
 
@@ -1979,7 +1971,11 @@ do
 		print "ok\n" unless ($err) ;
 		}
 
-            foreach $src ('EmbperlObject/epopage1.htm', 'EmbperlObject/sub/epopage2.htm', 'EmbperlObject/obj/epoobj3.htm')
+            foreach $src ('EmbperlObject/epopage1.htm', 'EmbperlObject/sub/epopage2.htm', 'EmbperlObject/obj/epoobj3.htm',
+                          'EmbperlObject/sub/epobless.htm', 'EmbperlObject/sub/epobless.htm', 
+                          #'EmbperlObject/sub/epobless2.htm', 'EmbperlObject/sub/epobless2.htm',
+                          #'EmbperlObject/sub/epobless3.htm', 'EmbperlObject/sub/epobless3.htm',
+                          )
                 {
 	        if ($err == 0 || $opt_ignoreerror) # && $version == 1)
 		    {
@@ -2380,13 +2376,13 @@ do
                 }
                 
  
-	    next if ($file eq 'chdir.htm' && $EPWIN32) ;
+	    #next if ($file eq 'chdir.htm' && $EPWIN32) ;
 	    next if ($file eq 'notfound.htm' && $loc eq $cgiloc && $EPWIN32) ;
 	    next if ($file =~ /opmask/ && $EPSTARTUP =~ /_dso/) ;
 	    if ($file =~ /sess\.htm/)
                 { 
                 next if ($loc eq $cgiloc && $EPSESSIONCLASS ne 'Embperl') ;
-                if (!$EPSESSIONVERSION)
+                if (!$EPSESSIONXVERSION)
                     {
 		    $txt2 = "$file...";
 		    $txt2 .= ' ' x (29 - length ($txt2)) ;

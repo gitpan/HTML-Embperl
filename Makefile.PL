@@ -3,7 +3,7 @@
 #
 # (C) 1997-2001 G.Richter (richter@dev.ecos.de) / ECOS
 #
-# $Id: Makefile.PL,v 1.31.4.35 2001/11/12 12:45:39 richter Exp $
+# $Id: Makefile.PL,v 1.31.4.36 2001/11/27 08:37:55 richter Exp $
 #
 
 
@@ -134,6 +134,12 @@ testdddb : testdbbreak
 testgdbb : testdbbreak
 \tPERL_DL_NONLAZY=0 gdb -x dbinitembperl \$(FULLPERL)  
 
+start : pure_all
+\tPERL_DL_NONLAZY=0 \$(FULLPERL) -I\$(INST_ARCHLIB) -I\$(INST_LIB) -I\$(PERL_ARCHLIB) -I\$(PERL_LIB) \$(TEST_FILE) --start -m \$(TESTARGS)
+
+stop : pure_all
+\tPERL_DL_NONLAZY=0 \$(FULLPERL) -I\$(INST_ARCHLIB) -I\$(INST_LIB) -I\$(PERL_ARCHLIB) -I\$(PERL_LIB) \$(TEST_FILE) --kill -m \$(TESTARGS)
+
 
 } ;
 
@@ -209,12 +215,15 @@ sub MY::cflags
         return $txt ;
 	}
 
+$MY::cccmd_seen = 0 ;
 sub MY::const_cccmd 
 	{
 	my $self = shift ;
         
         my $txt = $self -> MM::const_cccmd (@_) ;
-        my $txt2 = $txt ;
+        return $txt if ($MY::cccmd_seen++) ;
+
+	my $txt2 = $txt ;
         $txt2 =~ s/\$\(CC\)/\$(CPP)/ ;
         $txt2 =~ s/CCCMD/CPPCMD/ ;
 

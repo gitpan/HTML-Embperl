@@ -551,6 +551,8 @@ void UndefSub    (/*i/o*/ register req * r,
 		  /*in*/  const char *    sName, 
 		  /*in*/  const char *    sPackage) ;
 
+void ChdirToSource (/*i/o*/ register req * r,
+                    /*in*/  char *         sInputfile) ;
 
 
 /* ---- from epeval.c ----- */

@@ -1,5 +1,30 @@
 =pod
 
+=head1 2.0b5 (BETA) 27. Nov. 2001
+
+   - Add xsltparam parameter which takes a hashref and is used to
+     pass parameters to the xslt processor. If not given defaults
+     to %fdat.
+   - Add require URI::URL to test.pl so make test work with newer LWP.
+     Patch from Jonathan Stowe.
+   - Fixed problem in registry/tied test, which failed for some Apache
+     versions because of addtional http header. Patch from Jonathan Stowe.
+   - Fixed problem with comments inside [! !] blocks. Reported by
+     Alan Milligan.
+   - Fixed compiling problem with very recent versions of libxslt.
+     Reported by Michael Stevens and Jonathan Stowe.
+   - Fixed make test so it skips session tests if Apache::SessionX isn't 
+     installed. Reported by from Jonathan Stowe.
+   - Fixed path problem with Execute ({sub => foo,... }) on win32.
+   - Fixed a problem with duplicate subroutine names when running
+     multiple pages in the same package.
+   - Fixed problem with reloading when file changed, which sometimes
+     didn't reload correctly in 2.0b4
+   - Fixed memory leak which occured when using libxslt.
+   - Fixed MakeMaker problem with Perl 5.7.1.
+   - Removed some uninitialized value warnings.
+   - Added "make start" and "make stop" to start and stop test httpd
+
 =head1 2.0b4 (BETA) 20. Nov. 2001
 
    - Enhancements for RTF syntax, allowing no IF fields and passes

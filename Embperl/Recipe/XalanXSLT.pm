@@ -10,7 +10,7 @@
 #   IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 #   WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 #
-#   $Id: XalanXSLT.pm,v 1.1.2.1 2001/11/16 11:55:32 richter Exp $
+#   $Id: XalanXSLT.pm,v 1.1.2.2 2001/11/27 08:37:56 richter Exp $
 #
 ###################################################################################
  
@@ -42,3 +42,4 @@ sub new
     }
 
 
+1 ;

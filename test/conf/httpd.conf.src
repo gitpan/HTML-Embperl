@@ -17,9 +17,9 @@ User $EPUSER
 Group $EPGROUP
 
 MinSpareServers 1
-MaxSpareServers 2
-StartServers 2
-MaxClients 2
+MaxSpareServers 30
+StartServers 3
+MaxClients 10
 MaxRequestsPerChild 0
 
 
@@ -464,13 +464,59 @@ SetEnv EMBPERL_SYNTAX "Embperl SSI"
 SetEnv EMBPERL_SYNTAX POD
 </Location>
 
-
+#
+# Configuration for example access
+#
 
 <Location /eg>
+SetEnv EMBPERL_XSLTPROC libxslt
+</Location>
+
+<Location /eg/x>
 SetHandler perl-script
 PerlHandler HTML::Embperl
 Options ExecCGI
 </Location>
+
+
+<Location /eg/web>
+PerlSetEnv EMBPERL_OBJECT_BASE base.htm
+PerlSetEnv EMBPERL_OBJECT_STOPDIR \"$EPPATH/eg/web\"
+PerlSetEnv EMBPERL_FILESMATCH \"\\.htm.?\$|\\.epl\$|\\.xml\$\"
+SetHandler perl-script
+PerlHandler HTML::EmbperlObject 
+Options ExecCGI
+</Location>
+
+<Location /eg/xml>
+SetHandler perl-script
+PerlHandler HTML::Embperl
+Options ExecCGI
+SetEnv EMBPERL_XSLTSTYLESHEET \"$EPPATH/eg/xml/pod.xsl\"
+SetEnv EMBPERL_XSLTPROC libxslt
+SetEnv EMBPERL_RECIPE XSLT
+</Location>
+
+<Files NEWS.xml>
+SetEnv EMBPERL_XSLTSTYLESHEET \"$EPPATH/eg/xml/NEWS.xsl\"
+</Files>
+
+<LocationMatch \"xalan\$\">
+SetEnv EMBPERL_RECIPE XalanXSLT
+</LocationMatch>
+
+<LocationMatch \"libxslt\$\">
+SetEnv EMBPERL_RECIPE LibXSLT
+</LocationMatch>
+
+<Location /eg/images/aim>
+PerlSetVar AIMParameter \"pointsize=14 font=$EPPATH/../fonts/OCRAEXT.ttf\"
+#PerlSetVar AIMParameter \"pointsize=14 gravity=left font=$EPPATH/../fonts/OCRAEXT.ttf\"
+PerlSetVar AIMCacheDir  \"$EPPATH/eg/images/aim/cache\"
+PerlSetVar AIMDebug 1
+PerlFixupHandler Apache::ImageMagick
+</location>
+
 
 <Location /mp>
 SetHandler perl-script
@@ -486,6 +532,8 @@ TypesConfig conf/null
 #TransferLog $EPNULL
 #ScoreBoardFile $EPNULL
 LockFile tmp/httpd.lock
+LogFormat \"%h %l %u %t \\"%r\\" %s %b %{connection}o pid=%P %Tsec\" std
+CustomLog tmp/httpd.acc.log std
 
 <IfModule apache_ssl.c>
 SSLDisable
@@ -605,4 +653,7 @@ PerlSetVar StatScripts 0
 
 
 EOD
+
+
+
 

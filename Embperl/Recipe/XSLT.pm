@@ -10,7 +10,7 @@
 #   IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 #   WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 #
-#   $Id: XSLT.pm,v 1.1.2.1 2001/11/16 11:55:32 richter Exp $
+#   $Id: XSLT.pm,v 1.1.2.4 2001/11/27 08:37:56 richter Exp $
 #
 ###################################################################################
  
@@ -41,10 +41,11 @@ sub new
     my $src ;
     my $file ;
     my $xsltproc = $param -> {xsltproc} ;
+    my $xsltparam= $param -> {xsltparam} || \%HTML::Embperl::fdat ;
 
     if (!$param -> {inputfile} && $param->{sub}) 
         {
-        ($file) = $r -> Sourcefile =~ /.*\/(.*?)$/ ;
+        ($file) = $r -> Sourcefile =~ /.*(?:\/|\\)(.*?)$/ ;
         }
     else
         {
@@ -72,11 +73,12 @@ sub new
         }
 
 
-    my $self =
+    $self =
         {
         'provider' => 
             {
-            'type' => $xsltproc,
+            'type'   => $xsltproc,
+            'param'  => $xsltparam,
             'source' => 
                 {
                 'cache'    => 0,
@@ -114,9 +116,10 @@ sub new
         {
         $self -> {$_} = $param -> {$_} if (exists $param -> {$_}) ;
         }
-    $self -> {'cache'} = $self -> {expires_in} || $self -> {expires_func} || $self -> {expires_filename}?1:0 ;
+    $self -> {'cache'} = $self -> {expires_in} || $self -> {expires_func} || exists ($self -> {expires_filename})?1:0 ;
 
 
     return $self ;
     }
 
+1 ;

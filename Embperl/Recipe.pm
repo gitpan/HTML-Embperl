@@ -10,7 +10,7 @@
 #   IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 #   WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 #
-#   $Id: Recipe.pm,v 1.1.2.7 2001/11/20 15:15:42 richter Exp $
+#   $Id: Recipe.pm,v 1.1.2.8 2001/11/27 08:37:56 richter Exp $
 #
 ###################################################################################
  
@@ -291,6 +291,10 @@ Gives the parsed xml source
 
 Gives the compiled stylesheet source 
 
+=item param
+
+Gives the parameters as hash ref
+
 =back
 
 
@@ -340,6 +344,10 @@ Gives the parsed xml source
 =item stylesheet
 
 Gives the compiled stylesheet source 
+
+=item param
+
+Gives the parameters as hash ref
 
 =back
 

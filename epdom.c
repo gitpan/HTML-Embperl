@@ -9,7 +9,7 @@
 #   IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 #   WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 #
-#   $Id: epdom.c,v 1.4.2.76 2001/11/15 08:32:52 richter Exp $
+#   $Id: epdom.c,v 1.4.2.77 2001/11/23 14:50:05 richter Exp $
 #
 ###################################################################################*/
 
@@ -1239,7 +1239,8 @@ int DomTree_clone (/*in*/ tDomTree *	pOrgDomTree,
 
 /*---------------------------------------------------------------------------
 * DomTree_checkpoint                                                       
-*//*!
+*/
+/*!
 *
 * \_en									   
 * Compare checkpoint from programm execution with list build during        

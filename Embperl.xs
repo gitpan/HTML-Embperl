@@ -576,6 +576,14 @@ OUTPUT:
     RETVAL
 
 int
+embperl_IsImport(r)
+    tReq * r
+CODE:
+    RETVAL = r -> pImportStash?1:0 ;
+OUTPUT:
+    RETVAL
+
+int
 embperl_Error(r,...)
     tReq * r
 CODE:

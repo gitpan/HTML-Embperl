@@ -7,7 +7,7 @@ $win32 = ($^O eq 'MSWin32') ;
 
 if (1) # !$win32)
     {
-    $path = GetString ("Enter path of XALAN base directory or single dot for not using XALAN", $XALANPATH) ;
+    $path = $ENV{XALANPATH} || GetString ("Enter path of XALAN base directory or single dot for not using XALAN", $XALANPATH) ;
 
     if (!$path || $path eq '.')
         {

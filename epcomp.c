@@ -9,7 +9,7 @@
 #   IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 #   WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 #
-#   $Id: epcomp.c,v 1.4.2.80 2001/11/16 11:29:02 richter Exp $
+#   $Id: epcomp.c,v 1.4.2.84 2001/11/23 12:28:18 richter Exp $
 #
 ###################################################################################*/
 
@@ -972,15 +972,20 @@ static int embperl_CompileCmd  (/*in*/	tReq *	       r,
 		if (r -> bDebug & dbgCompile)
 		    lprintf (r, "[%d]EPCOMP: #%d L%d CompileTimeCode:    %*.*s\n", r -> nPid, pNode -> xNdx, pNode -> nLinenumber, l, l, pCTCode) ;
 
-		while (i--)
-		    { /* keep everything on one line, to make linenumbers correct */
-		    if (*p == '\r' || *p == '\n')
-			*p = ' ' ;
-		    p++ ;
-		    }
-		
-		
-		pSV = newSVpvf("package %s ;\n#line %d \"%s\"\n%*.*s",
+                if (p[0] == '#' && p[1] == '!' && p[2] == '-')
+                    {
+		    p[0] = ' ' ;
+                    p[1] = ' ' ;
+                    p[2] = ' ' ;
+                    while (i--)
+		        { /* keep everything on one line, to make linenumbers correct */
+		        if (*p == '\r' || *p == '\n')
+			    *p = ' ' ;
+		        p++ ;
+		        }
+                    }		
+
+                pSV = newSVpvf("package %s ;\n#line %d \"%s\"\n%*.*s",
 			r -> Buf.sEvalPackage, pNode ->	nLinenumber, sSourcefile, l,l, pCTCode) ;
 		newSVpvf2(pSV) ;
 		args[0] = r -> pReqSV ;
@@ -999,7 +1004,7 @@ static int embperl_CompileCmd  (/*in*/	tReq *	       r,
 	    }
 	}
 
-    if (r -> pCodeSV)
+    if (r -> pCodeSV && SvOK(r -> pCodeSV))
 	{
 	STRLEN l ;
 	char * p = SvPV (r -> pCodeSV, l) ;
@@ -1206,13 +1211,18 @@ static int embperl_CompileCmdEnd (/*in*/  tReq *	 r,
 		if (r -> bDebug & dbgCompile)
 		    lprintf (r, "[%d]EPCOMP: #%d L%d CompileTimeCodeEnd:    %*.*s\n", r -> nPid, pNode -> xNdx, pNode -> nLinenumber, l, l, pCTCode) ;
 
-		while (i--)
-		    { /* keep everything on one line, to make linenumbers correct */
-		    if (*p == '\r' || *p == '\n')
-			*p = ' ' ;
-		    p++ ;
-		    }
-		
+                if (p[0] == '#' && p[1] == '!' && p[2] == '-')
+                    {
+		    p[0] = ' ' ;
+                    p[1] = ' ' ;
+                    p[2] = ' ' ;
+                    while (i--)
+		        { /* keep everything on one line, to make linenumbers correct */
+		        if (*p == '\r' || *p == '\n')
+			    *p = ' ' ;
+		        p++ ;
+		        }
+                    }		
 
 		
 		pSV = newSVpvf("package %s ;\n#line %d \"%s\"\n%*.*s",
@@ -1547,6 +1557,9 @@ int embperl_Compile                 (/*in*/  tReq *	  r,
     STRLEN      l ;
     SV *        pSV ;
     SV *        args[2] ;
+    HV *	symtab ;
+    int         i ;
+    char        buf[256] ;
     int         nStep = r -> Buf.pFile -> nFilesize / 4 ;
     if (nStep < 1024)
         nStep = 1024 ;
@@ -1662,8 +1675,8 @@ int embperl_Compile                 (/*in*/  tReq *	  r,
 	    lprintf (r, "Setup source code for interactive debugger\n") ;
 	}    
     
-    rc = EvalOnly (r, r -> pProgRun, pProg, G_SCALAR, EPMAINSUB) ;
-	    
+    rc = EvalOnly (r, r -> pProgRun, pProg, G_SCALAR, r -> Buf.pFile -> sMainSub) ;
+        
     StringFree (&r -> pProgRun) ;
     StringFree (&r -> pProgDef) ;
 
@@ -1750,8 +1763,8 @@ static int embperl_Execute2         (/*in*/  tReq *	  r,
 	if (SvIOK (pDomTreeSV))
 	    xOldDomTree = SvIVX (pDomTreeSV) ;
 
-	SvREFCNT_dec (sDomTreeSV) ;
 	sv_setiv (pDomTreeSV, r -> xCurrDomTree) ;
+        SvREFCNT_dec (sDomTreeSV) ;
 
     	av_push (r -> pCleanupAV, newRV_inc (pDomTreeSV)) ;
 	
@@ -2128,7 +2141,7 @@ int embperl_CompileProcessor        (/*in*/  tReq *	  r,
 	    lprintf (r, "Setup source code for interactive debugger\n") ;
 	}    
     
-    rc = EvalOnly (r, r -> pProgRun, ppCompResult, G_SCALAR, EPMAINSUB) ;
+    rc = EvalOnly (r, r -> pProgRun, ppCompResult, G_SCALAR, r -> Buf.pFile -> sMainSub) ;
 	    
     StringFree (&r -> pProgRun) ;
     StringFree (&r -> pProgDef) ;

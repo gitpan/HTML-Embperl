@@ -10,7 +10,7 @@
 #   IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 #   WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 #
-#   $Id: epxalan.cpp,v 1.1.2.12 2001/11/16 12:43:38 richter Exp $
+#   $Id: epxalan.cpp,v 1.1.2.13 2001/11/27 08:37:56 richter Exp $
 #
 ###################################################################################*/
 
@@ -21,9 +21,12 @@ extern "C"
 #include "../epmacro.h"
 }
 
+/* undef some defines that clashs with c++ includes */
 #undef bool
 #undef HAS_BOOL
 #undef assert
+#undef vform
+
 
 #include <Include/PlatformDefinitions.hpp>
 
@@ -680,6 +683,7 @@ typedef struct tProviderXalan
     {
     tProvider           Provider ;
     SV *                pOutputSV ;
+    HV *                pParamHV ;
     } tProviderXalan ;
 
 
@@ -784,6 +788,59 @@ static int ProviderXalan_AppendKey (/*in*/ req *              r,
     return ok ;
     }
 
+
+/* ------------------------------------------------------------------------ */
+/*                                                                          */
+/* ProviderLibXalan_UpdateParam   				            */
+/*                                                                          */
+/*! 
+*   \_en
+*   Update the parameter of the provider
+*   
+*   @param  r               Embperl request record
+*   @param  pProvider       Provider record
+*   @param  pParam          Parameter Hash
+*                               param        hash with parameter 
+*   @param  pKey            Key to which string should be appended
+*   @return                 error code
+*   \endif                                                                       
+*
+*   \_de									   
+*   Aktualisiert die Parameter des Providers
+*   
+*   @param  r               Embperl request record
+*   @param  pProvider       Provider record
+*   @param  pParam          Parameter Hash
+*                               param        hash mit parametern 
+*   @param  pKey            Schlüssel zu welchem hinzugefügt wird
+*   @return                 Fehlercode
+*   \endif                                                                       
+*                                                                          
+* ------------------------------------------------------------------------ */
+
+static int ProviderXalan_UpdateParam(/*in*/ req *              r,
+                                   /*in*/ tProvider *        pProvider,
+                                   /*in*/ HV *               pParam)
+    {
+    int		    rc ;
+    HV *	    pParamHV ;
+    
+    if ((rc = GetHashValueHREF  (r, pParam, "param", &pParamHV)) != ok)
+        {
+        if (!r->errdat1[0])
+            strncpy (r -> errdat1, pProvider -> pCache -> sKey, sizeof (r -> errdat1) -1 ) ;
+        return rc ;
+        }
+
+    if (((tProviderXalan *)pProvider) -> pParamHV)
+	SvREFCNT_dec (((tProviderXalan *)pProvider) -> pParamHV) ;
+
+    ((tProviderXalan *)pProvider) -> pParamHV = pParamHV ;
+    SvREFCNT_inc (((tProviderXalan *)pProvider) -> pParamHV) ;
+
+    return ok ;
+    }
+
 /* ------------------------------------------------------------------------ */
 /*                                                                          */
 /* ProviderXalan_iowrite                                                    */
@@ -839,7 +896,12 @@ static int ProviderXalan_GetContentSV         (/*in*/ req *            r,
     int    rc ;
     XalanParsedSource *       parsedXML ;
     XalanCompiledStylesheet * pCompiledXSL ;
-    
+    HV *	    pParamHV ;
+    HE *	    pEntry ;
+    char *	    pKey ;
+    SV *            pValue ;
+    IV		    l ;    
+    STRLEN	    len ;    
     
     tCacheItem * pSrcCache = Cache_GetDependency(r, pProvider -> pCache, 0) ;
     tCacheItem * pXSLCache = Cache_GetDependency(r, pProvider -> pCache, 1) ;
@@ -853,8 +915,20 @@ static int ProviderXalan_GetContentSV         (/*in*/ req *            r,
     if (((tProviderXalan *)pProvider) -> pOutputSV)
         SvREFCNT_dec (((tProviderXalan *)pProvider) -> pOutputSV) ;
 
-    ((tProviderXalan *)pProvider) -> pOutputSV = newSV(1024) ;
+    ((tProviderXalan *)pProvider) -> pOutputSV = newSVpv("",0) ;
 
+    pParamHV = ((tProviderXalan *)pProvider) -> pParamHV  ;
+
+    if (pParamHV)
+	{
+	hv_iterinit (pParamHV) ;
+	while ((pEntry = hv_iternext (pParamHV)))
+	    {
+	    pKey     = hv_iterkey (pEntry, &l) ;
+	    pValue   = hv_iterval (pParamHV, pEntry) ;
+	    theXalanTransformer -> setStylesheetParam (XalanDOMString(pKey), XalanDOMString(SvPV(pValue, len))) ;
+	    }
+	}
    
     // Do the transform.
     int theResult = theXalanTransformer -> transform(*parsedXML, pCompiledXSL, pProvider, ProviderXalan_iowrite, NULL);
@@ -867,7 +941,7 @@ static int ProviderXalan_GetContentSV         (/*in*/ req *            r,
 	}
 
     *pData = ((tProviderXalan *)pProvider) -> pOutputSV ;
-
+    SvREFCNT_inc(*pData) ;
 
     return ok ;
     }
@@ -901,11 +975,18 @@ static int ProviderXalan_FreeContent(/*in*/ req *             r,
                                  /*in*/ tCacheItem * pItem)
 
     {
-    if (((tProviderXalan *)pItem -> pProvider) -> pOutputSV)
-        SvREFCNT_dec (((tProviderXalan *)pItem -> pProvider) -> pOutputSV) ;
+    tProviderXalan * pProvider = ((tProviderXalan *)pItem -> pProvider) ;
 
-    ((tProviderXalan *)pItem -> pProvider) -> pOutputSV = NULL ;
+    if (pProvider -> pOutputSV)
+        SvREFCNT_dec (pProvider -> pOutputSV) ;
+
+    pProvider -> pOutputSV = NULL ;
     
+    if (pProvider -> pParamHV)
+	SvREFCNT_dec (pProvider -> pParamHV) ;
+
+    pProvider -> pParamHV = NULL ;
+
     return ok ;
     }
 
@@ -916,7 +997,7 @@ static tProviderClass ProviderClassXalan =
     "text/*", 
     &ProviderXalan_New, 
     &ProviderXalan_AppendKey, 
-    NULL,
+    &ProviderXalan_UpdateParam, 
     &ProviderXalan_GetContentSV,
     NULL,
     NULL,

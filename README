@@ -9,13 +9,13 @@ THIS PACKAGE IS PROVIDED "AS IS" AND WITHOUT ANY EXPRESS OR IMPLIED
 WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF 
 MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 
-$Id: README,v 1.19.6.12 2001/11/20 15:15:41 richter Exp $
+$Id: README,v 1.19.6.13 2001/11/27 10:43:36 richter Exp $
 
 
 ### !! IMPORTANT !! IMPORTANT !! IMPORTANT !! IMPORTANT !! IMPORTANT !! 
 ###
 ###
-### This is the fours BETA release of Embperl 2.0, before installing
+### This is a BETA release of Embperl 2.0, before installing
 ### please read the README.v2. Documentation is not yet updated to
 ### reflect the changes in 2.0, everything that has changed is
 ### documented in README.v2. Since the last betas I have fixed a lot

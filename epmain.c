@@ -10,7 +10,7 @@
 #   IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 #   WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 #
-#   $Id: epmain.c,v 1.75.4.71 2001/11/16 11:29:02 richter Exp $
+#   $Id: epmain.c,v 1.75.4.74 2001/11/23 12:28:20 richter Exp $
 #
 ###################################################################################*/
 
@@ -48,6 +48,7 @@ static char sTokenHashName [] = "HTML::Embperl::Syntax::Default" ;
 #endif
 
 static char sDefaultPackageName [] = "HTML::Embperl::DOC::_%d" ;
+static char sDefaultSubName []     = "_ep_main_%d" ;
 
 static char sUIDName [] = "_ID" ;
 static char sSetCookie [] = "Set-Cookie" ;
@@ -1976,8 +1977,10 @@ tFile * SetupFileData   (/*i/o*/ register req * r,
     if ( olddir[0] )
 	cache_key_len += strlen( olddir );
         
-    cache_key = _malloc( r, cache_key_len + 3 );
-    strcpy( cache_key, sSourcefile );
+    cache_key = _malloc( r, cache_key_len + 5 );
+    cache_key_len += 2 ;
+    strcpy( cache_key, "--" );
+    strcat( cache_key, sSourcefile );
     if ( pConf->sPackage )
 	strcat( cache_key, pConf->sPackage );
 
@@ -2003,11 +2006,11 @@ tFile * SetupFileData   (/*i/o*/ register req * r,
             {
             hv_clear (f -> pCacheHash) ;
 
-#ifdef EP2	
-	    UndefSub (r, EPMAINSUB, f -> sCurrPackage) ;
-#endif
             if (r -> bDebug)
                 lprintf (r, "[%d]MEM: Reload %s in %s\n", r -> nPid,  sSourcefile, f -> sCurrPackage) ;
+#ifdef EP2	
+	    UndefSub (r, f -> sMainSub, f -> sCurrPackage) ;
+#endif
 
             f -> mtime       = mtime ;	 /* last modification time of file */
             f -> nFilesize   = nFilesize ;	 /* size of File */
@@ -2049,9 +2052,12 @@ tFile * SetupFileData   (/*i/o*/ register req * r,
             f -> sCurrPackage = strdup (pConf -> sPackage) ; /* Package of file  */
         else
             {
-            sprintf (txt, sDefaultPackageName, nPackNo++ ) ;
+            sprintf (txt, sDefaultPackageName, nPackNo ) ;
             f -> sCurrPackage = strdup (txt) ; /* Package of file  */
             }
+        sprintf (txt, sDefaultSubName, nPackNo ) ;
+        f -> sMainSub = strdup (txt) ; /* Package of file  */
+        nPackNo++ ;
         f -> nCurrPackage = strlen (f -> sCurrPackage); /* Package of file (length) */
 
         hv_store(pCacheHash, cache_key, cache_key_len, newRV_noinc (newSViv ((IV)f)), 0) ;  
@@ -2106,8 +2112,10 @@ tFile * GetFileData     (/*in*/  char *  sSourcefile,
     if ( olddir[0] )
 	cache_key_len += strlen( olddir );
         
-    cache_key = malloc(cache_key_len + 3 );
-    strcpy( cache_key, sSourcefile );
+    cache_key = malloc(cache_key_len + 5 );
+    cache_key_len += 2 ;
+    strcpy( cache_key, "--" );
+    strcat( cache_key, sSourcefile );
     if ( sPackage && *sPackage)
 	strcat( cache_key, sPackage );
 
@@ -2133,7 +2141,7 @@ tFile * GetFileData     (/*in*/  char *  sSourcefile,
             {
             hv_clear (f -> pCacheHash) ;
 #ifdef EP2	
-	    UndefSub (pCurrReq, f -> sCurrPackage, EPMAINSUB) ;
+	    UndefSub (pCurrReq, f -> sMainSub, f -> sCurrPackage) ;
 #endif
         
             f -> mtime       = -1 ;	 /* reset last modification time of file */
@@ -2168,9 +2176,12 @@ tFile * GetFileData     (/*in*/  char *  sSourcefile,
             f -> sCurrPackage = strdup (sPackage) ; /* Package of file  */
         else
             {
-            sprintf (txt, sDefaultPackageName, nPackNo++ ) ;
+            sprintf (txt, sDefaultPackageName, nPackNo ) ;
             f -> sCurrPackage = strdup (txt) ; /* Package of file  */
             }
+        sprintf (txt, sDefaultSubName, nPackNo ) ;
+        f -> sMainSub = strdup (txt) ; /* Package of file  */
+        nPackNo++ ;
         f -> nCurrPackage = strlen (f -> sCurrPackage); /* Package of file (length) */
 
         hv_store(pCacheHash, cache_key, cache_key_len, newRV_noinc (newSViv ((IV)f)), 0) ;  

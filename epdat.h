@@ -10,7 +10,7 @@
 #   IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 #   WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 #
-#   $Id: epdat.h,v 1.20.4.34 2001/11/16 11:29:02 richter Exp $
+#   $Id: epdat.h,v 1.20.4.35 2001/11/23 12:28:20 richter Exp $
 #
 ###################################################################################*/
 
@@ -205,6 +205,7 @@ typedef struct tFile
     
     HV *    pCacheHash ;    /* Hash containing CVs to precompiled subs */
 
+    char *  sMainSub ;      /* Name of sub to call  */
     char *  sCurrPackage ;  /* Package of file  */
     STRLEN  nCurrPackage ;  /* Package of file (length) */
     HV *    pExportHash ;   /* exportable Macros */
@@ -589,6 +590,6 @@ struct tReq
     } ;
 
 
-
-
 #define EPMAINSUB   "_ep_main"
+
+

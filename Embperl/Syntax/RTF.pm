@@ -10,7 +10,7 @@
 #   IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 #   WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 #
-#   $Id: RTF.pm,v 1.1.2.21 2001/10/31 12:04:26 richter Exp $
+#   $Id: RTF.pm,v 1.1.2.22 2001/11/22 11:00:54 richter Exp $
 #
 ###################################################################################
  
@@ -646,7 +646,7 @@ sub Var2Code
             'embperl' => {
                 compiletimeperlcode => q[$_ep_rtf_inside++ if ($_ep_rtf_inside) ; ],
                 perlcodeend => '%$x%', 
-                compiletimeperlcodeend => q[ 
+                compiletimeperlcodeend => q[#!- 
                     if ($_ep_rtf_inside) 
                         { 
                         $_ep_rtf_inside-- ; 

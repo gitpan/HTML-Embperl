@@ -10,7 +10,7 @@
 #   IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 #   WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 #
-#   $Id: Embperl.pm,v 1.1.2.4 2001/11/16 11:29:03 richter Exp $
+#   $Id: Embperl.pm,v 1.1.2.8 2001/11/27 08:37:56 richter Exp $
 #
 ###################################################################################
  
@@ -40,7 +40,7 @@ sub new
     my $file ;
     if (!$param -> {inputfile} && $param->{sub}) 
         {
-        ($file) = $r -> Sourcefile =~ /.*\/(.*?)$/ ;
+        ($file) = $r -> Sourcefile =~ /.*(?:\/|\\)(.*?)$/ ;
         }
     else
         {
@@ -72,6 +72,7 @@ sub new
         'provider' => 
             {
             'type' => 'epcompile',
+            ($param -> {'package'}?('package' => $param -> {'package'}):()),
             'source' => 
                 {
                 'cache', => 0,
@@ -89,7 +90,7 @@ sub new
             }
         } ;
 
-    if (!exists $param -> {'import'})
+    if (!$r -> IsImport)
         {
         my $run =
             {
@@ -105,7 +106,7 @@ sub new
             {
             $run -> {$_} = $param -> {$_} if (exists $param -> {$_}) ;
             }
-        $run -> {'cache'} = $run -> {expires_in} || $run -> {expires_func} || $run -> {expires_filename}?1:0 ;
+        $run -> {'cache'} = $run -> {expires_in} || $run -> {expires_func} || exists ($run -> {expires_filename})?1:0 ;
         $self = $run ;
         }
     else
@@ -116,3 +117,4 @@ sub new
     return $self ;
     }
 
+1;
