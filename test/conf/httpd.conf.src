@@ -23,7 +23,7 @@ PerlTaintCheck On
 PerlScript $EPPATH/test/conf/startup.pl
 
 
-SetEnv EMBPERL_DEBUG 24573
+SetEnv EMBPERL_DEBUG 286717
 SetEnv EMBPERL_VIRTLOG /embperl/log
 SetEnv EMBPERL_LOG $EPPATH/test/tmp/test.log
 
@@ -52,6 +52,21 @@ SetHandler perl-script
 PerlHandler HTML::Embperl
 Options ExecCGI
 PerlSetEnv LOC embperl
+</Location>
+
+<Location /embperl/safe>
+SetHandler perl-script
+PerlHandler HTML::Embperl
+Options ExecCGI
+PerlSetEnv EMBPERL_OPTIONS 4
+</Location>
+
+<Location /embperl/opmask>
+SetHandler perl-script
+PerlHandler HTML::Embperl
+Options ExecCGI
+PerlSetEnv EMBPERL_OPTIONS 12
+PerlSetEnv EMBPERL_COMPARTMENT TEST
 </Location>
 
 Alias /cgi-bin/ $EPPATH/test/html/

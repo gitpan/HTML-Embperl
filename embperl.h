@@ -51,7 +51,8 @@ enum tRc
     rcExecCGIMissing,
     rcIsDir,
     rcXNotSet,
-    rcNotFound
+    rcNotFound,
+	rcUnknownVarType,
     } ;
 
 #define rcstover rcStackOverflow
@@ -86,6 +87,8 @@ enum dbg
     dbgCacheDisable     = 0x08000,
     dbgEarlyHttpHeader  = 0x10000,
     dbgWatchScalar      = 0x20000,
+    dbgHeadersIn        = 0x40000,
+    dbgShowCleanup      = 0x80000,
     
     dbgAll  = 0xffff
     } ;
@@ -96,8 +99,10 @@ enum dbg
 
 enum opt
     {
-    optDisableVarCleanup = 1,
-
+    optDisableVarCleanup       = 1,
+    optDisableEmbperlErrorPage = 2,
+    optSafeNamespace           = 4,
+    optOpcodeMask              = 8,
     } ;
 
 /*

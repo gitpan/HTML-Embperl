@@ -34,7 +34,7 @@ char *s;
     croak("%s not implemented on this architecture", s);
     return -1;
 }
-#define CONST(NAME) \
+#define PERLCONST(NAME) \
         pSV = newSViv (NAME) ; \
         if (hv_store (pHash, #NAME, sizeof (#NAME) - 1, pSV, 0) == NULL) \
             return rcHashError ;
@@ -50,43 +50,49 @@ static int constants()
 
 
 	
-	CONST(epIOCGI)
-	CONST(epIOMod_Perl)
-	CONST(epIOPerl)
-	CONST(epIOProcess)
+        PERLCONST(epIOCGI)
+        PERLCONST(epIOMod_Perl)
+        PERLCONST(epIOPerl)
+        PERLCONST(epIOProcess)
 
-	CONST(ok)
-	CONST(rcStackOverflow) 
-	CONST(rcStackUnderflow)
-	CONST(rcEndifWithoutIf)
-	CONST(rcElseWithoutIf)
-	CONST(rcEndwhileWithoutWhile)
-	CONST(rcEndtableWithoutTable)
-	CONST(rcCmdNotFound) 
-	CONST(rcOutOfMemory) 
-	CONST(rcPerlVarError)
-	CONST(rcHashError) 
-	CONST(rcArrayError) 
-	CONST(rcFileOpenErr) 
-	CONST(rcMissingRight)
-	CONST(rcNoRetFifo) 
-	CONST(rcMagicError)
-	CONST(rcWriteErr) 
-	CONST(rcUnknownNameSpace) 
-	CONST(rcInputNotSupported) 
-	CONST(rcCannotUsedRecursive) 
-	CONST(rcEndtableWithoutTablerow) 
-	CONST(rcEndtextareaWithoutTextarea)
-	CONST(rcArgStackOverflow) 
-	CONST(rcEvalErr) 
-	CONST(rcNotCompiledForModPerl)
-	CONST(rcLogFileOpenErr)
-	CONST(rcExecCGIMissing)
-	CONST(rcIsDir)
-	CONST(rcXNotSet) 
-	CONST(rcNotFound) 
+        PERLCONST(ok)
+        PERLCONST(rcStackOverflow)
+        PERLCONST(rcStackUnderflow)
+        PERLCONST(rcEndifWithoutIf)
+        PERLCONST(rcElseWithoutIf)
+        PERLCONST(rcEndwhileWithoutWhile)
+        PERLCONST(rcEndtableWithoutTable)
+        PERLCONST(rcCmdNotFound)
+        PERLCONST(rcOutOfMemory)
+        PERLCONST(rcPerlVarError)
+        PERLCONST(rcHashError)
+        PERLCONST(rcArrayError)
+        PERLCONST(rcFileOpenErr)
+        PERLCONST(rcMissingRight)
+        PERLCONST(rcNoRetFifo)
+        PERLCONST(rcMagicError)
+        PERLCONST(rcWriteErr)
+        PERLCONST(rcUnknownNameSpace)
+        PERLCONST(rcInputNotSupported)
+        PERLCONST(rcCannotUsedRecursive)
+        PERLCONST(rcEndtableWithoutTablerow)
+        PERLCONST(rcEndtextareaWithoutTextarea)
+        PERLCONST(rcArgStackOverflow)
+        PERLCONST(rcEvalErr)
+        PERLCONST(rcNotCompiledForModPerl)
+        PERLCONST(rcLogFileOpenErr)
+        PERLCONST(rcExecCGIMissing)
+        PERLCONST(rcIsDir)
+        PERLCONST(rcXNotSet)
+        PERLCONST(rcNotFound)
 
-	CONST(optDisableVarCleanup)
+        PERLCONST(optDisableVarCleanup)
+        PERLCONST(optDisableEmbperlErrorPage)
+        PERLCONST(optSafeNamespace)
+        PERLCONST(optOpcodeMask)
+
+        PERLCONST(dbgLogLink)
+        PERLCONST(dbgShowCleanup)
      
     return ok;
 }
@@ -135,17 +141,17 @@ CODE:
 
 
 int
-embperl_req(sInputfile, sOutputfile, bDebugFlags, pNameSpace, nFileSize, pCache)
+embperl_req(sInputfile, sOutputfile, bDebugFlags, bOptionFlags, nFileSize, pCache)
     char * sInputfile
     char * sOutputfile
     int bDebugFlags
-    char * pNameSpace 
+    int bOptionFlags
     int    nFileSize
     HV   * pCache = NO_INIT ;
 INIT:
     pCache = (HV *)SvRV((SvRV(ST(5))));
 CODE:
-    RETVAL = iembperl_req(sInputfile, sOutputfile, bDebugFlags, pNameSpace, nFileSize, pCache) ; 
+    RETVAL = iembperl_req(sInputfile, sOutputfile, bDebugFlags, bOptionFlags, nFileSize, pCache) ; 
 OUTPUT:
     RETVAL
 
@@ -206,4 +212,3 @@ embperl_log(sText)
     char * sText
 CODE:
     lwrite (sText, strlen (sText), 1) ;
-

@@ -1,5 +1,49 @@
 Revision history for Perl extension HTML::Embperl.
 
+0.21-beta 25 Dec 1997
+    - Embperl offline mode now works under win 32 (mod_perl and cgi mode
+      not tested under win 32 yet, but maybe it works too)
+    - Totaly reworked safenamespace and operatormask handling. Works now
+      without memory leak, is fully configurable and does also a p-code
+      caching. If you use it, please look at the documentation, because
+      configuration has changed.
+    - Embperl now sends it's own error document if it detects an error.
+      The page contains all the error messages and if you have the
+      dbgLogLink enabled, all errors are links to the corresponding
+      line in the logfile. (Could be disabled with optDisableEmbperlErrorPage)
+    - Added new Metacommand [$VAR ... $], which can be used to declare
+      variables and apply the strict pragma (same as use strict ; use vars )  
+    - Added debug flag dbgHeadersIn which causes Embperl to log all http 
+      headers which are received from the client
+    - Don't change any unknown HTML Escapes (i.e. && has been translated
+      to ? in versions < 0.21)
+    - dbgShowCleanup logs all variables which are automatily undefed at the
+      end of a request (for scalars also the value is shown)
+    - Error messages will also be cached, so that the compiling of the code
+      only takes place once, because errornous perl code, will cause memory
+      leaks in perl itself, if it's compiled on and on.
+    - Optimized the compiling of the embbeded perl code
+    - Changed use Apache::Constants to be conform with new default exports
+      introduced in mod_perl-1.07_01
+    - Output of hidden metacommand is sorted in the same order as the input
+      from the formfields or sorting order can be supplied as third argument  
+    - <meta http-equiv= ... > will override the correspondig http header
+      this avoids netscape from asking the user to reload the document
+      when the content-type differs between the http header and the
+      meta http-equiv
+      This can also be used to set http headers
+      
+    - Fixed a problem that Embperl magicaly variables does not work when
+      the package exists before the first call to Embperl
+    - Fixed a problem that causes a SIGSEGV when retrieving a document,
+      which contains a perl error, a second time from the same child
+    - Fixed a problem that cause Embperl to terminate in offline/cgi-mode
+      when file was not found or access was forbidden
+    - Fixed a problem with the hidden metacommand when arguments supplied
+      with surounding spaces
+    - Fixed a problem that Embperl does not handle metacommand correctly
+      when HTML tags (e.g. <br>) are embbeded
+      
 0.20-beta 15 Nov 97
     - Every file is executed in a separate package (don't confuse this 
       with safe namespace) to reduce of unwanted effects for each other
@@ -102,14 +146,14 @@ Revision history for Perl extension HTML::Embperl.
 
 
 0.15-beta  11 July 1997
-	- Added interpretation of SELECT Tag to generate dynamic listboxes
-	  from an arrary 
-	- Fixed a problem with dynamic lists
-	- Fixed some warnings displayed by the Sun Pro C Compiler (Thanks to Dan Peterson)
-	- Fixed an error message about missing IO::Handle 
-	- Changed all // comments to /* */ to be more compatiple with others
-	  than gnu-c compiler
-	- Insert a missing return in oputc caused a SIGSEV on Solaris  (Thanks to Dan Peterson) 
+    - Added interpretation of SELECT Tag to generate dynamic listboxes
+      from an arrary 
+    - Fixed a problem with dynamic lists
+    - Fixed some warnings displayed by the Sun Pro C Compiler (Thanks to Dan Peterson)
+    - Fixed an error message about missing IO::Handle 
+    - Changed all // comments to /* */ to be more compatiple with others
+      than gnu-c compiler
+    - Insert a missing return in oputc caused a SIGSEV on Solaris  (Thanks to Dan Peterson) 
     - Checked return code of Logfile open, to prevent a SIGSEV when cannot
       write to logfile and write an errormessage in servers errorlog  (Thanks to Dan Peterson)
     - Errors will also be logged to the servers error log (written to stderr)
@@ -134,7 +178,7 @@ Revision history for Perl extension HTML::Embperl.
     - Fixed a bug that caused [$cmd$] executed only in the first iteration of while or table
     - Fixed some bugs in input tag interpretation
     - Fixed a bug occured when have a input tag with value="" and %ffld=""
-	- Fixed a bug in embpexec.pl that caused the options to be ignored when running offline
+    - Fixed a bug in embpexec.pl that caused the options to be ignored when running offline
 
 0.13-beta   April 26 1997	
     - Move EPENTRY (embperl_init) down to avoid crash when compiled with
@@ -147,12 +191,12 @@ Revision history for Perl extension HTML::Embperl.
     - Make many functions static and names of externals more unique to
       avoid conflicts of symbolnames with other modules
     - If file not found return status 404 instead of 500
-	- Add Apache::Embperl so the module shows at CPAN also under 
-	  module/by-module/Apache/ as suggested by Doug MacEachern
+    - Add Apache::Embperl so the module shows at CPAN also under 
+      module/by-module/Apache/ as suggested by Doug MacEachern
 
 0.12-beta not publicly released
-	- The mask has been removed from namespace option so it can be used
-          with safe.pm > 2
+    - The mask has been removed from namespace option so it can be used
+      with safe.pm > 2
     - Embperl works with -T / PerlTaintCheck on
     - Add function MailFormTo to send form contents via email
     - the dbgSource option displays only one line for better overview
@@ -161,28 +205,28 @@ Revision history for Perl extension HTML::Embperl.
     - add ffld array for mod_perl mode to get the order of form fields
     - removed vsnprintf, since it's not available on all platforms
     - Correct handling of empty dynamic tables
-	- Fix Bug causes a Segmentaion Fault when first table is empty
-	- Add script for make test
-	- Fixed Error with nested if
-	- Log compilation errors of embedded perl code
-	- Avoid some warnings in Embperl.pm
+    - Fix Bug causes a Segmentaion Fault when first table is empty
+    - Add script for make test
+    - Fixed Error with nested if
+    - Log compilation errors of embedded perl code
+    - Avoid some warnings in Embperl.pm
 
 0.11-beta      March 25 1997
-	- Name changed from Embperl to HTML::Embperl!!!!!!!!
-	- FORM & ENV debug output now available in all modes
-	- Ouput from [+  +] and INPUT fields are escaped
-	  (e.g. < is send as &lt; )
-	- two dimensional tables
-	- bug whiches causes an endless loop when using a \ fixed
+    - Name changed from Embperl to HTML::Embperl!!!!!!!!
+    - FORM & ENV debug output now available in all modes
+    - Ouput from [+  +] and INPUT fields are escaped
+      (e.g. < is send as &lt; )
+    - two dimensional tables
+    - bug whiches causes an endless loop when using a \ fixed
     - fixed escaping special html chars above ascii code 128
     - added support for list tags (dir, menu, ol, ul, dl)
     - added support for textarea tag
-	- fixed some errors
+    - fixed some errors
 
 0.10b-beta	Jan 23 1997
-	- fixed some errors
+    - fixed some errors
 
 0.10beta 	Jan 18 1997
-	- first public beta release
+    - first public beta release
 
 		

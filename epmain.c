@@ -39,11 +39,12 @@ request_rec * pReq = NULL ;
 
 int  bDebug = dbgAll & ~dbgMem & ~dbgEnv;
 
+/* Options */
 
-/* Should we eval everything in a safe namespace? */
+int  bOptions ;
 
-int  bSafeEval = 0 ;  
 
+int  bReqRunning = 0 ;
 
 int  nIOType   = epIOPerl ;
 
@@ -54,11 +55,11 @@ static char sRetFifoName [] = "__RETFIFO" ;
 
 char cMultFieldSep = '\t' ;  /* Separator if a form filed is multiplie defined */
 
-static char sEvalErrName   [] = "@" ;
 static char sEnvHashName   [] = "ENV" ;
 static char sFormHashName  [] = "HTML::Embperl::fdat" ;
 static char sFormArrayName [] = "HTML::Embperl::ffld" ;
 static char sInputHashName [] = "HTML::Embperl::idat" ;
+static char sErrArrayName  [] = "HTML::Embperl::errors" ;
 static char sTabCountName  [] = "HTML::Embperl::cnt" ;
 static char sTabRowName    [] = "HTML::Embperl::row" ;
 static char sTabColName    [] = "HTML::Embperl::col" ;
@@ -67,21 +68,25 @@ static char sTabMaxColName [] = "HTML::Embperl::maxcol" ;
 static char sTabModeName   [] = "HTML::Embperl::tabmode" ;
 static char sEscModeName   [] = "HTML::Embperl::escmode" ;
 
-static char sNameSpaceHashName [] = "HTML::Embperl::NameSpace" ;
        char sLogfileURLName[] = "HTML::Embperl::LogfileURL" ;
-static char sCacheHashName[]  = "HTML::Embperl::cache" ;
+static char sOpcodeMaskName[] = "HTML::Embperl::opcodemask" ;
 static char sPackageName[]    = "HTML::Embperl::package" ;
+static char sEvalPackageName[]= "HTML::Embperl::evalpackage" ;
 
 
 HV *    pEnvHash ;   /* environement from CGI Script */
 HV *    pFormHash ;  /* Formular data */
 HV *    pInputHash ; /* Data of input fields */
-HV *    pNameSpaceHash ; /* Hash of NameSpace Objects */
 AV *    pFormArray ; /* Fieldnames */
+AV *    pErrArray ;  /* Errors to show on Errorrtesponse */
 
 HV *    pCacheHash ; /* Hash containing CVs to precompiled subs */
 
-SV *    pNameSpace ; /* Currently active Namespace */
+SV *    pPackage ;   /* Currently active Package */
+SV *    pEvalPackage ; /* Currently active Package */
+char *  sEvalPackage ; /* Currently active Package */
+STRLEN  nEvalPackage ; /* Currently active Package (length) */
+SV *    pOpcodeMask ;/* Currently active Opcode mask (if any) */
 
 
 static char *  sCurrPackage ; /* Name of package to eval everything */
@@ -105,10 +110,12 @@ char errdat2 [ERRDATLEN]  ;
 /* print error */
 /* */
 
-void LogError (/*in*/ int   rc)
+char * LogError (/*in*/ int   rc)
 
     {
     const char * msg ;
+    char * sText ;
+    SV *   pSV ;
     
     EPENTRY (LogError) ;
     
@@ -117,61 +124,61 @@ void LogError (/*in*/ int   rc)
     
     switch (rc)
         {
-        case ok:                        msg ="[%d]ERR:  %d: ok%s%s%c" ; break ;
-        case rcStackOverflow:           msg ="[%d]ERR:  %d: Stack Overflow%s%s%c" ; break ;
-        case rcArgStackOverflow:        msg ="[%d]ERR:  %d: Argumnet Stack Overflow (%s)%s%c" ; break ;
-        case rcStackUnderflow:          msg ="[%d]ERR:  %d: Stack Underflow%s%s%c" ; break ;
-        case rcEndifWithoutIf:          msg ="[%d]ERR:  %d: endif without if%s%s%c" ; break ;
-        case rcElseWithoutIf:           msg ="[%d]ERR:  %d: else without if%s%s%c" ; break ;
-        case rcEndwhileWithoutWhile:    msg ="[%d]ERR:  %d: endwhile without while%s%s%c" ; break ;
-        case rcEndtableWithoutTable:    msg ="[%d]ERR:  %d: blockend <%s> does not match blockstart <%s>%c" ; break ;
-        case rcTablerowOutsideOfTable:  msg ="[%d]ERR:  %d: <tr> outside of table%s%s%c" ; break ;
-        case rcCmdNotFound:             msg ="[%d]ERR:  %d: Unknown Command %s%s%c" ; break ;
-        case rcOutOfMemory:             msg ="[%d]ERR:  %d: Out of memory%s%s%c" ; break ;
-        case rcPerlVarError:            msg ="[%d]ERR:  %d: Perl variable error %s%s%c" ; break ;
-        case rcHashError:               msg ="[%d]ERR:  %d: Perl hash error %s%s%c" ; break ;
-        case rcArrayError:              msg ="[%d]ERR:  %d: Perl array error %s%s%c" ; break ;
-        case rcFileOpenErr:             msg ="[%d]ERR:  %d: File %s open error: %s%c" ; break ;    
-        case rcLogFileOpenErr:          msg ="[%d]ERR:  %d: Logfile %s open error: %s%c" ; break ;    
-        case rcMissingRight:            msg ="[%d]ERR:  %d: Missing right %s%s%c" ; break ;
-        case rcNoRetFifo:               msg ="[%d]ERR:  %d: No Return Fifo%s%s%c" ; break ;
-        case rcMagicError:              msg ="[%d]ERR:  %d: Perl Magic Error%s%s%c" ; break ;
-        case rcWriteErr:                msg ="[%d]ERR:  %d: File write Error%s%s%c" ; break ;
-        case rcUnknownNameSpace:        msg ="[%d]ERR:  %d: Namespace %s unknown%s%c" ; break ;
-        case rcInputNotSupported:       msg ="[%d]ERR:  %d: Input not supported in mod_perl mode%s%s%c" ; break ;
-        case rcCannotUsedRecursive:     msg ="[%d]ERR:  %d: Cannot be called recursivly in mod_perl mode%s%s%c" ; break ;
-        case rcEndtableWithoutTablerow: msg ="[%d]ERR:  %d: </tr> without <tr>%s%s%c" ; break ;
-        case rcEndtextareaWithoutTextarea: msg ="[%d]ERR:  %d: </textarea> without <textarea>%s%s%c" ; break ;
-        case rcEvalErr:                 msg ="[%d]ERR:  %d: Error in Perl code %s%s%c" ; break ;
-        case rcExecCGIMissing:          msg ="[%d]ERR:  %d: Forbidden %s: Options ExecCGI not set in your Apache configs%s%c" ; break ;
-        case rcIsDir:                   msg ="[%d]ERR:  %d: Forbidden %s is a directory%s%c" ; break ;
-        case rcXNotSet:                 msg ="[%d]ERR:  %d: Forbidden %s X Bit not set%s%c" ; break ;
-        case rcNotFound:                msg ="[%d]ERR:  %d: Not found %s%s%c" ; break ;
-        default:                        msg ="[%d]ERR:  %d: Error %s%s%c" ; break ; 
+        case ok:                        msg ="[%d]ERR:  %d: ok%s%s" ; break ;
+        case rcStackOverflow:           msg ="[%d]ERR:  %d: Stack Overflow%s%s" ; break ;
+        case rcArgStackOverflow:        msg ="[%d]ERR:  %d: Argumnet Stack Overflow (%s)%s" ; break ;
+        case rcStackUnderflow:          msg ="[%d]ERR:  %d: Stack Underflow%s%s" ; break ;
+        case rcEndifWithoutIf:          msg ="[%d]ERR:  %d: endif without if%s%s" ; break ;
+        case rcElseWithoutIf:           msg ="[%d]ERR:  %d: else without if%s%s" ; break ;
+        case rcEndwhileWithoutWhile:    msg ="[%d]ERR:  %d: endwhile without while%s%s" ; break ;
+        case rcEndtableWithoutTable:    msg ="[%d]ERR:  %d: blockend <%s> does not match blockstart <%s>" ; break ;
+        case rcTablerowOutsideOfTable:  msg ="[%d]ERR:  %d: <tr> outside of table%s%s" ; break ;
+        case rcCmdNotFound:             msg ="[%d]ERR:  %d: Unknown Command %s%s" ; break ;
+        case rcOutOfMemory:             msg ="[%d]ERR:  %d: Out of memory%s%s" ; break ;
+        case rcPerlVarError:            msg ="[%d]ERR:  %d: Perl variable error %s%s" ; break ;
+        case rcHashError:               msg ="[%d]ERR:  %d: Perl hash error, %%%s does not exist%s" ; break ;
+        case rcArrayError:              msg ="[%d]ERR:  %d: Perl array error , @%s does not exist%s" ; break ;
+        case rcFileOpenErr:             msg ="[%d]ERR:  %d: File %s open error: %s" ; break ;    
+        case rcLogFileOpenErr:          msg ="[%d]ERR:  %d: Logfile %s open error: %s" ; break ;    
+        case rcMissingRight:            msg ="[%d]ERR:  %d: Missing right %s%s" ; break ;
+        case rcNoRetFifo:               msg ="[%d]ERR:  %d: No Return Fifo%s%s" ; break ;
+        case rcMagicError:              msg ="[%d]ERR:  %d: Perl Magic Error%s%s" ; break ;
+        case rcWriteErr:                msg ="[%d]ERR:  %d: File write Error%s%s" ; break ;
+        case rcUnknownNameSpace:        msg ="[%d]ERR:  %d: Namespace %s unknown%s" ; break ;
+        case rcInputNotSupported:       msg ="[%d]ERR:  %d: Input not supported in mod_perl mode%s%s" ; break ;
+        case rcCannotUsedRecursive:     msg ="[%d]ERR:  %d: Cannot be called recursivly in mod_perl mode%s%s" ; break ;
+        case rcEndtableWithoutTablerow: msg ="[%d]ERR:  %d: </tr> without <tr>%s%s" ; break ;
+        case rcEndtextareaWithoutTextarea: msg ="[%d]ERR:  %d: </textarea> without <textarea>%s%s" ; break ;
+        case rcEvalErr:                 msg ="[%d]ERR:  %d: Error in Perl code %s%s" ; break ;
+        case rcExecCGIMissing:          msg ="[%d]ERR:  %d: Forbidden %s: Options ExecCGI not set in your Apache configs%s" ; break ;
+        case rcIsDir:                   msg ="[%d]ERR:  %d: Forbidden %s is a directory%s" ; break ;
+        case rcXNotSet:                 msg ="[%d]ERR:  %d: Forbidden %s X Bit not set%s" ; break ;
+        case rcNotFound:                msg ="[%d]ERR:  %d: Not found %s%s" ; break ;
+        default:                        msg ="[%d]ERR:  %d: Error %s%s" ; break ; 
         }
+
+    pSV = newSVpvf (msg, nPid , rc, errdat1, errdat2) ;
+
+    sText = SvPV (pSV, na) ;    
     
-    lprintf (msg, nPid , rc, errdat1, errdat2, '\n') ;
+    lprintf ("%s\n", sText) ;
+
 #ifdef APACHE
     if (pReq)
-        {
-        char sText [2048] ;
-
-        if (strlen (msg) + strlen (errdat1) + strlen (errdat2) > sizeof (sText) - 64)
-            strcpy (sText, msg) ;
-        else
-            sprintf (sText, msg, nPid , rc, errdat1, errdat2, ' ') ;
-        
         log_error (sText, pReq -> server) ;
-        }
     else
 #endif
         {
-        fprintf (stderr, msg, nPid , rc, errdat1, errdat2, '\n') ;
+        fprintf (stderr, "%s\n", sText) ;
         fflush (stderr) ;
         }
 
+    av_push (pErrArray, pSV) ;
+
     errdat1[0] = '\0' ;
     errdat2[0] = '\0' ;
+
+    return sText ;
     }
 
 
@@ -432,6 +439,23 @@ static int GetInputData_CGIScript ()
 
     EPENTRY (GetInputData_CGIScript) ;
 
+#ifdef APACHE
+    if (pReq && (bDebug & dbgHeadersIn))
+        {
+        int i;
+        array_header *hdrs_arr;
+        table_entry  *hdrs;
+
+        hdrs_arr = table_elts (pReq->headers_in);
+        hdrs = (table_entry *)hdrs_arr->elts;
+
+        lprintf ( "[%d]HDR:  %d\n", nPid, hdrs_arr->nelts) ; 
+        for (i = 0; i < hdrs_arr->nelts; ++i)
+	    if (hdrs[i].key)
+                lprintf ( "[%d]HDR:  %s=%s\n", nPid, hdrs[i].key, hdrs[i].val) ; 
+        }
+#endif
+
     if (bDebug & dbgEnv)
         {
         SV *   psv ;
@@ -583,6 +607,8 @@ static int ScanCmdEvals (/*in*/ char *   p)
 
             break ;
         case '$':
+            TransHtml (pCurrPos) ;
+
             while (*pCurrPos != '\0' && isspace (*pCurrPos))
                     pCurrPos++ ;
 
@@ -934,7 +960,8 @@ int iembperl_init (/*in*/ int     _nIOType,
 #ifdef APACHE
     pReq = NULL ;
 #endif
-
+    bReqRunning = 0 ;
+    
     nPid = getpid () ;
 
 
@@ -989,13 +1016,17 @@ int iembperl_init (/*in*/ int     _nIOType,
         return 1 ;
         }
 
+    if ((pErrArray = perl_get_av (sErrArrayName, TRUE)) == NULL)
+        {
+        LogError (rcArrayError) ;
+        return 1 ;
+        }
+
     if ((pInputHash = perl_get_hv (sInputHashName, TRUE)) == NULL)
         {
         LogError ( rcHashError) ;
         return 1 ;
         }
-
-
 
     if ((pEnvHash = perl_get_hv (sEnvHashName, TRUE)) == NULL)
         {
@@ -1003,11 +1034,24 @@ int iembperl_init (/*in*/ int     _nIOType,
         return 1 ;
         }
 
-    if ((pNameSpaceHash = perl_get_hv (sNameSpaceHashName, TRUE)) == NULL)
+    if ((pPackage = perl_get_sv (sPackageName, TRUE)) == NULL)
         {
-        LogError ( rcHashError) ;
+        LogError ( rcPerlVarError) ;
         return 1 ;
         }
+
+    if ((pEvalPackage = perl_get_sv (sEvalPackageName, TRUE)) == NULL)
+        {
+        LogError ( rcPerlVarError) ;
+        return 1 ;
+        }
+
+    if ((pOpcodeMask = perl_get_sv (sOpcodeMaskName, TRUE)) == NULL)
+        {
+        LogError ( rcPerlVarError) ;
+        return 1 ;
+        }
+
     
     rc = AddMagic (sTabCountName, &EMBPERL_mvtTabCount) ;
     if (rc == 0)
@@ -1027,8 +1071,9 @@ int iembperl_init (/*in*/ int     _nIOType,
     }
 
 /* ---------------------------------------------------------------------------- */
-/* clean up embperl module */
-/* */
+/*                                                                              */
+/* clean up embperl module                                                      */
+/*                                                                              */
 /* ---------------------------------------------------------------------------- */
 
 int iembperl_term (void) 
@@ -1068,22 +1113,71 @@ int iembperl_resetreqrec  ()
 #ifdef APACHE
     pReq = NULL ;
 #endif
+    bReqRunning = 0 ;
 
     return ok ;
     }
 
 
+/* ---------------------------------------------------------------------------- */
+/*                                                                              */
+/* Localise op_mask then opmask_add()                                           */
+/*                                                                              */
+/* Just copied from Opcode.xs                                                   */
+/*                                                                              */
+/* ---------------------------------------------------------------------------- */
+
+
+static void
+opmask_addlocal(SV *   opset,
+                char * op_mask_buf) 
+    {
+    char *orig_op_mask = op_mask;
+    int i,j;
+    char *bitmask;
+    STRLEN len;
+    int myopcode  = 0;
+    int opset_len = (maxo + 7) / 8 ;
+
+    SAVEPPTR(op_mask);
+    op_mask = &op_mask_buf[0];
+    if (orig_op_mask)
+	Copy(orig_op_mask, op_mask, maxo, char);
+    else
+	Zero(op_mask, maxo, char);
+
+
+    /* OPCODES ALREADY MASKED ARE NEVER UNMASKED. See opmask_addlocal()	*/
+
+    bitmask = SvPV(opset, len);
+    for (i=0; i < opset_len; i++)
+        {
+	U16 bits = bitmask[i];
+	if (!bits)
+            {	/* optimise for sparse masks */
+	    myopcode += 8;
+	    continue;
+	    }
+	for (j=0; j < 8 && myopcode < maxo; )
+	    op_mask[myopcode++] |= bits & (1 << j++);
+        }
+    }
 
 
 
 
+/* ---------------------------------------------------------------------------- */
+/*                                                                              */
+/* Request handler                                                              */
+/*                                                                              */
+/* ---------------------------------------------------------------------------- */
 
 
 
 int iembperl_req  (/*in*/ char *  sInputfile,
                    /*in*/ char *  sOutputfile,
                    /*in*/ int     bDebugFlags,
-                   /*in*/ char *  pNameSpaceName,
+                   /*in*/ int     bOptionFlags,
                    /*in*/ int     nFileSize,
                    /*in*/ HV *    pCache) 
 
@@ -1108,6 +1202,9 @@ int iembperl_req  (/*in*/ char *  sInputfile,
     I32     stsv_objcount = sv_objcount ;
     I32     lstsv_count = sv_count ;
     I32     lstsv_objcount = sv_objcount ;
+    char    op_mask_buf[MAXO + 100]; /* maxo shouldn't differ from MAXO but leave room anyway (see BOOT:)	*/
+    GV *    gv;
+
 
     nPid = getpid () ; /* reget pid, because it could be chaned when loaded with PerlModule */
 
@@ -1115,7 +1212,9 @@ int iembperl_req  (/*in*/ char *  sInputfile,
 
 
     bDebug     = bDebugFlags ;
+    bOptions   = bOptionFlags ;
     pCacheHash = pCache ;
+    bReqRunning = 1 ;
 
     
     if (bDebug)
@@ -1131,26 +1230,39 @@ int iembperl_req  (/*in*/ char *  sInputfile,
     
     tainted = 0 ;
 
+    sEvalPackage = SvPV (pEvalPackage, nEvalPackage) ;
 
-    if (pNameSpaceName && *pNameSpaceName != '\0')
+
+    ENTER;
+
+    /* The following is borrowed from Opcode.xs */
+
+    if (bOptions & optOpcodeMask)
+        opmask_addlocal(pOpcodeMask, op_mask_buf);
+
+        
+    if (bOptions & optSafeNamespace)
         {
-    	SV * * ppSV = hv_fetch(pNameSpaceHash, pNameSpaceName, strlen (pNameSpaceName), 0) ;  
-    	if (ppSV == NULL)
-            {
-            LogError (rcUnknownNameSpace) ;
-#ifdef APACHE
-            pReq = NULL ;
-#endif
-            return rcUnknownNameSpace ;
-            }
-	pNameSpace = * ppSV ;
-        bSafeEval = TRUE ;
+        save_aptr(&endav);
+        endav = (AV*)sv_2mortal((SV*)newAV()); /* ignore END blocks for now	*/
+
+        save_hptr(&defstash);		/* save current default stack	*/
+        /* the assignment to global defstash changes our sense of 'main'	*/
+        defstash = gv_stashpv(SvPV (pPackage, na), GV_ADDWARN); /* should exist already	*/
+
+        if (bDebug)
+            lprintf ("[%d]REQ:  switch to safe namespace %s\n", nPid, SvPV (pPackage, na)) ;
+
+
+        /* defstash must itself contain a main:: so we'll add that now	*/
+        /* take care with the ref counts (was cause of long standing bug)	*/
+        /* XXX I'm still not sure if this is right, GV_ADDWARN should warn!	*/
+        gv = gv_fetchpv("main::", GV_ADDWARN, SVt_PVHV);
+        sv_free((SV*)GvHV(gv));
+        GvHV(gv) = (HV*)SvREFCNT_inc(defstash);
         }
-    else
-        {
-        pNameSpace = NULL ;
-        bSafeEval = FALSE ;
-        }
+
+    bStrict = FALSE ;
         
     if (bDebug)
         {
@@ -1165,8 +1277,9 @@ int iembperl_req  (/*in*/ char *  sInputfile,
             default: sMode = "unknown" ; break ;
             }
         
-        lprintf ("[%d]REQ:  %s %s", nPid, (bSafeEval)?"Namespace = ":"No Safe Eval", pNameSpaceName?pNameSpaceName:"") ;
+        lprintf ("[%d]REQ:  %s  %s  ", nPid, (bOptions & optSafeNamespace)?"SafeNamespace":"No Safe Eval", (bOptions & optOpcodeMask)?"OpcodeMask":"All Opcode allowed") ;
         lprintf (" mode = %s (%d)\n", sMode, nIOType) ;
+        lprintf ("[%d]REQ:  Package = %s\n", nPid, SvPV (pPackage, na)) ;
         }
     nStack      = 0 ;
     nTableStack = 0 ;
@@ -1212,6 +1325,8 @@ int iembperl_req  (/*in*/ char *  sInputfile,
 #ifdef APACHE
         pReq = NULL ;
 #endif
+        bReqRunning = 0 ;
+        LEAVE;
         return rc ;
         }
     
@@ -1227,6 +1342,7 @@ int iembperl_req  (/*in*/ char *  sInputfile,
 #ifdef APACHE
         pReq = NULL ;
 #endif
+        bReqRunning = 0 ;
             return rcNoRetFifo ;
             }
         }
@@ -1239,6 +1355,8 @@ int iembperl_req  (/*in*/ char *  sInputfile,
 #ifdef APACHE
         pReq = NULL ;
 #endif
+        bReqRunning = 0 ;
+        LEAVE;
         return rc ;
         }
 
@@ -1261,6 +1379,8 @@ int iembperl_req  (/*in*/ char *  sInputfile,
                 {
                 CloseOutput () ;
                 pReq = NULL ;
+                bReqRunning = 0 ;
+                LEAVE;
                 return ok ;
                 }
             }
@@ -1281,12 +1401,14 @@ int iembperl_req  (/*in*/ char *  sInputfile,
 
     /* Read HTML file */
 
-    if ((rc = ReadHTML (sInputfile, nFileSize, &pBuf)) != ok)
+    if ((rc = ReadHTML (sInputfile, &nFileSize, &pBuf)) != ok)
         {
         LogError (rc) ;
 #ifdef APACHE
         pReq = NULL ;
 #endif
+        bReqRunning = 0 ;
+        LEAVE;
         return rc ;
         }
 
@@ -1365,32 +1487,70 @@ int iembperl_req  (/*in*/ char *  sInputfile,
             }
         }
         
-
-    if (!(bDebug & dbgEarlyHttpHeader))
+    if (!(bDebug & dbgEarlyHttpHeader) && rc == ok && av_len (pErrArray) == -1)
         {
 #ifdef APACHE
         if (pReq)
             {
             set_content_length (pReq, GetContentLength () + 2) ;
             send_http_header (pReq) ;
+    	    if (bDebug & dbgHeadersIn)
+        	{
+        	int i;
+        	array_header *hdrs_arr;
+        	table_entry  *hdrs;
+
+        	hdrs_arr = table_elts (pReq->headers_out);
+	        hdrs = (table_entry *)hdrs_arr->elts;
+
+        	lprintf ( "[%d]HDR:  %d\n", nPid, hdrs_arr->nelts) ; 
+	        for (i = 0; i < hdrs_arr->nelts; ++i)
+		    if (hdrs[i].key)
+                	lprintf ( "[%d]HDR:  %s=%s\n", nPid, hdrs[i].key, hdrs[i].val) ; 
+        	}
             }
 #endif
     
 #ifdef APACHE
         if (pReq == NULL || !pReq -> header_only)
 #endif
+            {
             oCommit (NULL) ;
+            oputs ("\r\n") ;
+            }
+#ifdef APACHE
+        else
+            oRollback (NULL) ;
+#endif
         }
-
-    
-    
-    oputs ("\r\n") ;
-    CloseOutput () ;
+    else
+        oRollback (NULL) ;
 
     if (rc != ok)
-        {
         LogError (rc) ;
+
+    /* Restore Operatormask and Package */
+
+    LEAVE;
+    
+    if (rc != ok || av_len (pErrArray) != -1)
+        {
+        dSP;                            /* initialize stack pointer      */
+
+#ifdef APACHE
+        if (pReq)
+            {
+            pReq -> status = 500 ;
+            send_http_header (pReq) ;
+            }
+#endif
+        PUSHMARK(sp);                   /* remember the stack pointer    */
+
+        perl_call_pv ("HTML::Embperl::SendErrorDoc", G_DISCARD | G_NOARGS) ; /* call the function             */
         }
+
+    
+    CloseOutput () ;
 
     hv_clear (pFormHash) ;
     av_clear (pFormArray) ;
@@ -1430,12 +1590,11 @@ int iembperl_req  (/*in*/ char *  sInputfile,
 
     FlushLog () ;
 
+    bReqRunning = 0 ;
 
 #ifdef APACHE
     /* This must be the very very very last !!!!! */
     pReq = NULL ;
 #endif
-
     return ok ;
     }
-

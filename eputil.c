@@ -216,14 +216,20 @@ void TransHtml (/*i/o*/ char *  sData)
                     {
                     *p = '\0' ;
                     p++ ;
+                    pChar = (struct tCharTrans *)bsearch (s, Html2Char, sizeHtml2Char, sizeof (struct tCharTrans), CmpCharTrans) ;
+                    if (pChar)
+                        *s++ = pChar -> c ;
+                    else
+                        {
+                        p = s ;
+                        s = NULL ;
+                        }
                     }
-                pChar = (struct tCharTrans *)bsearch (s, Html2Char, sizeHtml2Char, sizeof (struct tCharTrans), CmpCharTrans) ;
-                if (pChar)
-                    *s = pChar -> c ;
                 else
-                    *s = '?' ;
-                s++ ;
-                
+                    {
+                    p = s ;
+                    s = NULL ;
+                    }
                 }
 
             if (s && (p - s) > 0)

@@ -69,6 +69,7 @@ static int CmdEndif (/*in*/ const char *   sArg) ;
 static int CmdWhile (/*in*/ const char *   sArg) ;
 static int CmdEndwhile (/*in*/ const char *   sArg) ;
 static int CmdHidden (/*in*/ const char *   sArg) ;
+static int CmdVar    (/*in*/ const char *   sArg) ;
 
 static int HtmlTable    (/*in*/ const char *   sArg) ;
 static int HtmlTableHead(/*in*/ const char *   sArg) ;
@@ -82,12 +83,13 @@ static int HtmlTextarea   (/*in*/ const char *   sArg) ;
 static int HtmlEndtextarea(/*in*/ const char *   sArg) ;
 static int HtmlBody       (/*in*/ const char *   sArg) ;
 static int HtmlA         (/*in*/ const char *   sArg) ;
+static int HtmlMeta      (/*in*/ const char *   sArg) ;
 
     
 
 struct tCmd CmdTab [] =
     {
-        /* cmdname    function        psuh pop  type         scan save no */
+        /* cmdname    function        push pop  type         scan save no */
         { "/dir",     HtmlEndtable,     0, 1, cmdTable,         0, 0, cnDir } ,
         { "/dl",      HtmlEndtable,     0, 1, cmdTable,         0, 0, cnDl  } ,
         { "/menu",    HtmlEndtable,     0, 1, cmdTable,         0, 0, cnMenu  } ,
@@ -109,6 +111,7 @@ struct tCmd CmdTab [] =
         { "if",       CmdIf,            1, 0, cmdIf | cmdEndif, 0, 0, cnNop   } ,
         { "input",    HtmlInput,        0, 0, cmdNorm,          1, 0, cnNop   } ,
         { "menu",     HtmlTable,        1, 0, cmdTable,         1, 0, cnMenu   } ,
+        { "meta",     HtmlMeta,         0, 0, cmdNorm,          1, 0, cnNop   } ,
         { "ol",       HtmlTable,        1, 0, cmdTable,         1, 0, cnOl   } ,
         { "option",   HtmlOption,       0, 0, cmdNorm,          1, 0, cnNop   } ,
         { "select",   HtmlSelect,       1, 0, cmdTable,         1, 0, cnSelect   } ,
@@ -117,6 +120,7 @@ struct tCmd CmdTab [] =
         { "th",       HtmlTableHead,    0, 0, cmdNorm,          1, 0, cnNop   } ,
         { "tr",       HtmlRow,          1, 0, cmdTablerow,      1, 0, cnTr   } ,
         { "ul",       HtmlTable,        1, 0, cmdTable,         1, 0, cnUl   } ,
+        { "var",      CmdVar,           0, 0, cmdNorm,          0, 0, cnNop   } ,
         { "while",    CmdWhile,         1, 0, cmdWhile,         0, 1, cnNop   } ,
 
     } ;
@@ -460,68 +464,129 @@ static int CmdEndwhile (/*in*/ const char *   sArg)
 static int CmdHidden (/*in*/ const char *   sArg)
 
     {
-    char * pSub ;
-    char * pEnd ;
-    char * pKey ;
-    SV *   psv ;
-    HV *   pSubHash ;
-    HV *   pAddHash ;
-    HE *   pEntry ;
-    I32    l ;
-
+    char *  pKey ;
+    SV *    psv ;
+    SV * *  ppsv ;
+    HV *    pAddHash = pFormHash ;
+    HV *    pSubHash = pInputHash ;
+    AV *    pSort    = NULL ;
+    HE *    pEntry ;
+    I32     l ;
+    char *  sArgs ;
+    int     nArgLen ;
+    char *  sVarName ;
+    char    sVar[512] ;
+    int     nMax ;
+    STRLEN  nKey ;
 
     EPENTRY (CmdHidden) ;
+
     
-    pSub = strchr (sArg, ',') ;
-    if (pSub)
+    nArgLen = strlen (sArg) + 1 ;
+    if (pArgStack + nArgLen >= ArgStack + sizeof (ArgStack))
         {
-        pEnd = pSub ;
-        if (pEnd > sArg)
+        sprintf (errdat1, "nArgLen=%d, pArgStack=%d",nArgLen,  pArgStack - ArgStack) ;
+        return rcArgStackOverflow ;
+        }
+    if (nArgLen > 0)
+        {            
+        strncpy (sVar, sEvalPackage, sizeof (sVar) - 5) ;
+        sVar[nEvalPackage] = ':' ;
+        sVar[nEvalPackage+1] = ':' ;
+        sVar[sizeof(sVar) - 1] = '\0' ;
+        nMax = sizeof(sVar) - nEvalPackage - 3 ;
+        
+        sArgs = strcpy (pArgStack, sArg) ;
+        if (sVarName = strtok (sArgs, ", \t\n"))
             {
-            pEnd-- ;
-            while (pEnd > sArg && isspace (*pEnd))
-                pEnd-- ;
-            pEnd++ ;
+            if (*sVarName == '%')
+                sVarName++ ;
+        
+            nArgLen = strlen (sVarName) ;
+            strncpy (sVar + nEvalPackage + 2, sVarName, nMax) ;
+            
+            if ((pAddHash = perl_get_hv ((char *)sVar, FALSE)) == NULL)
+                {
+                strncpy (errdat1, sVar, sizeof (errdat1) - 1) ;
+                return rcHashError ;
+                }
+
+            if (sVarName = strtok (NULL, ", \t\n"))
+                {
+                if (*sVarName == '%')
+                    sVarName++ ;
+        
+                nArgLen = strlen (sVarName) ;
+                strncpy (sVar + nEvalPackage + 2, sVarName, nMax) ;
+        
+                if ((pSubHash = perl_get_hv ((char *)sVar, FALSE)) == NULL)
+                    {
+                    strncpy (errdat1, sVar, sizeof (errdat1) - 1) ;
+                    return rcHashError ;
+                    }
+
+                if (sVarName = strtok (NULL, ", \t\n"))
+                    {
+                    if (*sVarName == '@')
+                        sVarName++ ;
+        
+                    nArgLen = strlen (sVarName) ;
+                    strncpy (sVar + nEvalPackage + 2, sVarName, nMax) ;
+        
+                    if ((pSort = perl_get_av ((char *)sVar, FALSE)) == NULL)
+                        {
+                        strncpy (errdat1, sVar, sizeof (errdat1) - 1) ;
+                        return rcArrayError ;
+                        }
+                    }
+                }
             }
-        *pEnd = '\0' ;
-        pSub++ ;
-        while (*pSub && isspace (*pSub))
-            pSub++ ;
         }
     else
-        pSub = "" ;
+        pSort = pFormArray ;
 
-    if (sArg [0] != '\0')
-        {
-        if ((pAddHash = perl_get_hv ((char *)sArg, TRUE)) == NULL)
-            return rcHashError ;
-        }
-    else
-        pAddHash = pFormHash ;
-
-    if (pSub [0] != '\0')
-        {
-        if ((pSubHash = perl_get_hv (pSub, TRUE)) == NULL)
-            return rcHashError ;
-        }
-    else
-        pSubHash = pInputHash ;
 
     oputc ('\n') ;
-    hv_iterinit (pAddHash) ;
-    while (pEntry = hv_iternext (pAddHash))
+    if (pSort)
         {
-        pKey = hv_iterkey (pEntry, &l) ;
-        if (!hv_exists (pSubHash, pKey, strlen (pKey)))
+        int n = AvFILL (pSort) + 1 ;
+        int i ;
+
+        for (i = 0; i < n; i++)
             {
-            psv = hv_iterval (pAddHash, pEntry) ;
+            ppsv = av_fetch (pSort, i, 0) ;
+            if (ppsv && (pKey = SvPV(*ppsv, nKey)) && !hv_exists (pSubHash, pKey, nKey))
+                {
+                ppsv = hv_fetch (pAddHash, pKey, nKey, 0) ;
+                
+                if (ppsv)
+                    {
+                    oputs ("<input type=\"hidden\" name=\"") ;
+                    oputs (pKey) ;
+                    oputs ("\" value=\"") ;
+                    OutputToHtml (SvPV (*ppsv, na)) ;
+                    oputs ("\">\n") ;
+                    }
+                }
+            }
+        }
+    else
+        {
+        hv_iterinit (pAddHash) ;
+        while (pEntry = hv_iternext (pAddHash))
+            {
+            pKey = hv_iterkey (pEntry, &l) ;
+            if (!hv_exists (pSubHash, pKey, strlen (pKey)))
+                {
+                psv = hv_iterval (pAddHash, pEntry) ;
 
             
-            oputs ("<input type=\"hidden\" name=\"") ;
-            oputs (pKey) ;
-            oputs ("\" value=\"") ;
-            OutputToHtml (SvPV (psv, na)) ;
-            oputs ("\">\n") ;
+                oputs ("<input type=\"hidden\" name=\"") ;
+                oputs (pKey) ;
+                oputs ("\" value=\"") ;
+                OutputToHtml (SvPV (psv, na)) ;
+                oputs ("\">\n") ;
+                }
             }
         }
 
@@ -529,10 +594,98 @@ static int CmdHidden (/*in*/ const char *   sArg)
     }
 
 
+/* ---------------------------------------------------------------------------- */
+/*                                                                              */
+/* var command ...                                                              */
+/*                                                                              */
+/* ---------------------------------------------------------------------------- */
+
+static int CmdVar (/*in*/ const char *   sArg)
+
+    {
+    int    rc ;
+    char * pVarName ;
+    void * p ;
+    SV **  ppSV ;
+    int    nFilepos = (sArg - pBuf) ;
+    SV *   pSV ;
+
+
+    EPENTRY (CmdVar) ;
+    
+    bStrict = HINT_STRICT_REFS | HINT_STRICT_SUBS | HINT_STRICT_VARS ;
+    
+    /* Already compiled ? */
+    
+    ppSV = hv_fetch(pCacheHash, (char *)&nFilepos, sizeof (nFilepos), 1) ;  
+    if (ppSV == NULL)
+        return rcHashError ;
+    
+    if (SvIV(*ppSV))
+        return ok ;
+    
+    sv_setiv (*ppSV, 1) ;
+    
+
+    pSV = newSVpvf("package %s ; use vars qw(%s)",sEvalPackage, sArg) ;
+    EvalDirect (pSV) ;
+    SvREFCNT_dec(pSV);
+
+    return ok ;
+    }
 
 /* ---------------------------------------------------------------------------- */
-/* body tag ... */
-/* */
+/*                                                                              */
+/* meta tag ...                                                                 */
+/*                                                                              */
+/*  set http headers on meta http-equiv                                         */
+/*                                                                              */
+/* ---------------------------------------------------------------------------- */
+
+
+static int HtmlMeta (/*in*/ const char *   sArg)
+    
+    {
+    const char *  pType ;
+    const char *  pContent ;
+    int     tlen ;
+    int     clen ;
+    
+    
+    
+    EPENTRY (HtmlMeta) ;
+
+#ifdef APACHE
+    if (pReq == NULL)
+        return ok ;
+    
+    pType = GetHtmlArg (sArg, "HTTP-EQUIV", &tlen) ;
+    if (tlen == 0)
+        return ok ; /* no http-equiv */
+
+    pContent = GetHtmlArg (sArg, "CONTENT", &clen) ;
+    if (clen == 0)
+        return ok ; /* missing content for http-equiv */
+
+
+    if (strnicmp (pType, "content-type", tlen) == 0)
+        {
+        pReq->content_type = pstrndup(pReq->pool, pContent, clen);
+        return ok ;
+        }
+
+    table_set(pReq->headers_out, pstrndup (pReq->pool, pType, tlen), 
+                                 pstrndup (pReq->pool, pContent, clen));
+    
+    
+    return ok ;
+#endif
+    }
+
+/* ---------------------------------------------------------------------------- */
+/*                                                                              */
+/* body tag ...                                                                 */
+/*                                                                              */
 /* ---------------------------------------------------------------------------- */
 
 
@@ -981,7 +1134,6 @@ static int HtmlInput (/*in*/ const char *   sArg)
     if (vlen != 0 && bCheck == 0)    
         {
         pSV = newSVpv ((char *)pVal, vlen) ;
-        TransHtml (SvPV (pSV, na)) ;
 
         if (bDebug & dbgInput)
             lprintf ("[%d]INPU: %s already has a value = %s\n", nPid, sName, SvPV (pSV, na)) ; 
@@ -1190,4 +1342,3 @@ static int HtmlEndtextarea (/*in*/ const char *   sArg)
 
     return ok ;
     }
-

@@ -8,19 +8,33 @@
 
 [- $a = 1; $b = 0; $c = 5; $d = 'txt' -]
 
-
+a1
 [$if $a$]
     a <br>
 [$ endif$]
 
-
+a2
 [$if $a $]
     a <br>
 [$else$]
     not a<br>
 [$ endif $]
 
+a3
+[$if $a<br> $]
+    a <br>
+[$else<br>$]
+    not a<br>
+[$ endif <br>$]
 
+a4
+[$<br>if $a $]
+    a <br>
+[$ <br> else<br>$]
+    not a<br>
+[$ <br>endif $]
+
+a5
 [$ if $a$]
     a <br>
     [$if $b == 0$]

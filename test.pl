@@ -7,7 +7,11 @@
 	'pure.htm',
     'plain.htm',
     'plain.htm',
-    'error.htm???4',
+    'plain.htm',
+    'error.htm???5',
+    'error.htm???5',
+    'var.htm',
+    'varerr.htm???2',
     'escape.htm',
     'tagscan.htm',
 	'tagscan.htm??1',
@@ -19,11 +23,18 @@
 # 	'table.htm??131085',
 	'lists.htm?sel=2&SEL1=B&SEL3=D&SEL4=cc',
  	'input.htm?feld5=Wert5&feld6=Wert6&feld7=Wert7&feld8=Wert8&cb5=cbv5&cb6=cbv6&cb7=cbv7&cb8=cbv8&cb9=ncbv9&cb10=ncbv10&cb11=ncbv11',
+ 	'hidden.htm?feld1=Wert1&feld2=Wert2&feld3=Wert3&feld4=Wert4',
 	'java.htm',
 	'inputjava.htm',
+    'div.htm',
+ 	'taint.htm???1',
+    'safe/safe.htm????4',
+    'safe/safe.htm????4',
+    'safe/safe.htm????4',
+    'opmask/opmask.htm????12?TEST',
+    'opmask/opmasktrap.htm???2?12?TEST',
     ) ;
 
-# 	  'taint.htm' ) ;
 
 
 $confpath = './test/conf' ;
@@ -45,6 +56,7 @@ $offlineerr = "$tmppath/test.err.log" ;
 $port    = $EPPORT ;
 $host    = 'localhost' ;
 $httpdpid = 0 ;
+$defaultdebug = 0x87ffd ;
 
 if ($ARGV[0] =~ /\?/)
     {
@@ -85,14 +97,33 @@ sub CmpFiles
     while ($l1 = <F1>)
         {
         $l2 = <F2> ;
-        if ($l1 ne $l2)
+        if ($l2 =~ /^\^(.*?)$/)
             {
-            print "\nError in Line $line\nIs:\t$l1\Should:\t$l2\n" ;
+            $l2 = $1 ;
+            $eq = $l1 =~ /$l2/ ;
+            }
+        else
+            {
+            $eq = $l1 eq $l2 ;
+            }
+
+        if (!$eq)
+            {
+            print "\nError in Line $line\nIs:\t$l1\nShould:\t$l2\n" ;
             return $line ;
             }
         $line++ ;
         }
 
+    while ($l2 = <F2>)
+       {
+       if (!($l2 =~ /^\s*$/))
+            {
+            print "\nError in Line $line\nIs:\t\nShould:\t$l2\n" ;
+            return $line ;
+            }
+	$line++ ;
+	}
 
     close F1 ;
     close F2 ;
@@ -132,11 +163,11 @@ sub GET
 
     $response = $ua->request($request, undef, undef);
 
-    return $response -> message if (!$response->is_success) ;
-
     open FH, ">$ofile" ;
     print FH $response -> content ;
     close FH ;
+
+    return $response -> message if (!$response->is_success) ;
     
     return "ok" ;
     }
@@ -257,6 +288,10 @@ if ($#ARGV >= 0)
 $err = 0 ;
 $loopcnt = 0 ;
 	
+$cp = HTML::Embperl::AddCompartment ('TEST') ;
+
+$cp -> deny (':base_loop') ;
+
 do  {
 #############
 #
@@ -273,16 +308,20 @@ if ($testtype =~ /o/)
   open (ERR, "$offlineerr")  || die "Cannot open redirected stderr ($offlineerr)" ;  ;  
   foreach $url (@tests)
     {
-    ($file, $query_info, $debug, $errcnt) = split (/\?/, $url) ;
-    $debug = 32765 if ($debug eq '') ;	
+    ($file, $query_info, $debug, $errcnt, $option, $ns) = split (/\?/, $url) ;
+    next if ($file eq 'taint.htm') ;
+    $debug = $defaultdebug if ($debug eq '') ;	
     $page = "$inpath/$file" ;
+    delete $ENV{EMBPERL_OPTIONS} ;
+    $ENV{EMBPERL_OPTIONS} = $option if (defined ($option)) ;
+    $ENV{EMBPERL_COMPARTMENT} = $ns if (defined ($ns)) ;
     @testargs = ( '-o', "$tmppath/out.htm" ,
                   '-l', "$tmppath/test.log",
                   '-d', $debug,
                    $page, $query_info) ;
     unshift (@testargs, 'dbgbreak') if ($dbgbreak) ;
     
-    $txt = $file . ($debug != 32765 ?"-d $debug ":"") ;
+    $txt = $file . ($debug != $defaultdebug ?"-d $debug ":"") ;
     formline ('@<<<<<<<<<<<<<<<<<<<<... ', $txt) ;
     print $^A ;	
     $^A = '' ;
@@ -346,6 +385,7 @@ if ($loc ne '' && $err == 0 && $loopcnt == 0)
     
     #### Start httpd
     print "\n\nStarting httpd...       " ;
+    unlink "$tmppath/httpd.pid" ;
     chmod 0666, "$tmppath/test.log" ;
     $XX = $multhttpd?'':'-X' ;
     system ("$EPHTTPD $XX -f $EPPATH/$httpdconf &") and die "***Cannot start $EPHTTPD" ;
@@ -382,10 +422,13 @@ while ($loc ne '' && $err == 0)
   foreach $url (@tests)
     {
     ($file, $query_info, $debug, $errcnt) = split (/\?/, $url) ;
+
+    next if ($file =~ /\// && $loc eq $cgiloc) ;	
+    next if ($file eq 'taint.htm' && $loc eq $cgiloc) ;
 	
-    $debug = 32765 if ($debug eq '') ;	
+    $debug = $defaultdebug if ($debug eq '') ;	
     $page = "$inpath/$file" ;
-    $txt = "$file" . ($debug != 32765 ?"-d $debug ":"") ;
+    $txt = "$file" . ($debug != $defaultdebug ?"-d $debug ":"") ;
     formline ('@<<<<<<<<<<<<<<<<<<<<... ', $txt) ;
     print $^A ;	
     $^A = '' ;
@@ -398,7 +441,7 @@ while ($loc ne '' && $err == 0)
     	print "GROWN! at iteration = $loopcnt  " if ($vmsize > $vmhttpdsize) ;
     	$vmhttpdsize = $vmsize if ($vmsize > $vmhttpdsize) ;
     	}
-    if ($m ne 'ok')
+    if ($m ne 'ok' && $errcnt == 0)
     	{
     	$err = 1 ;
     	print "ERR:$m\n" ;

@@ -10,6 +10,10 @@
 
 use ExtUtils::MakeMaker;
 use Cwd ;
+use Config ;
+
+$win32 = ($Config{osname} =~ /win32/i) ;
+print "\nRunning on Win 32\n" if ($win32) ;
 
 
 sub MY::test_via_harness 
@@ -25,6 +29,13 @@ sub MY::test_via_script
 	my ($txt) = shift -> MM::test_via_script (@_) ;
 	$txt =~ s/PERL_DL_NONLAZY=1/PERL_DL_NONLAZY=0/ ;
 	#$txt =~ s/\$\(FULLPERL\)/\$\(FULLPERL\) \-T / ;
+	return $txt ;
+	}
+	
+sub MY::xs_c 
+	{
+	my ($txt) = shift -> MM::xs_c (@_) ;
+	$txt =~ s/\&\&/\n\t/ if ($win32) ;
 	return $txt ;
 	}
 	
@@ -202,7 +213,7 @@ else
 WriteMakefile(
     'NAME'	   => 'HTML::Embperl',
     'VERSION_FROM' => 'Embperl.pm', 		# finds $VERSION
-    'MYEXTLIB'     => 'epmain.o epio.o epchar.o epcmd.o eputil.o epeval.o',
+    'MYEXTLIB'     => 'epmain$(OBJ_EXT) epio$(OBJ_EXT) epchar$(OBJ_EXT) epcmd$(OBJ_EXT) eputil$(OBJ_EXT) epeval$(OBJ_EXT)',
     'LIBS'	   => [''],   			 
     'DEFINE'	   => "$d \$(DEFS)", 			 
     'INC'	   => $i,     			 

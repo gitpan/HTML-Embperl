@@ -101,3 +101,13 @@
 #define bEscMode               EMBPERL_bEscMode            
 #define nAllocSize             EMBPERL_nAllocSize          
 #define pCurrEscape            EMBPERL_pCurrEscape         
+#define bStrict                EMBPERL_bStrict
+#define EvalDirect             EMBPERL_EvalDirect
+#define bOptions               EMBPERL_bOptions    
+#define bReqRunning            EMBPERL_bReqRunning 
+#define nEvalPackage           EMBPERL_nEvalPackage
+#define pEvalPackage           EMBPERL_pEvalPackage
+#define sEvalPackage           EMBPERL_sEvalPackage
+#define pPackage               EMBPERL_pPackage    
+#define pErrArray              EMBPERL_pErrArray   
+#define pOpcodeMask            EMBPERL_pOpcodeMask 

@@ -69,8 +69,8 @@ static FILE *  lfd = NULL ;  /* log file */
 #define PerlIO_fileno fileno
 #define PerlIO_tell ftell
 
-#define PerlIO_read(f,buf,cnt) fread(buf,cnt,1,f)
-#define PerlIO_write(f,buf,cnt) fwrite(buf,cnt,1,f)
+#define PerlIO_read(f,buf,cnt) fread(buf,1,cnt,f)
+#define PerlIO_write(f,buf,cnt) fwrite(buf,1,cnt,f)
 
 #define PerlIO_putc(f,c) fputc(c,f)
 
@@ -472,9 +472,9 @@ char * igets    (/*in*/ char * s,   int    size)
 /*                                                                              */
 /* ---------------------------------------------------------------------------- */
 
-int ReadHTML (/*in*/    char *  sInputfile,
-              /*in*/    size_t  nFileSize,
-              /*out*/   char * * ppBuf)
+int ReadHTML (/*in*/    char *    sInputfile,
+              /*in*/    size_t *  nFileSize,
+              /*out*/   char * *  ppBuf)
 
     {              
     char * pBuf ;
@@ -495,16 +495,16 @@ int ReadHTML (/*in*/    char *  sInputfile,
         return rcFileOpenErr ;
         }
 
-    if ((pBuf = _malloc (nFileSize + 1)) == NULL)
+    if ((pBuf = _malloc (*nFileSize + 1)) == NULL)
         {
         return rcOutOfMemory ;
         }
 
-    PerlIO_read (ifd, pBuf, nFileSize) ;
+    *nFileSize = PerlIO_read (ifd, pBuf, *nFileSize) ;
 
     PerlIO_close (ifd) ;
     
-    pBuf [nFileSize] = '\0' ;
+    pBuf [*nFileSize] = '\0' ;
 
     *ppBuf = pBuf ;
 
@@ -958,5 +958,3 @@ void * _malloc (size_t  size)
 
     return p ;
     }
-
-

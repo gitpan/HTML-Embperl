@@ -22,7 +22,7 @@ int EMBPERL_mgGet##name (SV * pSV, MAGIC * mg) \
     { \
     sv_setiv (pSV, var) ; \
     used++ ; \
-    if (bDebug & dbgTab) \
+    if ((bDebug & dbgTab) && bReqRunning) \
         lprintf ("[%d]TAB:  get %s = %d, Used = %d\n", nPid, #name, var, used) ; \
     return 0 ; \
     } \
@@ -31,7 +31,7 @@ int EMBPERL_mgGet##name (SV * pSV, MAGIC * mg) \
 \
     { \
     var = SvIV (pSV) ; \
-    if (bDebug & dbgTab) \
+    if ((bDebug & dbgTab) && bReqRunning) \
         lprintf ("[%d]TAB:  set %s = %d, Used = %d\n", nPid, #name, var, used) ; \
     sub () ; \
     return 0 ; \

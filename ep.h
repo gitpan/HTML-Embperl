@@ -41,7 +41,7 @@
 
 /* declare error information here, since it's not on all systems in stdlib.h */
 
-#if !defined(__FreeBSD__)
+#if !defined(__FreeBSD__) && !defined(WIN32)
 extern int errno;
 extern int sys_nerr;
 extern char *sys_errlist[];
@@ -59,13 +59,21 @@ extern int  bDebug ;
 extern request_rec * pReq ;
 #endif
 
+#ifndef pid_t
+#define pid_t int
+#endif
+
+
+
 extern pid_t nPid ;
 
 extern HV *    pCacheHash ; /* Hash containing CVs to precompiled subs */
 extern HV *    pFormHash ;  /* Formular data */
+extern AV *    pFormArray ; /* Fieldnames */
 extern HV *    pInputHash ; /* Data of input fields */
 
-extern SV *    pNameSpace ; /* Currently active Namespace */
+extern char *  sEvalPackage ; /* Currently active Package */
+extern STRLEN  nEvalPackage ; /* Currently active Package (length) */
 
 extern char sLogfileURLName[] ;
 
@@ -85,7 +93,7 @@ int iembperl_term (void) ;
 int iembperl_req  (/*in*/ char *  sInputfile,
                    /*in*/ char *  sOutputfile,
                    /*in*/ int     bDebugFlags,
-                   /*in*/ char *  pNameSpaceName,
+                   /*in*/ int     bOptionFlags,
                    /*in*/ int     nFileSize,
                    /*in*/ HV *    pCache) ;
 
@@ -93,6 +101,7 @@ int ScanCmdEvalsInString (/*in*/  char *   pIn,
                           /*out*/ char * * pOut,
                           /*in*/  size_t   nSize) ;
     
+char * LogError (/*in*/ int   rc) ;
 
 /* ---- from epio.c ----- */
 
@@ -297,6 +306,8 @@ int  SearchCmd          (/*in*/  const char *    sCmdName,
 int  ProcessCmd        (/*in*/ struct tCmd *  pCmd,
                         /*in*/ const char *    sArg) ;
 
+extern int  bStrict ; /* aply use strict in each eval */
+
 /* ---- from eputil.c ----- */
 
 
@@ -317,14 +328,17 @@ const char * GetHtmlArg (/*in*/  const char *    pTag,
 
 void TransHtml (/*i/o*/ char *  sData) ;
 
+#ifndef WIN32
 #define strnicmp strncasecmp
-
+#endif
 
 
 /* ---- from epeval.c ----- */
 
 extern int numEvals ;
 extern int numCacheHits ;
+
+int EvalDirect (/*in*/  SV * pArg) ;
 
 int EvalNum (/*in*/  char *        sArg,
              /*in*/  int           nFilepos,
@@ -337,5 +351,3 @@ int Eval (/*in*/  const char *  sArg,
 int EvalTrans (/*in*/  char *   sArg,
                /*in*/  int      nFilepos,
                /*out*/ SV **    pRet) ;
-
-
