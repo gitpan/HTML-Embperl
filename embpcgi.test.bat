@@ -28,7 +28,7 @@ use HTML::Embperl;
 
 $^W = 1;
 
-HTML::Embperl::run (@ARGV) ;
+HTML::Embperl::runcgi ;
 
 
 __END__

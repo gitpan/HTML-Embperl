@@ -80,6 +80,8 @@ static int HtmlA (/*i/o*/ register req * r,
 			/*in*/ const char *   sArg) ;
 static int HtmlIMG (/*i/o*/ register req * r,
 			/*in*/ const char *   sArg) ;
+static int HtmlForm (/*i/o*/ register req * r,
+			/*in*/ const char *   sArg) ;
 static int HtmlMeta (/*i/o*/ register req * r,
 			/*in*/ const char *   sArg) ;
 
@@ -110,6 +112,7 @@ struct tCmd CmdTab [] =
         { "endsub",   CmdEndsub,        0, 1, cmdSub,           0, 0, cnNop    , 0                  , 0 } ,
         { "endwhile", CmdEndwhile,      0, 1, cmdWhile,         0, 0, cnNop    , 0                  , 0 } ,
         { "foreach",  CmdForeach,       1, 0, cmdForeach,       0, 1, cnNop    , 0                  , 0 } ,
+        { "form",     HtmlForm,         0, 0, cmdNorm,          0, 0, cnNop    , 0                  , 1 } ,
         { "frame",    HtmlIMG,          0, 0, cmdNorm,          0, 0, cnNop    , 0                  , 1 } ,
         { "hidden",   CmdHidden,        0, 0, cmdNorm,          0, 0, cnNop    , 0                  , 0 } ,
         { "if",       CmdIf,            1, 0, (enum tCmdType)(cmdIf | cmdEndif), 0, 0, cnNop    , 0,  0 } ,
@@ -947,39 +950,35 @@ static int HtmlMeta (/*i/o*/ register req * r,
 			/*in*/ const char *   sArg)
     
     {
-    const char *  pType ;
-    const char *  pContent ;
+    char *  pType ;
+    char *  pContent ;
     int     tlen ;
     int     clen ;
-    
+    char    tsav ;
+    char    csav ;
     
     
     EPENTRY (HtmlMeta) ;
 
-#ifdef APACHE
-    if (r -> pApacheReq == NULL)
-        return ok ;
     
-    pType = GetHtmlArg (sArg, "HTTP-EQUIV", &tlen) ;
+    pType = (char *)GetHtmlArg (sArg, "HTTP-EQUIV", &tlen) ;
     if (tlen == 0)
         return ok ; /* no http-equiv */
 
-    pContent = GetHtmlArg (sArg, "CONTENT", &clen) ;
+    pContent = (char *)GetHtmlArg (sArg, "CONTENT", &clen) ;
     if (clen == 0)
         return ok ; /* missing content for http-equiv */
-
-
-    if (strnicmp (pType, "content-type", tlen) == 0)
-        {
-        r -> pApacheReq->content_type = pstrndup(r -> pApacheReq->pool, pContent, clen);
-        return ok ;
-        }
-
-    table_set(r -> pApacheReq->headers_out, pstrndup (r -> pApacheReq->pool, pType, tlen), 
-                                 pstrndup (r -> pApacheReq->pool, pContent, clen));
     
+    /*tsav = pType[tlen] ;
+    pType[tlen] = '\0' ;
+    csav = pContent[clen] ;
+    pContent[clen] = '\0' ;*/
     
-#endif
+    hv_store (r -> pHeaderHash, pType, tlen, newSVpv (pContent, clen), 0) ;
+
+    /*pType[tlen] = tsav ;
+    pContent[clen] = csav ;*/
+
     return ok ;
     }
 
@@ -1208,6 +1207,21 @@ static int HtmlIMG     (/*i/o*/ register req * r,
     return URLEscape (r, sArg, "SRC") ;
     }
 
+
+/* ---------------------------------------------------------------------------- */
+/*                                                                              */
+/* Form tag ...                                                                 */
+/*                                                                              */
+/* ---------------------------------------------------------------------------- */
+
+
+static int HtmlForm    (/*i/o*/ register req * r,
+			/*in*/ const char *   sArg)
+    {
+    EPENTRY (HtmlForm) ;
+
+    return URLEscape (r, sArg, "ACTION") ;
+    }
 
 
 /* ---------------------------------------------------------------------------- */

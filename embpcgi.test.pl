@@ -1,10 +1,4 @@
-@rem = '--*-Perl-*--
-@echo off
-/usr/bin/perl -x %0 %1 %2 %3 %4 %5 %6 %7 %8 %9
-goto endofperl
-@rem ';
-#!/usr/bin/perl --
-#line 8
+#!/usr/bin/perl 
 ###################################################################################
 #
 #   Embperl - Copyright (c) 1997-1999 Gerald Richter / ECOS
@@ -19,11 +13,26 @@ goto endofperl
 #
 ###################################################################################
 
+
+
+BEGIN 
+    {
+    
+    use ExtUtils::testlib ;
+    
+    eval { require Apache::Session::Embperl  ; } if (defined($ENV{EMBPERL_SESSION_CLASSES})) ;
+    
+    }	
+
+
 use HTML::Embperl;
 
-die "Do not use as CGI script. Use 'embpcgi.bat' instead" if ($ENV{PATH_TRANSLATED}) ;
 
-HTML::Embperl::run (@ARGV) ;
 
-__END__
-:endofperl
+$^W = 1;
+
+HTML::Embperl::runcgi ;
+
+
+
+

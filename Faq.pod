@@ -603,6 +603,10 @@ You can write it as
 (Embperl will automatically insert all meta http-equiv tags into the http
 header)
 
+or use %http_headers_out
+
+    [- $http_headers_out{'Content-Type'} = 'text/html' -]
+
 or (only when running under mod_perl) you can use
 
     [- $req_rec -> content_type ('text/html') -]
@@ -621,7 +625,11 @@ Example Code:
 
     <META HTTP-EQUIV="Set-Cookie" CONTENT="[+ $cookie +] = [+ $value +]">
 
-=item 2.) or - using mod_perl's functionality - use
+=item 2.) or use %http_headers_out
+
+    [- $http_headers_out{'Set-Cookie'} = "$cookie=$value" -]
+
+=item 3.) or - using mod_perl's functionality - use
 
     [- $req_rec ->  header_out("Set-Cookie" => "$cookie=$value"); -]
 
@@ -630,9 +638,15 @@ Example Code:
 NOTE: You make also take a look at Embperls (1.2b2 and above) ability to
 handle sessions for you inside the %udat and %mdat hashes.
 
-=head2 Can I do REDIRECT with Embperl?
+=head2 Can I do a Redirect with Embperl?
 
-The function you want to call is Apache::header_out.
+The following way works with mod_perl and as cgi:
+
+  [- $http_headers_out{'Location'} = "http://www.ecos.de/embperl/" -]
+
+the status of the request will automaticly set to 301.
+
+or use the mod_perl function Apache::header_out.
 
 Example Code:
 
@@ -644,21 +658,9 @@ Example Code:
     $req_rec->status(REDIRECT);
     -]
 
-=head2 How to send Location Header with EmbedPerl
 
- 
-Try
-
-    [-
-       $req_rec ->  header_out("Location" => "http://cnn.com/");
-       $req_rec ->  status (302));
-    -] 
- 
-(You may use the constants from Apache::Constants instead of the 302)
-
-If there is nothing more to do on this page, you may call exit directly
+If there is nothing more to do on this page, you may call C<exit> directly
 after setting the status.
-
 
 
 =head2 Can I serve random GIFs with Embperl?

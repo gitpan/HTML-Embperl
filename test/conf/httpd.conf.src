@@ -34,10 +34,15 @@ SetEnv EMBPERL_VIRTLOG /embperl/log
 PerlSetEnv EMBPERL_LOG $EPPATH/test/tmp/test.log
 SetEnv EMBPERL_LOG $EPPATH/test/tmp/test.log
 PerlSetEnv EMBPERL_SESSION_CLASS $EPSESSIONCLASS
+SetEnv EMBPERL_SESSION_CLASS $EPSESSIONCLASS
 PerlSetEnv SESSION_FILE_DIRECTORY $EPPATH/test/tmp
 PerlSetEnv SESSION_DBI_DATASOURCE $EPSESSIONDS
-PerlSetEnv EMBPERL_SESSION_CLASSES "MemoryStore NullLocker"
+PerlSetEnv EMBPERL_SESSION_CLASSES "FileStore NullLocker"
+PerlSetEnv EMBPERL_SESSION_ARGS "Directory=$EPPATH/test/tmp"
+SetEnv EMBPERL_SESSION_CLASSES "FileStore NullLocker"
+SetEnv EMBPERL_SESSION_ARGS "Directory=$EPPATH/test/tmp"
 
+SetEnv EMBPERL_ALLOW asc|\\.htm\$
 
 PerlScript $EPPATH/test/conf/$EPSTARTUP
 
@@ -50,6 +55,7 @@ Options ExecCGI
  
 AddType text/html .html
 AddType text/html .htm
+AddType text/html .xhtm
 
 Alias /embperl/sub/ $EPPATH/test/html/
 Alias /embperl/ $EPPATH/test/html/
@@ -210,12 +216,12 @@ Alias /cgi-bin-32/ $EPPATH/test/html/
 ScriptAlias /cgi/ $EPPATH/
 
 <Location /cgi-bin>
-Action text/html /cgi/embpexec.test.pl
+Action text/html /cgi/embpcgi.test.pl
 Options ExecCGI
 </Location>
 
 <Location /cgi-bin-32>
-Action text/html /cgi/embpexec.test.bat
+Action text/html /cgi/embpcgi.test.bat
 Options ExecCGI
 </Location>
 

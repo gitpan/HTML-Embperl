@@ -31,13 +31,13 @@ single: [+ $fdat{single} +] <br>
 
 <br>
 
-[-
+[#
 eval 'use IO::Handle' ;
 $h = undef ;
 eval '$h = IO::Handle -> new_from_fd (fileno ($fdat{upload}), "r")' ;
 -]
 [+ if ($h) { @s = $h -> stat ; $s[7]} else { '8219' } +]
-
+#]
 <p><hr>
 
 <small>HTML::Embperl (c) 1997-1998 G.Richter</small>

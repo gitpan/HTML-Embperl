@@ -261,7 +261,8 @@ struct tReq
     bool    bSubReq ;           /* This is a sub request (called inside an Embperl page) */
     char *  sSubName ;          /* subroutine to call */
     int	    nSessionMgnt ;	/* how to retrieve the session id */
-
+    int	    nInsideSub ;	/* Are we inside of a sub? */
+    int	    bExit ;		/* We should exit the page */
     
     /* --- Source in memory --- */
 
@@ -365,6 +366,7 @@ struct tReq
     AV *    pFormArray ; /* Fieldnames */
     HV *    pUserHash ;  /* User data */
     HV *    pModHash ;   /* Module data */
+    HV *    pHeaderHash ;/* http headers */
 
     /* --- for statistics --- */
 

@@ -66,7 +66,8 @@ enum tRc
     rcImportStashErr,
     rcCGIError,
     rcUnclosedHtml,
-    rcUnclosedCmd
+    rcUnclosedCmd,
+    rcNotAllowed
     
     } ;
 

@@ -37,7 +37,7 @@ static char sInputHashName [] = "HTML::Embperl::idat" ;
 static char sErrArrayName  [] = "HTML::Embperl::errors" ;
 static char sErrFillName   [] = "HTML::Embperl::errfill" ;
 static char sErrStateName  [] = "HTML::Embperl::errstate" ;
-static char sHeaderArrayName  [] = "HTML::Embperl::headers" ;
+static char sHeaderHashName  [] = "HTML::Embperl::http_headers_out" ;
 static char sTabCountName  [] = "HTML::Embperl::cnt" ;
 static char sTabRowName    [] = "HTML::Embperl::row" ;
 static char sTabColName    [] = "HTML::Embperl::col" ;
@@ -137,6 +137,7 @@ char * LogError (/*i/o*/ register req * r,
         case rcCGIError:                msg ="[%d]ERR:  %d: Line %d: Setup of CGI.pm failed: %s%s" ; break ;
         case rcUnclosedHtml:            msg ="[%d]ERR:  %d: Line %d: Unclosed HTML tag <%s> at end of file %s" ; break ;
         case rcUnclosedCmd:             msg ="[%d]ERR:  %d: Line %d: Unclosed command [$ %s $] at end of file %s" ; break ;
+	case rcNotAllowed:              msg ="[%d]ERR:  %d: Line %d: Forbidden %s: Does not match EMBPERL_ALLOW %s" ; break ;
         default:                        msg ="[%d]ERR:  %d: Line %d: Error %s%s" ; break ; 
         }
 
@@ -1403,12 +1404,12 @@ int Init        (/*in*/ int           _nIOType,
         return 1 ;
         }
 
-    if ((pHeaderArray = perl_get_av (sHeaderArrayName, TRUE)) == NULL)
+    */
+    if ((r -> pHeaderHash = perl_get_hv (sHeaderHashName, TRUE)) == NULL)
         {
-        LogError (r, rcArrayError) ;
+        LogError (r, rcHashError) ;
         return 1 ;
         }
-    */
 
     if ((r -> pInputHash = perl_get_hv (sInputHashName, TRUE)) == NULL)
         {
@@ -1845,7 +1846,9 @@ tReq * SetupRequest (/*in*/ SV *    pApacheReqSV,
     r -> sSubName        = sSubName ;
     r -> nSessionMgnt    = nSessionMgnt ;    
     r -> pConf           = pConf ;
-
+    r -> nInsideSub	 = 0 ;
+    r -> bExit  	 = 0 ;
+    
     r -> pFiles2Free	 = NULL ;
     if (r -> bSubReq && sSourcefile[0] == '?' && sSubName && sSubName[0] != '\0')
 	{
@@ -1932,6 +1935,7 @@ tReq * SetupRequest (/*in*/ SV *    pApacheReqSV,
         av_clear (r -> pErrFill) ;
         av_clear (r -> pErrState) ;
         av_clear (r -> pErrArray) ;
+        hv_clear (r -> pHeaderHash) ;
         r -> nLastErrFill  = AvFILL(r -> pErrArray) ;
         r -> bLastErrState = r -> bError ;
         r -> nLogFileStartPos = GetLogFilePos (r) ;
@@ -2004,6 +2008,7 @@ void FreeRequest (/*i/o*/ register req * r)
         {
         tFile * pFile ;
 
+        hv_clear (r -> pHeaderHash) ;
         av_clear (r -> pFormArray) ;
         hv_clear (r -> pFormHash) ;
         hv_clear (r -> pInputHash) ;
@@ -2145,9 +2150,11 @@ static int StartOutput (/*i/o*/ register req * r)
         }
     else
         {
-        if (r -> nIOType == epIOCGI && (r -> bOptions & optSendHttpHeader))
+        /*
+	if (r -> nIOType == epIOCGI && (r -> bOptions & optSendHttpHeader))
             oputs (r, "Content-type: text/html\n\n") ;
-            
+        */
+	
         oBegin (r) ;
         }
 
@@ -2169,7 +2176,7 @@ static int EndOutput (/*i/o*/ register req * r,
     {
     SV * pOut ;
     int  bOutToMem = SvROK (pOutData) ;
-
+    SV * pCookie = NULL ;
     
     if (rc != ok ||  r -> bError)
         { /* --- generate error page if necessary --- */
@@ -2187,7 +2194,10 @@ static int EndOutput (/*i/o*/ register req * r,
     	    r -> bError = 1 ;
 	    oRollbackOutput (r, NULL) ;
 	    if (bOutToMem)
+		{
+		pOut = SvRV (pOutData) ;
 		sv_setsv (pOut, &sv_undef) ;
+		}
 	    return ok ; /* No further output or header, this should be handle by the server */
 	    }    
         else if (!(r -> bOptions & optDisableEmbperlErrorPage))
@@ -2215,63 +2225,87 @@ static int EndOutput (/*i/o*/ register req * r,
 
     if (!(r -> bOptions & optEarlyHttpHeader) && (r -> bOptions & optSendHttpHeader) && !bOutToMem)
         {  /* --- send http headers if not alreay done --- */
-#ifdef APACHE
-        if (r -> pApacheReq)
-            {
-            if (!r -> bAppendToMainReq)
-                {                    
-		SV **   ppSVID ;
-		SV *    pSVID = NULL ;
-                MAGIC * pMG ;
-		char *  pUID = NULL ;
-	        STRLEN  ulen = 0 ;
-
-		set_content_length (r -> pApacheReq, GetContentLength (r) + 2) ;
-		
-                
-		if (r -> nSessionMgnt)
+        if (!r -> bAppendToMainReq)
+            {                    
+	    SV **   ppSVID ;
+	    SV *    pSVID = NULL ;
+            MAGIC * pMG ;
+	    char *  pUID = NULL ;
+	    STRLEN  ulen = 0 ;
+            
+	    if (r -> nSessionMgnt)
+		{			
+		if (r -> nSessionMgnt == 2)
 		    {			
-		    if (r -> nSessionMgnt == 2)
-			{			
-			if (pMG = mg_find((SV *)r -> pUserHash,'P'))
+		    if (pMG = mg_find((SV *)r -> pUserHash,'P'))
+			{
+			dSP;                            /* initialize stack pointer      */
+			SV * pUserHashObj = pMG -> mg_obj ;
+			int n ;
+
+
+			PUSHMARK(sp);                   /* remember the stack pointer    */
+			XPUSHs(pUserHashObj) ;            /* push pointer to obeject */
+			PUTBACK;
+			n = perl_call_method ("getid", 0) ; /* call the function             */
+			SPAGAIN;
+			if (n > 0)
 			    {
-			    dSP;                            /* initialize stack pointer      */
-			    SV * pUserHashObj = pMG -> mg_obj ;
-			    int n ;
-
-
-			    PUSHMARK(sp);                   /* remember the stack pointer    */
-			    XPUSHs(pUserHashObj) ;            /* push pointer to obeject */
-			    PUTBACK;
-			    n = perl_call_method ("getid", 0) ; /* call the function             */
-			    SPAGAIN;
-			    if (n > 0)
-				{
-				pSVID = POPs;
-				pUID = SvPV (pSVID, ulen) ;
-				}
-			    PUTBACK;
+			    pSVID = POPs;
+			    pUID = SvPV (pSVID, ulen) ;
 			    }
-			}
-		    else
-			{
-			ppSVID = hv_fetch (r -> pUserHash, sUIDName, sizeof (sUIDName) - 1, 0) ;
-			if (ppSVID && *ppSVID)
-			    pUID = SvPV (*ppSVID, ulen) ;
-			}
-		
-		    if (ulen > 0)
-			{
-			table_add(r -> pApacheReq->headers_out, sSetCookie, 
-			    pstrcat (r -> pApacheReq->pool, r -> pConf -> sCookieName, "=", pUID,
-				    r -> pConf -> sCookieDomain[0]?"; domain=":""  , r -> pConf -> sCookieDomain, 
-				    r -> pConf -> sCookiePath[0]?"; path=":""      , r -> pConf -> sCookiePath, 
-				    r -> pConf -> sCookieExpires[0]?"; expires=":"", r -> pConf -> sCookieExpires, 
-				    NULL));
-			
+			PUTBACK;
 			}
 		    }
+		else
+		    {
+		    ppSVID = hv_fetch (r -> pUserHash, sUIDName, sizeof (sUIDName) - 1, 0) ;
+		    if (ppSVID && *ppSVID)
+			pUID = SvPV (*ppSVID, ulen) ;
+		    }
+	    
+		if (ulen > 0)
+		    {
+		    pCookie = newSVpvf ("%s=%s%s%s%s%s%s%s",  r -> pConf -> sCookieName, pUID,
+				r -> pConf -> sCookieDomain[0]?"; domain=":""  , r -> pConf -> sCookieDomain, 
+				r -> pConf -> sCookiePath[0]?"; path=":""      , r -> pConf -> sCookiePath, 
+				r -> pConf -> sCookieExpires[0]?"; expires=":"", r -> pConf -> sCookieExpires) ;
+		    
+		    }
+		}
 		
+#ifdef APACHE
+	    if (r -> pApacheReq)
+		{
+		SV *   pHeader ;
+		char * p ;
+		HE *   pEntry ;
+		char * pKey ;
+		I32    l ;
+        
+		hv_iterinit (r -> pHeaderHash) ;
+		while (pEntry = hv_iternext (r -> pHeaderHash))
+		    {
+		    pKey     = hv_iterkey (pEntry, &l) ;
+		    pHeader  = hv_iterval (r -> pHeaderHash, pEntry) ;
+
+		    if (pHeader && pKey)
+			{			    
+			p = SvPV (pHeader, na) ;
+			if (strnicmp (pKey, "location", 8) == 0)
+			    r -> pApacheReq->status = 301;
+			if (strnicmp (pKey, "content-type", 12) == 0)
+			    r -> pApacheReq->content_type = pstrdup(r -> pApacheReq->pool, p);
+			else
+			    table_set(r -> pApacheReq->headers_out, pstrdup(r -> pApacheReq->pool, pKey), pstrdup(r -> pApacheReq->pool, p)) ;
+			}
+		    }
+		if (pCookie)
+		    {
+		    table_add(r -> pApacheReq->headers_out, sSetCookie, pstrdup(r -> pApacheReq->pool, SvPV(pCookie, na))) ;
+		    SvREFCNT_dec (pCookie) ;
+		    }
+		set_content_length (r -> pApacheReq, GetContentLength (r) + 2) ;
 		send_http_header (r -> pApacheReq) ;
 #ifndef WIN32
                 mod_perl_sent_header(r -> pApacheReq, 1) ;
@@ -2291,23 +2325,66 @@ static int EndOutput (/*i/o*/ register req * r,
                 	    lprintf (r,  "[%d]HDR:  %s=%s\n", r -> nPid, hdrs[i].key, hdrs[i].val) ; 
         	    }
                 }
-            }
-        else
+	    else
 #endif
-           { 
-            /*
-           if (r -> nIOType == epIOCGI)
-                {            
-                char txt[100] ;
+		{ 
+		if (r -> nIOType == epIOCGI)
+		    {            
+		    char txt[100] ;
+		    int  save = r -> nMarker ;
+		    SV *   pHeader ;
+		    char * p ;
+		    HE *   pEntry ;
+		    char * pKey ;
+		    I32    l ;
+		    char * pContentType = "text/html";
 
-                oputs ("Content-type: text/html\n") ;
-                sprintf (txt, "Content-Length: %d\n", GetContentLength () + 2) ;
-                oputs (txt) ;
-                oputs ("\n") ;
-                }
-            */
-           }
-       }
+		    r -> nMarker = 0 ; /* output directly */
+        
+		    hv_iterinit (r -> pHeaderHash) ;
+		    while (pEntry = hv_iternext (r -> pHeaderHash))
+			{
+			pKey     = hv_iterkey (pEntry, &l) ;
+			pHeader  = hv_iterval (r -> pHeaderHash, pEntry) ;
+
+			if (pHeader && pKey)
+			    {			    
+			    p = SvPV (pHeader, na) ;
+			    if (strnicmp (pKey, "content-type", 12) == 0)
+				pContentType = p ;
+			    else
+				{
+				oputs (r, pKey) ;
+				oputs (r, ": ") ;
+				oputs (r, p) ;
+				oputs (r, "\n") ;
+				}
+			    if (r -> bDebug & dbgHeadersIn)
+                		lprintf (r,  "[%d]HDR:  %s: %s\n", r -> nPid, pKey, p) ; 
+			    }
+			}
+		    
+		    oputs (r, "Content-Type: ") ;
+		    oputs (r, pContentType) ;
+		    oputs (r, "\n") ;
+		    sprintf (txt, "Content-Length: %d\n", GetContentLength (r) + 2) ;
+		    oputs (r, txt) ;
+		    if (pCookie)
+			{
+			oputs (r, sSetCookie) ;
+			oputs (r, ": ") ;
+			oputs (r, SvPV(pCookie, na)) ;
+			oputs (r, "\n") ;
+			SvREFCNT_dec (pCookie) ;
+			}
+
+		    oputs (r, "\n") ;
+
+		    r -> nMarker = save ;
+		    }
+		}
+	    }
+	}
 
     /* --- output the content if not alreay done --- */
 
@@ -2595,9 +2672,9 @@ static int ReadInputFile	(/*i/o*/ register req * r)
     SV *    pBufSV = NULL ;
     req *   pMain = r ;
 
-    if ((pBufSV = r -> Buf.pFile -> pBufSV) == NULL)
+    if ((pBufSV = r -> Buf.pFile -> pBufSV) == NULL || !SvPOK (pBufSV))
 	{
-	if (SvROK(r -> pInData) && SvPOK (SvRV(r -> pInData)))
+	if (SvROK(r -> pInData))
 	    { /* --- get input from memory --- */
 	    STRLEN n ;
 	    r -> Buf.pBuf = SvPV (pBufSV = SvRV(r -> pInData), n) ;
@@ -2631,8 +2708,10 @@ static int ReadInputFile	(/*i/o*/ register req * r)
 	    }
 	}
     else
-	r -> Buf.pBuf = SvPVX (pBufSV) ;
-
+	{
+	r -> Buf.pBuf		    = SvPVX (pBufSV) ;
+	r -> Buf.pFile -> nFilesize = SvCUR (pBufSV) ;
+	}
 
     return rc ;
     }
@@ -2680,7 +2759,9 @@ int ProcessSub		(/*i/o*/ register req * r,
 	r -> Buf.nEvalPackage   = r -> Buf.pFile -> nCurrPackage ; 
 	}
 
+    r -> nInsideSub++ ;
     rc = ProcessBlock (r, nBlockStart, r -> Buf.pFile -> nFilesize - nBlockStart, nBlockNo) ;
+    r -> nInsideSub-- ;
 
     memcpy (&r -> Buf, &Buf, sizeof (Buf)) ;
     r -> Buf.sEvalPackage = sEvalPackage ; 

@@ -68,13 +68,15 @@ use vars qw(
     $SessionMgnt
 
     $req_rec
+
+    %http_headers_out
     ) ;
 
 
 @ISA = qw(Exporter DynaLoader);
 
 
-$VERSION = '1.2b9';
+$VERSION = '1.2b10';
 
 
 # HTML::Embperl cannot be bootstrapped in nonlazy mode except
@@ -211,6 +213,9 @@ use constant rcCallOutputFuncFailed => 41 ;
 use constant rcSubNotFound => 42 ;
 use constant rcImportStashErr => 43 ;
 use constant rcCGIError => 44 ;
+use constant rcUnclosedHtml => 45 ;
+use constant rcUnclosedCmd => 46 ;
+use constant rcNotAllowed => 47 ;
 
 $DebugDefault = dbgStd ;
 
@@ -316,15 +321,15 @@ if (defined ($ENV{MOD_PERL}))
     XS_Init (epIOMod_Perl, $DefaultLog, $DebugDefault) ;
 #    eval 'sub OK        { 0 ;   }' if (!defined (&OK)) ;
     eval 'sub NOT_FOUND { 404 ; }' if (!defined (&NOT_FOUND)) ;
-#    eval 'sub FORBIDDEN { 401 ; }' if (!defined (&FORBIDDEN)) ;
+#    eval 'sub FORBIDDEN { 403 ; }' if (!defined (&FORBIDDEN)) ;
 
     }
 else
     {
     eval 'sub OK        { 0 ;   }' ;
     eval 'sub NOT_FOUND { 404 ; }' ;
-    eval 'sub FORBIDDEN { 401 ; }' ;
-    eval 'sub DECLINED  { 401 ; }' ; # in non mod_perl environement, same as FORBIDDEN
+    eval 'sub FORBIDDEN { 403 ; }' ;
+    eval 'sub DECLINED  { 403 ; }' ; # in non mod_perl environement, same as FORBIDDEN
 no strict ;
     XS_Init (epIOPerl, $DefaultLog, $DebugDefault) ;
 use strict ;
@@ -341,8 +346,8 @@ tie *OUT, 'HTML::Embperl::Out' ;
 $SessionMgnt = 0 ;
 if (exists $INC{'Apache/Session.pm'})
     {
-    if (defined (&Apache::Session::cleanup))
-	{ # Apache::Session > 1.00
+    if (defined (&Apache::Session::Embperl::cleanup) || defined (&Apache::Session::cleanup))
+	{ # Apache::Session > 1.02
 	my ($os, $lm) = split /\s*,\s*|\s+/, $ENV{EMBPERL_SESSION_CLASSES} ;
         if (!$os || !$lm)
             {
@@ -370,20 +375,32 @@ if (exists $INC{'Apache/Session.pm'})
 	        lock_manager   => $lm
 	        ) ;
 
-	    tie %udat, 'Apache::Session', undef, \%sargs ;
-	    tie %mdat, 'Apache::Session', undef, \%sargs ;
+            if (defined (&Apache::Session::Embperl::cleanup))
+                {
+	        tie %udat, 'Apache::Session::Embperl', undef, \%sargs ;
+	        tie %mdat, 'Apache::Session::Embperl', undef, \%sargs ;
+                }
+            else
+                {
+	        tie %udat, 'Apache::Session', undef, \%sargs ;
+	        tie %mdat, 'Apache::Session', undef, \%sargs ;
+                }
 	    $SessionMgnt = 2 ;
-	    warn "[$$]SES:  Embperl Session management enabled (1.xx)\n" ;
+	    warn "[$$]SES:  Embperl Session management enabled (1.xx)\n" if ($ENV{MOD_PERL}) ;
             }
 	}
     else
-	{ # Apache::Session = 0.17
-	$SessionMgnt = 1 ;
-	tie %udat, 'Apache::Session', $ENV{EMBPERL_SESSION_CLASS} || 'Win32',
-		      undef, {not_lazy=>0, autocommit=>0, lifetime=>&Apache::Session::LIFETIME} ;
-	tie %mdat, 'Apache::Session', $ENV{EMBPERL_SESSION_CLASS} || 'Win32',
-		      undef, {not_lazy=>0, autocommit=>0, lifetime=>&Apache::Session::LIFETIME} ;
-	warn "[$$]SES:  Embperl Session management enabled (0.17)\n" ;
+	{ 
+        if ($Apache::Session::VERSION =~ /^0\.17/)
+            {
+            # Apache::Session = 0.17
+	    $SessionMgnt = 1 ;
+	    tie %udat, 'Apache::Session', $ENV{EMBPERL_SESSION_CLASS} || 'Win32',
+		          undef, {not_lazy=>0, autocommit=>0, lifetime=>&Apache::Session::LIFETIME} ;
+	    tie %mdat, 'Apache::Session', $ENV{EMBPERL_SESSION_CLASS} || 'Win32',
+		          undef, {not_lazy=>0, autocommit=>0, lifetime=>&Apache::Session::LIFETIME} ;
+	    warn "[$$]SES:  Embperl Session management enabled (0.17)\n" ;
+            }
 	}
    }
 #######################################################################################
@@ -437,8 +454,9 @@ sub AddCompartment ($)
     
     return $cp if (defined ($cp = $NameSpace{$sName})) ;
 
-    eval 'require Safe' ;
-    die "require Safe failed: $@" if ($@); 
+    #eval 'require Safe' ;
+    #die "require Safe failed: $@" if ($@); 
+    require Safe ;
 
     $cp = new Safe ($sName) ;
     
@@ -543,7 +561,7 @@ sub SendLogFile ($$$)
 sub CheckFile
 
     {
-    my ($filename, $req_rec, $AllowZeroFilesize) = @_ ;
+    my ($filename, $req_rec, $AllowZeroFilesize, $allow) = @_ ;
 
     if (-d $filename)
         {
@@ -551,6 +569,12 @@ sub CheckFile
 	return &DECLINED ; # let Apache handle directories
 	}                 
 
+    if (defined ($allow) && !($filename =~ /$allow/))
+        {
+	logerror (rcNotAllowed, $filename);
+	return &FORBIDDEN ;
+ 	}
+	
     unless (-r _ && (-s _ || $AllowZeroFilesize))
         {
 	logerror (rcNotFound, $filename);
@@ -589,6 +613,7 @@ sub ScanEnvironement
     $$req{'package'}     = $ENV{EMBPERL_PACKAGE}     if (exists ($ENV{EMBPERL_PACKAGE})) ;
     $$req{'input_func'}  = $ENV{EMBPERL_INPUT_FUNC}  if (exists ($ENV{EMBPERL_INPUT_FUNC})) ;
     $$req{'output_func'} = $ENV{EMBPERL_OUTPUT_FUNC} if (exists ($ENV{EMBPERL_OUTPUT_FUNC})) ;
+    $$req{'allow'}       = $ENV{EMBPERL_ALLOW}       if (exists ($ENV{EMBPERL_ALLOW})) ;
     $$req{'debug'}       = $ENV{EMBPERL_DEBUG}   || 0 ;
     $$req{'options'}     = $ENV{EMBPERL_OPTIONS} || 0 ;
     $$req{'log'}         = $ENV{EMBPERL_LOG}     || $DefaultLog ;
@@ -706,7 +731,7 @@ use strict ;
         }
    elsif (!$Sub || $Inputfile ne '?')
         {
-        if ($rc = CheckFile ($Inputfile, $req_rec, (($$req{options} || 0) & optAllowZeroFilesize))) 
+        if ($rc = CheckFile ($Inputfile, $req_rec, (($$req{options} || 0) & optAllowZeroFilesize), $$req{'allow'})) 
             {
 	    FreeConfData ($conf) ;
             return $rc ;
@@ -720,7 +745,9 @@ use strict ;
         $mtime = 0 ;
 	}
 
-    my $r = SetupRequest ($req_rec, $Inputfile, $mtime, $filesize, ($$req{firstline} || 1), $Outputfile, $conf,
+    my $ar  ;
+    $ar = Apache->request if (defined ($req_rec)) ; # workaround that Apache::Request has another C Interface, than Apache
+    my $r = SetupRequest ($ar, $Inputfile, $mtime, $filesize, ($$req{firstline} || 1), $Outputfile, $conf,
                           &epIOMod_Perl, $In, $Out, $Sub, exists ($$req{import})?scalar(caller ($$req{import} > 0?$$req{import} - 1:0)):'',$SessionMgnt) ;
     
     my $package = $r -> CurrPackage ;
@@ -741,8 +768,9 @@ use strict ;
 	       defined($ENV{'CONTENT_TYPE'}) &&
 	       $ENV{'CONTENT_TYPE'}=~m|^multipart/form-data|)
 	    { # just let CGI.pm read the multipart form data, see cgi docu
-	    eval 'require CGI' ;
-	    die "require CGI failed: $@" if ($@); 
+	    #eval 'require CGI' ;
+	    #die "require CGI failed: $@" if ($@); 
+	    require CGI ;
 
 	    my $cgi ;
 	    $cgi = new CGI  ;
@@ -766,7 +794,7 @@ use strict ;
 		    $fdat{ $_ } = $params -> [0] ;
 		    }
 		
-		#print LOG "[$$]FORM: $_=" . (ref ($fdat{$_})?ref ($fdat{$_}):$fdat{$_}) . "\n" if ($dbgForm) ; 
+		##print LOG "[$$]FORM: $_=" . (ref ($fdat{$_})?ref ($fdat{$_}):$fdat{$_}) . "\n" if ($dbgForm) ; 
 		print LOG "[$$]FORM: $_=$fdat{$_}\n" if ($dbgForm) ; 
 
 		if (ref($fdat{$_}) eq 'Fh') 
@@ -898,8 +926,6 @@ use strict ;
 	    }
 
 
-
-     
         $r -> Export ($exports, caller ($$req{import} - 1)) if ($$req{import} && ($exports = $r -> ExportHash)) ;
 
 	my $cleanup    = $$req{'cleanup'}    || ($optDisableVarCleanup?-1:0) ;
@@ -1041,6 +1067,40 @@ sub run (\@)
     XS_Init ($ioType, $Logfile, $DebugDefault) ;
 
     
+    tie *LOG, 'HTML::Embperl::Log' ;
+
+    $req{'uri'} = $ENV{SCRIPT_NAME} ;
+
+    $req{'cleanup'} = 0 ;
+    $req{'cleanup'} = -1 if (($req{'options'} & optDisableVarCleanup)) ;
+    $req{'options'} |= optSendHttpHeader ;
+
+    $rc = Execute (\%req) ;
+
+    #close LOG ;
+    XS_Term () ;
+
+    return $rc ;
+    }
+
+#######################################################################################
+
+
+sub runcgi ()
+    
+    {
+    my $Logfile    = $ENV{EMBPERL_LOG} || $DefaultLog ;
+    my $rc  ; 
+    my $ioType ;
+    my %req ;
+
+    ScanEnvironement (\%req) ;
+    
+    $req{'inputfile'} = $ENV{PATH_TRANSLATED} ;
+    $ioType = epIOCGI ;
+
+    XS_Init ($ioType, $Logfile, $DebugDefault) ;
+
     tie *LOG, 'HTML::Embperl::Log' ;
 
     $req{'uri'} = $ENV{SCRIPT_NAME} ;
@@ -1315,8 +1375,9 @@ sub MailFormTo
 
     $ret = $fdat{$returnfield} ;
 
-    eval 'require Net::SMTP' ;
-    die "require Net::SMTP failed: $@" if ($@); 
+    #eval 'require Net::SMTP' ;
+    #die "require Net::SMTP failed: $@" if ($@); 
+    require Net::SMTP ;
 
     $smtp = Net::SMTP->new($ENV{'EMBPERL_MAILHOST'} || 'localhost') or die "Cannot connect to mailhost" ;
     { $smtp->mail('WWW-Server');}
@@ -1367,8 +1428,9 @@ sub ProxyInput
     
     my ($request, $response, $ua);
 
-    eval 'require LWP::UserAgent' ;
-    die "require LWP::UserAgent failed: $@" if ($@); 
+    #eval 'require LWP::UserAgent' ;
+    #die "require LWP::UserAgent failed: $@" if ($@); 
+    require LWP::UserAgent ;
 
     $ua = new LWP::UserAgent;  
     $ua -> use_eval (0) ;
@@ -1479,9 +1541,18 @@ sub CreateAliases
         *{"$package\:\:maxcol"}  = \$HTML::Embperl::maxcol ;
         *{"$package\:\:tabmode"} = \$HTML::Embperl::tabmode ;
         *{"$package\:\:escmode"} = \$HTML::Embperl::escmode ;
+        *{"$package\:\:http_headers_out"} = \%HTML::Embperl::http_headers_out ;
     	*{"$package\:\:req_rec"} = \$HTML::Embperl::req_rec if defined ($HTML::Embperl::req_rec) ;
-    	*{"$package\:\:exit"}    = \&Apache::exit if defined (&Apache::exit) ;
-        
+    	if (defined (&Apache::exit))
+            {
+            *{"$package\:\:exit"}    = \&Apache::exit 
+            }
+        else
+            {
+            *{"$package\:\:exit"}    = \&HTML::Embperl::exit 
+            }
+                    
+
         *{"$package\:\:MailFormTo"} = \&HTML::Embperl::MailFormTo ;
         *{"$package\:\:Execute"} = \&HTML::Embperl::Execute ;
 
@@ -1642,8 +1713,9 @@ sub MailErrorsTo ()
 
     my $time = localtime ;
 
-    eval 'require Net::SMTP' ;
-    die "require Net::SMTP failed: $@" if ($@); 
+    #eval 'require Net::SMTP' ;
+    #die "require Net::SMTP failed: $@" if ($@); 
+    require Net::SMTP ;
 
     my $smtp = Net::SMTP->new($ENV{'EMBPERL_MAILHOST'} || 'localhost') or die "Cannot connect to mailhost" ;
     $smtp->mail("Embperl\@$ENV{SERVER_NAME}");

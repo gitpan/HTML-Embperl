@@ -14,8 +14,6 @@ Features
 
 - used named subroutines for debugging [Ert Dredge]
 
-- Adapt session handling to new Apache::Session
-
 - EMBPERL_VERSION [Christian Gilmore]
 
 - use ap_r.. instead of ap_b... ?
@@ -32,6 +30,9 @@ Features
 
 - url rewrting for session id
 
+- disableHTMLSCann inside <script>
+
+- BEGIN/END Blocks [Jason Bodnar 6.10.99]
 
 Test
 ----
@@ -51,8 +52,6 @@ Bugs
 
 - errorright output
 
-- error from croak in 'do xxx.pl' are not shown anywhere
-
 - [* *] inside if [Vasco Chita 1.5.99]
 
 - use Embperl Module later than startup -> cleanup fails on first request
@@ -63,8 +62,25 @@ Bugs
 
 - norm path before chdir on win32
 
+- remove CR's from test files
+
+- requrie in [!  !] Blocks? [Jens Alm 22.9.99]
+
+- warnings [Oyvind Gjerstad 23.9.99]
 
 Docs
 ----
+- spawn -> span
 
+- [- -] [+ +] etc all turns into _perl_code_ in html [S Page 13.9.99]
 
+- $tabmode
+
+- new emacs files [Eric Arneson 20.9.99]
+
+- exit NOTE 1,2
+
+1.3
+---
+
+- restrict number of iterations in search

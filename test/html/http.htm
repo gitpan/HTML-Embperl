@@ -9,13 +9,14 @@
 
 <meta http-equiv="Formatter" content="Embperl">
 
-[- $req_rec -> header_out('Set-Cookie'=>'Formatter=Embperl') -]
+[# 
+$http_headers_out{'Location'} = "http://www.ecos.de/embperl/" ;
+#]
 
-[- %ks = $req_rec -> headers_out; @ks = sort keys %ks -]
-
+[- @ks = sort keys %http_headers_out -]
 <table>
 	<tr>
-		<td>[+ $ks[$row] +]</td><td>[+ $ks{$ks[$row] || ''} +]</td>
+		<td>[+ $ks[$row] +]</td><td>[+ $http_headers_out{$ks[$row]} +]</td>
 	</tr>
 </table>
 

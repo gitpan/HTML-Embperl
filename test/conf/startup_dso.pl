@@ -8,7 +8,7 @@ BEGIN {
         die $@ if ($@) ;
         eval " use Apache\:\:Session\:\:$EPSESSIONCLASS; " ;
         }
-    }
+    } ;
 
 
 

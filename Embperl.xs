@@ -255,6 +255,20 @@ CODE:
 OUTPUT:
     RETVAL
 
+void
+embperl_exit()
+CODE:
+    /* from mod_perl's perl_util.c */
+    struct ufuncs umg;
+	sv_magic(ERRSV, Nullsv, 'U', (char*) &umg, sizeof(umg));
+
+	ENTER;
+	SAVESPTR(diehook);
+	diehook = Nullsv; 
+	croak("");
+	LEAVE; /* we don't get this far, but croak() will rewind */
+
+	sv_unmagic(ERRSV, 'U');
 
 
 ################################################################################

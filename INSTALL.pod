@@ -22,8 +22,8 @@ used to build mod_perl.
 - B<make install>
 
 B<NOTE:> (only Embperl-1.2b1 or higher) For using session handling you need
-Apache::Session-0.17 or higher. If possible use Apache::Session 1.01 or higher.
-If can't find Apache::Session 1.01 or higher on CPAN, you can download it from
+Apache::Session-0.17 or higher. If possible use Apache::Session 1.04 or higher.
+If you can't find Apache::Session 1.04 or higher on CPAN, you can download it from
 ftp://ftp.dev.ecos.de/pub/perl/embperl/ .
 
 =head2 WIN 32
@@ -64,8 +64,8 @@ B<NOTE:> nmake test needs libwin32, libwww and HTML::Parser installed to work
 B<nmake install>
 
 B<NOTE:> (only Embperl-1.2b1 or higher) For using session handling you need
-Apache::Session-0.17 or higher. If possible use Apache::Session 1.01 or higher.
-If can't find Apache::Session 1.01 or higher on CPAN, you can download it from
+Apache::Session-0.17 or higher. If possible use Apache::Session 1.04 or higher.
+If can't find Apache::Session 1.04 or higher on CPAN, you can download it from
 ftp://ftp.dev.ecos.de/pub/perl/embperl/ .
 
 

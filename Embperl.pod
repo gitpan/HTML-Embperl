@@ -70,13 +70,13 @@ log file). The default is nothing.  See L<"EMBPERL_DEBUG"> for exact values.
 Instead of a file being sent directly by the web server, the document
 is processed by the CGI script and the result is sent to the client.
 
-B<embpexec.pl>
+B<embpcgi.pl>
 
-B<embpexec.bat>
+B<embpcgi.bat>
 
-Use embpexec.pl on Unix systems and embpexec.bat on Win32 systems.
+Use embpcgi.pl on Unix systems and embpcgi.bat on Win32 systems.
 
-If C<embpexec.pl/embpexec.bat> is invoked without any parameters and the
+If C<embpcgi.pl/embpcgi.bat> is invoked without any parameters and the
 environment variable B<PATH_TRANSLATED> is set, it runs itself as a CGI
 script.  This means that form data is taken either from the
 environment variable B<QUERY_STRING> or from stdin, depending on whether
@@ -86,24 +86,27 @@ taken from the file pointed to by B<PATH_TRANSLATED> and the output is
 send to stdout.  The logfile is generated at its default location,
 which is configurable via the environment variable B<EMBPERL_LOG>.
 
-To use this mode you must copy B<embpexec.pl> to your cgi-bin
+To use this mode you must copy B<embpcgi.pl> to your cgi-bin
 directory.  You can invoke it with the URL
-http://www.domain.xyz/cgi-bin/embpexec.pl/url/of/your/document.
+http://www.domain.xyz/cgi-bin/embpcgi.pl/url/of/your/document.
 
 The /url/of/your/document will be passed to Embperl by the web server.
 Normal processing (aliasing, etc.) takes place before the URI makes it
 to PATH_TRANSLATED.
 
 If you are running the Apache httpd, you can also define
-B<embpexec.pl> as a handler for a specific file extention or
+B<embpcgi.pl> as a handler for a specific file extention or
 directory.
 
 Example of Apache C<srm.conf>:
 
     <Directory /path/to/your/html/docs>
-    Action text/html /cgi-bin/embperl/embpexec.pl
+    Action text/html /cgi-bin/embperl/embpcgi.pl
     </Directory>
 
+
+B<NOTE> Out of security reasons, embpexec.pl must not be used anymore as
+CGI script!
 
 =head2 From mod_perl (Apache httpd)
 
@@ -449,6 +452,12 @@ under mod_perl.
  Example: 
  # Only files which end with .htm will processed by Embperl
  PerlSetEnv EMBPERL_FILESMATCH \.htm$
+
+=head2 EMBPERL_ALLOW
+
+If specified, only files which match the given B<perl regular expression> will be
+processed by Embperl, all other files will return FORBIDDEN.
+Especialy in a CGI environenemt this can be usefull to make a server more secure.
 
 =head2 EMBPERL_COMPARTMENT
 
@@ -1059,8 +1068,8 @@ of different documents and cleanup after the request is finished, but in special
 necessary. For example if you want recursivly call an Embperl document via Execute.
 
 There is a second reason to use the [* Perl code *] instead of the [- Perl Code -]. If you like
-to use perl's control structures. Perl's if, while, for etc. can B<not> spawn mulitple [- Perl Code -]
-blocks, but it can spawn multiple [* Perl Code *]. 
+to use perl's control structures. Perl's if, while, for etc. can B<not> span mulitple [- Perl Code -]
+blocks, but it can span multiple [* Perl Code *]. 
 
   Example:
 
@@ -1403,7 +1412,7 @@ example.)
 The C<TEXTAREA> tag is treated exactly like other input fields.
 
 
-=item B<META HTTP-EQUIV= ... >
+=item B<META HTTP-EQUIV= ...>
 
 <meta http-equiv= ... > will over-ride the corresponding http header.
 This keeps Netscape from asking the user to reload the document
@@ -1602,18 +1611,18 @@ B<end of table>
 
 =over 4
 
-=item B<1>
+=item B<$tabmode = 1>
 
 End when one of the expressions with $row becomes undefined.  The row
 containing the undefined expression is B<not> displayed. Only those
 expression are observed which contains an access to the varibale $row.
 
-=item B<2>
+=item B<$tabmode = 2>
 
 End when an expression with $row becomes undefined.  The row
 containing the undefined expression B<is> displayed.
 
-=item B<4>
+=item B<$tabmode = 4>
 
 End when $maxrow rows have been displayed.
 
@@ -1623,18 +1632,18 @@ B<end of row>
 
 =over 4
 
-=item B<16>
+=item B<$tabmode = 16>
 
 End when one of the expression with $col becomes undefined.  The column
 containing the undefined expression is B<not> displayed.  Only those
 expression are observed which contains an access to the varibale $col.
 
-=item B<32>
+=item B<$tabmode = 32>
 
 End when an expression with $col becomes undefined.  The column
 containing the undefined expression B<is> displayed.
 
-=item B<64>
+=item B<$tabmode = 64>
 
 End when $maxcol columns have been displayed.
 
@@ -1707,6 +1716,15 @@ to pass parameters to an Embperl document and back. (see
 L<Execute|"By calling HTML::Embperl::Execut">
 for further docs)
 
+=head2 %http_headers_out
+
+You can put any http headers you want to send into this hash. If you set an location header
+Embperl will automaticly set the status to 301 (Redirect). Example:
+
+  [- $http_headers_out{'Location'} = "http://www.ecos.de/embperl/" -]
+
+see also L<META HTTP-EQUIV= ...>
+
 =head2 $optXXX $dbgXXX
 
 All options (see L<"EMBPERL_OPTIONS">) and all debugging flags (see L<"EMBPERL_DEBUG">) can
@@ -1771,22 +1789,22 @@ in the L<%mdat> hash and if any request comes to the same Embperl document, you 
 values in that hash again. (see B<IMPORTANT NOTE:> below for %mdat storage)
 
 To configure Embperl to do session management for you, you must
-have installed Apache::Session (1.01 or higher) and
-loaded it before you load Embperl and you must tell Embperl which
+have installed Apache::Session (1.04 or higher) and
+loaded Apache::Session::Embperl before you load Embperl and you must tell Embperl which
 storage and locker classes you would like to use for
 Apache::Session, by setting the environement variable EMBPERL_SESSION_CLASSES.
 You may have a B<startup.pl> for your httpd which looks like this:
 
  $ENV{EMBPERL_SESSION_CLASSES} = "DBIStore SysVSemaphoreLocker" ;
  $ENV{EMBPERL_SESSION_ARGS}    = "DataSource=dbi:mysql:session UserName=test" ;
- use Apache::Session;
+ use Apache::Session::Embperl ;
  use HTML::Embperl ;
 
 or put it in the httpd/srm.conf like this
 
  PerlSetEnv EMBPERL_SESSION_CLASSES "DBIStore SysVSemaphoreLocker"
  PerlSetEnv EMBPERL_SESSION_ARGS "DataSource=dbi:mysql:session UserName=test"
- PerlModule Apache::Session;
+ PerlModule Apache::Session::Embperl ;
  PerlModule HTML::Embperl ;
 
 
@@ -1794,8 +1812,8 @@ C<EMBPERL_SESSION_ARGS> is a space separated list of name/value pairs, which giv
 additional arguments for Apache::Session classes.
 
 Older versions of I<Embperl> need I<Apache::Session> 0.17. You can use it like
-the following, but you should as soon as possible upgrade to newer Apache::Session
-an Embperl version:
+the following, 
+B<but you should as soon as possible upgrade to newer Apache::Session an Embperl version>:
 
 
  $ENV{SESSION_FILE_DIRECTORY}='/tmp/sessions' ;
@@ -1827,13 +1845,7 @@ When you store data to %mdat Embperl will store the data via Apache::Session and
 when the next request comes to the same page.
 
 
-B<NOTE: In the current version (1.2b2) the per user session handling  works only under mod_perl,
-CGI will come in one of the next releases>. The per module session handling works in all 
-operating modes.
-
-
-
-B<IMPORTANT NOTE for DBI and %mdat usage and Apache::Session 0.17 B<not> valid for 1.01!:> The
+B<IMPORTANT NOTE for DBI and %mdat usage and Apache::Session B<0.17> B<not> valid for 1.01!:> The
 storage of %mdat requires a proper serialization of the access.
 Apache::Session (version 0.17) is not able to provide this. While this is no problem when using the
 Apache::Session::Win32
@@ -1990,10 +2002,12 @@ to use this function.
 =head2 exit
 
 B<exit> will override the normal Perl exit in every Embperl document. Calling
-exit will immediately stop any further processing of that page and send the
+exit will immediately stop any further processing of that file and send the
 already-done work to the output/browser. 
 
-B<NOTE 1:> This currently works only under mod_perl.
+B<NOTE 1:> If you are inside of an Execute, Embperl will only exit this Execute, but 
+the file which called the file containing the exit with Execute will continue.
+ 
 B<NOTE 2:> If you write a module which should work with Embperl under mod_perl, 
 you must use Apache::exit instead of the normal Perl exit (just like always 
 when running under mod_perl).

@@ -667,11 +667,11 @@ if ($b && $apache)
 
     $SessVer = CheckModule ("Apache::Session", "-> Disable tests for persistent data storage") || '' ;
 
-    if ($SessVer && !($SessVer >= 1.01))
+    if ($SessVer && !($SessVer >= 1.01) && $SessVer != 1.03)
         {
         if ($SessVer && !($SessVer =~ /0\.17/))
             {
-            print "-> Embperl works only with Apache::Session 0.17.x or 1.01 and higher\n" ;
+            print "-> Embperl works only with Apache::Session 0.17.x or 1.03 and higher\n" ;
             print "-> Disable tests for persistent data storage\n" ;
             $SessVer = '0' ;
             }
@@ -775,7 +775,8 @@ WriteMakefile(
 # Change path to perl binary
 #
 
-@bins = ('embpexec.pl', 'embpexec.test.pl', 'embpexec.bat', 'embpexec.test.bat') ;
+@bins = ('embpexec.pl','embpexec.bat', 
+         'embpcgi.pl', 'embpcgi.test.pl', 'embpcgi.bat', 'embpcgi.test.bat',) ;
 
 
 die "Missing path to perl binary" if (!$perlbinpath) ;

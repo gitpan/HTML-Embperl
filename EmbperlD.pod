@@ -92,20 +92,23 @@ geschrieben werden. (siehe L<"EMBPERL_DEBUG"> für mögliche Werte)
 =back
 
 Um I<Embperl> als B<CGI Skript> zu nutzen, müssen Sie die Datei
-C<embpexec.pl> (bzw. C<embpexec.bat> unter Windows) in Ihr CGI
+C<embpcgi.pl> (bzw. C<embpcgi.bat> unter Windows) in Ihr CGI
 Verzeichnis kopieren (oft C</cgi-bin>). Zum Aufrufen verwenden Sie
 die URL
 
- http://www.domain.de/cgi-bin/embpexec.pl/uri/ihres/embperl/dokuments
+ http://www.domain.de/cgi-bin/embpcgi.pl/uri/ihres/embperl/dokuments
 
-Die extra Pfadinformationen die C<embpexec.pl> übergeben werden, geben
+Die extra Pfadinformationen die C<embpcgi.pl> übergeben werden, geben
 dabei den Ort des Embperl Dokuments an.
 
-Unter Apache kann C<embpexec.pl> auch als Handler definiert werden:
+Unter Apache kann C<embpcgi.pl> auch als Handler definiert werden:
 
     <Directory /pfad/zu/ihren/embperl/dokumenten>
-    Action text/html /cgi-bin/embperl/embpexec.pl
+    Action text/html /cgi-bin/embperl/embpcgi.pl
     </Directory>
+
+B<HINWEIS> Die Datei embpexec.pl darf aus Sicherheitsgründen nicht mehr als
+CGI Skript genutzt werden!
 
 =head2 Embperl aus Embperl Dokumenten oder anderen Perl Programmen/Modulen aufrufen
 
@@ -386,6 +389,13 @@ EMBPERL_FILESMATCH funktioniert nur unter I<mod_perl>. Beispiel:
  
  # Nur Dateien mit der Endung .htm werden von Embperl bearbeitet
  PerlSetEnv EMBPERL_FILESMATCH \.htm$
+
+=head2 EMBPERL_ALLOW
+
+Wenn vorhanden, werden von I<Embperl> nur Dateien bearbeitet, die der angegebenen
+B<Perl regular expression> entsprechen. Die Bearbeitung anderer Dateien wird mit 
+dem Fehlercode FORBIDDEN verweigert. Dies ist vorallem in CGI Mode nützlich, um
+die Serversicherheit zu erhöhen.
 
 =head2 EMBPERL_COMPARTMENT
 
@@ -1305,7 +1315,7 @@ Werte an, die der Benutzer vor dem Absenden eingegeben hat.
 Das C<TEXTAREA> Tag wird genau wie ein normales C<INPUT> Tag behandelt (siehe oben)
 
 
-=item B<META HTTP-EQUIV= ... >
+=item B<META HTTP-EQUIV= ...>
 
 C<META HTTP-EQUIV= ... > überschreibt den entsprechenden HTTP Header. Dies
 verhindert, das Netscape nachfragt, ob das Dokument neu geladen werden soll,
@@ -1605,6 +1615,15 @@ Wird durch den C<param> Parameter der C<Execute> Funktion gesetzt. Kann genutzt 
 um Parameter an ein I<Embperl> Dokument zuübergeben oder zurückzugegben.
 (siehe L<Execute|"By calling HTML::Embperl::Execut">)
 
+=head2 %http_headers_out
+
+Dieser Hash ermöglicht es HTTP Header anzugeben, die I<Embperl> vor dem Dokument senden soll.
+Ist ein "Location" Header angegeben, setzt I<Embperl> den Status automatisch auf 301. Beispiel:
+
+  [- $http_headers_out{'Location'} = "http://www.ecos.de/embperl/" -]
+
+siehe auch L<META HTTP-EQUIV= ...>
+
 =head2 $optXXX $dbgXXX
 
 Alle Optionen (see L<"EMBPERL_OPTIONS">) und alle Debugflags (siehe L<"EMBPERL_DEBUG">)
@@ -1670,29 +1689,29 @@ von C<%udat> und C<%mdat> bei entsprechender Konfiguration, auch über Prozeß-
 oder sogar Rechnergrenzen hinweg möglich. I<Embperl> bedient sich dazu
 des Perlmodules I<Apache::Session>.
 
-Um das Session Management zu aktivieren müssen Sie I<Apache::Session> vor
+Um das Session Management zu aktivieren müssen Sie I<Apache::Session::Embperl> vor
 I<Embperl> laden. Außerdem müssen Sie I<Embperl> mitteilen, welcher
-Speicher und Lockingmechanismus genutzt werden soll, ggf. müssen Sie
-auch weitere Argument für I<Apache::Session> setzen.
+Speicher- und Lockingmechanismus genutzt werden soll, ggf. müssen Sie
+auch weitere Argumente für I<Apache::Session> setzen.
 Eine Beispiel F<startup.pl> Datei, könnte folgendermaßen aussehen:
 
  $ENV{EMBPERL_SESSION_CLASSES} = "DBIStore SysVSemaphoreLocker" ;
  $ENV{EMBPERL_SESSION_ARGS}    = "DataSource=dbi:mysql:session UserName=test" ;
- use Apache::Session;
+ use Apache::Session::Embperl ;
  use HTML::Embperl ;
 
 dass selbe direkt in die F<httpd.conf> eingetragen, sieht so aus:
 
  PerlSetEnv EMBPERL_SESSION_CLASSES "DBIStore SysVSemaphoreLocker"
  PerlSetEnv EMBPERL_SESSION_ARGS "DataSource=dbi:mysql:session UserName=test"
- PerlModule Apache::Session;
+ PerlModule Apache::Session::Embperl ;
  PerlModule HTML::Embperl ;
 
 C<EMBPERL_SESSION_ARGS> ist eine Leerzeichen separierte Liste von Name/Wert Paaren
 die zusätzlich Parameter für die I<Apache::Session> Klassen angeben können.
 
 Ältere Versionen von I<Embperl> (bis einschließlich 1.2b6) arbeiten nur
-mit Apache::Session 0.17 zusammen, die Konfiguration dafür sieht
+mit Apache::Session B<0.17> zusammen, die Konfiguration dafür sieht
 folgendermaßen aus:
 
 
@@ -1711,11 +1730,11 @@ oder tragen Sie folgende Zeilen in httpd.conf ein:
  PerlModule HTML::Embperl 
 
 
-Verwenden Sie nach Möglichkeit nur noch Apache::Session 1.01 oder höher!
-Müssen Sie noch auf I<Apache::Session> 0.17 arbeiten und wollen I<DBI>
+Verwenden Sie nach Möglichkeit nur noch Apache::Session 1.04 oder höher!
+Müssen Sie noch mit I<Apache::Session> 0.17 arbeiten und wollen I<DBI>
 als Speicher einsetzen, so verwenden Sie I<Apache::Session::epDBI> statt
 I<Apache::Session::DBI>. Bitte beachten Sie das I<Apache::Session>
-0.17 und 1.01 nicht kompatibel zueinander sind und eine andere
+0.17 und 1.xx nicht kompatibel zueinander sind und eine andere
 Konfiguration erfordern.
 
 
@@ -1732,9 +1751,6 @@ werden die Daten tatsächlich von I<Apache::Session> angefordert. Ebenso
 werden die Daten für C<%mdat> erst von I<Apache::Session> angefordert, wenn
 auf diesen Hash zugegriffen wird.
 
-
-B<HINWEIS:> Session Handling pro Benutzer funktioniert z.Z. nur unter
-I<mod_perl>.
 
 
 B<WICHTIGER HINWEIS für DBI und %mdat Gebrauch:> Apache::Session 0.17
@@ -1896,7 +1912,8 @@ C<exit> überschreibt die standard Perl C<exit> Funktion.
 C<exit> beendet die Ausführung des Dokuments und sendet alle bis dahin
 ausgeführten Ausgaben zum Browser.
 
-B<Hinweis 1:> C<exit> steht z.Z. nur unter I<mod_perl> zur Verfügung.
+B<Hinweis 1:> exit beendet nur die aktuelle Datei. Wurde die Datei von
+einer anderen mittels Execute aufgerufen, wird die aufrufende Datei fortgesetzt.
 
 B<Hinweis 2:> Innerhalb eines Perlmoduls, das von einer I<Embperl> Seite
 aus aufgerufenen wird, sollten sie C<Apache::exit> verwenden, da das normale

@@ -1,4 +1,5 @@
-#!/usr/bin/perl ###################################################################################
+#!/usr/bin/perl 
+###################################################################################
 #
 #   Embperl - Copyright (c) 1997-1999 Gerald Richter / ECOS
 #
@@ -15,6 +16,7 @@
 
 use HTML::Embperl;
 
+die "Do not use as CGI script. Use 'embpcgi.pl' instead" if ($ENV{PATH_TRANSLATED}) ;
 
 HTML::Embperl::run (@ARGV) ;
 

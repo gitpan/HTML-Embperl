@@ -19,11 +19,15 @@ goto endofperl
 #
 ###################################################################################
 
+BEGIN
+    {
+    require Apache::Session::Embperl  if (defined($ENV{EMBPERL_SESSION_CLASSES})) ;
+    }
+
 use HTML::Embperl;
 
-die "Do not use as CGI script. Use 'embpcgi.bat' instead" if ($ENV{PATH_TRANSLATED}) ;
 
-HTML::Embperl::run (@ARGV) ;
+HTML::Embperl::runcgi ;
 
 __END__
 :endofperl

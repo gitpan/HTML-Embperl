@@ -508,6 +508,9 @@ int ReadHTML (/*i/o*/ register req * r,
         return rcFileOpenErr ;
         }
 
+    if ((long)nFileSize < 0)
+	return rcFileOpenErr ;
+    
     pBufSV = sv_2mortal (newSV(*nFileSize + 1)) ;
     pData = SvPVX(pBufSV) ;
 

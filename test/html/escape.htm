@@ -41,6 +41,7 @@ IFRAME:    <IFRAME SRC="http://localhost/tests?id=[+%20$id +]&text=[+$text+]" na
 EMBED:     <EMBED SRC="http://localhost/tests?id=[+%20$id +]&text=[+$text+]"  name="%20foo">
 LAYER:	   <LAYER SRC="http://localhost/tests?id=[+%20$id +]&text=[+$text+]"  name="%20foo">
 IMG:	   <IMG SRC="http://localhost/tests?id=[+%20$id +]&text=[+$text+]"    name="%20foo">
+FORM:	   <FORM action="http://localhost/tests?id=[+%20$id +]&text=[+$text+]"    name="%20foo">
 
 [- %A = (A => 1, B => 2) ; @A = (X, 9, Y, 8, Z, 7) -]
 Hash in  A <A HREF="http://localhost/tests?[+ [ %A ] +]">

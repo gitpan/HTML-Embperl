@@ -17,6 +17,7 @@
     'unclosed.htm???1',
 #    'errorright.htm???1',
     'notfound.htm???1',
+    'notallow.xhtm???1',
     'noerr/noerrpage.htm???8?2',
     'errdoc/errdoc.htm???8?262144',
     'rawinput/rawinput.htm????16',
@@ -50,6 +51,8 @@
     'includeerr2.htm???4',
     'registry/Execute.htm',
     'registry/errpage.htm???16',
+    'registry/tied.htm???3',
+    'registry/tied.htm???3',
     'callsub.htm',
     'callsub.htm',
     'importsub.htm',
@@ -64,6 +67,7 @@
     'sub.htm',
     'exit.htm',
     'exit2.htm',
+    'exit3.htm',
     'chdir.htm?a=1&b=2&c=&d=&f=5&g&h=7&=8&=',
     'chdir.htm?a=1&b=2&c=&d=&f=5&g&h=7&=8&=',
     'allform/allform.htm?a=1&b=2&c=&d=&f=5&g&h=7&=8&=???8192',
@@ -162,7 +166,7 @@ else
 
 
 $EPPORT2 = ($EPPORT || 0) + 1 ;
-$EPSESSIONCLASS = $ENV{EMBPERL_SESSION_CLASS} || ($EPSESSIONVERSION?'Win32':'0') ;
+$EPSESSIONCLASS = $ENV{EMBPERL_SESSION_CLASS} || (($EPSESSIONVERSION =~ /^0\.17/)?'Win32':'0')  || ($EPSESSIONVERSION > 1.00?'Embperl':'0') ;
 $EPSESSIONDS    = $ENV{EMBPERL_SESSION_DS} || 'dbi:mysql:session' ;
 
 die "You must install libwin32 first" if ($EPWIN32 && $win32loaderr && $EPHTTPD) ;
@@ -624,6 +628,7 @@ $cp = HTML::Embperl::AddCompartment ('TEST') ;
 
 $cp -> deny (':base_loop') ;
 
+$ENV{EMBPERL_ALLOW} = 'asc|\\.htm$' ;
 
 do  
     {
@@ -656,7 +661,7 @@ do
 	    next if ($file eq 'http.htm') ;
 	    next if ($file eq 'post.htm') ;
 	    next if ($file eq 'upload.htm') ;
-	    next if ($file =~ /^exit/) ;
+	    next if ($file =~ /^exit.htm/) ;
 	    next if ($file =~ /registry/) ;
 	    next if ($file =~ /match/) ;
 	    next if ($file =~ /sess\.htm/) ;
@@ -702,10 +707,10 @@ do
 		}
 		
 	    $errin = $err ;
-	    $err = CheckError ($errcnt) if ($err == 0 || ($errcnt > 0 && $err == 500) || $file eq 'notfound.htm') ;
+	    $err = CheckError ($errcnt) if ($err == 0 || ($errcnt > 0 && $err == 500) || $file eq 'notfound.htm'  || $file eq 'notallow.xhtm') ;
     
 	    
-	    if ($err == 0 && $errin != 500 && $file ne 'notfound.htm')
+	    if ($err == 0 && $errin != 500 && $file ne 'notfound.htm' && $file ne 'notallow.xhtm')
 		{
 		$page =~ /.*\/(.*)$/ ;
 		$org = "$cmppath/$1" ;
@@ -988,22 +993,23 @@ do
 	    ($file, $query_info, $debug, $errcnt) = split (/\?/, $url) ;
 
 	    next if ($file =~ /\// && $loc eq $cgiloc) ;        
-	    #next if ($file eq 'taint.htm' && $loc eq $cgiloc) ;
+	    next if ($file eq 'taint.htm' && $loc eq $cgiloc) ;
 	    next if ($file eq 'reqrec.htm' && $loc eq $cgiloc) ;
-	    next if (($file =~ /^exit/) && $loc eq $cgiloc) ;
+	    next if (($file =~ /^exit.htm/) && $loc eq $cgiloc) ;
 	    #next if ($file eq 'error.htm' && $loc eq $cgiloc && $errcnt < 16) ;
 	    next if ($file eq 'varerr.htm' && $loc eq $cgiloc && $errcnt > 0) ;
 	    next if ($file eq 'varerr.htm' && $looptest) ;
 	    next if (($file =~ /registry/) && $loc eq $cgiloc) ;
 	    next if (($file =~ /match/) && $loc eq $cgiloc) ;
-	    next if ($file eq 'http.htm' && $loc eq $cgiloc) ;
+	    #next if ($file eq 'http.htm' && $loc eq $cgiloc) ;
 	    next if ($file eq 'chdir.htm' && $EPWIN32) ;
 	    next if ($file eq 'notfound.htm' && $loc eq $cgiloc && $EPWIN32) ;
+	    next if ($file eq 'notallow.xhtm' && $loc eq $cgiloc && $EPWIN32) ;
 	    next if ($file =~ /opmask/ && $EPSTARTUP =~ /_dso/) ;
 	    next if ($file eq 'clearsess.htm' && !$looptest) ;
 	    if ($file =~ /sess\.htm/)
                 { 
-                next if ($loc eq $cgiloc) ;
+                next if ($loc eq $cgiloc && $EPSESSIONCLASS ne 'Embperl') ;
                 if (!$EPSESSIONVERSION)
                     {
 		    $txt2 = "$file...";
@@ -1069,8 +1075,9 @@ do
 		last ;
 		}
 
-	    $err = CheckError ($errcnt) if (($err == 0 || $file eq 'notfound.htm') && $checkerr ) ;
-	    if ($err == 0 && $file ne 'notfound.htm')
+	    $errcnt++ if ($loc eq $cgiloc && $file eq 'notallow.xhtm') ;   
+	    $err = CheckError ($errcnt) if (($err == 0 || $file eq 'notfound.htm' || $file eq 'notallow.xhtm') && $checkerr ) ;
+	    if ($err == 0 && $file ne 'notfound.htm' && $file ne 'notallow.xhtm')
 		{
 		$page =~ /.*\/(.*)$/ ;
 		$org = "$cmppath/$1" ;

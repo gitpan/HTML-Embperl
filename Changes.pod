@@ -1,12 +1,55 @@
 =pod
 
+=head1 1.2b10 (BETA) 7 Oct. 1999
+
+   - Fixed a great security whole in CGI mode. Because Apache passes
+     anything after the first '?' to the cgi script as commandline
+     arguments, embpexec.pl could be tricked into offline mode, where
+     it returned any file that is readable by the httpd! So if you are
+     using CGI mode, I strongly recommend to update to 1.2b10.
+     Now you must use embpcgi.pl instead of embpexec.pl in CGI mode.
+     Spotted by Jason Holt.
+   - Added EMBPERL_ALLOW. If the file doesn't EMBPERL_ALLOW Embperl
+     will return forbidden. This is primarly another security
+     feature, because dependig on the way you use Embperl in CGI mode,
+     it will not honour all Apache access restrictions. With 
+     EMBPERL_ALLOW, you can now force it to serve only certain
+     files. Suggested by Jason Holt.
+   - Fixed a problem that had occured with magic SVs (tied scalar)
+     as source for the Execute function. Spotted by Todd Eigenschink.
+   - Embperl works now with Apache::Session 0.17, 1.02 and 1.04
+     (1.03 is errornous)
+   - Fixed a SIGSEGV that occurs when the req_rec parameter of the
+     Execute functions gets a Apache::Request object instead of a
+     Apache object, which occured due to the different ways the
+     Apache internal request_rec is stored inside the object.
+     Spotted by Francis J. Lacoste.	
+   - Fixed a SIGSEGV that occured when outputting to a scalar and
+     optReturnError is set. Spotted by Francis J. Lacoste.
+   - Added a ; after the begin block in startup.pl, which seems had
+     cause a syntax error in some situations. Spotted by Oyvind Gjerstad.
+   - exit now works the same in offline, mod_perl and cgi mode, it
+     ends the execution of the page, but not the programm itself.
+   - exit inside a sub will now really exit the page. (but exit inside
+     a file called via Execute will only exit this file, not the whole
+     request) Spotted by Cliff Rayman.     
+   - Added new hash %http_headers_out which could be used to set arbitary
+     http header under mod_perl _and_ in cgi mode. "Location" header will
+     automaticly set status to 301.
+   - setting http headers and <META HTTP-EQUIV=..> now works also
+     in cgi mode.
+   - Session Handling now also works in CGI mode (needs
+     Apache::Session >= 1.04)
+   - ACTION attribute of Formtag is now URL en/decoded. Spotted by
+     Hartmut Palm.
+
 =head1 1.2b9 (BETA) 10. Sept 1999
 
    - Fixed a problem with loading Apache::Session 1.01, when
      Apache::Session 0.17 is not installed. Spotted by Volker Hess.
 
 =head1 1.2b8 (BETA) 9. Sept 1999
-   
+
    - Fixed behaviour of <INPUT>. <INPUT> now does not overide
      VALUE="" with the value from %fdat. This seems to has been
      broken, since a couple of versions and the fix may break
@@ -61,7 +104,7 @@
      it to URL parameter syntax (i.e. [+ \@A +] becomes A=1&B=2, when
      @A = (A, 1, B, 2) ).
    - Embperl checks now for unclosed metacommands (if, while etc.) and
-     unclosed HTML tags (table etc.). Suggest by Todd Eigenshink.
+     unclosed HTML tags (table etc.). Suggest by Todd Eigenschink.
    - Fixed a problem when file was not found, which causes in some cases
      a SIGSEGV.
    - Added new configuration directive EMBPERL_MAIL_ERRORS_TO. If set
@@ -173,10 +216,10 @@
 
    - fixed a problem that $req_rec was sometimes invalid on the 
      second call to the same page causing Embperl to SIGSEGV.
-     With help of Todd Eigenshink.
+     With help of Todd Eigenschink.
    - Cleanup the variable space inside Embperl pages. Before this
      fix many of the internal my variables were visible to the 
-     Embperl page. Spotted by Todd Eigenshink. 
+     Embperl page. Spotted by Todd Eigenschink. 
    - multiple form values with the same name are handled now
      correctly (concated in a tab delimited string) when send
      in a multipart/form-data (file-upload). Spotted by Dirk
@@ -251,7 +294,7 @@
    - Convert relativ path for apache source to absolute to avoid
      problems within test script. Spotted by Brad Cox.  
    - Make Embperl compile with useperio=defined. Spotted by Todd
-     Eigenshink.
+     Eigenschink.
    - Makefile.PL does now check if mod_perl is compiled into apache
      and don't create a config for USE_DSO situtation even if
      libperl.so exists.
@@ -292,10 +335,10 @@
      Patch from Steve Willer.
    - Whitespaces after [...] blocks are removed in the output, so
      there will be less empty lines, makeing the output shorter and
-     more readable, based on a patch from Todd Eigenshink.
+     more readable, based on a patch from Todd Eigenschink.
    - Embperl compiles now with mod_ssl (from Ralf Engelschall). 
      Spotted by Dirk Lutzebaeck and Randel Schwartz.
-   - Added a patch from Todd Eigenshink to build Embperl with
+   - Added a patch from Todd Eigenschink to build Embperl with
      Stronghold 2.4.1
    - Added patch from Gerald McLarnon so Embperl compiles on AIX
    - Added optAllowZeroFileSize to accept files of length 0, 
@@ -433,7 +476,7 @@
 
    - Now multiple checkboxes with the same name will be set
      correctly, to the values posted to the document. Spotted
-     by Todd Eigenshink and Nathan Krislock.
+     by Todd Eigenschink and Nathan Krislock.
    - [+ local $escmode = 0 .... +] works now. The first setting
      of $escmode in a [+ ... +] block will now applied to the
      whole block. You cannot change $escmode inside a [+ ... +]
@@ -483,7 +526,7 @@
    - I have added a chapter "Inside Embperl" to the docs, I hope this
      will make it clearer how escaping and unescaping works and how you
      can get desired results. Highly recommended! (Thanks for spell- and 
-     grammar-checking to Todd Eigenshink)
+     grammar-checking to Todd Eigenschink)
    - make test now runs under win32 (You need to install LWP and libwin32)
      IMPORTANT: You need a mod_perl version > 1.11 or you get a deadlock.
    - Compiles with apache_1.3b6

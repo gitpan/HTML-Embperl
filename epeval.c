@@ -121,6 +121,8 @@ static int EvalAll (/*i/o*/ register req * r,
     SPAGAIN;
     if (n > 0)
         *pRet = POPs;
+    else
+	*pRet = NULL ;
     PUTBACK;
 
     if (r -> bDebug & dbgMem)
@@ -138,6 +140,9 @@ static int EvalAll (/*i/o*/ register req * r,
             l-- ;
         r -> errdat1[l] = '\0' ;
          
+        if (pRet && *pRet)
+	     SvREFCNT_dec (*pRet) ;
+	
 	*pRet = newSVpv (r -> errdat1, 0) ;
          
         LogError (r, rcEvalErr) ;
@@ -382,7 +387,14 @@ static int CallCV  (/*i/o*/ register req * r,
      FREETMPS ;
      LEAVE ;
 
-
+     if (r -> bExit)
+	 {
+	 if (*pRet)
+	     SvREFCNT_dec (*pRet) ;
+	 *pRet = NULL ;
+	 return rcExit ;
+	 }
+     
      pSVErr = ERRSV ;
      if (SvTRUE (pSVErr))
         {
@@ -395,12 +407,13 @@ static int CallCV  (/*i/o*/ register req * r,
  	     * When we get this return, we'll just give up and quit this file completely,
  	     * without error. */
              
-            struct magic * m = SvMAGIC (pSVErr) ;
+	    struct magic * m = SvMAGIC (pSVErr) ;
 
-            sv_unmagic(pSVErr,'U');
+	    sv_unmagic(pSVErr,'U');
 	    sv_setpv(pSVErr,"");
 
 	    r -> bOptions |= optNoUncloseWarn ;
+	    r -> bExit = 1 ;
 
             return rcExit ;
             }
@@ -457,25 +470,41 @@ static int EvalOnly (/*i/o*/ register req * r,
     rc = EvalAll (r, sArg, flags, sName, &pSub) ;
 
     if (rc == ok && (flags & G_DISCARD))
+	{
+	if (pSub)
+	    SvREFCNT_dec (pSub) ;
 	return ok ;
+	}
+
+    if (ppSV && *ppSV)
+	 SvREFCNT_dec (*ppSV) ;
 
     if (rc == ok && pSub != NULL && SvTYPE (pSub) == SVt_RV)
         {
         /*sv_setsv (*ppSV, pSub) ;*/
-        SvREFCNT_dec (*ppSV) ;  
         *ppSV = SvRV(pSub) ;
         SvREFCNT_inc (*ppSV) ;  
         }
     else
         {
         if (pSub != NULL && SvTYPE (pSub) == SVt_PV)
-            *ppSV = pSub ; /* save error message */
+            {
+	    *ppSV = pSub ; /* save error message */
+	    pSub = NULL ;
+	    }
         else if (r -> lastwarn[0] != '\0')
+	    {
     	    *ppSV = newSVpv (r -> lastwarn, 0) ;
+	    }
         else
+	    {
     	    *ppSV = newSVpv ("Compile Error", 0) ;
+	    }
         
-        r -> bError = 1 ;
+        if (pSub)
+	     SvREFCNT_dec (pSub) ;
+
+	r -> bError = 1 ;
         return rc ;
         }
 
@@ -522,10 +551,17 @@ static int EvalAndCall (/*i/o*/ register req * r,
     *pRet = NULL ;
     r -> bError = 1 ;
     
+    if (ppSV && *ppSV)
+	 SvREFCNT_dec (*ppSV) ;
+
     if (r -> lastwarn[0] != '\0')
-    	*ppSV = newSVpv (r -> lastwarn, 0) ;
+    	{
+ 	*ppSV = newSVpv (r -> lastwarn, 0) ;
+	}
     else
+	{
     	*ppSV = newSVpv ("Compile Error", 0) ;
+	}
 
     return rcEvalErr ;
     }

@@ -34,6 +34,10 @@ embpcgi.c
 embperl.h
 embpexec.pl
 embpexec.bat
+embpcgi.pl
+embpcgi.bat
+embpcgi.test.pl
+embpcgi.test.bat
 ep.h
 epdat.h
 epio.c
@@ -53,6 +57,7 @@ test/html/plain.htm
 test/html/plainblock.htm
 test/html/error.htm
 test/html/unclosed.htm
+test/html/notallow.xhtm
 test/html/noerr/noerrpage.htm
 test/html/errdoc/errdoc.htm
 test/html/errmsg.htm
@@ -77,6 +82,7 @@ test/html/inc.htm
 test/html/sub.htm
 test/html/registry/Execute.htm
 test/html/registry/errpage.htm
+test/html/registry/tied.htm
 test/html/include.htm
 test/html/incsub.htm
 test/html/incerr.htm
@@ -103,6 +109,7 @@ test/html/chdir.htm
 test/html/http.htm
 test/html/exit.htm
 test/html/exit2.htm
+test/html/exit3.htm
 test/html/post.htm
 test/html/upload.htm
 test/html/nochdir/nochdir.htm
@@ -148,6 +155,7 @@ test/cmp/inputjava.htm
 test/cmp/tagscan.htm
 test/cmp/Execute.htm
 test/cmp/errpage.htm
+test/cmp/tied.htm
 test/cmp/include.htm
 test/cmp/includeerr1.htm
 test/cmp/includeerr2.htm
@@ -173,6 +181,7 @@ test/cmp/stdout.htm
 test/cmp/http.htm
 test/cmp/exit.htm
 test/cmp/exit2.htm
+test/cmp/exit3.htm
 test/cmp/post.htm
 test/cmp/upload.htm
 test/cmp/npherr.htm
@@ -189,8 +198,6 @@ test/conf/httpd.conf.src
 test/conf/startup.pl
 test/conf/startup_dso.pl
 test/conf/null
-embpexec.test.pl
-embpexec.test.bat
 lib/Apache/Session/epDBI.pm
 lib/HTML/Embperl/Module.pm
 emacs/README
