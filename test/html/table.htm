@@ -18,6 +18,9 @@
 Please take a look at the source in your browser to see the difference<BR>
 
 [-
+   undef @a ;
+   undef @b ;
+
    $a[0][0] = 'a1/1' ;
    $a[1][0] = 'a2/1' ;
    $a[1][1] = 'a2/2' ;
@@ -48,6 +51,27 @@ Please take a look at the source in your browser to see the difference<BR>
         <td>[+ $a[$row][$col] +] </td>
     </tr> 
 </table>
+
+<table border="2" width="100%">
+    <tr>
+        <th>1</th>
+        <th>2</th>
+        <th>3</th>
+    </tr> 
+    <tr>
+        <td>[+ $a[$row][$col] +] </td>
+    </tr> 
+</table>
+
+<table border="2" width="100%">
+    <tr>
+        <th>[+ $b[2][$col] +]</th>
+    </tr> 
+    <tr>
+        <td>[+ $a[$row][$col] +] </td>
+    </tr> 
+</table>
+
 <table>
     <tr>
         <td>
@@ -63,6 +87,10 @@ Please take a look at the source in your browser to see the difference<BR>
 
 
 [-
+
+undef @regs ;
+undef @kats ;
+
 $regs[0]{Id} = 'Pfalz' ;
 $regs[1]{Id} = 'Rheinhessen' ;
 

@@ -121,16 +121,28 @@ embperl_resetreqrec()
 CODE:
     iembperl_resetreqrec() ;
 
+#if defined (__GNUC__) && defined (__i386__)
 
 int
-embperl_req(sInputfile, sOutputfile, bDebugFlags, pNameSpace, nFileSize)
+embperl_dbgbreak()
+CODE:
+    __asm__ ("int   $0x03\n") ;
+
+#endif
+
+
+int
+embperl_req(sInputfile, sOutputfile, bDebugFlags, pNameSpace, nFileSize, pCache)
     char * sInputfile
     char * sOutputfile
     int bDebugFlags
     char * pNameSpace 
     int    nFileSize
+    HV   * pCache = NO_INIT ;
+INIT:
+    pCache = (HV *)SvRV((SvRV(ST(5))));
 CODE:
-    RETVAL = iembperl_req(sInputfile, sOutputfile, bDebugFlags, pNameSpace, nFileSize) ;
+    RETVAL = iembperl_req(sInputfile, sOutputfile, bDebugFlags, pNameSpace, nFileSize, pCache) ; 
 OUTPUT:
     RETVAL
 

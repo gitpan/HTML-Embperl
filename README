@@ -49,6 +49,7 @@ See the eg/ directory for examples.
 I have successfully tested this on Linux 2.0.27, mod_perl 0.96 and higher,
 with perl 5.003 and 5.004 and Apache 1.2. Since there is (as far as I can see)
 no system dependent stuff, it should work on other systems as well.
+As far as possible use perl 5.004_04, because 5.004 has memory leaks.
 
 NOTE!
 
@@ -82,9 +83,9 @@ info@ecos.de.
 
 WWW-LINKS
 
-mod_perl            http://www.osf.org/~dougm/apache/
+mod_perl            http://perl.apache.org/
 mod_perl FAQ        http://www.ping.de/~fdc/mod_perl/
-Embperl             http://www.osf.org/~dougm/apache/embperl.html
+Embperl             http://perl.apache.org/embperl.html
 apache web server   http://www.apache.org/
 see also            http://www.perl.com/CPAN/modules/by-module/Apache/apache-modlist.html
 

@@ -1,0 +1,70 @@
+#
+# Testconfig for HTML::Embperl make test
+#
+
+ServerRoot $EPPATH/test
+ServerName localhost
+DocumentRoot $EPPATH/test
+User $EPUSER
+Group $EPGROUP
+Port $EPPORT
+
+MinSpareServers 1
+MaxSpareServers 2
+StartServers 2
+MaxClients 2
+MaxRequestsPerChild 0
+
+
+#-Tw
+PerlTaintCheck On
+#PerlWarn On
+
+PerlScript $EPPATH/test/conf/startup.pl
+
+
+SetEnv EMBPERL_DEBUG 24573
+SetEnv EMBPERL_VIRTLOG /embperl/log
+SetEnv EMBPERL_LOG $EPPATH/test/tmp/test.log
+
+<Location /embperl/log>
+SetHandler perl-script
+PerlHandler HTML::Embperl
+Options ExecCGI
+</Location>
+
+ 
+AddType text/html .html
+AddType text/html .htm
+
+Alias /embperl/ $EPPATH/test/html/
+
+<Location /embperl>
+SetHandler perl-script
+PerlHandler HTML::Embperl
+Options ExecCGI
+</Location>
+
+Alias /cgi-bin/ $EPPATH/test/html/
+ScriptAlias /cgi/ $EPPATH/
+
+<Location /cgi-bin>
+Action text/html /cgi/embpexec.test.pl
+Options ExecCGI
+</Location>
+
+<Location /perl/perl-status>
+SetHandler perl-script
+PerlHandler Apache::Status
+</Location>
+
+
+ErrorLog tmp/httpd.err.log
+PidFile tmp/httpd.pid
+AccessConfig /dev/null
+ResourceConfig /dev/null
+TypesConfig /dev/null
+TransferLog /dev/null
+ScoreBoardFile /dev/null
+LockFile tmp/httpd.lock
+

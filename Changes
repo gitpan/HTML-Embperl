@@ -1,4 +1,38 @@
 Revision history for Perl extension HTML::Embperl.
+0.18-beta
+   - Added caching of p-code. Now all perl-code is compiled only once. On the
+     second request the compiled p-code is used. This makes, for example, the 
+     table.htm from the test about 4 times faster on the second run then it was in
+     previous versions of Embperl. Also tables and loops are faster in the first
+     request, because the code is only compiled in the first iteration.  
+   - <Select>/<option> is now handeld like <input>, this means that if a value
+     for the select exists in %fdat, the corresponding option is automaticly
+     selected.
+   - Added support for table heading (<th> tag). If all cells in a row are surounded
+     by <th>/</th> instead of <td>/</td> the row is interpreted as column headings and
+     printed only once. row headings not support yet, but in one of the next versions... 
+   - Added support for multipart/formdata to support fileupload. Embperl detects
+     automaticly multipart/formdata and let CGI.pm handle it. The results are also
+     present in @ffld and %fdat like for normal formdata. See CGI.pm for more docs.
+     (Thanks to eigenstr@mixi.net for the idea and material)
+   - Now all the output is kept in memory and the http-header are send when the
+     processing is finish. This gives the ability to set http-header (only under mod_perl)
+     within the page. Also now the Content-Length could be send in the http-header.
+     (Thanks to eigenstr@mixi.net for the idea and material)
+   - Added tests for mod_perl mode and running as cgi-script, if compilation
+     for mod_perl is enabled (Thanks to Doug MacEachern for lots of ideas
+     and code I have borrowed from his mod_perl)
+   - Removed "= true" in MailFormTo which caused a warning and don't declare
+     syserr_list in ep.h on FreeBSD (Thanks to Michael Fuhr for the hints)
+   - Added SYSNOPSIS section to docs to avoid pod2man warning and changed
+     apache/src/regx to apache/src/regex in Makefile.PL (Thanks to Bob Wilkinson)
+   - Splitted C-sources in some more source files
+
+   - Fix two minor memory leaks. Now the Embperl test suite can run 1000 times and
+     more without makeing the httpd grow!
+
+0.17-beta  30 Aug 97
+   - Removed some Compiler Warnings (Thanks to Ian Kallen for reporting them)
 
 0.16-beta  29 Aug 97
    - Added more restrictive access check when running under mod_perl 

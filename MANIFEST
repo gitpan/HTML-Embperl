@@ -18,9 +18,14 @@ ep.h
 epio.c
 epmain.c
 epchar.c
+epeval.c
+epcmd.c
+eputil.c
 epnames.h
 epmacro.h
 test.pl
+test/html/ascii
+test/html/pure.htm
 test/html/plain.htm
 test/html/if.htm
 test/html/table.htm
@@ -31,6 +36,8 @@ test/html/input.htm
 test/html/java.htm
 test/html/inputjava.htm
 test/html/tagscan.htm
+test/cmp/ascii
+test/cmp/pure.htm
 test/cmp/plain.htm
 test/cmp/if.htm
 test/cmp/table.htm
@@ -41,3 +48,6 @@ test/cmp/input.htm
 test/cmp/java.htm
 test/cmp/inputjava.htm
 test/cmp/tagscan.htm
+test/conf/httpd.conf.src
+test/conf/startup.pl
+embpexec.test.pl

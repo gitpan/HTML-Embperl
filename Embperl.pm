@@ -20,6 +20,7 @@ package HTML::Embperl;
 
 use Safe;
 use IO::Handle ;
+use CGI;
 
 require Exporter;
 require DynaLoader;
@@ -27,7 +28,7 @@ require DynaLoader;
 @ISA = qw(Exporter DynaLoader);
 
 
-$VERSION = '0.17-beta';
+$VERSION = '0.18-beta';
 
 
 bootstrap HTML::Embperl $VERSION;
@@ -92,7 +93,17 @@ if (defined ($INC{'Apache.pm'}))
 
 sub _eval_ ($)
     {
-    my $result = eval $_[0] ;
+    my $result = eval "$_[0]" ;
+    if ($@ ne '')
+        { embperl_logevalerr ($@) ; }
+    return $result ;
+    }
+
+#######################################################################################
+
+sub _evalsub_ ($)
+    {
+    my $result = eval "sub { $_[0] } " ;
     if ($@ ne '')
         { embperl_logevalerr ($@) ; }
     return $result ;
@@ -188,45 +199,38 @@ sub CheckFile
     unless (-r $filename && -s _)
         {
 	    embperl_logerror (&rcNotFound, $filename);
-	    return (&NOT_FOUND, 0) ;
+	    return (&NOT_FOUND, 0, 0) ;
         }
 
 	if (defined ($req_rec) && !($req_rec->allow_options & &OPT_EXECCGI))
         {
 	    embperl_logerror (&rcExecCGIMissing, $filename);
-	    return (&FORBIDDEN, 0) ;
+	    return (&FORBIDDEN, 0, 0) ;
  	    }
 	
     if (-d _)
         {
 	    embperl_logerror (&rcIsDir, $filename);
-	    return (&FORBIDDEN, 0);
+	    return (&FORBIDDEN, 0, 0);
 	    }
     
    	my $mtime = -M _ ;
 
 	# Escape everything into valid perl identifiers
-	$filename =~ s/([^A-Za-z0-9\/])/sprintf("_%2x",unpack("C",$1))/eg;
+        my @p = unpack ('H*', $filename) ;
+	my $package = 'HTML::Embperl::ROOT' . join ('x', @p ) ;
 
-	# second pass cares for slashes and words starting with a digit
-	$filename =~ s{
-			  (/)        # directory
-			  (\d?)      # package's first character
-			 }[
-			   "::" . ($2 ? sprintf("_%2x",unpack("C",$2)) : "")
-			  ]egx;
-
-	$package = "HTML::Embperl::ROOT$filename";
 
 	if (!defined($mtime{$filename}) || $mtime{$filename} != $mtime)
         {
         # clear out any entries in the cache
         delete $cache{$filename} ;
- 	}
+ 	    $mtime{$filename} = $mtime ;
+        }
     
     $cache{$filename}{'~-1'} = 1 ; # make sure hash is defined 
     
-    return (0, -s _) ;
+    return (0, -s _, \$cache{$filename}) ;
     }
 
 #######################################################################################
@@ -244,6 +248,14 @@ sub run (\@)
     my $Cgi        = $#$args >= 0?0:1 ;
     my $rc         = 0 ;
     my $log ;
+    my $pcodecache ;
+    my $cgi ;
+
+    if ($$args[0] eq 'dbgbreak') 
+    	{
+    	shift @$args ;
+    	embperl_dbgbreak () ;
+    	}
 
     while ($#$args >= 0)
     	{
@@ -310,10 +322,15 @@ sub run (\@)
         {
         addNameSpace ($ns) if (!defined ($NameSpace {$ns})) ;
         }
+    else
+        {
+        $ns = '' ;
+        }
+
     
     my $filesize ;
     
-    ($rc, $filesize) = CheckFile ($Inputfile) ;
+    ($rc, $filesize, $pcodecache) = CheckFile ($Inputfile) ;
 
     if ($rc)
         {
@@ -324,9 +341,30 @@ sub run (\@)
     embperl_init ($ioType, $Logfile) ;
     $log = embperl_getloghandle () ;
     open LOG, "<&=$log" ;
+
+    undef $cgi ;
+
+    if (defined($ENV{'CONTENT_TYPE'}) && $ENV{'CONTENT_TYPE'}=~m|^multipart/form-data|)
+        { # just let CGI.pm read the multipart form data, see cgi docu
+	    $cgi = new CGI;
+	    
+        @ffld = $cgi->param;
+    
+    	foreach ( @ffld )
+        	{
+    	    $fdat{ $_ } = $cgi->param( $_ );
+        	}
+        }
+    else
+        {
+        @ffld = () ;
+        %fdat = () ;
+        }
+
+
     do
 	    {
-	    $rc = embperl_req  ($Inputfile, $Outputfile, $Debugflags, $ns, $filesize ) ;
+	    $rc = embperl_req  ($Inputfile, $Outputfile, $Debugflags, $ns, $filesize,$pcodecache ) ;
 	    }
     until ($ioType != &epIOProcess) ;
 
@@ -347,7 +385,8 @@ sub handler
     local ($req_rec) = @_ ;
     my $rc ;
     my $ns ;
-
+    my $pcodecache ;
+    my $cgi ;
 
     %ENV = $req_rec->Apache::cgi_env;
 
@@ -362,16 +401,17 @@ sub handler
         embperl_resetreqrec () ;
         return $rc ;
         }
-    
+
+        
     my $filesize ;
-    ($rc, $filesize) = CheckFile ($req_rec -> Apache::filename) ;
+    ($rc, $filesize, $pcodecache) = CheckFile ($req_rec -> Apache::filename) ;
 
     if ($rc)
         {
         return $rc ;
         }
 
-    $req_rec -> Apache::send_http_header ;
+    
     
     $ENV{PATH_TRANSLATED} = $req_rec -> Apache::filename ;
 
@@ -379,21 +419,45 @@ sub handler
         {
         addNameSpace ($ns) if (!defined ($NameSpace {$ns})) ;
         }
+    else
+        {
+        $ns = '' ;
+        }
+   
+
+    if (defined($ENV{'CONTENT_TYPE'}) && $ENV{'CONTENT_TYPE'}=~m|^multipart/form-data|)
+        { # just let CGI.pm read the multipart form data, see cgi docu
+	    $cgi = new CGI;
+	    
+        @ffld = $cgi->param;
+    
+    	foreach ( @ffld )
+        	{
+    	    $fdat{ $_ } = $cgi->param( $_ );
+        	}
+
+        }
+    else
+        {
+        @ffld = () ;
+        %fdat = () ;
+        }
+
 
     $rc = embperl_setreqrec ($req_rec) ;
     
     if ($rc == 0)
         {
         seek (LOG, 0, 2) ; # goto eof
-        my $logfilepos = tell LOG ;
+        $logfilepos = tell LOG ;
         $LogfileURL = "<A HREF=\"$ENV{EMBPERL_VIRTLOG}?$logfilepos&$$\">Logfile</A><BR>" ;
 
-        $rc = embperl_req ($ENV{PATH_TRANSLATED}, '', $ENV{EMBPERL_DEBUG}, $ns, $filesize) ;
+        $rc = embperl_req ($ENV{PATH_TRANSLATED}, '', $ENV{EMBPERL_DEBUG}, $ns, $filesize, $pcodecache) ;
         }
     
     if ($rc != 0)
         {
-        #print STDERR "rc = $rc \n";
+        print STDERR "rc = $rc \n";
         return 500 ;
         }
 
@@ -409,7 +473,7 @@ sub MailFormTo
     my ($to, $subject) = @_ ;
     my $v ;
     my $k ;
-    my $ok = true ;
+    my $ok ;
 
     eval 'use Net::SMTP' ;
 
@@ -454,11 +518,13 @@ __END__
 
 HTML::Embperl - Perl extension for embedding perl code in HTML documents
 
-=head1 DESCRIPTION
+=head1 SYNOPSIS
 
 Embperl is a perl extension module which gives you the ability to embed perl 
 code in HTML documents (much like Server Side Includes for shell 
 commands).
+
+=head1 DESCRIPTION
 
 Embperl can operate in one of four modes:
 
@@ -627,50 +693,65 @@ The following values are defined:
 =over 4
 
 =item dbgStd = 1,
+
 Minimum Infos
 
 =item dbgMem = 2,
+
 Memory and Scalar Value allocation
 
 =item dbgEval = 4,
+
 Arguments and result of evals
 
 =item dbgCmd = 8,
+
 Metacommands and HTML tags which are processed
 
 =item dbgEnv = 16,
-List environement variables (In this release only in daemon mode)
+
+List environement variables
 
 =item dbgForm = 32,
+
 List form data 
 
 =item dbgTab = 64,
+
 Log processing of dynamic tables
 
 =item dbgInput = 128,
+
 Log processing of html input tags
 
 =item dbgFlushOutput = 256,
+
 Flush output after every write (Should normaly not set. Only for debugging 
-when Embperl crashs)
+when Embperl crashs, will drasticaly slow down operation)
 
 =item dbgFlushLog = 512,
+
 Flush logfile after every line (Should normaly not set. Only for debugging 
-when Embperl crashs, log is automatily flushed after each html file)
+when Embperl crashs, log is automatily flushed after each html file, when set
+will slow down operation)
 
 =item dbgAllCmds  = 1024,
+
 Logs all commands and HTML tags, regardless if they are really excuted or
 not. (Showing a + or - to tell you if they are executed).
 
 =item dbgSource = 2048,
+
 Logs the next piece of the HTML-source which is processed. (Gives a lot
 of output!)
 
 =item dbgFunc = 4096,
+
 Only anvailable when compiled with -DEPDEBUGALL. Normaly only used for debugging
 Embperl itself. Logs all functionentrys to the logfile (lot of data!)
 
 =item dbgLogLink = 8192,
+
 Inserts a link on the top of each page, which can be used to view the log for current
 html file. See also EMBEPRL_VIRTLOG under configuration.
 
@@ -684,6 +765,24 @@ Example:
     PerlHandler HTML::Embperl
     Options ExecCGI
     </Location>
+
+=item dbgDefEval = 16386
+
+Shows everytime a new perl-code is compiled
+
+=item dbgCacheDisable = 32768
+
+Disables the usage of the p-code cache. All the perl code is recompiled everytime.
+(Should not be used in normal operation, slows down Embperl drasticaly)
+
+=item dbgEarlyHttpHeader = 65536
+
+Normaly http-headers are send after the request was finished without any errors.
+This gives you the chance to set aribary http-header within the page, and Embperl
+the chance to calculate the content length. To do this all the output the kept in
+memory until the http-headers are send, and send afterwards. This flag will cause
+the http-headers to be send before script-processing and then the output directly
+without keeping it in memory (like versions before 0.18)
 
 
 =back
@@ -737,9 +836,11 @@ As C<perl-code> you can use everything which can be an argument to the perl
 eval statement (see Security below for restrictions). 
 Examples:
 
- [+$a+]          replaces the [+$a+] with the content of the variable $a
+ [+$a+]          replaces the [+$a+] with the content
+                 of the variable $a
  [+$a+1+]        every expression can be used
- [+ $x[$i] +]    also array and hashes or more complex expressions works
+ [+ $x[$i] +]    also array and hashes or more complex
+                 expressions works
 
 C<NOTE:> White space are ignored
 The output will automaticly HTML escaped (e.g. "<" is translated to &lt;). 
@@ -752,10 +853,11 @@ Executes the perl-code, but delete the whole command from the HTML output.
 
 Examples:
 
- [-$a=1-]        set the variable $a to one, no output will be generated
+ [-$a=1-]        set the variable $a to one, no output
+                 will be generated
  [-use somemodule-] you can use other modules
- [-$i=0; while ($i<5) {$i++} -] even more complex statements or multiple 
-                                statements are possible.
+ [-$i=0; while ($i<5) {$i++} -] even more complex statements
+                                or multiple statements are possible.
 
 NOTE: Statements like if, while, for, etc. must be included in one embperl 
 command. You can not have the if in one command block and the terminating 
@@ -864,12 +966,39 @@ This could be used to display the result of database query if you have the
 result in an array. You make as much columns as you need. It is also 
 possible to call a fetch subroutine in each table row.
 
+=item B<th, /th>
+
+th tags is interpreted as table heading. If the whole row is made of <th> </th>
+instead of <td> </td> it's treated as column heading. Everythingelse will be 
+treated as row heading in the future, but is ignored in the current version. 
+
 =item B<dir, menu, ol, ul, dl, select, /dir, /menu, /ol, /ul, /dl, /select>
 
 Lists and Dropdown/Listboxes are treated excatly as one dimensional tables.
 Only $row, $maxrow, $cnt,
 $maxcnt and $tabmode are honoured. $col and $maxcol are ignored.
 see eg/x/lists.htm for an example.
+
+=item B<option>
+
+Embperl looks if theres a value from the form data for a specific option in 
+a menu. If so this option will be preselected.
+
+Example:
+
+<form method="POST">
+  <P>Select Tag</P>
+
+    If you request this document with list.htm?SEL1=x
+    you can specify that the element which has a value
+    of x is initialy selected
+    
+
+    <p><select name="SEL1">
+        <option value="[+ $v[$row] +]">[+ $k[$row] +]</option>
+    </select></p>
+</form>
+
 
 =item B<input>
 
@@ -908,8 +1037,11 @@ contains the environment as seen from a CGI-Script.
 contains all the formdata send to the script by the calling form. The NAME 
 attribute build the key and the VALUE attribute is used as hashvalue. 
 Embperl doesn't matter if it's called with GET or POST method. (but there 
-may be restrictions on the length of parameters using GET, so it's more 
-save to use POST)
+may be restrictions on the length of parameters using GET, not from Embperl
+but maybe from your Webserver, especialy if you using cgi-mode, so it's more 
+save to use POST). Embperl also support multipart formdata, as it's been used
+for fileupload. For normal fields there is no difference to normal formdata, 
+see docs of CGI.pm how fileupload fields are handled. 
 
 =item B<@ffld>
 
@@ -1044,7 +1176,8 @@ Example:
  </head>
  <body>
         Your data has been sccesfully send!
-        [- MailFormTo ('webmaster@domain.xy', 'Mail from WWW Form') -]
+        [- MailFormTo ('webmaster@domain.xy',
+                       'Mail from WWW Form') -]
  </body>
  </html>
 
@@ -1058,6 +1191,10 @@ At the moment Namespaces are at experimental state and can't be fully
 configured. Also there seems to be a memory leak.
 
 Tainting doesn't work correct under perl5.004.
+
+Under perl5.004 there are memory leaks, this is not an Embperl Bug, but can
+cause your httpd to endless grow when running under mod_perl. Please upgrade
+to perl5.004_04 to fix this.
 
 =head1 FEEDBACK and BUGREPORTS
 

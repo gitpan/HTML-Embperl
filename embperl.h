@@ -42,6 +42,7 @@ enum tRc
     rcInputNotSupported,
     rcCannotUsedRecursive,
     rcEndtableWithoutTablerow,
+    rcTablerowOutsideOfTable, 
     rcEndtextareaWithoutTextarea,
     rcArgStackOverflow,
     rcEvalErr,
@@ -81,6 +82,9 @@ enum dbg
     dbgSource       = 2048,
     dbgFunc         = 4096,
     dbgLogLink      = 8192,
+    dbgDefEval      = 16384,
+    dbgCacheDisable     = 0x08000,
+    dbgEarlyHttpHeader  = 0x10000,
     
     dbgAll  = 0xffff
     } ;

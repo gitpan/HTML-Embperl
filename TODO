@@ -1,14 +1,13 @@
 TODO for Embperl
 
-Here some of my plans
-
 - Tainting does work correct with perl 5.004
 - Kill lf in middel of perl strings
 - Debug namespaces and operation restriction
 - Runtime configuration
 - Add a DBI databaseinterface
 - Speed optimizations
-- Precompile the embedded HTML document to make it run faster
+- Automatic URL-Encode the args of the <A> tag
+- igets together with sfio
 
 
 

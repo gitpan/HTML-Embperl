@@ -19,15 +19,9 @@
 #include "epmacro.h"
 
 
-/* this was private in http_protocol.c */
-
-
-#define SET_BYTES_SENT(r) do {if (r->sent_bodyct) bgetopt (r->connection->client, BO_BYTECT, &r->bytes_sent); } while (0)
-
-
 
 /*
-// Files
+*   Files
 */
 
 #ifdef PerlIO
@@ -94,15 +88,23 @@ static FILE *  lfd = NULL ;  /* log file */
 #define DefaultLog "/tmp/embperl.log"
 #endif
 
+/*
+*  Alloced memory for debugging
+*/
+
+size_t nAllocSize = 0 ;
+
 
 /*
-// Datastructure for buffering output
+*  Datastructure for buffering output
 */
 
 
 
 static struct tBuf *    pFirstBuf = NULL ;  /* First buffer */
 static struct tBuf *    pLastBuf  = NULL ;  /* Last written buffer */
+static struct tBuf *    pFreeBuf  = NULL ;  /* List of unused buffers */
+static struct tBuf *    pLastFreeBuf  = NULL ;  /* End of list of unused buffers */
 
 
 static char * pMemBuf ;     /* temporary output */
@@ -110,17 +112,18 @@ static size_t nMemBufSize ; /* remaining space in pMemBuf */
 
 
 /*
-// Makers for rollback output
+*  Makers for rollback output
 */
 
 
 static int     nMarker ;
 
 
-/* //////////////////////////////////////////////////////////////////////////////////
-//
-// begin output transaction
-*/
+/* -------------------------------------------------------------------------------------
+*
+* begin output transaction
+*
+-------------------------------------------------------------------------------------- */
 
 struct tBuf *   oBegin ()
 
@@ -131,10 +134,11 @@ struct tBuf *   oBegin ()
     return pLastBuf ;
     }
 
-/* ///////////////////////////////////////////////////////////////////////////////////
-//
-// rollback output transaction (throw away all the output since corresponding begin)
-*/
+/* -------------------------------------------------------------------------------------
+*
+*  rollback output transaction (throw away all the output since corresponding begin)
+*
+-------------------------------------------------------------------------------------- */
 
 void oRollback (struct tBuf *   pBuf) 
 
@@ -143,6 +147,13 @@ void oRollback (struct tBuf *   pBuf)
 
     if (pBuf == NULL)
         {
+        if (pLastFreeBuf)
+            pLastFreeBuf -> pNext = pFirstBuf ;
+        else 
+            pFreeBuf = pFirstBuf ;
+        
+        pLastFreeBuf = pLastBuf ;
+        
         pFirstBuf = NULL ;
         nMarker = 0 ;
         }
@@ -151,7 +162,14 @@ void oRollback (struct tBuf *   pBuf)
         if (pLastBuf == pBuf || pBuf -> pNext == NULL)
             nMarker-- ;
         else
+            {
             nMarker = pBuf -> pNext -> nMarker - 1 ;
+            if (pLastFreeBuf)
+                pLastFreeBuf -> pNext = pBuf -> pNext ;
+            else
+                pFreeBuf = pBuf -> pNext ;
+            pLastFreeBuf = pLastBuf ;
+            }
         pBuf -> pNext = NULL ;
         }
         
@@ -221,7 +239,13 @@ static int bufwrite (/*in*/ const void * ptr, size_t size)
     pBuf -> nMarker = nMarker ;
 
     if (pLastBuf)
+        {
         pLastBuf -> pNext = pBuf ;
+        pBuf -> nCount    = pLastBuf -> nCount + size ;
+        }
+    else
+        pBuf -> nCount    = size ;
+        
     if (pFirstBuf == NULL)
         pFirstBuf = pBuf ;
     pLastBuf = pBuf ;
@@ -231,7 +255,68 @@ static int bufwrite (/*in*/ const void * ptr, size_t size)
     }
 
 
+/* ///////////////////////////////////////////////////////////////////////////////////
+//
+// free buffers
+//
+// free all buffers
+// note: this is not nessecary for apache palloc, because all buffers are freed
+//       at the end of the request
+*/
 
+
+static void buffree ()
+
+    {
+    struct tBuf * pNext = NULL ;
+    struct tBuf * pBuf ;
+
+#ifdef APACHE
+    if ((bDebug & dbgMem) == 0 && pReq != NULL)
+        return ; /* no need for apache to free memory */
+#endif
+        
+    /* first walk thru the used buffers */
+
+    pBuf = pFirstBuf ;
+    while (pBuf)
+        {
+        pNext = pBuf -> pNext ;
+        _free (pBuf) ;
+        pBuf = pNext ;
+        }
+
+    pFirstBuf = NULL ;
+    pLastBuf  = NULL ;
+
+
+    /* now walk thru the unused buffers */
+    
+    pBuf = pFreeBuf ;
+    while (pBuf)
+        {
+        pNext = pBuf -> pNext ;
+        _free (pBuf) ;
+        pBuf = pNext ;
+        }
+
+    pFreeBuf = NULL ;
+    pLastFreeBuf  = NULL ;
+    }
+
+/* ///////////////////////////////////////////////////////////////////////////////////
+//
+// get the length outputed to buffers so far
+*/
+
+int GetContentLength ()
+    {
+    if (pLastBuf)
+        return pLastBuf -> nCount ;
+    else
+        return 0 ;
+    
+    }
 
 /* ///////////////////////////////////////////////////////////////////////////////////
 //
@@ -424,6 +509,10 @@ int OpenOutput (/*in*/ const char *  sFilename)
     nMemBufSize = 0 ;
 
 
+    /* make sure all old buffers are freed */
+
+    buffree () ;
+
 
 #if defined (APACHE)
     if (pReq)
@@ -490,6 +579,11 @@ int OpenOutput (/*in*/ const char *  sFilename)
 int CloseOutput ()
 
     {
+    
+    /* make sure all buffers are freed */
+
+    buffree () ;
+
 #if defined (APACHE)
     if (pReq)
         return ok ;
@@ -779,7 +873,13 @@ void _free (void * p)
 
     {
     if (bDebug & dbgMem)
-        lprintf ("[%d]MEM:  Free at %08x\n" ,nPid, p) ;
+        {
+        size_t size ;
+        ((size_t *)p)-- ;
+        size = *(size_t *)p ;
+        nAllocSize -= size ;
+        lprintf ("[%d]MEM:  Free %d Bytes at %08x  Allocated so far %d Bytes\n" ,nPid, size, p, nAllocSize) ;
+        }
 
 #ifdef APACHE
     if (pReq == NULL)
@@ -794,14 +894,21 @@ void * _malloc (size_t  size)
     
 #ifdef APACHE
     if (pReq)
-        p = palloc (pReq -> pool, size) ;
+        {
+        p = palloc (pReq -> pool, size + sizeof (size)) ;
+        }
     else
 #endif
         
-        p = malloc (size) ;
+        p = malloc (size + sizeof (size)) ;
 
     if (bDebug & dbgMem)
-        lprintf ("[%d]MEM:  Alloc %d Bytes at %08x\n" ,nPid, size, p) ;
+        {
+        nAllocSize += size ;
+        *(size_t *)p = size ;
+        ((size_t *)p)++ ;
+        lprintf ("[%d]MEM:  Alloc %d Bytes at %08x   Allocated so far %d Bytes\n" ,nPid, size, p, nAllocSize) ;
+        }
 
     return p ;
     }

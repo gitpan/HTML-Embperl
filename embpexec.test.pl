@@ -15,6 +15,11 @@
 #
 ###################################################################################
 
+BEGIN 
+    {
+    use ExtUtils::testlib ;
+    }	
+
 use HTML::Embperl;
 
 HTML::Embperl::run (@ARGV) ;
