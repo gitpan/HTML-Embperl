@@ -1,7 +1,41 @@
+###################################################################################
+#
+#   Embperl - Copyright (c) 1997-2000 Gerald Richter / ECOS
+#
+#   You may distribute under the terms of either the GNU General Public
+#   License or the Artistic License, as specified in the Perl README file.
+#
+#   THIS PACKAGE IS PROVIDED "AS IS" AND WITHOUT ANY EXPRESS OR
+#   IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
+#   WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+#
+#   $Id$
+#
+###################################################################################
+
+
+###################################################################################
+#
+#   Embperl - Copyright (c) 1997-2000 Gerald Richter / ECOS
+#
+#   You may distribute under the terms of either the GNU General Public
+#   License or the Artistic License, as specified in the Perl README file.
+#
+#   THIS PACKAGE IS PROVIDED "AS IS" AND WITHOUT ANY EXPRESS OR
+#   IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
+#   WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+#
+#   $Id$
+#
+###################################################################################
+
 
 package HTML::Embperl::Module ;
 
 use HTML::Embperl ;
+
+
+$VERSION = '0.01_dev-1';
 
 
 # define subs

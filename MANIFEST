@@ -1,6 +1,7 @@
 Changes.pod
 Embperl.pm
 Embperl.xs
+EmbperlObject.pm
 MANIFEST
 Makefile.PL
 README
@@ -203,5 +204,6 @@ test/conf/ssldisable.conf
 test/conf/null
 Embperl/Module.pm
 Embperl/Session.pm
+Embperl/Mail.pm
 emacs/README
 emacs/embperl.el

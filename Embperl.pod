@@ -156,8 +156,12 @@ your browser!
 B<NOTE>: When mod_perl is compiled as loadable module (i.e. with USE_DSO) you
 B<must not> load Embperl at server startup time! 
 
+B<See also>: L<"perldoc EmbperlObject"|"EmbperlObject.pod"> to see how to setup I<Embperl> in a way to
+create your site out of small overwriteable objects.
+
 
 =head2 By calling HTML::Embperl::Execute (\%param)
+
 
 Execute can be used to call Embperl from your own modules/scripts (for example
 from a Apache::Registry or CGI script) or from within another Embperl page (only 1.2b1
@@ -171,6 +175,10 @@ takes a hash reference as its argument. This gives it the chance to
 vary the parameters according to the job that should be done.
 
 (See B<eg/x/Excute.pl> for more detailed examples)
+
+B<See also>: L<"perldoc EmbperlObject"|"EmbperlObject.pod"> to see how to setup I<Embperl> in a way to
+create your site out of small overwriteable objects and L<"perldoc HTML::Embperl::Mail"|"Mail.pod"> how
+to use I<Embperl> to send email.
 
 
   Execute($filename, $p1, $p2, $pn) ;
@@ -315,6 +323,14 @@ Same as L<"EMBPERL_PACKAGE"> (see below).
 
 Same as L<"EMBPERL_VIRTLOG"> (see below). If B<virtlog> is equal to B<uri> the
 logfile is sent.
+
+=item B<allow (1.2b10 and above)>
+
+Same as L<"EMBPERL_ALLOW"|"EMBPERL_ALLOW (only 1.2b10 and above)"> (see below)
+
+=item B<path (1.3b1 and above)>
+
+Same as L<"EMBPERL_PATH"|"EMBPERL_PATH (1.3b1 and above)"> (see below)
 
 =item B<uri>
 
@@ -461,6 +477,12 @@ under mod_perl.
 If specified, only files which match the given B<perl regular expression> will be
 processed by Embperl, all other files will return FORBIDDEN.
 Especialy in a CGI environenemt this can be usefull to make a server more secure.
+
+=head2 EMBPERL_PATH (1.3b1 and above)
+
+Can contain a colon separated file search path. When a file is processed and the filename
+does not contain a path, I<Embperl> searches all the specified directories for
+that file.
 
 =head2 EMBPERL_COMPARTMENT
 
@@ -1052,7 +1074,7 @@ Examples:
  [- $a=1 -]            Set the variable $a to one.
  		       No output will be generated.
 
- [- use SomeModule -]  You can use other modules.
+ [- use SomeModule ;  -]  You can use other modules. NOTE the semikolon!
 
  [- $i=0; while ($i<5) {$i++} -]  Even more complex
                                   statements or multiple
@@ -1075,7 +1097,7 @@ subroutines, or do one-time initialization.
 
 =head2 [* Perl code *]
 
-(only version 1.2b2 or higher)
+(only version 1.2b2 or higher) B<EXPERIMENTAL!>
 
 This is similar to [- Perl Code -], the main difference is, while [- Perl Code -], has
 always it's own scope, all [* Perl code *] blocks runs in the same scope.

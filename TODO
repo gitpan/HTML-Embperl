@@ -51,6 +51,12 @@ Features
 
 - make multifiled delimiter \t configurabel [Jean-Philippe FAUVELLE 13.12.99]
 
+- move default logfile to a safer place then /tmp [Christain Gilmore 20.01.00]
+
+- last, next for Embperl loops [Christian Gilmore 4.2.2000]
+
+- return custom error code to Apache [Alan Gutierrez 11.2.00]
+
 Test
 ----
 - test FORBIDDEN
@@ -91,3 +97,8 @@ Docs
 - restrict number of iterations in search
 
 - make [+ +] configurable [ Christian Gilmore 16.10.99]
+
+2.0
+__
+
+- Parse Posted XML data [Alex Schmelkin 4.2.2000]

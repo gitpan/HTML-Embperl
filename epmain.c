@@ -1247,7 +1247,7 @@ int Init        (/*in*/ int           _nIOType,
      */
     struct ld_info *lp;
     extern boot_HTML__Embperl();
-    len = 4096;
+    int len = 4096;
 
     if ((lp = malloc(len)) == NULL) {
 	abort();
@@ -1778,10 +1778,11 @@ tReq * SetupRequest (/*in*/ SV *    pApacheReqSV,
 	
     tainted         = 0 ;
 
-    if ((rc = OpenLog (pCurrReq, NULL, 2)) != ok)
-        { 
-        LogError (pCurrReq, rc) ;
-        }
+    if (pConf -> bDebug)
+	if ((rc = OpenLog (pCurrReq, NULL, 2)) != ok)
+	    { 
+	    LogError (pCurrReq, rc) ;
+	    }
 
     EPENTRY (SetupRequest) ;
 

@@ -1,6 +1,6 @@
 =pod
 
-=head1 Wesentliche Features von HTML::Embperl 1.2
+=head1 Wesentliche Features von HTML::Embperl 1.3
 
 =over 4
 
@@ -49,6 +49,15 @@ können einmal definiert und in jede Seite eingefügt werden.
 
 =item *
 
+I<EmbperlObject> erlaubt es das standart Layout einer Website lediglich einmal
+zu definieren und I<EmbperlObject> sorgt dafür das die passenden Komoponeten
+an die entsprechenden Stellen eingefügt werden. Die eigentlichen Seiten
+enthalten nur noch den tatsächlichen Inhalt und nicht gemeinsamme Elemente wie
+Kopf- und Fußbereich oder Navigationsleisten. Diese gemeinsammen Bereiche
+können weiterhin je Unterverzeichnis überschrieben werden.
+
+=item *
+
 Erlaubt Bibliotheken mit oft benutzten Elementen zu erstellen und diese der 
 ganzen Website, wie normale Perlmodule, zur Verfügung zu stellen .
 
@@ -85,6 +94,11 @@ zu handhabenden, Datenbankzugriff für Embperl.
 Wenn Sicherheit ein Problem darstellt, ist es möglich Embperl so zu
 konfigurieren, daß es Safe.pm nutzt. Dadurch entstehen sichere 
 Namensräume und einzelne Perl Opcode können gesperrt werden.
+
+=item *
+
+I<HTML::Embperl::Mail> ermöglicht es das Ergebnis direkt an eine E-Mail
+Adresse zu versenden.
 
 
 =back

@@ -1,5 +1,24 @@
 =pod
 
+=head1 1.3b2 (BETA) 11. Feb 2000
+
+   - added new mod_perl handler EmbperlObject, which helps to build whole
+     pages out of small objects, which can be overwritten in "derived"
+     pages.
+     EmbperlObject allows you to define the standard layout of your site just
+     once and includes the neccessary components based on the uri. Your HTML
+     documents just have to contain the unique stuff and not the common stuff
+     like headers/footers or navigation bars. Also these common elements can 
+     be overwritten in each subdirectory.
+   - added EMBPERL_PATH (and path parameter to Execute), which can contain
+     a colon separated search path. Embperl uses it when a file, which does
+     not contain a path, is executed.
+   - added new module HTML::Embperl::Mail which sends a file processed via
+     Embperl by email.
+   - Fixed a bug, that the logfile if opened also EMBPERL_DEBUG is set
+     to zero. Now if debug is zero, no logfile will be opened. Spotted
+     by Jason Bodnar and Christian Gilmore.   
+
 =head1 1.2.1  5. Jan 2000
 
    - fdat parameter of Execute function isn´t honoured when

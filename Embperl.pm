@@ -1,15 +1,16 @@
 
 ###################################################################################
 #
-#   Embperl - Copyright (c) 1997-1999 Gerald Richter / ECOS
+#   Embperl - Copyright (c) 1997-2000 Gerald Richter / ECOS
 #
 #   You may distribute under the terms of either the GNU General Public
 #   License or the Artistic License, as specified in the Perl README file.
-#   For use with Apache httpd and mod_perl, see also Apache copyright.
 #
 #   THIS PACKAGE IS PROVIDED "AS IS" AND WITHOUT ANY EXPRESS OR
 #   IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 #   WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+#
+#   $Id$
 #
 ###################################################################################
 
@@ -76,7 +77,7 @@ use vars qw(
 @ISA = qw(Exporter DynaLoader);
 
 
-$VERSION = '1.2.1';
+$VERSION = '1.3b2';
 
 
 # HTML::Embperl cannot be bootstrapped in nonlazy mode except
@@ -555,11 +556,11 @@ sub SendLogFile ($$$)
 sub CheckFile
 
     {
-    my ($filename, $req_rec, $AllowZeroFilesize, $allow) = @_ ;
+    my ($filename, $req_rec, $AllowZeroFilesize, $allow, $path) = @_ ;
 
     if (-d $filename)
         {
-	#logerror (rcIsDir, $filename, $req_rec);
+	#logerror (rcIsDir, $filename);
 	return &DECLINED ; # let Apache handle directories
 	}                 
 
@@ -569,20 +570,49 @@ sub CheckFile
 	return &FORBIDDEN ;
  	}
 	
+    if (defined ($req_rec) && !($req_rec->allow_options & &OPT_EXECCGI))
+        {
+	logerror (rcExecCGIMissing, $filename);
+	return &FORBIDDEN ;
+ 	}
+
+    $path ||= $req_rec -> notes('EMBPERL_searchpath') if ($req_rec) ;
+    $path ||= $ENV{EMBPERL_PATH} ;
+
+    if ($path && !($filename =~ /\//))
+        {
+        my @path = split /:/, $path ;
+        my $fn = '' ;
+
+        foreach (@path)
+            {
+            next if (!$_) ;
+            $fn = "$_/$filename" ;
+            #warn "Embperl path search $fn\n" ;
+            if (-r $fn && (-s _ || $AllowZeroFilesize))
+                {
+                if (defined ($allow) && !($fn =~ /$allow/))
+                    {
+	            logerror (rcNotAllowed, $fn, $req_rec);
+	            return &FORBIDDEN ;
+ 	            }
+                $_[0] = $fn ;
+                return ok ;
+                }
+            }
+
+        -r $filename ;
+        }            
+
     unless (-r _ && (-s _ || $AllowZeroFilesize))
         {
-	logerror (rcNotFound, $filename, $req_rec);
+        logerror (rcNotFound, $filename);
 	return &NOT_FOUND ;
         }
 
-    if (defined ($req_rec) && !($req_rec->allow_options & &OPT_EXECCGI))
-        {
-	logerror (rcExecCGIMissing, $filename, $req_rec);
-	return &FORBIDDEN ;
- 	}
-	
     return ok ;
     }
+
 
 ##########################################################################################
 
@@ -611,6 +641,7 @@ sub ScanEnvironement
     $$req{'debug'}       = $ENV{EMBPERL_DEBUG}   || 0 ;
     $$req{'options'}     = $ENV{EMBPERL_OPTIONS} || 0 ;
     $$req{'log'}         = $ENV{EMBPERL_LOG}     || $DefaultLog ;
+    $$req{'path'}        = $ENV{EMBPERL_PATH}    || '' ;
 
     if (defined($ENV{EMBPERL_ESCMODE}))
         { $$req{'escmode'}    = $ENV{EMBPERL_ESCMODE} }
@@ -732,6 +763,8 @@ use strict ;
 
     my $Inputfile    = $$req{'inputfile'} || '?' ;
     my $Sub          = $$req{'sub'} || '' ;
+
+    $Inputfile = $req_rec -> notes ('EMBPERL_orgfilename') if ($req_rec && $Inputfile eq '*') ;
     
     if (defined ($In))
         {
@@ -740,7 +773,7 @@ use strict ;
         }
    elsif (!$Sub || $Inputfile ne '?')
         {
-        if ($rc = CheckFile ($Inputfile, $req_rec, (($$req{options} || 0) & optAllowZeroFilesize), $$req{'allow'})) 
+        if ($rc = CheckFile ($Inputfile, $req_rec, (($$req{options} || 0) & optAllowZeroFilesize), $$req{'allow'}, $$req{path})) 
             {
 	    FreeConfData ($conf) ;
             return $rc ;
@@ -1142,6 +1175,7 @@ sub handler
     
     $req{'uri'}       = $req_rec -> Apache::uri ;
 
+    #warn "1 uri = $req{'uri'}\n" ;
     if (exists $ENV{EMBPERL_FILESMATCH} && 
                          !($req{'uri'} =~ m{$ENV{EMBPERL_FILESMATCH}})) 
         {
@@ -1153,7 +1187,7 @@ sub handler
 
     $req{'inputfile'} = $ENV{PATH_TRANSLATED} = $req_rec -> filename ;
 
-    #print LOG "i = $req{'inputfile'}\n" ;
+    #warn "ok inputfile = $req{'inputfile'}\n" ;
 
     $req{'cleanup'} = -1 if (($req{'options'} & optDisableVarCleanup)) ;
     $req{'options'} |= optSendHttpHeader ;

@@ -270,6 +270,14 @@ Wie L<"EMBPERL_PACKAGE"> (siehe unten).
 Wie L<"EMBPERL_VIRTLOG"> (siehe unten). Wenn B<virtlog> gleich B<uri> ist, wird
 die Embperl Logdatei gesendet.
 
+=item B<allow (ab 1.2b10)>
+
+Wie L<"EMBPERL_ALLOW"|"EMBPERL_ALLOW (ab 1.2b10)"> (siehe unten)
+
+=item B<path (ab 1.3b1)>
+
+Wie L<"EMBPERL_PATH"|"EMBPERL_PATH (ab 1.3b1)"> (siehe unten)
+
 =item B<uri>
 
 Die URI des Request. Wird nur für Virtlog Feature benötigt.
@@ -412,6 +420,12 @@ Wenn vorhanden, werden von I<Embperl> nur Dateien bearbeitet, die der angegebene
 B<Perl regular expression> entsprechen. Die Bearbeitung anderer Dateien wird mit 
 dem Fehlercode FORBIDDEN verweigert. Dies ist vorallem in CGI Mode nützlich, um
 die Serversicherheit zu erhöhen.
+
+=head2 EMBPERL_PATH (ab 1.3b1)
+
+Hier kann eine durch Doppelpunkte getrennte Liste von Verzeichnissen angegeben werden,
+die I<Embperl> durchsucht, wenn eine Datei verabeitet werden soll und die Datei keine
+Pfadangaben enthält.
 
 =head2 EMBPERL_COMPARTMENT
 

@@ -39,6 +39,8 @@ Features of Embperl:        perldoc Features.pod
 Introduction to Embperl:    perldoc Intro.pod
 Installation of Embperl:    perldoc INSTALL.pod
 Full documentation:         perldoc Embperl.pod
+                            perldoc EmbperlObject.pm
+                            perldoc Embperl/Mail.pm
 Frequent Asked Questions:   perldoc Faq.pod
 Changes:                    perldoc Changes.pod
 Examples:		    eg/x/README
@@ -84,6 +86,12 @@ FEATURES
 * Allows you to build your web-site out of components. Frequently used elements
   can be defined once and included in every page.
 
+* EmbperlObject allows you to define the standard layout of your site just
+  once and includes the neccessary components based on the uri. Your HTML
+  documents just have to contain the unique stuff and not the common stuff
+  like headers/footers or navigation bars. Also these common element can 
+  be overwritten in each subdirectory.
+
 * Gives you the possibility to build libraries with a set of frequently used 
   Elements or components, and make them available to the whole web-site in the
   same way as Perl modules are - well, modularized.
@@ -106,6 +114,10 @@ FEATURES
 * If you are concerned about security you can configure Embperl to use
   Safe.pm. This way, your documents can run in a safe namespace which
   can allow or disallow certain Perl opcodes.
+
+* I<HTML::Embperl::Mail> gives you the possibility to send the result directly
+  to a email address
+
 
 
 COMPATIBILITY
