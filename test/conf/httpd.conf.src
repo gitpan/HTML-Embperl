@@ -231,3 +231,11 @@ LockFile tmp/httpd.lock
 <IfModule apache_ssl.c>
 SSLDisable
 </IfModule>
+
+
+<IfModule mod_ssl.c>
+SSLDisable
+SSLCacheServerPort $EPPORT2
+SSLCacheServerPath tmp
+</IfModule>
+

@@ -60,6 +60,7 @@
 #define Char2Url               EMBPERL_Char2Url            
 #define CmdTab                 EMBPERL_CmdTab              
 #define EvalTrans              EMBPERL_EvalTrans           
+#define EvalMain               EMBPERL_EvalMain
 #define EvalTransFlags         EMBPERL_EvalTransFlags
 #define EvalTransOnFirstCall   EMBPERL_EvalTransOnFirstCall           
 #define GetContentLength       EMBPERL_GetContentLength    
@@ -87,6 +88,9 @@
 #define SetupRequest           EMBPERL_SetupRequest   
 #define Term                   EMBPERL_Term           
 #define sstrdup                EMBPERL_sstrdup        
+#define ProcessBlock           EMBPERL_ProcessBlock
+#define NewEscMode             EMBPERL_NewEscMode
+
 
 #define InitialReq             EMBPERL_InitialReq
 #define pCurrReq               EMBPERL_pCurrReq

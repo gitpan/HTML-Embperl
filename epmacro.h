@@ -96,9 +96,9 @@ int EMBPERL_mgGet##name (SV * pSV, MAGIC * mg) \
 
 
 #ifdef EPDEBUGALL
-#define EPENTRY(func) if (r -> bDebug & dbgFunc) { lprintf ("[%d]DBG:  %dms %s\n", r -> nPid, clock () * 1000 / CLOCKS_PER_SEC, #func) ; FlushLog () ; }
-#define EPENTRY1N(func,arg1) if (r -> bDebug & dbgFunc) { lprintf ("[%d]DBG:  %dms %s %d\n", r -> nPid, clock () * 1000 / CLOCKS_PER_SEC, #func, arg1) ; FlushLog () ; }
-#define EPENTRY1S(func,arg1) if (r -> bDebug & dbgFunc) { lprintf ("[%d]DBG:  %dms %s %s\n", r -> nPid, clock () * 1000 / CLOCKS_PER_SEC, #func, arg1) ; FlushLog () ; }
+#define EPENTRY(func) if (r -> bDebug & dbgFunc) { lprintf (r, "[%d]DBG:  %dms %s\n", r -> nPid, clock () * 1000 / CLOCKS_PER_SEC, #func) ; FlushLog (r) ; }
+#define EPENTRY1N(func,arg1) if (r -> bDebug & dbgFunc) { lprintf (r, "[%d]DBG:  %dms %s %d\n", r -> nPid, clock () * 1000 / CLOCKS_PER_SEC, #func, arg1) ; FlushLog (r) ; }
+#define EPENTRY1S(func,arg1) if (r -> bDebug & dbgFunc) { lprintf (r, "[%d]DBG:  %dms %s %s\n", r -> nPid, clock () * 1000 / CLOCKS_PER_SEC, #func, arg1) ; FlushLog (r) ; }
 #else
 #define EPENTRY(func)
 #define EPENTRY1N(func,arg1)

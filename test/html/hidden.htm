@@ -61,6 +61,21 @@ $sort[3] = 'feld1' ;
 	d7[$hidden %regs, %kats, @sort $]
 
 
+	[- $fdat{empty1} = undef ; push @ffld, 'empty1' ; -]
+	[- $fdat{empty2} = '' ;    push @ffld, 'empty2' ; -]
+
+	e1[$hidden $]
+	e2[$hidden %fdat, %idat, @ffld $]
+	optNoHiddenEmptyValue is now [+ $optNoHiddenEmptyValue +]
+	[- $optNoHiddenEmptyValue = 1 -]
+	optNoHiddenEmptyValue is now [+ $optNoHiddenEmptyValue +]
+	e1[$hidden $]
+	e2[$hidden %fdat, %idat, @ffld $]
+	[- $optNoHiddenEmptyValue = 0 -]
+	optNoHiddenEmptyValue is now [+ $optNoHiddenEmptyValue +]
+	e1[$hidden $]
+	e2[$hidden %fdat, %idat, @ffld $]
+
 </form>
 
 </body>

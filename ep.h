@@ -21,7 +21,11 @@
 #include <ctype.h>
 #include <time.h>
 
-
+#ifdef STRONGHOLD
+#if !defined(PERLIO_IS_STDIO)
+#define PERLIO_IS_STDIO
+#endif
+#endif
 
 #include <EXTERN.h>               /* from the Perl distribution     */
 #include <perl.h>                 /* from the Perl distribution     */
@@ -101,7 +105,7 @@ int ExecuteReq (/*i/o*/ register req * r,
 
 tReq * SetupRequest (/*in*/ SV *    pApacheReqSV,
                      /*in*/ char *  sSourcefile,
-                     /*in*/ long    mtime,
+                     /*in*/ double  mtime,
                      /*in*/ long    nFilesize,
                      /*in*/ char *  sOutputfile,
                      /*in*/ tConf * pConf,
@@ -113,7 +117,7 @@ void FreeRequest (/*i/o*/ register req * r) ;
                    
 tFile * SetupFileData   (/*i/o*/ register req * r,
                          /*in*/ char *  sSourcefile,
-                         /*in*/ long    mtime,
+                         /*in*/ double  mtime,
                          /*in*/ long    nFilesize,
                          /*in*/ tConf * pConf) ;
 
@@ -131,6 +135,11 @@ char * LogError (/*i/o*/ register req * r,
 			/*in*/ int   rc) ;
 void CommitError (/*i/o*/ register req * r) ;
 void RollbackError (/*i/o*/ register req * r) ;
+
+int ProcessBlock	(/*i/o*/ register req * r,
+			 /*in*/  int	 nBlockStart,
+			 /*in*/  int	 nBlockSize,
+                         /*in*/  int     nBlockNo) ;
 
 /* ---- from epio.c ----- */
 

@@ -85,6 +85,18 @@ Now we localy set $escmode:<BR>
 [+  local $escmode = 2 ; $b +]<BR>
 [+  local $escmode = 3 ; $b +]<BR>
 
+[+ $n = 'My Name צהü' ; $escmode = 0 +]
+
+<A HREF='http://host/script?name=[+$escmode=3; $n+]'>
+
+<A HREF='http://host/script?name=[+ $n+]'>
+
+[+ $escmode = 0 +]
+
+<A HREF='http://host/script?name=[+ local $escmode=3; $n+]'>
+
+<A HREF='http://host/script?name=[+ $n+]'>
+
 
 
 <P>Ok.<P>

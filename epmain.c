@@ -44,7 +44,6 @@ static char sTabModeName   [] = "HTML::Embperl::tabmode" ;
 static char sEscModeName   [] = "HTML::Embperl::escmode" ;
 
 
-       char sLogfileURLName[] = "HTML::Embperl::LogfileURL" ;
 static char sOpcodeMaskName[] = "HTML::Embperl::opcodemask" ;
 static char sPackageName[]    = "HTML::Embperl::package" ;
 static char sEvalPackageName[]= "HTML::Embperl::evalpackage" ;
@@ -266,11 +265,11 @@ void RollbackError (/*i/o*/ register req * r)
 /* Magic */
 /* */
 
-static void NewEscMode (/*i/o*/ register req * r,
+void NewEscMode (/*i/o*/ register req * r,
 			SV * pSV)
 
     {
-    if (r -> nEscMode & escHtml)
+    if (r -> nEscMode & escHtml && !r -> bEscInUrl)
         r -> pNextEscape = Char2Html ;
     else if (r -> nEscMode & escUrl)
         r -> pNextEscape = Char2Url ;
@@ -280,7 +279,7 @@ static void NewEscMode (/*i/o*/ register req * r,
     if (r -> bEscModeSet < 1)
         r -> pCurrEscape = r -> pNextEscape ;
 
-    if (r -> bEscModeSet < 0 && SvOK (pSV))
+    if (r -> bEscModeSet < 0 && pSV && SvOK (pSV))
         r -> bEscModeSet = 1 ;
     }
 
@@ -312,7 +311,8 @@ OPTMG   (optDisableMetaScan        , pCurrReq -> bOptions) ;
 OPTMGRD (optAllFormData            , pCurrReq -> bOptions) ;
 OPTMGRD (optRedirectStdout         , pCurrReq -> bOptions) ;
 OPTMG   (optUndefToEmptyValue      , pCurrReq -> bOptions) ;
-
+OPTMG   (optNoHiddenEmptyValue     , pCurrReq -> bOptions) ;
+OPTMGRD (optAllowZeroFilesize      , pCurrReq -> bOptions) ;
 
 
 OPTMG   (dbgStd          , pCurrReq -> bDebug) ;
@@ -669,6 +669,8 @@ static int ScanCmdEvals (/*i/o*/ register req * r,
     char    nType ;
     SV *    pRet ;
     struct tCmd * pCmd ;
+    char *  pAfterWS ;
+    char *  pBlank ;
 
 
     EPENTRY (ScanCmdEvals) ;
@@ -682,7 +684,7 @@ static int ScanCmdEvals (/*i/o*/ register req * r,
 
     r -> Buf.pCurrPos = p ;
 
-    if (nType != '+' && nType != '-' && nType != '$' && nType != '!')
+    if (nType != '+' && nType != '-' && nType != '$' && nType != '!' && nType != '#')
         { /* escape (for [[ -> [) */
         if (r -> CmdStack.State.bProcessCmds == cmdAll)
             {
@@ -697,6 +699,7 @@ static int ScanCmdEvals (/*i/o*/ register req * r,
     do
         { /* search end  */
         p++ ;
+    
         if ((p = strchr (p, ']')) == NULL)
             break ;
         }   
@@ -709,6 +712,14 @@ static int ScanCmdEvals (/*i/o*/ register req * r,
     p [-1] = '\0' ;
     p++ ;
 
+    pAfterWS = p;
+
+    /* skip trailing whitespaces */
+    while (isspace(*pAfterWS))
+        pAfterWS++ ;
+
+    if (nType == '+' && pAfterWS > p)
+        pAfterWS-- ;
 
     switch (nType)
         {
@@ -731,7 +742,7 @@ static int ScanCmdEvals (/*i/o*/ register req * r,
                 }
 
             p [-2] = nType ;
-            r -> Buf.pCurrPos = p ;
+            r -> Buf.pCurrPos = pAfterWS ;
 
         
             break ;
@@ -746,7 +757,7 @@ static int ScanCmdEvals (/*i/o*/ register req * r,
                 }
 
             p [-2] = nType ;
-            r -> Buf.pCurrPos = p ;
+            r -> Buf.pCurrPos = pAfterWS ;
 
             break ;
         case '!':
@@ -760,7 +771,13 @@ static int ScanCmdEvals (/*i/o*/ register req * r,
                 }
 
             p [-2] = nType ;
-            r -> Buf.pCurrPos = p ;
+            r -> Buf.pCurrPos = pAfterWS ;
+
+            break ;
+        case '#':
+            /* just skip comments */
+            p [-2] = nType ;
+            r -> Buf.pCurrPos = pAfterWS ;
 
             break ;
         case '$':
@@ -787,6 +804,8 @@ static int ScanCmdEvals (/*i/o*/ register req * r,
                 return rc ;
         
             p [-2] = nType ;
+            if (r -> Buf.pCurrPos == p)
+                r -> Buf.pCurrPos = pAfterWS ;
 
             break ;
         }
@@ -864,8 +883,10 @@ int ScanCmdEvalsInString (/*i/o*/ register req * r,
             }
         
         if (r -> CmdStack.State.bProcessCmds == cmdAll)
+            {
             /* output until next cmd */
             owrite (r, r -> Buf.pCurrPos, p - r -> Buf.pCurrPos) ;
+            }
         
         if (r -> bDebug & dbgSource)
             {
@@ -972,7 +993,7 @@ static int ScanHtmlTag (/*i/o*/ register req * r,
         char nType = '\0';
         while ((*p != '>' || nType) && *p != '\0')
             {
-            if (nType == '\0' && *p == '[' && (p[1] == '+' || p[1] == '-' || p[1] == '$' || p[1] == '!'))
+            if (nType == '\0' && *p == '[' && (p[1] == '+' || p[1] == '-' || p[1] == '$' || p[1] == '!' || p[1] == '#'))
                 nType = *++p ;
             else if (nType && *p == nType && p[1] == ']')
                 {
@@ -1003,7 +1024,11 @@ static int ScanHtmlTag (/*i/o*/ register req * r,
     if (*pArg != '\0' && pCmdInfo -> bScanArg)
     	{
         if ((rc = ScanCmdEvalsInString (r, (char *)pArg, &pArgBuf, nInitialScanOutputSize, &pFreeBuf)) != ok)
+            {
+            if (pFreeBuf)
+                _free (r, pFreeBuf) ;
             return rc ;
+            }
     	}
     else
     	pArgBuf = pArg ;
@@ -1310,6 +1335,8 @@ int Init        (/*in*/ int           _nIOType,
     ADDOPTMG (optAllFormData            ) ;
     ADDOPTMG (optRedirectStdout         ) ;
     ADDOPTMG (optUndefToEmptyValue      ) ;
+    ADDOPTMG (optNoHiddenEmptyValue     ) ;
+    ADDOPTMG (optAllowZeroFilesize      ) ;
 
     ADDOPTMG   (dbgStd         ) ;
     ADDOPTMG   (dbgMem         ) ;
@@ -1439,6 +1466,8 @@ tConf * SetupConfData   (/*in*/ HV *   pReqInfo,
     pConf -> sVirtLogURI  = sstrdup (GetHashValueStr (pReqInfo, "virtlog",  NULL)) ;        /* name of logfile */
     pConf -> pOpcodeMask  = pOpcodeMask ;                                                   /* Opcode mask (if any) */
     pConf -> cMultFieldSep = '\t' ;
+    pConf -> pOpenBracket  = "[*" ;
+    pConf -> pCloseBracket = "*]" ;
 
     return pConf ;
     }
@@ -1478,7 +1507,7 @@ void FreeConfData       (/*in*/ tConf *   pConf)
 
 tFile * SetupFileData   (/*i/o*/ register req * r,
                          /*in*/  char *  sSourcefile,
-                         /*in*/  long    mtime,
+                         /*in*/  double  mtime,
                          /*in*/  long    nFilesize,
                          /*in*/  tConf * pConf)
 
@@ -1501,6 +1530,9 @@ tFile * SetupFileData   (/*i/o*/ register req * r,
         
             if (r -> bDebug)
                 lprintf (r, "[%d]MEM: Reload %s in %s\n", r -> nPid,  sSourcefile, f -> sCurrPackage) ;
+
+            f -> mtime       = mtime ;	 /* last modification time of file */
+            f -> nFilesize   = nFilesize ;	 /* size of File */
             }
         }
     else
@@ -1541,7 +1573,7 @@ tFile * SetupFileData   (/*i/o*/ register req * r,
 
 tReq * SetupRequest (/*in*/ SV *    pApacheReqSV,
                      /*in*/ char *  sSourcefile,
-                     /*in*/ long    mtime,
+                     /*in*/ double  mtime,
                      /*in*/ long    nFilesize,
                      /*in*/ char *  sOutputfile,
                      /*in*/ tConf * pConf,
@@ -1551,13 +1583,12 @@ tReq * SetupRequest (/*in*/ SV *    pApacheReqSV,
 
     {
     int     rc ;
-    tReq *  r ;
+    tReq *  r = pCurrReq ;
     char *  sMode ;
     tFile * pFile ;
 
     dTHR ;
 
-    EPENTRY (SetupRequest) ;
 	
     tainted         = 0 ;
 
@@ -1565,6 +1596,8 @@ tReq * SetupRequest (/*in*/ SV *    pApacheReqSV,
         { 
         LogError (pCurrReq, rc) ;
         }
+
+    EPENTRY (SetupRequest) ;
 
     if (pReqFree)
         {
@@ -1742,6 +1775,13 @@ void FreeRequest (/*i/o*/ register req * r)
         l -> nLastErrFill= r -> nLastErrFill ;
         l -> bLastErrState= r -> bLastErrState ;
         }
+    else
+        {
+        av_clear (r -> pFormArray) ;
+        hv_clear (r -> pFormHash) ;
+        hv_clear (r -> pFormSplitHash) ;
+        }
+
 
     pCurrReq = r -> pLastReq ;
 
@@ -2098,16 +2138,38 @@ static int ProcessFile (/*i/o*/ register req * r,
 			/*in*/ int     nFileSize)
 
     {
+    r -> Buf.pSourcelinePos = r -> Buf.pCurrPos = r -> Buf.pBuf ;
+    r -> Buf.pEndPos  = r -> Buf.pBuf + nFileSize ;
+
+    return EvalMain (r) ; 
+    }
+
+/* ---------------------------------------------------------------------------- */
+/*                                                                              */
+/* Process a block of the file  						*/
+/*                                                                              */
+/* ---------------------------------------------------------------------------- */
+
+    
+
+int ProcessBlock	(/*i/o*/ register req * r,
+			 /*in*/  int	 nBlockStart,
+			 /*in*/  int	 nBlockSize,
+                         /*in*/  int     nBlockNo)
+
+    {
     int     rc ;
     char *  p ;
     int     n ;
 
 
-    r -> Buf.pSourcelinePos = r -> Buf.pCurrPos = r -> Buf.pBuf ;
-    r -> Buf.pEndPos  = r -> Buf.pBuf + nFileSize ;
+    r -> Buf.pCurrPos = r -> Buf.pBuf + nBlockStart ;
+    r -> Buf.pEndPos  = r -> Buf.pCurrPos + nBlockSize ;
+    r -> Buf.nBlockNo = nBlockNo ;
 
     rc = ok ;
-    while (r -> Buf.pCurrPos < r -> Buf.pEndPos && rc == ok)
+    p = r -> Buf.pCurrPos ;
+    while (p && *p && p < r -> Buf.pEndPos && rc == ok)
         {
         if ((r -> bDebug & dbgMem) && (sv_count != r -> lstsv_count || sv_objcount != r -> lstsv_objcount))
             {
@@ -2122,14 +2184,14 @@ static int ProcessFile (/*i/o*/ register req * r,
 
         if (r -> CmdStack.State.bProcessCmds == cmdAll && !(r -> bOptions & optDisableHtmlScan))
             {
-            n = strcspn (r -> Buf.pCurrPos, "[<") ;
-            p = r -> Buf.pCurrPos + n ;
+            n = strcspn (p, "[<") ;
+            p += n ;
             }
         else
-            p = strchr (r -> Buf.pCurrPos, '[') ;
+            p = strchr (p, '[') ;
             
             
-        if (p == NULL || *p == '\0')
+        if (p == NULL)
             { /* output the rest of html */
             owrite (r, r -> Buf.pCurrPos, r -> Buf.pEndPos - r -> Buf.pCurrPos) ;
             break ;
@@ -2139,6 +2201,9 @@ static int ProcessFile (/*i/o*/ register req * r,
             /* output until next cmd */
             owrite (r, r -> Buf.pCurrPos, p - r -> Buf.pCurrPos) ;
         
+        if (*p == '\0')
+            break ;
+
         if (r -> bDebug & dbgSource)
             {
             char * s = p ;
@@ -2154,7 +2219,7 @@ static int ProcessFile (/*i/o*/ register req * r,
                 if (n)
                     lprintf (r, "[%d]SRC: Line %d: %*.*s\n", r -> nPid, r -> Buf.nSourceline, n-s, n-s, s) ;
                 else
-                    lprintf (r, "[%d]SRC: Line %d: %60.60s\n", r -> Buf.nSourceline, r -> nPid, s) ;
+                    lprintf (r, "[%d]SRC: Line %d: %60.60s\n", r -> nPid, r -> Buf.nSourceline, s) ;
 
                 }
             }        
@@ -2167,11 +2232,22 @@ static int ProcessFile (/*i/o*/ register req * r,
             }
          else
             { /* [x ... x] sequenz */
+            if (p[1] == '*')
+                break ;
+            
             rc = ScanCmdEvals (r, p) ;
             }
+        p = r -> Buf.pCurrPos ;
         }
 
-    return rc ;
+    if (rc != ok)
+        {
+        if (rc != rcExit)
+            LogError (r, rc) ;
+        return 0 ;
+        }
+    
+    return r -> Buf.nBlockNo ;
     }
 
 /* ---------------------------------------------------------------------------- */

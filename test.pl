@@ -9,6 +9,8 @@
     'plain.htm',
     'plain.htm',
     'plain.htm',
+    'plainblock.htm',
+    'plainblock.htm',
     'error.htm???7',
     'error.htm???7',
     'error.htm???7',
@@ -22,12 +24,15 @@
     'tagscan.htm',
     'tagscan.htm??1',
     'if.htm',
+    'ifperl.htm',
     'loop.htm?erstes=Hallo&zweites=Leer+zeichen&drittes=%21%22%23&erstes=Wert2',
+    'loopperl.htm?erstes=Hallo&zweites=Leer+zeichen&drittes=%21%22%23&erstes=Wert2',
     'table.htm',
     'table.htm??1',
 #   'table.htm??32769',
 #   'table.htm??131085',
     'lists.htm?sel=2&SEL1=B&SEL3=D&SEL4=cc',
+    'mix.htm',
     'nesting.htm',
     'object.htm???2',
     'discard.htm???12',
@@ -41,7 +46,7 @@
     'reqrec.htm',
     'include.htm',
     'includeerr1.htm???1',
-    'includeerr2.htm???4',
+#    'includeerr2.htm???4',
     'registry/Execute.htm',
     'registry/errpage.htm???14',
     'nph/div.htm????64',
@@ -85,7 +90,7 @@ BEGIN
     $^W     = 1 ;
     $|      = 1;
     
-    eval 'use ExtUtils::testlib' if ($ARGV[0] =~ /b/) ;
+    eval 'use ExtUtils::testlib' if (defined ($ARGV[0]) && $ARGV[0] =~ /b/) ;
 
     #### install handler which kill httpd when terminating ####
 

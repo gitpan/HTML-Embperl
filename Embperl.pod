@@ -163,12 +163,25 @@ from a Apache::Registry or CGI script) or from within another Embperl page (only
 or higher) to nest multiple Embperl pages (for example to store a common header or
 footer in an different file). 
 
-Execute takes a hash reference as its argument. This gives it the chance to
+
+There are two forms you can use for calling Execute. A short form which only takes an
+filename and optional additional parameters or a long form which
+takes a hash reference as its argument. This gives it the chance to
 vary the parameters according to the job that should be done.
 
 (See B<eg/x/Excute.pl> for more detailed examples)
 
-Possible items are:
+
+  Execute($filename, $p1, $p2, $pn) ;
+
+This will cause Embperl to interpret the file with the name $filename and, if specified, pass
+any additional parameters in the array @param (just like @_ in a perl subroutine).
+The above example could also be written in the long form:
+
+  Execute ({inputfile => $filename,
+            param     => [$p1, $p2, $pn]}) ;
+
+The possible items for hash of the long form are:
 
 =over 4
 
@@ -204,6 +217,8 @@ Reference to a scalar where the output should be written to.
 
 
 =item B<req_rec>
+
+NOTE: The req_rec parameter isn't necessary anymore in versions >= 1.2b2
 
 If used under mod_perl, you should set the req_rec parameter to the Apache 
 request record object provided by mod_perl.
@@ -353,6 +368,11 @@ Embperl runtime configuration options are recognized, except EMBPERL_LOG.
  print $out ;
 
 
+ # Include a common header in an Embperl page, 
+ # which is stored in /path/to/head.html
+ 
+ [- Execute ('/path/to/head.html') -]
+ 
 
 
 
@@ -537,6 +557,19 @@ it untouched. When this option is set, Embperl will handle the field as if an em
 string was stored in %fdat for the field.
 
 
+=item optNoHiddenEmptyValue = 65536 (only 1.2b2 and above)
+ 
+Normally, if there is a value defined in %fdat for a specific input field, Embperl
+will output a hidden input element for it when you use B<hidden>. When this option
+is set, Embperl will not output a hidden input element for this field when the
+value is a blank string.
+
+=item optAllowZeroFilesize = 131072 (only 1.2b2 and above)
+
+Normaly Embperl reports NOT_FOUND (404) if a file of length zero is requested. With
+this option set Embperl will return an empty document.
+
+ 
 =back
 
 
@@ -794,7 +827,7 @@ Default is B<localhost>.
 
 =head1 SYNTAX
 
-Embperl understands four categories of commands. The first three are
+Embperl understands four categories of commands. The first ones are
 special Embperl commands, and the last category consists of some HTML tags
 which can trigger special processing.  Embperl commands can span
 multiple lines and need not start or end at a line boundary.
@@ -881,6 +914,72 @@ C<NOTE:> To define subroutines, use L<"[! Perl Code !]"> (see below) instead of
 Same as [- Perl Code -] with the exception that the code is only
 executed at the first request.  This could be used to define
 subroutines, or do one-time initialization.
+
+
+=head2 [* Perl code *]
+
+(only version 1.2b2 or higher, experimental!!)
+
+This is similar to [- Perl Code -], the main difference is, while [- Perl Code -], has
+always it's own scope, all [* Perl code *] blocks runs in the same scope.
+This gives you the possibilty to define "local" variables with a scope of the 
+whole page. Normaly you don't need to use local, because Embperl takes care of separate namespaces
+of different documents and cleanup after the request is finished, but in special cases it's
+necessary. For example if you want recursivly call an Embperl document via Execute.
+
+There is a second reason to use the [* Perl code *] instead of the [- Perl Code -]. If you like
+to use perl's control structures. Perl's if, while, for etc. can B<not> spawn mulitple [- Perl Code -]
+blocks, but it can spawn multiple [* Perl Code *]. 
+
+  Example:
+
+  [* foreach $i (1..10) { *]
+    
+    [- $a = $i + 5 -]
+    loop count + 5 = [+ $a +] <br>
+
+  [* } *]
+
+  The following B<won't> work:
+
+  [- foreach $i (1..10) { -]
+    some text here <br>
+  [- } -]
+
+The same can be done with Embperl L<meta commands|"[$ Cmd Arg $]  (Meta-Commands)"> (see below)
+
+  [$ foreach $i (1..10) $]
+    
+    [- $a = $i + 5 -]
+    loop count + 5 = [+ $a +] <br>
+
+  [$ endforeach $]
+
+B<NOTE 1:> [* ... *] blocks _must_ always end with a B<;>,B<{> or B<}>
+
+B<NOTE 2:> [* ... *] cannot apear inside a html tag that is interpreted by Embperl
+(unless you disable the interpretation of such tags like table, input etc.)
+
+B<NOTE 3:> Since the execution of [- ... -] and metacommands is controlled by
+Embperl, there is a much better debugging output in the logfile for this two
+ones. Also no restriction where they can be used apply to meta-commands. You can use them
+anywhere even inside of html tags that are interpreted by Embperl.
+
+
+
+=head2 [# Some Text #]  (Comments)
+
+(only version 1.2b2 or higher)
+
+This is a comment block. Everything between the [# and the #] will be removed from
+the output.
+
+B<NOTE 1:> The [* ... *] blocks are interpreted before the comment block, so they are
+executed also inside a comment. 
+
+B<NOTE 2:> Everything (except [* ... +]) is really removed from the source, so you
+can also use the [# ... #] block to take a part out of your document.
+
 
 
 =head2 [$ Cmd Arg $]  (Meta-Commands)
@@ -1257,6 +1356,14 @@ Apache::Session. The next time the same user request an Embperl page, the browse
 the cookie with the session id back and Embperl fill the %udat hash from Apache::Session
 with just the same values as you have stored for that user. (See also L<"Session handling">)
 
+=head2 %mdat (only 1.2b2 or higher)
+
+You can use B<%mdat> to store per module/page data. As long as you don't use %mdat, nothing
+happens, but as soon as you write anything to %mdat, Embperl creates a session id and
+stores the data via Apache::Session. The next time any user hits the same Embperl page,
+Embperl fill the %mdat hash from Apache::Session with just the same values as you have
+stored within the last request to that page. (See also L<"Session handling">)
+
 =head2 $row, $col
 
 Row and column counts for use in dynamic tables.  
@@ -1407,30 +1514,48 @@ From 1.2b1 and higher Embperl is able to handle per user sessions for you. You c
 in the L<%udat> hash and if the same user request again an Embperl document, you will see the same 
 values in that hash again.
 
+From 1.2b2 and higher Embperl is able to handle per module/page persitent data for you. You can store any data
+in the L<%mdat> hash and if any request comes to the same Embperl document, you will see the same 
+values in that hash again.
+
 To configure Embperl to do session management for you, you must have installed Apache::Session and
 loaded it before you load Embperl and you must tell Embperl which storage you would like to use for
 Apache::Session, by setting the environement variable EMBPERL_SESSION_CLASS.
-You may have a startup.pl for your httpd which looks like this:
+You may have a B<startup.pl> for your httpd which looks like this:
 
 
+ $ENV{SESSION_FILE_DIRECTORY}='/tmp/sessions' ;
  $ENV{EMBPERL_SESSION_CLASS}='File' ;
  use Apache::Session::File ;
  use HTML::Embperl ;
 
  1 ;
 
+or put it in the httpd/srm.conf like this
+
+ PerlSetEnv SESSION_FILE_DIRECTORY /tmp/sessions
+ PerlSetEnv EMBPERL_SESSION_CLASS  File
+ PerlModule Apache::Session::File 
+ PerlModule HTML::Embperl ;
+
 
 NOTE: You can use all the environement variables recognized by Apache::Session to configure it.
 
 
-Now you are able to use the %udat hash for your user sessions. As long as you don't touch %udat
+Now you are able to use the %udat and %mdat hashs for your user/module sessions. As long as you
+don't touch %udat or %mdat
 Embperl will not create any session, also Apache::Session is loaded. As soon as you store any
 value to %udat, Embperl will create a new session and send a cookie to the browser to maintain
 it's id, while the data is stored by Apache::Session. (Further version may also be able to use
 URL rewriting for storing the id).
+When you store data to %mdat Embperl will store the data via Apache::Session and retrieves it
+when the next request comes to the same page.
 
-B<NOTE: In the current version (1.2b1) session handling is experimental and not very well tested!
-also it works only under mod_perl, CGI will come in one of the next releases>
+
+B<NOTE: In the current version (1.2b2) the per user session handling  works only under mod_perl,
+CGI will come in one of the next releases>. The per module session handling works in all 
+operating modes.
+ 
 
 
 =head1 (Safe-)Namespaces and opcode restrictions

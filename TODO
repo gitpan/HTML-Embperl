@@ -1,20 +1,35 @@
 TODO for Embperl
 
-
+Features
+--------
 - Apache::Symbol::undef (avoid function redefinition warning)
-
 
 - @param -> @_
 
-- delete empty lines [Todd Eigenshrink]
+- make optUndefToEmptyValue default [Steve Willer]
 
+
+Test
+----
 - test FORBIDDEN
 
 - Apache::Session tests
 
+- upload.htm test when CGI.pm does not leaks one SV anymore 
+
+
+Bugs
+----
 - NOT_FOUND -> Apache::Constants ?
-- upload.htm leaks one SV -> CGI.pm problem ?
 
-- include patch for empty form field [Steve Willer]
+- Embperl version number [Eric CHOLET]
 
-- patch for complie on AIX [Gerald McLarnon]
+- Check Perl5.004_04 Stackproblem
+
+
+Docs
+----
+- Docs about EmbperlChain [Eric CHOLET]
+
+- URL Escaping pod2html insert a ; [Michael Smith]
+

@@ -408,9 +408,11 @@ int CloseInput (/*i/o*/ register req * r)
 
 
 int iread (/*i/o*/ register req * r,
-			/*in*/ void * ptr, size_t size) 
+	   /*in*/ void * ptr, size_t size) 
 
     {
+    char * p = (char *)ptr ; /* workaround for aix c complier */
+    
     if (size == 0)
         return 0 ;
 
@@ -424,11 +426,11 @@ int iread (/*i/o*/ register req * r,
             int n = 0 ;
             while (1)
                 {
-                c = get_client_block(r -> pApacheReq, ptr, size); 
+                c = get_client_block(r -> pApacheReq, p, size); 
                 if (c < 0 || c == 0)
                     return n ;
                 n    	     += c ;
-                (char *)ptr  += c ;
+                p            += c ;
                 size         -= c ;
                 }
             }
@@ -437,7 +439,7 @@ int iread (/*i/o*/ register req * r,
         } 
 #endif
 
-    return PerlIO_read (r -> ifd, ptr, size) ;
+    return PerlIO_read (r -> ifd, p, size) ;
     }
 
 
@@ -509,7 +511,8 @@ int ReadHTML (/*i/o*/ register req * r,
     pBufSV = sv_2mortal (newSV(*nFileSize + 1)) ;
     pData = SvPVX(pBufSV) ;
 
-    *nFileSize = PerlIO_read (ifd, pData, *nFileSize) ;
+    if (*nFileSize)
+        *nFileSize = PerlIO_read (ifd, pData, *nFileSize) ;
 
     PerlIO_close (ifd) ;
     
@@ -645,7 +648,11 @@ void OutputToMemBuf (/*i/o*/ register req * r,
                      /*in*/ size_t  nBufSize)
 
     {
-    r -> pMemBuf         = pBuf ;
+    if (pBuf == NULL)
+	pBuf = _malloc (r, nBufSize) ;
+
+    *pBuf = '\0' ;
+    r -> pMemBuf	 = pBuf ;
     r -> pMemBufPtr      = pBuf ;
     r -> nMemBufSize     = nBufSize ;
     r -> nMemBufSizeFree = nBufSize ;
@@ -1192,4 +1199,3 @@ char * __strndup (/*i/o*/ register req * r,
     return p ;
     }
     
-

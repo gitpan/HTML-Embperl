@@ -91,6 +91,26 @@ sub GetYesNo
 	return ($value cmp "n") != 0 ;
 	}
 
+
+## ----------------------------------------------------------------------------
+
+sub search_config
+
+    {
+    my ($key, $path) = @_ ;
+
+
+    open FH, $path or return undef ;
+
+    while (<FH>)
+        {
+        return $1 if (/^$key\s*=\s*(.*?)$/) ;
+        }
+
+    close FH ;
+    return undef ;
+    }
+
 ## ----------------------------------------------------------------------------
 #
 # Check if known config
@@ -241,10 +261,18 @@ if ($b && $apache && $apache_src ne '')
         }
     $d = "-DAPACHE" ;
     $EPAPACHE_SSL = -e "$apache_src/apache_ssl.c" ;
-    $EPSTRONGHOLD = -e "$apache_src/mod_ssl.h" ;
+    $EPSTRONGHOLD = (-e "$apache_src/mod_ssl.h") || (-e "$apache_src/include/modssl.h") ;
+    $EPMOD_SSL    = -e "$apache_src/modules/ssl/mod_ssl.h";  
     $i .= " -I$apache_src/../ssl/include"  if ($EPSTRONGHOLD) ;
     $d .= " -DEPAPACHE_SSL" if ($EPAPACHE_SSL) ;
     $d .= " -DSTRONGHOLD" if ($EPSTRONGHOLD) ;
+
+    if ($EPMOD_SSL)
+        {
+        my $sslbase = search_config ('SSL_BASE', "$apache_src/Configuration.apaci") ;
+        $sslbase = search_config ('SSL_BASE', "$apache_src/Configuration") if (!$sslbase) ;
+        $i .= " -I$sslbase/include" ;
+        }
     }
 else
     {

@@ -311,7 +311,7 @@ const char * GetHtmlArg (/*in*/  const char *    pTag,
     const char * pName ;
     int l ;
 
-    EPENTRY (GetHtmlArg) ;
+    /*EPENTRY (GetHtmlArg) ;*/
 
     l = strlen (pArg) ;
     while (*pTag)
@@ -388,7 +388,7 @@ char * GetHashValueLen (/*in*/  HV *           pHash,
     char *  p ;
     STRLEN  len ;        
 
-    EPENTRY (GetHashValueLen) ;
+    /*EPENTRY (GetHashValueLen) ;*/
 
     ppSV = hv_fetch(pHash, (char *)sKey, nLen, 0) ;  
     if (ppSV != NULL)
@@ -427,7 +427,7 @@ int    GetHashValueInt (/*in*/  HV *           pHash,
     char *  p ;
     STRLEN  len ;        
 
-    EPENTRY (GetHashValueInt) ;
+    /*EPENTRY (GetHashValueInt) ;*/
 
     ppSV = hv_fetch(pHash, (char *)sKey, strlen (sKey), 0) ;  
     if (ppSV != NULL)
@@ -446,7 +446,7 @@ char * GetHashValueStr (/*in*/  HV *           pHash,
     char *  p ;
     STRLEN  len ;        
 
-    EPENTRY (GetHashValueInt) ;
+    /*EPENTRY (GetHashValueInt) ;*/
 
     ppSV = hv_fetch(pHash, (char *)sKey, strlen (sKey), 0) ;  
     if (ppSV != NULL)

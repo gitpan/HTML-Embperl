@@ -36,6 +36,8 @@ typedef struct tConf
     SV *    pOpcodeMask ;   /* Opcode mask (if any) */
     int     nEscMode ;      /* default escape mode */
     char    cMultFieldSep ;
+    char *  pOpenBracket  ;
+    char *  pCloseBracket ;
     } tConf ;
 
 /*-----------------------------------------------------------------*/
@@ -48,7 +50,7 @@ typedef struct tConf
 typedef struct tFile
     {
     char *  sSourcefile ;   /* Name of sourcefile */
-    long    mtime ;	    /* last modification time of file */
+    double  mtime ;	    /* last modification time of file */
     size_t  nFilesize ;	    /* size of File */
     HV *    pCacheHash ;    /* Hash containing CVs to precompiled subs */
 
@@ -70,6 +72,7 @@ typedef struct tSrcBuf
     char *  pCurrPos ;	        /* Current position in html file */
     char *  pCurrStart ;        /* Current start position of html tag / eval expression */
     char *  pEndPos ;	        /* end of html file */
+    int     nBlockNo ;          /* Block number where we are currently */
     char *  pCurrTag ;	        /* Current start position of html tag */
     int     nSourceline ;       /* Currentline in sourcefile */
     char *  pSourcelinePos ;    /* Positon of nSourceline in sourcefile */
@@ -113,7 +116,7 @@ enum tCmdNo
     cnDl,
     cnSelect,
     cnDo,
-    cnForeach,
+    cnForeach
     } ;
 
 /*-----------------------------------------------------------------*/
@@ -148,7 +151,8 @@ typedef struct tCmd
 typedef struct tStackEntry
     {
     enum tCmdType   nCmdType ;      /* Type of the command which the pushed the entry on the stack */
-    char *          pStart ;        /* Startposition fpr loops */
+    char *          pStart ;        /* Startposition for loops */
+    int             nBlockNo ;      /* Block number where the startposition is */
     long            bProcessCmds ;  /* Process corresponding cmds */
     int             nResult ;       /* Result of Command which starts the block */
     char *          sArg ;          /* Argument of Command which starts the block */
@@ -272,6 +276,7 @@ struct tReq
     struct tCharTrans * pNextEscape ;   /* pointer to next escape table (after end of block) */
     int                 nEscMode ;      /* current escape mode */
     int                 bEscModeSet ;   /* escape mode already set in this block */
+    int                 bEscInUrl ;     /* we are inside an url */
     
     /* --- memory management --- */
 

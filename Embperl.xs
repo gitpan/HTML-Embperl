@@ -198,7 +198,7 @@ tReq *
 embperl_SetupRequest(req_rec,sInputfile,mtime,filesize,sOutputfile,pConf,nIOtype,pIn,pOut) 
     SV *    req_rec
     char *  sInputfile
-    long    mtime
+    double  mtime
     long    filesize
     char *  sOutputfile = NO_INIT
     tConf * pConf
@@ -385,6 +385,16 @@ OUTPUT:
     RETVAL
 
 
+int
+embperl_ProcessBlock(r,nBlockStart,nBlockSize,nBlockNo)
+    tReq * r
+    int     nBlockStart
+    int     nBlockSize
+    int     nBlockNo
+CODE:
+    RETVAL = ProcessBlock(r,nBlockStart,nBlockSize,nBlockNo) ;
+OUTPUT:
+    RETVAL
 
 
 int

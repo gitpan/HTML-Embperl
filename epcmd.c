@@ -235,6 +235,7 @@ static int ProcessAllCmds (/*i/o*/ register req *   r,
         
         pState -> nCmdType  = pCmd -> nCmdType ;
         pState -> pStart    = r -> Buf.pCurrPos ;
+        pState -> nBlockNo  = r -> Buf.nBlockNo ;
         if (pCmd -> bSaveArg)
             pState -> sArg      = __strdup (r, sArg) ;
         else
@@ -480,6 +481,7 @@ static int CmdEndwhile (/*i/o*/ register req * r,
         if (r -> CmdStack.State.nResult && rc == ok) 
             {
             r -> Buf.pCurrPos = r -> CmdStack.State.pStart ;        
+            r -> Buf.nBlockNo = r -> CmdStack.State.nBlockNo ;        
             return rc ;
             }
         }
@@ -526,6 +528,7 @@ static int CmdUntil (/*i/o*/ register req * r,
     if (!r -> CmdStack.State.nResult && rc == ok) 
         {
         r -> Buf.pCurrPos = r -> CmdStack.State.pStart ;        
+        r -> Buf.nBlockNo = r -> CmdStack.State.nBlockNo ;        
         return rc ;
         }
 
@@ -652,6 +655,7 @@ static int CmdEndforeach (/*i/o*/ register req * r,
         sv_setsv (r -> CmdStack.State.pSV, *ppSV) ;
         r -> CmdStack.State.nResult++ ;
         r -> Buf.pCurrPos = r -> CmdStack.State.pStart ;        
+        r -> Buf.nBlockNo = r -> CmdStack.State.nBlockNo ;        
         }
     else
         r -> CmdStack.State.pStart    = NULL ;
@@ -757,7 +761,7 @@ static int CmdHidden (/*i/o*/ register req * r,
                 {
                 ppsv = hv_fetch (pAddHash, pKey, nKey, 0) ;
                 
-                if (ppsv)
+               if (ppsv && (!(r -> bOptions & optNoHiddenEmptyValue) || *SvPV (*ppsv, na)))
                     {
                     oputs (r, "<input type=\"hidden\" name=\"") ;
                     oputs (r, pKey) ;
@@ -778,12 +782,14 @@ static int CmdHidden (/*i/o*/ register req * r,
                 {
                 psv = hv_iterval (pAddHash, pEntry) ;
 
-            
-                oputs (r, "<input type=\"hidden\" name=\"") ;
-                oputs (r, pKey) ;
-                oputs (r, "\" value=\"") ;
-                OutputToHtml (r, SvPV (psv, na)) ;
-                oputs (r, "\">\n") ;
+                if (!(r -> bOptions & optNoHiddenEmptyValue) || *SvPV (psv, na)) 
+		    {
+                    oputs (r, "<input type=\"hidden\" name=\"") ;
+                    oputs (r, pKey) ;
+                    oputs (r, "\" value=\"") ;
+                    OutputToHtml (r, SvPV (psv, na)) ;
+                    oputs (r, "\">\n") ;
+                    }
                 }
             }
         }
@@ -973,24 +979,28 @@ static int HtmlA (/*i/o*/ register req * r,
     
     EPENTRY (HtmlA) ;
 
+    /*
     if (r -> pCurrEscape == NULL)
         return ok ;
-    
+    */
+
     if (*sArg != '\0')
     	{
-        struct tCharTrans * pCurrEscapeSave = r -> pCurrEscape ;
         if (r -> nEscMode & escUrl)
             r -> pCurrEscape = Char2Url ;
-        
+        r -> bEscInUrl = TRUE ;
+
         if ((rc = ScanCmdEvalsInString (r, (char *)sArg, &pArgBuf, nInitialScanOutputSize, &pFreeBuf)) != ok)
             {
-            r -> pCurrEscape = pCurrEscapeSave ;
+            r -> bEscInUrl = FALSE ;
+            NewEscMode (r, NULL) ;
             if (pFreeBuf)
                 _free (r, pFreeBuf) ;
             
             return rc ;
             }
-        r -> pCurrEscape = pCurrEscapeSave ;
+        r -> bEscInUrl = FALSE ;
+        NewEscMode (r, NULL) ;
     	}
     else
     	pArgBuf = (char *)sArg ;
@@ -1098,6 +1108,7 @@ static int HtmlEndtable (/*i/o*/ register req * r,
           r -> TableStack.State.nRow < r -> TableStack.State.nMaxRow)
         {
         r -> Buf.pCurrPos = r -> HtmlStack.State.pStart ;        
+        r -> Buf.nBlockNo = r -> HtmlStack.State.nBlockNo ;        
         if ((r -> TableStack.State.nTabMode & epTabRow) == epTabRowDef)
             r -> HtmlStack.State.pBuf = oBegin (r) ;
 
@@ -1187,7 +1198,8 @@ int HtmlEndrow (/*i/o*/ register req * r,
         {
         if (r -> HtmlStack.pStack == NULL)
             return rcTablerowOutsideOfTable ;
-        r -> HtmlStack.pStack -> pStart = r -> Buf.pCurrPos ;
+        r -> HtmlStack.pStack -> pStart   = r -> Buf.pCurrPos ;
+        r -> HtmlStack.pStack -> nBlockNo = r -> Buf.nBlockNo ; 
         }
     
 
@@ -1198,6 +1210,7 @@ int HtmlEndrow (/*i/o*/ register req * r,
         && r -> TableStack.State.nCol < r -> TableStack.State.nMaxCol)
         {
         r -> Buf.pCurrPos = r -> HtmlStack.State.pStart ;        
+        r -> Buf.nBlockNo = r -> HtmlStack.State.nBlockNo ;        
         if ((r -> TableStack.State.nTabMode & epTabCol) == epTabColDef)
             r -> HtmlStack.State.pBuf = oBegin (r) ;
         }
@@ -1490,7 +1503,7 @@ static int HtmlInput (/*i/o*/ register req * r,
     
     
     pVal = GetHtmlArg (sArg, "VALUE", &vlen) ;
-    if (vlen != 0 && bCheck == 0)    
+    if ((pVal || vlen != 0) && bCheck == 0)    
         {
         pSV = newSVpv ((char *)pVal, vlen) ;
 

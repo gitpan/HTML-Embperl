@@ -61,7 +61,7 @@ enum tRc
     rcMissingArgs,
     rcNotAnArray,
     rcCallInputFuncFailed,
-    rcCallOutputFuncFailed,
+    rcCallOutputFuncFailed
     } ;
 
 
@@ -117,6 +117,8 @@ enum opt
     optAllFormData             = 8192,
     optRedirectStdout          = 16384,
     optUndefToEmptyValue       = 32768,
+    optNoHiddenEmptyValue      = 65536,
+    optAllowZeroFilesize       = 0x20000 
     } ;
 
 /*

@@ -55,6 +55,11 @@ use vars qw(
 
     $optRedirectStdout
     $optDisableFormData
+    $optDisableVarCleanup
+    $optAllowZeroFilesize
+
+    $dbgShowCleanup
+    $dbgLogLink
 
     $escmode
 
@@ -65,7 +70,7 @@ use vars qw(
 @ISA = qw(Exporter DynaLoader);
 
 
-$VERSION = '1.2b1';
+$VERSION = '1.2b2';
 
 
 bootstrap HTML::Embperl $VERSION;
@@ -134,6 +139,8 @@ use constant optSendHttpHeader          => 32 ;
 use constant optAllFormData             => 8192 ;
 use constant optRedirectStdout          => 16384 ;
 use constant optUndefToEmptyValue       => 32768 ;
+use constant optNoHiddenEmptyValue      => 0x10000 ;
+use constant optAllowZeroFilesize       => 0x20000 ;
 
 
 use constant ok                     => 0 ;
@@ -304,8 +311,9 @@ if (exists $INC{'Apache/Session.pm'})
     $SessionMgnt = 1 ;
     tie %udat, 'Apache::Session', $ENV{EMBPERL_SESSION_CLASS} || 'Win32',
                   undef, {not_lazy=>0, autocommit=>0, lifetime=>&Apache::Session::LIFETIME} ;
+    tie %mdat, 'Apache::Session', $ENV{EMBPERL_SESSION_CLASS} || 'Win32', 
+                  undef, {not_lazy=>0, autocommit=>0, lifetime=>&Apache::Session::LIFETIME} ;
     warn "[$$]SES:  Embperl Session management enabled\n" ;
-    #tie %mdat, 'Apache::Session', 'Win32', undef, {not_lazy=>0} ;
     }
 
 #######################################################################################
@@ -424,7 +432,12 @@ sub SendLogFile ($$$)
                     print "</font><font color=0>" ;
                     }
                 }
-            s/\n/\\<BR\\>\r\n/ ;
+            #s/\n/\\<BR\\>\r\n/ ;
+            s/&/&amp;/g;
+            s/\"/&quot;/g;
+            s/>/&gt;/g;
+            s/</&lt;/g;
+            s/\n/\<BR\>\r\n/ ;
             if (defined($src) && ($tag eq $src || $tag eq 'ERR:'))
                 {
                 if ($tag eq 'ERR:')
@@ -441,10 +454,6 @@ sub SendLogFile ($$$)
                 }
 
             
-            s/&/&amp;/g;
-            s/\"/&quot;/g;
-            s/>/&gt;/g;
-            s/</&lt;/g;
             print $_ ;
             print '</A>' ;
             last if (/Request finished/) ;
@@ -465,10 +474,10 @@ sub SendLogFile ($$$)
 sub CheckFile
 
     {
-    my ($filename, $req_rec) = @_ ;
+    my ($filename, $req_rec, $AllowZeroFilesize) = @_ ;
 
 
-    unless (-r $filename && -s _)
+    unless (-r $filename && (-s _ || $AllowZeroFilesize))
         {
 	logerror (rcNotFound, $filename);
 	return &NOT_FOUND ;
@@ -476,7 +485,7 @@ sub CheckFile
 
     if (defined ($req_rec) && !($req_rec->allow_options & &OPT_EXECCGI))
         {
-	logerror (undef, rcExecCGIMissing, $filename);
+	logerror (rcExecCGIMissing, $filename);
 	return &FORBIDDEN ;
  	}
 	
@@ -526,8 +535,14 @@ sub Execute
     my $rc ;
     my $req = shift ;
     
+    
+    $req = { inputfile => $req, param => \@_ } if (!ref ($req)) ;
+    
     my $req_rec ;
-    $req_rec = $$req{'req_rec'} if (defined ($$req{req_rec})) ;
+    if (defined ($$req{req_rec})) 
+        { $req_rec = $$req{'req_rec'} }
+    elsif (exists $INC{'Apache.pm'})
+        { $req_rec = Apache->request }
 
 
     if (defined ($$req{'virtlog'}) && $$req{'virtlog'} eq $$req{'uri'})
@@ -548,7 +563,6 @@ sub Execute
 
     
     my $Outputfile = $$req{'outputfile'} ;
-    my $cleanup    = $$req{'cleanup'}    || 0 ;
     my $In         = $$req{'input'}   ;
     my $Out        = $$req{'output'}  ;
     my $filesize ;
@@ -589,7 +603,7 @@ use strict ;
         }
    else
         {
-        if ($rc = CheckFile ($Inputfile, $req_rec)) 
+        if ($rc = CheckFile ($Inputfile, $req_rec, (($$req{options} || 0) & optAllowZeroFilesize))) 
             {
             return $rc ;
             }
@@ -597,7 +611,6 @@ use strict ;
         $mtime = -M _ ;
         }
 
-    
     my $r = SetupRequest ($req_rec, $Inputfile, $mtime, $filesize, $Outputfile, $conf, &epIOMod_Perl, $In, $Out) ;
     
     my $package = $r -> CurrPackage ;
@@ -636,6 +649,8 @@ no strict ;
 use strict ;
     
     my $udat ;
+    my $mdat ;
+
     if ($SessionMgnt)
         {
         $udat = tied(%udat) ;
@@ -652,7 +667,9 @@ use strict ;
     
         $udat -> {DIRTY} = 0 ;
 
-        #tied(%mdat) -> {ID} = $Inputfile ;
+        $mdat = tied(%mdat) ;
+	$mdat -> {ID} = MD5 -> hexhash ($Inputfile) ;
+        $mdat -> {DIRTY} = 0 ;
         }
 
         {
@@ -686,30 +703,40 @@ use strict ;
         {
         if ($udat->{'DIRTY'})
 	    {
-            print LOG "[$$]SES:  Store session data for $udat->{ID}\n" ;
+            print LOG "[$$]SES:  Store session data of \%udat id=$udat->{ID}\n" ;
             $udat->{'DATA'}->store ;
 	    }
 
         $udat->{'DATA'} = undef ;
         $udat -> {ID}   = undef ;
+        if ($mdat->{'DIRTY'})
+	    {
+            print LOG "[$$]SES:  Store session data of \%mdat id=$mdat->{ID}\n" ;
+            $mdat->{'DATA'}->store ;
+	    }
+
+        $mdat->{'DATA'} = undef ;
+        $mdat -> {ID}   = undef ;
         }
+
+    my $cleanup    = $$req{'cleanup'}    || ($optDisableVarCleanup?-1:0) ;
 
     if ($cleanup == -1)
         { ; } 
     elsif ($cleanup == 0)
         {
+        if ($#cleanups == -1) 
+            {
+            push @cleanups, 'dbgShowCleanup' if ($dbgShowCleanup) ;
+            $req_rec -> register_cleanup(\&HTML::Embperl::cleanup) if (defined ($req_rec)) ;
+            }
         push @cleanups, $package ;
-        if (defined ($req_rec) )
-            {
-            $req_rec -> register_cleanup(\&HTML::Embperl::cleanup) if ($#cleanups == 0) ;
-            }
-        elsif (!$r -> SubReq ())
-            {
-            cleanup () ;
-            }
+        
+        cleanup () if (!$r -> SubReq () && !$req_rec) ;
         }
     else
         {
+        push @cleanups, 'dbgShowCleanup' if ($dbgShowCleanup) ;
         push @cleanups, $package ;
         cleanup () ;
         }
@@ -898,12 +925,20 @@ sub cleanup
     my $key ;
     local $^W = 0 ;
     my $package ;
+    my %seen ;
+    my $Debugflags ;
 
+
+    $seen{''}      = 1 ;
+    $seen{'dbgShowCleanup'} = 1 ;
     foreach $package (@cleanups)
         {
-        next if ($package eq '') ;
+        $Debugflags = dbgShowCleanup if ($package eq 'dbgShowCleanup') ;
+        next if ($seen{$package}) ;
 
-	print LOG "[$$]CUP:  Cleanup package: $package\n" if ($Debugflags & dbgShowCleanup);
+	$seen{$package} = 1 ;
+        
+        print LOG "[$$]CUP:  Cleanup package: $package\n" if ($Debugflags & dbgShowCleanup);
         if (defined (&{"$package\:\:CLEANUP"}))
 	    {
     	    eval "\&$package\:\:CLEANUP;" ;
@@ -1181,7 +1216,9 @@ sub CreateAliases
         *{"$package\:\:optAllFormData"}                 = \$HTML::Embperl::optAllFormData ;
         *{"$package\:\:optRedirectStdout"}              = \$HTML::Embperl::optRedirectStdout ;
         *{"$package\:\:optUndefToEmptyValue"}           = \$HTML::Embperl::optUndefToEmptyValue ;
-        
+        *{"$package\:\:optNoHiddenEmptyValue"}          = \$HTML::Embperl::optNoHiddenEmptyValue ;
+        *{"$package\:\:optAllowZeroFilesize"}           = \$HTML::Embperl::optAllowZeroFilesize ;
+ 
 
         *{"$package\:\:dbgAllCmds"}               = \$HTML::Embperl::dbgAllCmds           ;
         *{"$package\:\:dbgCacheDisable"}          = \$HTML::Embperl::dbgCacheDisable      ;
@@ -1219,13 +1256,9 @@ sub SendErrorDoc ()
     my ($self) = @_ ;
     local $SIG{__WARN__} = 'Default' ;
     
-    my $LogfileURL ; # = $self -> VirtLogURI () ;
+    my $virtlog = $self -> VirtLogURI || '' ;
     my $logfilepos = $self -> getlogfilepos () ;
-#	}
-#
-#no strict ;
-#sub xx {
-#    
+    my $url     = $HTML::Embperl::dbgLogLink?"<A HREF=\"$virtlog\?$logfilepos\&$$\">Logfile</A>":'' ;    
     my $req_rec = $self -> ApacheReq ;
     my $err ;
     my $cnt = 0 ;
@@ -1233,8 +1266,6 @@ sub SendErrorDoc ()
     my $time = localtime ;
     my $mail = $req_rec -> server -> server_admin if (defined ($req_rec)) ;
     $mail ||= '' ;
-    my $virtlog = $self -> VirtLogURI || '' ;
-    my $url     = $LogfileURL || '' ;
 
     $req_rec -> content_type('text/html') if (defined ($req_rec)) ;
 
@@ -1244,7 +1275,7 @@ sub SendErrorDoc ()
     $self -> output ("Please contact the server administrator, $mail and inform them of the time the error occurred, and anything you might have done that may have caused the error.<P><P>\r\n") ;
 
     my $errors = $self -> ErrArray() ;
-    if (defined ($LogfileURL) && $virtlog ne '')
+    if ($virtlog ne '' && $HTML::Embperl::dbgLogLink)
         {
         foreach $err (@$errors)
             {

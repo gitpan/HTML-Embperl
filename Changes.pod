@@ -1,6 +1,79 @@
 =pod
 
-=head1 1.2b1  8 Oct 1998
+
+=head1 1.2b2 (BETA) 9 Nov 1998
+
+   - There is now a short form of the Execute function. You can
+     now include a sub page in an Embperl page by simply writing
+     [- Execute ('filename.html') -] or use
+     [- Execute ('filename.html', 1, 2, 3) -] to pass additional
+     parameters
+   - Added new block [* ... *]. This block compiles code to an 
+     outer subroutine which surounds the whole page. This makes
+     it possible to define "local" variables with a scope of the 
+     whole page, which would be necessary for recursive calls
+     to Execute.
+     Also this let you use perl control structures inside Embperl
+     pages:  e.g.  
+         [* foreach $v (1..5) { *] Cnt = [+ $v +] [* } *]
+     NOTE: [* ... *] blocks _must_ always end with a ;,{ or }
+           [* ... *] cannot apear inside html tags that are 
+           interpreted by Embperl (unless you disable the
+           interpretation of such tags like table, input etc.)
+   - Added a comment block: Everything between [# and #] is a
+     comment and is removed from the output.
+     NOTE: [* ... *] blocks also interpreted inside of a 
+           [# ... #] block, all other blocks [+/-/$ $/-/+] are not.           
+   - Added magic hash %mdat, which can be used to store persitent
+     data on a per module basis (needs Apache::Session, with
+     path in session.patch applied)
+   - Done more tests on session handling, seems to work fine now.
+   - Added new option dbgNoHiddenEmptyValue which suppresses
+     empty hidden input fields in the [$hidden$] meta command.
+     Patch from Steve Willer.
+   - Whitespaces after [...] blocks are removed in the output, so
+     there will be less empty lines, makeing the output shorter and
+     more readable, based on a patch from Todd Eigenshink.
+   - Embperl compiles now with mod_ssl (from Ralf Engelschall). 
+     Spotted by Dirk Lutzebaeck and Randel Schwartz.
+   - Added a patch from Todd Eigenshink to build Embperl with
+     Stronghold 2.4.1
+   - Added patch from Gerald McLarnon so Embperl compiles on AIX
+   - Added optAllowZeroFileSize to accept files of length 0, 
+     without that option Embperl will report NOT_FOUND. 
+     Suggested by Doug Bagley
+
+   - fixed a wrong call to logerror when OPT_EXECCGI is not on, 
+     spotted by Dirk Lutzebaeck.
+   - fixed the problem that reloads only takes place at the next day,
+     because mtime was an int instead of a double (introduced in1.2b1.
+     Spotted by Michael Smith and Roman Maeder. 
+   - fixed a problem that changing of the filesize was ignored, when
+     a documents is reloaded (introducted in 1.2b1)
+   - cleanup for all subpages are disabled if main request has
+     disabled cleanup and subpages does not specify otherwise
+   - dbgShowCleanup works again
+   - Every package is only cleanuped once, also it's included multiple
+     times in one page
+   - %fdat and @ffld are setup correctly when optDisableVarCleanup
+     is set
+   - DEFS=-DEPDEBUGALL compiles again, spotted by Michael Smith
+   - fixed that cleanup is never called with Execute nesting, when
+     req_rec was not set. Now the parameter req_rec isn't necessary
+     anymore. Spotted by Michael J.Schout
+   - Changes of $escmode inside a HTML-A tag now handled correctly,
+     spotted by Michael Smith
+   - fixed problems with links to the logfile and the line break
+     in the html log file display 
+   - fixed a problem with blocks that expand to nothing inside of Embperl
+     interpreted HTML tags.
+   - Adapted test script to modified error output of Apache 1.3.4.
+     Spotted by Eric Cholet.
+   - Empty values (VALUE="") in input tags will not be overridden by
+     value in %fdat
+
+
+=head1 1.2b1 (BETA)  8 Oct 1998
 
    - I have reworked the whole source code so Embperl is now
      going to be an object. This means Embperl is reentrant, you

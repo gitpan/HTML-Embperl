@@ -84,6 +84,7 @@ static int EvalAll (/*i/o*/ register req * r,
     static char sFormatStrictArray [] = "package %s ; use strict ; sub {\n#line %d %s\n[%s]\n}" ; 
     SV *   pSVCmd ;
     SV *   pSVErr ;
+    int    n ;
 
     dSP;
     
@@ -109,18 +110,19 @@ static int EvalAll (/*i/o*/ register req * r,
             pSVCmd = newSVpvf(sFormat, r -> Buf.sEvalPackage, r -> Buf.nSourceline, r -> Buf.pFile -> sSourcefile, sArg) ;
 
     PUSHMARK(sp);
-    perl_eval_sv(pSVCmd, G_SCALAR | G_KEEPERR);
+    n = perl_eval_sv(pSVCmd, G_SCALAR | G_KEEPERR);
     SvREFCNT_dec(pSVCmd);
 
     SPAGAIN;
-    *pRet = POPs;
+    if (n > 0)
+        *pRet = POPs;
     PUTBACK;
 
     if (r -> bDebug & dbgMem)
         lprintf (r, "[%d]SVs:  %d\n", r -> nPid, sv_count) ;
     
     pSVErr = ERRSV ;
-    if (SvTRUE (pSVErr))
+    if (SvTRUE (pSVErr) || n == 0)
         {
         STRLEN l ;
         char * p = SvPV (pSVErr, l) ;
@@ -739,3 +741,107 @@ int EvalBool (/*i/o*/ register req * r,
     return rc ;
     }
     
+
+
+/* -------------------------------------------------------------------------------
+*
+* EvalMain Scan file for [* ... *] and convert it to a perl program
+* 
+*
+------------------------------------------------------------------------------- */
+
+
+int EvalMain (/*i/o*/ register req *  r)
+
+    {
+    int     rc ;
+    long    nFilepos = -1 ;
+    char *  sProg ;
+    SV **   ppSV ;
+    SV *    pRet ;
+    int     flags = G_SCALAR ;
+
+    /* Already compiled ? */
+
+    ppSV = hv_fetch(r -> Buf.pFile -> pCacheHash, (char *)&nFilepos, sizeof (nFilepos), 1) ;  
+    if (ppSV == NULL)
+        return rcHashError ;
+
+    if (*ppSV != NULL && SvTYPE (*ppSV) == SVt_PV)
+        {
+        strncpy (r -> errdat1, SvPV(*ppSV, na), sizeof (r -> errdat1) - 1) ; 
+        LogError (r, rcEvalErr) ;
+        return rcEvalErr ;
+        }
+
+    if (*ppSV == NULL || SvTYPE (*ppSV) != SVt_PVCV)
+	{ /* Not already compiled -> build a perl frame program */
+	char * pStart = r -> Buf.pBuf ;
+	char * pEnd   = r -> Buf.pEndPos ;
+	char * pOpenBracket  = r -> pConf -> pOpenBracket ;
+	char * pCloseBracket = r -> pConf -> pCloseBracket ;
+	int  lenOpenBracket  = strlen (pOpenBracket) ;
+	int  lenCloseBracket = strlen (pCloseBracket) ;
+	char * pOpen ;
+	char * pClose ;
+	char   buf [256] ;
+        int    nBlockNo = 1 ;
+
+        pOpen  = strstr (pStart, pOpenBracket) ;
+        if (!pOpen)
+            { /* no top level perl blocks -> call ProcessBlock directly */
+            ProcessBlock (r, 0, r -> Buf.pEndPos - r -> Buf.pBuf, 1) ;
+            return ok ;
+            }
+
+
+	OutputToMemBuf (r, NULL, r -> Buf.pEndPos - r -> Buf.pBuf) ;
+
+	while (pStart)
+	    {
+	    pClose = NULL ;
+	    if (pOpen)
+                {
+                pClose = strstr (pOpen, pCloseBracket) ;
+                *pOpen = '\0' ;
+                }
+            else
+		pOpen = pEnd ;
+
+
+            sprintf (buf, "\n$___b=$r -> ProcessBlock (%d,%d,%d);\ngoto \"b$___b\";\nb%d:;\n", pStart - r -> Buf.pBuf, pOpen - pStart, nBlockNo, nBlockNo) ;
+            oputs  (r, buf) ;
+            nBlockNo++ ;
+	    if (pClose)
+		{
+		owrite (r, pOpen + lenOpenBracket, pClose - (pOpen + lenOpenBracket)) ;
+		pStart = pClose + lenCloseBracket ;
+                /* skip trailing whitespaces */
+                while (isspace(*pStart))
+                    pStart++ ;
+                pOpen  = strstr (pStart, pOpenBracket) ;
+                }
+	    else
+		pStart = NULL ;
+	    }
+
+        oputs  (r, "\nb0:\n\0") ;
+
+	sProg = OutputToStd (r) ;
+	if (sProg == NULL)
+	    return rcOutOfMemory ;
+
+        /* strip off all <HTML> Tags */
+	TransHtml (r, sProg) ;
+
+        if ((rc = EvalAndCall (r, sProg, ppSV, flags, &pRet)) != ok)
+            return rc ;
+        return ok ; /* SvIV (pRet) ;*/
+        }
+
+    r -> numCacheHits++ ;
+    
+    if ((rc = CallCV (r, sProg, (CV *)*ppSV, flags, &pRet)) != ok)
+        return rc ;
+    return ok ; /* SvIV (pRet) ;*/
+    }
