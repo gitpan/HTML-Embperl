@@ -33,6 +33,8 @@
 #include <EXTERN.h>               /* from the Perl distribution     */
 #include <perl.h>                 /* from the Perl distribution     */
 
+#include "epnames.h"
+
 #include "embperl.h"
 
 
@@ -55,8 +57,10 @@ int iembperl_init (int  nIOType,
                    const char * sLogFile) ;
 int iembperl_setreqrec  (/*in*/ SV *   pReqSV) ;
 int iembperl_term (void) ;
-int iembperl_req  (/*in*/ int     bDebugFlags,
-                   /*in*/ char *  pSVNameSpace) ;
+int iembperl_req  (/*in*/ char *  sInputfile,
+                   /*in*/ char *  sOutputfile,
+                   /*in*/ int     bDebugFlags,
+                   /*in*/ char *  pNameSpaceName) ;
 
 //
 // Datastructure for buffering output
@@ -82,8 +86,6 @@ char * igets    (/*in*/ char * s,   int    size) ;
 
 int OpenOutput  (/*in*/ const char *  sFilename) ;
 int CloseOutput () ;
-int oprintf     (/*in*/ const char *  sFormat,
-                 /*in*/ ...) ;
 int owrite      (/*in*/ const void * ptr, size_t size, size_t nmemb) ;
 void oputc       (/*in*/ char c) ;
 int oputs (/*in*/ const char *  str) ;
@@ -120,3 +122,6 @@ struct tCharTrans
 extern struct tCharTrans Char2Html [] ;
 extern struct tCharTrans Html2Char [] ;
 extern int sizeHtml2Char ;
+
+
+extern pid_t nPid ;

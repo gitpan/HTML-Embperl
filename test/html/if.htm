@@ -1,0 +1,278 @@
+
+<html>
+<head>
+<title>IF Metacommand in Embperl</title>
+</head>
+
+<body>
+
+[- $a = 1; $b = 0; $c = 5; $d = 'txt' -]
+
+
+[$if $a$]
+    a <br>
+[$ endif$]
+
+
+[$if $a $]
+    a <br>
+[$else$]
+    not a<br>
+[$ endif $]
+
+
+[$ if $a$]
+    a <br>
+    [$if $b == 0$]
+        b is null <br>
+    [$else$]    
+        b is not null <br>
+    [$endif$]
+[$ else$]
+    not a<br>
+[$ endif $]
+
+
+[$ if $a$]
+    a <br>
+    [$if $b == 0$]
+        b is null <br>
+    [$else$]    
+        b is not null <br>
+    [$endif$]
+[$ else$]
+    not a<br>
+    [$if $b == 0$]
+        b is null <br>
+    [$else$]    
+        b is not null <br>
+    [$endif$]
+[$ endif $]
+
+
+[$ if !$a$]
+    not a <br>
+    [$if $b == 0$]
+        b is null <br>
+    [$else$]    
+        b is not null <br>
+    [$endif$]
+[$ else$]
+    a<br>
+    [$if $b == 0$]
+        b is null <br>
+    [$else$]    
+        b is not null <br>
+    [$endif$]
+[$ endif $]
+
+
+[$ if $a$]
+    a <br>
+    [$if $b == 0$]
+        b is null <br>
+    [$elsif $c == 5 $]
+        b is not null and c is 5 <br>
+    [$elsif $d eq 'txt'$]
+        b is not null and c is not 5, but d is 'txt' <br>
+    [$else$]    
+        b is not null and c is not 5 and d is not 'txt' <br>
+    [$endif$]
+[$ else$]
+    not a<br>
+[$ endif $]
+
+
+[$ if $a$]
+    a <br>
+    [$if $b == 0$]
+        b is null <br>
+    [$elsif $c == 5 $]
+        b is not null and c is 5 <br>
+    [$elsif $d eq 'txt'$]
+        b is not null and c is not 5, but d is 'txt' <br>
+    [$else$]    
+        b is not null and c is not 5 and d is not 'txt' <br>
+    [$endif$]
+[$ else$]
+    not a<br>
+    [$if $b == 0$]
+        b is null <br>
+    [$elsif $c == 5 $]
+        b is not null and c is 5 <br>
+    [$elsif $d eq 'txt'$]
+        b is not null and c is not 5, but d is 'txt' <br>
+    [$else$]    
+        b is not null and c is not 5 and d is not 'txt' <br>
+    [$endif$]
+[$ endif $]
+
+
+[$ if $a == 0 $]
+    a is null <br>
+    [$if $b != 0$]
+        b not is null <br>
+    [$elsif $c == 5 $]
+        b is null and c is 5 <br>
+    [$elsif $d eq 'txt'$]
+        b is null and c is not 5, but d is 'txt' <br>
+    [$else$]    
+        b is null and c is not 5 and d is not 'txt' <br>
+    [$endif$]
+[$ else$]
+    a is not null <br>
+    [$if $b != 0$]
+        b is not null <br>
+    [$elsif $c == 5 $]
+        b is null and c is 5 <br>
+    [$elsif $d eq 'txt'$]
+        b is null and c is not 5, but d is 'txt' <br>
+    [$else$]    
+        b is null and c is not 5 and d is not 'txt' <br>
+    [$endif$]
+[$ endif $]
+
+
+[$ if $a == 0 $]
+    a is null <br>
+    [$if $b != 0$]
+        b not is null <br>
+    [$elsif $c == 5 $]
+        b is null and c is 5 <br>
+    [$elsif $d eq 'txt'$]
+        b is null and c is not 5, but d is 'txt' <br>
+    [$else$]    
+        b is null and c is not 5 and d is not 'txt' <br>
+    [$endif$]
+[$ else$]
+    a is not null <br>
+    [$if $b != 0$]
+        b is not null <br>
+    [$elsif $c != 5 $]
+        b is null and c is not 5 <br>
+    [$elsif $d ne 'txt'$]
+        b is null and c is not 5, but d is not 'txt' <br>
+    [$else$]    
+        b is null and c is 5 and d is 'txt' <br>
+    [$endif$]
+[$ endif $]
+
+
+
+[$ if $a == 0 $]
+    a is null <br>
+    [$if $b != 0$]
+        b not is null <br>
+    [$elsif $c == 5 $]
+        b is null and c is 5 <br>
+    [$elsif $d eq 'txt'$]
+        b is null and c is not 5, but d is 'txt' <br>
+    [$else$]    
+        b is null and c is not 5 and d is not 'txt' <br>
+    [$endif$]
+[$ else$]
+    a is not null <br>
+    [$if $b != 0$]
+        b is not null <br>
+    [$elsif $c != 5 $]
+        b is null and c is not 5 <br>
+    [$elsif $d ne 'txt'$]
+        b is null and c is not 5, but d is not 'txt' <br>
+    [$else$]    
+        b is null and c is 5 and d is 'txt' <br>
+        [$if $b != 0$]
+            b is not null <br>
+        [$elsif $c != 5 $]
+            b is null and c is not 5 <br>
+        [$elsif $d eq 'txt'$]
+            b is null and c is not 5, but d is 'txt' <br>
+            [$if $d eq 'txt'$]
+                If we get to here it looks good with the tests <br>
+            [$else$]
+                No not go to here, something is wrong! <br>
+            [$endif$]
+            
+        [$else$]    
+            b is null and c is 5 and d is 'txt' <br>
+        [$endif$]
+    [$endif$]
+[$ endif $]
+
+
+
+
+[$ if $a == 0 $]
+    a is null <br>
+    [$if $b != 0$]
+        b not is null <br>
+    [$elsif $c == 5 $]
+        b is null and c is 5 <br>
+    [$elsif $d eq 'txt'$]
+        b is null and c is not 5, but d is 'txt' <br>
+    [$else$]    
+        b is null and c is not 5 and d is not 'txt' <br>
+    [$endif$]
+[$ else$]
+    a is not null <br>
+    [$if $b != 0$]
+        b is not null <br>
+        [$if $d eq 'txt'$]
+            No not go to here, something is wrong! (a) <br>
+        [$else$]
+            No not go to here, something is wrong! (b) <br>
+        [$endif$]
+    [$elsif $c != 5 $]
+        b is null and c is not 5 <br>
+        [$if $d eq 'txt'$]
+            No not go to here, something is wrong! (a) <br>
+        [$else$]
+            No not go to here, something is wrong! (b) <br>
+        [$endif$]
+    [$elsif $d ne 'txt'$]
+        b is null and c is not 5, but d is not 'txt' <br>
+        [$if $d eq 'txt'$]
+            No not go to here, something is wrong! (a) <br>
+        [$else$]
+            No not go to here, something is wrong! (b) <br>
+        [$endif$]
+    [$else$]    
+        b is null and c is 5 and d is 'txt' <br>
+        [$if $b != 0$]
+            b is not null <br>
+            [$if $d eq 'txt'$]
+                No not go to here, something is wrong! (a) <br>
+            [$else$]
+                No not go to here, something is wrong! (b) <br>
+            [$endif$]
+        [$elsif $c != 5 $]
+            b is null and c is not 5 <br>
+            [$if $d eq 'txt'$]
+                No not go to here, something is wrong! (a) <br>
+            [$else$]
+                No not go to here, something is wrong! (b) <br>
+            [$endif$]
+        [$elsif $d eq 'txt'$]
+            b is null and c is not 5, but d is 'txt' <br>
+            [$if $d eq 'txt'$]
+                If we get to here it looks good with the tests <br>
+            [$else$]
+                No not go to here, something is wrong! <br>
+            [$endif$]
+            
+        [$else$]    
+            b is null and c is 5 and d is 'txt' <br>
+            [$if $d eq 'txt'$]
+                No not go to here, something is wrong! (a) <br>
+            [$else$]
+                No not go to here, something is wrong! (b) <br>
+            [$endif$]
+        [$endif$]
+    [$endif$]
+[$ endif $]
+
+
+
+
+</body>
+</html>
+

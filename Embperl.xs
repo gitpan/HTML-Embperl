@@ -24,6 +24,7 @@ extern "C" {
 }
 #endif
 
+#include "epnames.h"
 #include "embperl.h"
 
 static int
@@ -220,11 +221,13 @@ OUTPUT:
 
 
 int
-embperl_req(bDebugFlags, pNameSpace)
+embperl_req(sInputfile, sOutputfile, bDebugFlags, pNameSpace)
+    char * sInputfile
+    char * sOutputfile
     int bDebugFlags
     char * pNameSpace 
 CODE:
-    RETVAL = iembperl_req(bDebugFlags, pNameSpace) ;
+    RETVAL = iembperl_req(sInputfile, sOutputfile, bDebugFlags, pNameSpace) ;
 OUTPUT:
     RETVAL
 
@@ -236,4 +239,11 @@ CODE:
 OUTPUT:
     RETVAL
 
+
+int
+embperl_logevalerr(sText)
+    char * sText
+CODE:
+     strncpy (errdat1, sText, sizeof (errdat1) - 1) ;
+     LogError (rcEvalErr) ;
 

@@ -44,6 +44,7 @@ enum tRc
     rcEndtableWithoutTablerow,
     rcEndtextareaWithoutTextarea,
     rcArgStackOverflow,
+    rcEvalErr,
     } ;
 
 
@@ -68,6 +69,7 @@ enum dbg
     dbgFlushLog     = 512,
     dbgAllCmds      = 1024,
     dbgSource       = 2048,
+    dbgFunc         = 4096,
     
     dbgAll  = 0xffff,
     } ;

@@ -51,10 +51,6 @@ build mod_perl.
 
 - make
 - make test
-NOTE: At the moment it is only tested that the lib can be loaded. 
-If you have compiled with support for mod_perl, make test will fail with 
-undefined symbols vbprintf, rwrite, bgetopt, palloc ! 
-This should change in further releases.
 - make install
 
 See perldoc Embperl how it goes on.
@@ -63,10 +59,6 @@ See the eg/ directory for examples.
 I have successfully tested this on Linux 2.0.27, mod_perl 0.96 with perl 
 5.003 and Apache 1.2b7. Since there is (as far as I can see) no system 
 dependent stuff, it should work on other systems as well.
-
-NOTE: In versions prior to mod_perl-0.96 spaces in form fields are not
-      correctly unescaped and will remain as plus signs. Please upgrade
-      to mod_perl-0.96 as soon as it will be available.
 
 FEEDBACK
 

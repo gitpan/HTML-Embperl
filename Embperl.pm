@@ -21,7 +21,7 @@ package HTML::Embperl;
 # Default logfilename
 
 $DefaultLog = '/tmp/embperl.log' ;
-
+$Outputfile = '' ;  # Default to stdout
 
 #use Carp;
 use Safe;
@@ -32,8 +32,9 @@ require DynaLoader;
 @ISA = qw(Exporter DynaLoader);
 
 
-$VERSION = '0.11-beta';
+$VERSION = '0.13-beta';
 
+#$^W = TRUE ;
 
 bootstrap HTML::Embperl $VERSION;
 
@@ -56,24 +57,22 @@ if (defined ($INC{'Apache.pm'}))
 
 sub _eval_ ($)
     {
-    return eval @_[0] ;
+    my $result = eval $_[0] ;
+    if ($@ ne '')
+        { embperl_logevalerr ($@) ; }
+    return $result ;
     }
 
 #######################################################################################
 
 
-sub addNameSpace ($...)
+sub addNameSpace ($)
 
     {
-    my ($sName, $sMask) = @_ ;
+    my ($sName) = @_ ;
     
     my $cp ;
 
-
-    if (!defined ($sMask))
-        {
-        $sMask = Safe::emptymask () ;
-        }
 
     
     $cp = $NameSpace{$sName} ;
@@ -84,11 +83,12 @@ sub addNameSpace ($...)
         }
 
 
-    $cp = new Safe ($sName, $sMask) ;
+    $cp = new Safe ($sName) ;
     
     $NameSpace{$sName} = $cp ;
 
-    $cp -> share ('%fdat', '@ffld', '%env', '%idat', '$row', '$tabmode') ;
+    $cp -> share ('%fdat', '@ffld', '%idat', '$row', '$cnt', '$col', 
+                  '$tabmode', '$maxrow', '$maxcnt') ;
 
     eval "package $sName ; sub $sName::_eval_  { eval $_[0] } ;" ;
     
@@ -99,47 +99,72 @@ sub addNameSpace ($...)
 #######################################################################################
 
 
-sub run
+sub run (\@)
     
     {
-    my $Log = $DefaultLog ;
-    my $rc ;
+    my ($args) = @_ ;
+    my $Logfile    = $ENV{EMBPERL_LOG} || $DefaultLog ;
+    my $Debugflags = $ENV{EMBPERL_DEBUG} || 0 ;
+    my $Outputfile = '' ;
+    my $Inputfile  = '' ;
+    my $Daemon     = 0 ;
+    my $Cgi        = $#$args >= 0?0:1 ;
+    my $rc         = 0 ;
 
 
-    if (($#ARGV == 0 && $ARGV[0] eq '-D') || ($#ARGV == -1 && $ENV{PATH_TRANSLATED} eq ''))
+
+    while ($#$args >= 0)
+    	{
+    	if ($$args[0] eq '-o')
+    	    {
+    	    shift @$args ;
+    	    $Outputfile = shift @$args ;	
+            }
+    	elsif ($$args[0] eq '-l')
+    	    {
+    	    shift @$args ;
+    	    $Logfile = shift @$args ;	
+	        }
+    	elsif ($$args[0] eq '-d')
+    	    {
+    	    shift @$args ;
+    	    $Debugflags = shift @$args ;	
+	        }
+    	elsif ($$args[0] eq '-D')
+    	    {
+    	    shift @$args ;
+    	    $Daemon = 1 ;	
+	        }
+	    else
+	        {
+	        last ;
+	        }
+	    }
+    
+    if ($#$args >= 0)
+    	{
+    	$Inputfile = shift @$args ;
+    	}		
+    if ($#$args >= 0)
+    	{
+        $ENV{QUERY_STRING} = shift @$args ;
+        undef $ENV{CONTENT_LENGTH} ;
+    	}		
+	
+    if ($Daemon)
         {
-        $Log = '' ;                  # log to stdout
-        $Log = $ENV{EMBPERL_LOG} if defined ($ENV{EMBPERL_LOG}) ;
+        $Logfile = '' || $ENV{EMBPERL_LOG};   # log to stdout
         $ioType = epIOProcess ;
+        $Outputfile = $ENV{__RETFIFO} ;
+        }
+    elsif ($Cgi)
+        {
+	    $Inputfile = $ENV{PATH_TRANSLATED} ;
+        $ioType = epIOCGI ;
         }
     else
         {
-        $Log = $ENV{EMBPERL_LOG} if defined ($ENV{EMBPERL_LOG}) ;
-    
-        if ($#ARGV == -1)
-            {
-            $ioType = epIOCGI ;
-            }
-        else
-            {
-            $ENV{PATH_TRANSLATED} = $ARGV[0] ;
-
-            $ioType = epIOPerl ;
-
-            if ($#ARGV >= 2)
-                {
-                $Log = $ARGV[2] ;
-                }
-
-            if ($#ARGV >= 1)
-                {
-                $ENV{QUERY_STRING} = $ARGV[1] ;
-                undef $ENV{CONTENT_LENGTH} ;
-                }
-            }
-
-
-
+        $ioType = epIOPerl ;
         }
 
     if (defined ($ns = $ENV{EMBPERL_NAMESPACE}))
@@ -148,10 +173,10 @@ sub run
         }
 
 
-    embperl_init ($ioType, $Log) ;
+    embperl_init ($ioType, $Logfile) ;
     do
 	    {
-	    $rc = embperl_req  ($ENV{EMBPERL_DEBUG}, $ns) ;
+	    $rc = embperl_req  ($Inputfile, $Outputfile, $Debugflags, $ns) ;
 	    }
     until ($ioType != epIOProcess) ;
 
@@ -175,15 +200,13 @@ sub handler
 
     %ENV = $r->Apache::cgi_env;
 
-    if ($ENV{CONTENT_LENGTH} != 0)
+    
+    if (!-e $r -> Apache::filename)
         {
-        %fdat = $r -> Apache::content () ;
-        }
-    else
-        {
-        %fdat = $r -> Apache::args () ;
+        return 404 ;
         }
 
+    
     $ENV{PATH_TRANSLATED} = $r -> Apache::filename ;
 
     if (defined ($ns = $ENV{EMBPERL_NAMESPACE}))
@@ -196,12 +219,12 @@ sub handler
     
     if ($rc == 0)
         {
-        $rc = embperl_req ($ENV{EMBPERL_DEBUG}, $ns) ;
+        $rc = embperl_req ($ENV{PATH_TRANSLATED}, '', $ENV{EMBPERL_DEBUG}, $ns) ;
         }
     
     if ($rc != 0)
         {
-        print STDERR "rc = $rc \n";
+        #print STDERR "rc = $rc \n";
         return 500 ;
         }
 
@@ -209,7 +232,39 @@ sub handler
     }
 
 
-        
+#######################################################################################
+
+sub MailFormTo
+
+    {
+    my ($to, $subject) = @_ ;
+    my $v ;
+    my $k ;
+    my $ok = true ;
+
+    eval 'use Net::SMTP' ;
+
+    $smtp = Net::SMTP->new('localhost');
+    $smtp->mail('WWW-Server');
+    $smtp->to($to);
+    $ok = $smtp->data();
+    $ok and $ok = $smtp->datasend("Subject: $subject\n");
+    foreach $k (@ffld)
+        { 
+        $v = $fdat{$k} ;
+        if (defined ($v) && $v ne '')
+            {
+            $ok and $ok = $smtp->datasend("$k\t= $v \n" );
+            }
+        }
+    $ok and $ok = $smtp->datasend("\nClient\t= $ENV{REMOTE_HOST} ($ENV{REMOTE_ADDR})\n\n" );
+    $ok and $ok = $smtp->dataend() ;
+    $smtp->quit; 
+
+    return $ok ;
+    }    
+    
+            
 
 1;
 __END__
@@ -234,7 +289,7 @@ Embperl can operate in one of four modes:
 converts a HTML file with embedded perl statements into a standard HTML 
 file.
 
-B<embpexec.pl htmlfile [query_string] [logfile]>
+B<embpexec.pl [-o outputfile][-l logfile][-d debugflags] htmlfile [query_string]>
 
 =over 4
 
@@ -248,14 +303,21 @@ is optional and has same meaning as the environment variable QUERY_STRING
 when invoked as CGI-Script, i.e. everything following the first "?" in an 
 URL. <query_string> should be url-encoded. Default is no query_string.
 
-=item B<logfile>
+=item B<-o outputfile>
+
+gives the filename to which the output is written. Default is stdout. 
+
+=item B<-l logfile>
 
 is optional and give the filename of the logfile. Default is 
-/tmp/embperl.log. This could be changed in Embperl.pm .
+/tmp/embperl.log. 
+
+=item B<-d debugflags>
+
+specifies the level of debugging (What is written to the logfile). Default
+is nothing. See below for excat values. 
 
 =back
-
-The processed file is send to stdout.
 
 
 =item B<As CGI-Script>
@@ -419,7 +481,8 @@ of output!)
 
 =back
 
-A good value to start is C<237>.
+A good value to start is C<237>. If Embperl crashs (you get a Segmentation
+fault) add C<512> so the logfile is flushed and you can see where Embperl crashs.
 
 
 =item B<EMBPERL_NAMESPACE>
@@ -640,8 +703,6 @@ save to use POST)
 
 contains all the field names in the order they where send by the browser 
 (normally as they appear in your form)
-NOTE: In this release this is not supported when running under control of 
-mod_perl.
 
 =item B<%idat>
 
@@ -706,6 +767,39 @@ can be defined with a operator mask.
 At the moment these features are at experimental state and can't be fully 
 configured. Also there seems to be a memory leak.
 
+=head1 UTILITY FUNCTIONS
+
+=over 4
+
+=item B<MailFormTo ($MailTo, $Subject)>
+
+Sends the content of the hash %fdat in the order specified by @ffld to the
+given B<$MailTo> adresse, with the subject of B<$Subject>.
+
+If you specifiy the following example code as action in your form
+
+  <form action="x/feedback.htm" method="POST"
+   enctype="application/x-www-form-urlencoded">
+
+The content of the form will be mailed to the given email adress.
+
+
+Example:
+
+ <html>
+ <head>
+ <title>Feedback</title>
+ </head>
+ <body>
+        Your data has been sccesfully send!
+        [- MailFormTo ('webmaster@domain.xy', 'Mail from WWW Form') -]
+ </body>
+ </html>
+
+B<NOTE:> You must have Net::SMTP (from libnet package) installed to use this function.
+
+=back
+
 =head1 BUGS
 
 In checkboxes and radiobutton there are no substitution of [+ ... +] in the
@@ -713,10 +807,6 @@ VALUE attribute.
 
 At the moment Namespaces are at experimental state and can't be fully 
 configured. Also there seems to be a memory leak.
-
-NOTE: In versions prior to mod_perl-0.96 spaces in form fields are not
-      correctly unescaped and will remain as plus signs. Please upgrade
-      to mod_perl-0.96 as soon as it will be available.
 
 =head1 FEEDBACK and BUGREPORTS
 

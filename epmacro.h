@@ -17,24 +17,35 @@
 
 #define INTMG(name,var,used) \
     \
-int mgGet##name (SV * pSV, MAGIC * mg) \
+int EMBPERL_mgGet##name (SV * pSV, MAGIC * mg) \
 \
     { \
     sv_setiv (pSV, var) ; \
     used++ ; \
     if (bDebug & dbgTab) \
-        lprintf ("TAB:  get %s = %d, Used = %d\n", #name, var, used) ; \
+        lprintf ("[%d]TAB:  get %s = %d, Used = %d\n", nPid, #name, var, used) ; \
     return 0 ; \
     } \
 \
-    int mgSet##name (SV * pSV, MAGIC * mg) \
+    int EMBPERL_mgSet##name (SV * pSV, MAGIC * mg) \
 \
     { \
     var = SvIV (pSV) ; \
     if (bDebug & dbgTab) \
-        lprintf ("TAB:  set %s = %d, Used = %d\n", #name, var, used) ; \
+        lprintf ("[%d]TAB:  set %s = %d, Used = %d\n", nPid, #name, var, used) ; \
     return 0 ; \
     } \
     \
-    MGVTBL mvtTab##name = { mgGet##name, mgSet##name, NULL, NULL, NULL } ;
+    MGVTBL EMBPERL_mvtTab##name = { EMBPERL_mgGet##name, EMBPERL_mgSet##name, NULL, NULL, NULL } ;
 
+
+
+#ifdef EPDEBUGALL
+#define EPENTRY(func) if (bDebug & dbgFunc) { lprintf ("[%d]DBG:  %s\n", nPid, #func) ; FlushLog () ; }
+#define EPENTRY1N(func,arg1) if (bDebug & dbgFunc) { lprintf ("[%d]DBG:  %s %d\n", nPid, #func, arg1) ; FlushLog () ; }
+#define EPENTRY1S(func,arg1) if (bDebug & dbgFunc) { lprintf ("[%d]DBG:  %s %s\n", nPid, #func, arg1) ; FlushLog () ; }
+#else
+#define EPENTRY(func)
+#define EPENTRY1N(func,arg1)
+#define EPENTRY1S(func,arg1)
+#endif

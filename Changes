@@ -1,21 +1,52 @@
 Revision history for Perl extension HTML::Embperl.
 
+0.13-beta   April 26 1997	
+        - Move EPENTRY (embperl_init) down to avoid crash when compiled with
+          -DEPDEBUGALL
+        - Add #undefs for stdio function to compile with perl > 5.003
+          Note: This is a quick hack, and will be changed to use PerlIO in
+          one of the next releases, so we can tie stdout of Embperl
+        - Add pids (to distinguish between muliplite requests) and time to
+          logfile output
+        - Make many functions static and names of externals more unique to
+          avoid conflicts of symbolnames with other modules
+        - If file not found return status 404 instead of 500
+	- Add Apache::Embperl so the module shows at CPAN also under 
+	  module/by-module/Apache/ as suggested by Doug MacEachern
+
+0.12-beta not publicly released
+	- The mask has been removed from namespace option so it can be used
+          with safe.pm > 2
+        - Embperl works with -T / PerlTaintCheck on
+        - Add function MailFormTo to send form contents via email
+        - the dbgSource option displays only one line for better overview
+        - fixed a bug caused perl operator '<' interpreted as html tag
+          in tables or while loop after the first iteration
+        - add ffld array for mod_perl mode to get the order of form fields
+        - removed vsnprintf, since it's not available on all platforms
+    	- Correct handling of empty dynamic tables
+	- Fix Bug causes a Segmentaion Fault when first table is empty
+	- Add script for make test
+	- Fixed Error with nested if
+	- Log compilation errors of embedded perl code
+	- Avoid some warnings in Embperl.pm
+
 0.11-beta      March 25 1997
-		- Name changed from Embperl to HTML::Embperl!!!!!!!!
-		- FORM & ENV debug output now available in all modes
-		- Ouput from [+  +] and INPUT fields are escaped
-		  (e.g. < is send as &lt; )
-		- two dimensional tables
-		- bug whiches causes an endless loop when using a \ fixed
-        	- fixed escaping special html chars above ascii code 128
-        	- added support for list tags (dir, menu, ol, ul, dl)
-        	- added support for textarea tag
-		- fixed some errors
+	- Name changed from Embperl to HTML::Embperl!!!!!!!!
+	- FORM & ENV debug output now available in all modes
+	- Ouput from [+  +] and INPUT fields are escaped
+	  (e.g. < is send as &lt; )
+	- two dimensional tables
+	- bug whiches causes an endless loop when using a \ fixed
+        - fixed escaping special html chars above ascii code 128
+        - added support for list tags (dir, menu, ol, ul, dl)
+        - added support for textarea tag
+	- fixed some errors
 
 0.10b-beta	Jan 23 1997
-		- fixed some errors
+	- fixed some errors
 
 0.10beta 	Jan 18 1997
-		- first public beta release
+	- first public beta release
 
 		

@@ -16,6 +16,7 @@
 
 
 #include "ep.h"
+#include "epmacro.h"
 
 
 /* this was private in http_protocol.c */
@@ -23,15 +24,27 @@
 
 #define SET_BYTES_SENT(r) do {if (r->sent_bodyct) bgetopt (r->connection->client, BO_BYTECT, &r->bytes_sent); } while (0)
 
+// 
+// Avoid conflicts with Perl IO one 5.0003 beta versions
+// This is a quick hack, it will be change in the future to support real PerlIO
+//
+
+#ifdef PERLIO_NOT_STDIO 
+#undef fread
+#undef fwrite
+#undef fputs
+#undef fgets
+#endif
+
 
 //
 // Files
 //
 
 
-FILE *  ifd = NULL ;  // input file
-FILE *  ofd = NULL ;  // output file
-FILE *  lfd = NULL ;  // log file
+static FILE *  ifd = NULL ;  // input file
+static FILE *  ofd = NULL ;  // output file
+static FILE *  lfd = NULL ;  // log file
 
 
 
@@ -46,8 +59,8 @@ FILE *  lfd = NULL ;  // log file
 
 
 
-struct tBuf *    pFirstBuf = NULL ;  // First buffer
-struct tBuf *    pLastBuf  = NULL ;  // Last written buffer
+static struct tBuf *    pFirstBuf = NULL ;  // First buffer
+static struct tBuf *    pLastBuf  = NULL ;  // Last written buffer
 
 
 //
@@ -55,7 +68,7 @@ struct tBuf *    pLastBuf  = NULL ;  // Last written buffer
 //
 
 
-int     nMarker ;
+static int     nMarker ;
 
 
 ////////////////////////////////////////////////////////////////////////////////////
@@ -66,6 +79,8 @@ int     nMarker ;
 struct tBuf *   oBegin ()
 
     {
+    EPENTRY1N (oBegin, nMarker) ;
+    
     nMarker++ ;
     return pLastBuf ;
     }
@@ -78,19 +93,23 @@ struct tBuf *   oBegin ()
 void oRollback (struct tBuf *   pBuf) 
 
     {
+    EPENTRY1N (oRollback, nMarker) ;
+
     if (pBuf == NULL)
         {
         pFirstBuf = NULL ;
         nMarker = 0 ;
         }
     else
-        if (pLastBuf == pBuf)
+	{
+        if (pLastBuf == pBuf || pBuf -> pNext == NULL)
             nMarker-- ;
         else
             nMarker = pBuf -> pNext -> nMarker - 1 ;
+        pBuf -> pNext = NULL ;
+        }
         
     pLastBuf = pBuf ;
-    pBuf -> pNext = NULL ;
     }
 
 ////////////////////////////////////////////////////////////////////////////////////
@@ -101,6 +120,9 @@ void oRollback (struct tBuf *   pBuf)
 void oCommit (struct tBuf *   pBuf) 
 
     {
+    EPENTRY1N (oCommit, nMarker) ;
+
+    
     if (pBuf == NULL)
         nMarker = 0 ;
     else
@@ -134,12 +156,15 @@ void oCommit (struct tBuf *   pBuf)
 //
 
 
-int bufwrite (/*in*/ const void * ptr, size_t size) 
+static int bufwrite (/*in*/ const void * ptr, size_t size) 
 
 
     {
-    struct tBuf * pBuf = (struct tBuf *)_malloc (size + sizeof (struct tBuf)) ;
+    struct tBuf * pBuf ;
 
+    EPENTRY1N (bufwrite, nMarker) ;
+
+    pBuf = (struct tBuf *)_malloc (size + sizeof (struct tBuf)) ;
 
     if (pBuf == NULL)
         return 0 ;
@@ -173,7 +198,7 @@ int OpenInput (/*in*/ const char *  sFilename)
     {
 #ifdef APACHE
     if (pReq)
-        return rcInputNotSupported ;
+        return ok ;
 #endif
     
     if (ifd)
@@ -208,7 +233,7 @@ int CloseInput ()
     {
 #ifdef APACHE
     if (pReq)
-        return rcInputNotSupported ;
+        return ok ;
 #endif
 
     if (ifd)
@@ -232,7 +257,16 @@ int iread (/*in*/ void * ptr, size_t size, size_t nmemb)
     {
 #ifdef APACHE
     if (pReq)
-        return rcInputNotSupported ;
+        {
+        setup_client_block(pReq, REQUEST_CHUNKED_ERROR); 
+        if(should_client_block(pReq))
+            {
+            int n = get_client_block(pReq, ptr, size * nmemb); 
+            return n / size ;
+            }
+        else
+            return 0 ;
+        } 
 #endif
 
     return fread (ptr, size, nmemb, ifd) ;
@@ -334,54 +368,6 @@ int oputs (/*in*/ const char *  str)
     return owrite (str, 1, strlen (str)) ;
     }
 
-
-////////////////////////////////////////////////////////////////////////////////////
-//
-// printf to output (web client)
-//
-
-
-
-int oprintf (/*in*/ const char *  sFormat,
-             /*in*/ ...) 
-
-    {
-    va_list  ap ;
-    int      n ;
-    char     buf [1024] ;
-
-
-    va_start (ap, sFormat) ;
-    
-    n = vsnprintf (buf, sizeof (buf) - 1, sFormat, ap) ;
-
-    return owrite (buf, 1, n) ;
-    }
-
-/*
-#ifdef APACHE
-    if (pReq)
-        {
-        if(pReq->connection->aborted) return EOF;
-        n=vbprintf(pReq->connection->client,sFormat,ap);
-        SET_BYTES_SENT(pReq);
-        if (bDebug & dbgFlushOutput)
-            rflush (pReq) ;
-        }
-    else
-#endif
-        {
-        n = vfprintf (ofd, sFormat, ap) ;
-        if (bDebug & dbgFlushOutput)
-            fflush (ofd) ;
-        }
-
-
-    va_end (ap) ;
-
-    return n ;
-    }
-*/
 
 ////////////////////////////////////////////////////////////////////////////////////
 //
@@ -581,7 +567,7 @@ void _free (void * p)
 
     {
     if (bDebug & dbgMem)
-        lprintf ("MEM:  Free at %08x\n" ,p) ;
+        lprintf ("[%d]MEM:  Free at %08x\n" ,nPid, p) ;
 
 #ifdef APACHE
     if (pReq == NULL)
@@ -603,7 +589,7 @@ void * _malloc (size_t  size)
         p = malloc (size) ;
 
     if (bDebug & dbgMem)
-        lprintf ("MEM:  Alloc %d Bytes at %08x\n" ,size, p) ;
+        lprintf ("[%d]MEM:  Alloc %d Bytes at %08x\n" ,nPid, size, p) ;
 
     return p ;
     }

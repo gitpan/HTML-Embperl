@@ -1,0 +1,37 @@
+
+<html>
+<head>
+<title>Some Plain tests for Embperl</title>
+</head>
+
+<body>
+
+Here it starts with some HTML Text<P>
+
+First of all assign a value:
+[- $a = '(this is the value in $a)' -] <BR>
+
+Now we have some 'Umlaute':
+
+
+[- $b = "$a &auml;&ouml;&uuml;" -]
+
+Now lets look what we are getting from this:<BR>
+[+ $a +] [+ $b +]<BR>
+
+And now a and b together: [+ "$a$b" +]<P>
+
+Here we have some HTML tags within the perl code, Embperl will delete them!<BR>
+
+[+ $c = <BR> 6 + 17 <font size="3"> * 3 +]
+
+Embperl will also translate HMTL escapes to the right characters i.e. $a &amp;lt; 6 will get the perl expression $a &lt; 6: <BR>
+
+[+ $a &lt; 6 +]
+
+
+<P>Ok.<P>
+
+
+</body>
+</html>

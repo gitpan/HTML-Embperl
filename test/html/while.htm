@@ -1,0 +1,22 @@
+
+<html>
+<head>
+<title>While Metacommand in Embperl</title>
+</head>
+
+<body>
+
+[- $i = 0 -]
+[$ while $i &lt;= $#ffld $]
+    [+ $ffld[$i] +] = [+ $fdat{$ffld[$i]} +]
+    [- $j = 0 -]
+    [$ while $j &lt;= $i $]
+        [+ $j++ +] 
+    [$ endwhile $]
+    <BR>
+    [- $i++ -]
+[$ endwhile $]
+
+
+</body>
+</html>

@@ -11,6 +11,22 @@
 use ExtUtils::MakeMaker;
 
 
+sub MY::test_via_harness 
+	{
+	my ($txt) = shift -> MM::test_via_harness (@_) ;
+	$txt =~ s/PERL_DL_NONLAZY=1/PERL_DL_NONLAZY=0/ ;
+	$txt =~ s/\$\(FULLPERL\)/\$\(FULLPERL\) \-T / ;
+	return $txt ;
+	}
+
+sub MY::test_via_script 
+	{
+	my ($txt) = shift -> MM::test_via_script (@_) ;
+	$txt =~ s/PERL_DL_NONLAZY=1/PERL_DL_NONLAZY=0/ ;
+	$txt =~ s/\$\(FULLPERL\)/\$\(FULLPERL\) \-T / ;
+	return $txt ;
+	}
+	
 
 
 ## ----------------------------------------------------------------------------
@@ -137,7 +153,7 @@ WriteMakefile(
     'VERSION_FROM' => 'Embperl.pm', 		# finds $VERSION
     'MYEXTLIB'     => 'epmain.o epio.o epchar.o',
     'LIBS'	   => [''],   			 
-    'DEFINE'	   => $d, 			 
+    'DEFINE'	   => "$d \$(DEFS)", 			 
     'INC'	   => $i,     			 
     'dist'         => { COMPRESS => 'gzip', SUFFIX => 'gz'},
 );
