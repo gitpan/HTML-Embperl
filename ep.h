@@ -454,6 +454,9 @@ int GetLineNoOf (/*i/o*/ register req * r,
 #ifndef WIN32
 #define strnicmp strncasecmp
 #define stricmp strcasecmp
+#else
+#define strnicmp _strnicmp
+#define stricmp _stricmp
 #endif
 
 void Dirname (/*in*/ const char * filename,
@@ -472,7 +475,8 @@ int GetSubTextPos (/*i/o*/ register req * r,
 
 
 void ClearSymtab (/*i/o*/ register req * r,
-		  /*in*/  const char *    sPackage) ;
+		  /*in*/  const char *    sPackage,
+                  /*in*/  int		 bDebug) ;
 
 void UndefSub    (/*i/o*/ register req * r,
 		  /*in*/  const char *    sName, 

@@ -10,7 +10,7 @@
 #   IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 #   WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 #
-#   $Id: Embperl.pm,v 1.152 2001/05/16 03:56:54 richter Exp $
+#   $Id: Embperl.pm,v 1.160 2001/06/05 04:56:20 richter Exp $
 #
 ###################################################################################
 
@@ -46,51 +46,25 @@ use vars qw(
 
     $cwd
     
-    $escmode
-    %fdat
-    %udat
-    %mdat
-    @ffld
-    %fsplitdat
-    %idat
-
-    $tabmode
-    $escmode
-    $row
-    $cnt
-    $col
-    $maxrow
-    $maxcol
-
     $evalpackage
-
-    $optRedirectStdout
-    $optDisableFormData
-    $optDisableVarCleanup
-    $optAllowZeroFilesize
-
-    $dbgShowCleanup
-    $dbgLogLink
-    $dbgForm
-    $dbgSession
-
-    $escmode
 
     $SessionMgnt
     $DefaultIDLength
 
-    $req_rec
-
-    %http_headers_out
-
     $pathsplit
+
+    @AliasScalar 
+    @AliasHash 
+    @AliasArray
+
+    $dummy
     ) ;
 
 
 @ISA = qw(Exporter DynaLoader);
 
 
-$VERSION = '1.3.2';
+$VERSION = '1.3.3';
 
 # HTML::Embperl cannot be bootstrapped in nonlazy mode except
 # under mod_perl, because its dependencies import symbols like ap_palloc
@@ -247,7 +221,39 @@ $DebugDefault = dbgStd ;
     'TAB:'  => '#FF0080',
     'INPU:' => '#008040',
                 ) ;
+#######################################################################################
 
+BEGIN
+    {
+    @AliasScalar = qw{row col cnt maxrow maxcol tabmode escmode req_rec  
+                        dbgAll            dbgAllCmds        dbgCmd            dbgDefEval        dbgEarlyHttpHeader
+                        dbgEnv            dbgEval           dbgFlushLog       dbgFlushOutput    dbgForm           
+                        dbgFunc           dbgHeadersIn      dbgImport         dbgInput          dbgLogLink        
+                        dbgMem            dbgProfile        dbgShowCleanup    dbgSource         dbgStd            
+                        dbgSession        dbgTab            dbgWatchScalar    dbgParse          dbgObjectSearch   
+                        optDisableChdir           optDisableEmbperlErrorPage    optReturnError	       optDisableFormData        
+                        optDisableHtmlScan        optDisableInputScan       optDisableMetaScan        optDisableTableScan       
+                        optDisableSelectScan      optDisableVarCleanup      optEarlyHttpHeader        optOpcodeMask             
+                        optRawInput               optSafeNamespace          optSendHttpHeader         optAllFormData            
+                        optRedirectStdout         optUndefToEmptyValue      optNoHiddenEmptyValue     optAllowZeroFilesize      
+                        optKeepSrcInMemory        optKeepSpaces	       optOpenLogEarly           optNoUncloseWarn	       
+                        } ;
+    @AliasHash   = qw{fdat udat mdat idat http_headers_out fsplitdat} ;
+    @AliasArray  = qw{ffld} ;
+    } ;
+
+use vars (map { "\$$_" } @AliasScalar) ;
+use vars (map { "\%$_" } @AliasHash) ;
+use vars (map { "\@$_" } @AliasArray) ;
+
+
+no strict ;
+foreach (@HTML::Embperl::AliasScalar)
+    {
+    $dummy = ${"HTML::Embperl\:\:$_"} ; # necessary to make sure variable exists!
+    $dummy = ${"HTML::Embperl\:\:$_"} ; # necessary to make sure variable exists!
+    }
+use strict ;
 
 #######################################################################################
 #
@@ -658,7 +664,8 @@ sub ScanEnvironment
 	my %cgienv = $req_rec->cgi_env ;
         while (($k, $v) = each %cgienv)
 		{
-		$ENV{$k} ||= $v ;
+                #warn "env $k = ->$v<->env=$ENV{$k}<-" ;
+                $ENV{$k} = $v if (!exists $ENV{$k}) ;
 		}
 	}
 
@@ -1321,7 +1328,8 @@ sub cleanup
 		$val =  ${*{"$package\::"}}{$key} ;
 		local(*ENTRY) = $val;
 		#print LOG "$key = " . GVFile (*ENTRY) . "\n" ;
-		$varfile = GVFile (*ENTRY) ;
+		$varfile = GVFile (${*{"$package\::"}}{$key}) ;
+		#$varfile = GVFile (*ENTRY) ;
                 $glob = $package.'::'.$key ;
 		if (defined (*ENTRY{SCALAR}) && defined (${$glob}) && ref (${$glob}) eq 'DBIx::Recordset')
 		    {
@@ -1409,8 +1417,9 @@ sub cleanup
 		    } 
 		else
                     {
-		    $varfile = GVFile (*ENTRY) ;
-                    if (($packfile eq $varfile || $addcleanup -> {$key} || 
+		    #$varfile = GVFile (*ENTRY) ;
+		    $varfile = GVFile (${*{"$package\::"}}{$key}) ;
+	            if (($packfile eq $varfile || $addcleanup -> {$key} || 
                         $cleanfile->{$varfile}) &&  
 		         (!($key =~ /\:\:$/) && !(defined ($addcleanup -> {$key}) && $addcleanup -> {$key} == 0)))
 		        { # Only cleanup vars which are defined in the sourcefile
@@ -1635,11 +1644,6 @@ package HTML::Embperl::Req ;
 #######################################################################################
 
 use strict ;
-use vars qw {
-            @AliasScalar
-            @AliasHash
-            @AliasArray
-            } ;
 
 
 if (defined ($ENV{MOD_PERL}))
@@ -1829,23 +1833,6 @@ sub SetSessionCookie
 
 
 
-#######################################################################################
-
-@AliasScalar = qw{row col cnt maxrow maxcol tabmode escmode req_rec  
-                    dbgAll            dbgAllCmds        dbgCmd            dbgDefEval        dbgEarlyHttpHeader
-                    dbgEnv            dbgEval           dbgFlushLog       dbgFlushOutput    dbgForm           
-                    dbgFunc           dbgHeadersIn      dbgImport         dbgInput          dbgLogLink        
-                    dbgMem            dbgProfile        dbgShowCleanup    dbgSource         dbgStd            
-                    dbgSession        dbgTab            dbgWatchScalar    dbgParse          dbgObjectSearch   
-                    optDisableChdir           optDisableEmbperlErrorPage    optReturnError	       optDisableFormData        
-                    optDisableHtmlScan        optDisableInputScan       optDisableMetaScan        optDisableTableScan       
-                    optDisableSelectScan      optDisableVarCleanup      optEarlyHttpHeader        optOpcodeMask             
-                    optRawInput               optSafeNamespace          optSendHttpHeader         optAllFormData            
-                    optRedirectStdout         optUndefToEmptyValue      optNoHiddenEmptyValue     optAllowZeroFilesize      
-                    optKeepSrcInMemory        optKeepSpaces	       optOpenLogEarly           optNoUncloseWarn	       
-                    } ;
-@AliasHash   = qw{fdat udat mdat idat http_headers_out fsplitfdat} ;
-@AliasArray  = qw{ffld} ;
 
 #######################################################################################
 
@@ -1864,19 +1851,17 @@ sub CreateAliases
     if (!defined(${"$package\:\:row"}))
         { # create new aliases for Embperl magic vars
 
-        foreach (@AliasScalar)
+        foreach (@HTML::Embperl::AliasScalar)
             {
             *{"$package\:\:$_"}    = \${"HTML::Embperl\:\:$_"} ;
             $dummy = ${"$package\:\:$_"} ; # necessary to make sure variable exists!
-            $dummy = ${"HTML::Embperl\:\:$_"} ; # necessary to make sure variable exists!
-            $dummy = ${"HTML::Embperl\:\:$_"} ; # necessary to make sure variable exists!
             }
 
-        foreach (@AliasHash)
+        foreach (@HTML::Embperl::AliasHash)
             {
             *{"$package\:\:$_"}    = \%{"HTML::Embperl\:\:$_"} ;
             }
-        foreach (@AliasArray)
+        foreach (@HTML::Embperl::AliasArray)
             {
             *{"$package\:\:$_"}    = \@{"HTML::Embperl\:\:$_"} ;
             }
@@ -1961,6 +1946,7 @@ sub SendErrorDoc ()
             {
             $self -> output ("<A HREF=\"$virtlog?$logfilepos&$$#E$cnt\">") ; #<tt>") ;
             $HTML::Embperl::escmode = 3 ;
+            $err =~ s|\\|\\\\|g;
             $err =~ s|\n|\n\\<br\\>\\&nbsp;\\&nbsp;\\&nbsp;\\&nbsp;|g;
             $err =~ s|(Line [0-9]*:)|$1\\</a\\>|;
             $self -> output ($err) ;
@@ -1975,6 +1961,7 @@ sub SendErrorDoc ()
         $HTML::Embperl::escmode = 3 ;
         foreach $err (@$errors)
             {
+            $err =~ s|\\|\\\\|g;
             $err =~ s|\n|\n\\<br\\>\\&nbsp;\\&nbsp;\\&nbsp;\\&nbsp;|g;
             $self -> output ("$err\\<p\\>\r\n") ;
             #$self -> output ("\\<tt\\>$err\\</tt\\>\\<p\\>\r\n") ;

@@ -10,7 +10,7 @@
 #   IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 #   WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 #
-#   $Id: epmain.c,v 1.100 2001/05/11 04:06:51 richter Exp $
+#   $Id: epmain.c,v 1.106 2001/06/05 04:56:20 richter Exp $
 #
 ###################################################################################*/
 
@@ -116,6 +116,7 @@ char * LogError (/*i/o*/ register req * r,
         case rcEndtableWithoutTablerow: msg ="[%d]ERR:  %d: Line %d: </tr> without <tr>%s%s" ; break ;
         case rcEndtextareaWithoutTextarea: msg ="[%d]ERR:  %d: Line %d: </textarea> without <textarea>%s%s" ; break ;
         case rcEvalErr:                 msg ="[%d]ERR:  %d: Line %d: Error in Perl code: %s%s" ; break ;
+	case rcNotCompiledForModPerl:   msg ="[%d]ERR:  %d: Line %d: Embperl is not compiled for mod_perl. Rerun Makefile.PL and give the correct Apache source tree location %s%s" ; break ;
         case rcExecCGIMissing:          msg ="[%d]ERR:  %d: Line %d: Forbidden %s: Options ExecCGI not set in your Apache configs%s" ; break ;
         case rcIsDir:                   msg ="[%d]ERR:  %d: Line %d: Forbidden %s is a directory%s" ; break ;
         case rcXNotSet:                 msg ="[%d]ERR:  %d: Line %d: Forbidden %s X Bit not set%s" ; break ;
@@ -1892,6 +1893,11 @@ tFile * SetupFileData   (/*i/o*/ register req * r,
 		SvREFCNT_dec (f -> pExportHash) ;
 		f -> pExportHash = NULL ;
 		}
+	    if (f -> pBufSV)
+		{
+		SvREFCNT_dec (f -> pBufSV) ;
+		f -> pBufSV = NULL ;
+		}
 	    }
         pNew = "Found" ;
         }
@@ -2183,8 +2189,10 @@ tReq * SetupRequest (/*in*/ SV *    pApacheReqSV,
     ppSV = hv_fetch(r -> pEnvHash, "PATH_INFO", sizeof ("PATH_INFO") - 1, 0) ;  
     if (ppSV)
         r -> sPathInfo = SvPV (*ppSV ,len) ;
-#endif
     r -> pTokenTable = pTokenTable ;    
+#else
+    r -> pTokenTable = (void *)pTokenTable ;    
+#endif
     if (rc != ok)
         r -> bDebug = 0 ; /* Turn debbuging off, only errors will go to stderr if logfile not open */
     r -> bOptions        = pConf -> bOptions ;
@@ -2224,7 +2232,7 @@ tReq * SetupRequest (/*in*/ SV *    pApacheReqSV,
         r -> bAppendToMainReq = FALSE ;
         }
     
-    r -> bReqRunning     = 1 ;
+    r -> bReqRunning     = 0 ;
 
     r -> Buf.pFile = pFile ;
 
@@ -2853,7 +2861,7 @@ static int EndOutput (/*i/o*/ register req * r,
 		    oputs (r, "Content-Type: ") ;
 		    oputs (r, pContentType) ;
 		    oputs (r, "\n") ;
-		    sprintf (txt, "Content-Length: %d\n", GetContentLength (r) + 2) ;
+		    sprintf (txt, "Content-Length: %d\n", GetContentLength (r) + (r -> pCurrEscape?2:0)) ;
 		    oputs (r, txt) ;
 		    if (pCookie)
 			{
@@ -3485,6 +3493,8 @@ int ExecuteReq (/*i/o*/ register req * r,
 	}
     else
 	r -> bOptions |= optDisableChdir ;
+
+    r -> bReqRunning     = 1 ;
 
     if ((rc = ProcessFile (r, r -> Buf.pFile -> nFilesize)) != ok)
         if (rc == rcExit)

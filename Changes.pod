@@ -1,5 +1,25 @@
 =pod
 
+=head1 1.3.3 (RELEASE)   6. Juni 2001
+
+   - fixes problem with cleanup and Perl 5.6.0+ which broke
+     session management. Spotted by Lukas Zapletal and Andy Lim.
+   - Improved Makefile.PL to catche more setup situation on
+     Win 32.
+   - Make $r -> Error settable to be able to reset Embperl's
+     internal error flag.     
+   - workaround for $r -> chdir_file not working correctly inside
+     of Apache::Registry with ActiveState Perl, which caused
+     make test to fail.
+   - fixed SIGSEGVs that could occur on rare situations when
+     multiple file not found errors are reported.
+   - fixed problem with wrong setup of Content-Length header
+     when running in CGI mode, with escmode = 0. Spotted by
+     Edwin Ramirez.
+   - fixed problem with nested dynamic tables and Execute.
+   - added correct errror message for rcNotCompiledForModPerl.
+     Spotted by Scott Chapman.
+
 =head1 1.3.2 (RELEASE)   16 May. 2001 
 
    - Emulate the syntax => Text parameter of Embperl 2.0, which allows 

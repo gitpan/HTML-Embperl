@@ -215,10 +215,18 @@ embperl_logerror(code, sText, pApacheReqSV=NULL)
     SV * pApacheReqSV
 PREINIT:
     tReq * r = pCurrReq ;
+    int  bRestore = 0 ;
+    SV * pSaveApacheReqSV ;
+#ifdef APACHE
+    request_rec * pSaveApacheReq ;
+#endif
 CODE:
 #ifdef APACHE
     if (pApacheReqSV && r -> pApacheReq == NULL)
         {
+        bRestore = 1 ;
+        pSaveApacheReqSV = r -> pApacheReqSV ;
+        pSaveApacheReq = r -> pApacheReq ;
         if (SvROK (pApacheReqSV))
             r -> pApacheReq = (request_rec *)SvIV((SV*)SvRV(pApacheReqSV));
         else
@@ -228,6 +236,14 @@ CODE:
 #endif
      strncpy (r->errdat1, sText, sizeof (r->errdat1) - 1) ;
      LogError (r,code) ;
+#ifdef APACHE
+    if (bRestore)
+        {
+        r -> pApacheReqSV  = pSaveApacheReqSV  ;
+        r -> pApacheReq = pSaveApacheReq   ;
+        }
+#endif
+
 
 
 void
@@ -342,10 +358,11 @@ CODE:
 #ifdef EP2
 
 void 
-embperl_ClearSymtab(sPackage)
+embperl_ClearSymtab(sPackage,bDebug)
     char * sPackage
+    int	    bDebug
 CODE:
-    ClearSymtab (pCurrReq, sPackage) ;
+    ClearSymtab (pCurrReq, sPackage, bDebug) ;
 
 #endif
 
@@ -555,10 +572,12 @@ OUTPUT:
     RETVAL
 
 int
-embperl_Error(r)
+embperl_Error(r,...)
     tReq * r
 CODE:
     RETVAL = r -> bError ;
+    if (items > 1)
+        r -> bError = (int)SvIV(ST(1)) ;
 OUTPUT:
     RETVAL
 
@@ -607,10 +626,19 @@ embperl_logerror(r,code, sText,pApacheReqSV=NULL)
     int    code
     char * sText
     SV * pApacheReqSV
+PREINIT:
+    int  bRestore = 0 ;
+    SV * pSaveApacheReqSV ;
+#ifdef APACHE
+    request_rec * pSaveApacheReq ;
+#endif
 CODE:
 #ifdef APACHE
     if (pApacheReqSV && r -> pApacheReq == NULL)
         {
+        bRestore = 1 ;
+        pSaveApacheReqSV = r -> pApacheReqSV ;
+        pSaveApacheReq = r -> pApacheReq ;
         if (SvROK (pApacheReqSV))
             r -> pApacheReq = (request_rec *)SvIV((SV*)SvRV(pApacheReqSV));
         else
@@ -620,6 +648,15 @@ CODE:
 #endif
      strncpy (r->errdat1, sText, sizeof (r->errdat1) - 1) ;
      LogError (r,code) ;
+#ifdef APACHE
+    if (bRestore)
+        {
+        r -> pApacheReqSV  = pSaveApacheReqSV  ;
+        r -> pApacheReq = pSaveApacheReq   ;
+        }
+#endif
+
+
 
 int
 embperl_getloghandle(r)
@@ -745,10 +782,11 @@ CODE:
     if (items > 1)
         {
         r -> pCodeSV = ST(1) ;
-        SvREFCNT_inc (ST(1)) ;
+        SvREFCNT_inc (r -> pCodeSV) ;
         }
-OUTPUT:
-    RETVAL
+    ST(0) = RETVAL;
+    if (RETVAL != &sv_undef)
+        sv_2mortal(ST(0));
 
 
 

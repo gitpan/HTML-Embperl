@@ -22,6 +22,10 @@ StartServers 2
 MaxClients 2
 MaxRequestsPerChild 0
 
+#PerlFixupHandler test::handler
+#PerlInitHandler Apache::Reload 
+#PerlInitHandler Apache::StatINC 
+
 EOD
     }
 

@@ -10,7 +10,7 @@
 #   IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 #   WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 #
-#   $Id: epeval.c,v 1.28 2001/02/13 05:39:21 richter Exp $
+#   $Id: epeval.c,v 1.29 2001/05/29 06:28:10 richter Exp $
 #
 ###################################################################################*/
 
@@ -696,6 +696,7 @@ int CallStoredCV  (/*i/o*/ register req * r,
                     /*in*/  int           flags,
                     /*out*/ SV **         pRet)             
     {
+    dTHXsem
     int   num ;         
     SV *  pSVErr ;
 

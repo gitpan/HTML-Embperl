@@ -10,7 +10,7 @@
 #   IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 #   WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 #
-#   $Id: eputil.c,v 1.21 2001/05/10 19:08:17 richter Exp $
+#   $Id: eputil.c,v 1.23 2001/06/05 03:22:09 richter Exp $
 #
 ###################################################################################*/
 
@@ -226,6 +226,7 @@ const char * strnstr (/*in*/ const char *   pString,
             return pString ;
         pString++ ;
         }
+    return NULL ;
     }
 
 
@@ -880,13 +881,15 @@ int SetSubTextPos (/*i/o*/ register req * r,
 
 
 void ClearSymtab (/*i/o*/ register req * r,
-		  /*in*/  const char *    sPackage) 
+		  /*in*/  const char *   sPackage,
+                  /*in*/  int		 bDebug) 
 
     {
+    dTHXsem 
     SV *	val;
     char *	key;
     I32		klen;
-    int		bDebug = 1 ;
+    
     SV *	sv;
     HV *	hv;
     AV *	av;
@@ -900,6 +903,7 @@ void ClearSymtab (/*i/o*/ register req * r,
     HV *	pCleanupHV ;
     char *      s ;
     GV *	pFileGV ;
+    char *      sObjName ;
     /*
     GV *	symtabgv ;
     GV *	symtabfilegv ;
@@ -1005,20 +1009,67 @@ void ClearSymtab (/*i/o*/ register req * r,
 	    */
 	    }
 	
+	sObjName = NULL ;
 	
-	if((sv = GvSV((GV*)val)) && SvOK (sv))
+        lprintf (r, "[%d]CUP: type = %d flags=%x\n", r -> nPid, SvTYPE (GvSV((GV*)val)), SvFLAGS (GvSV((GV*)val))) ;
+        if((sv = GvSV((GV*)val)) && SvTYPE (sv) == SVt_PVMG)
+	    {
+            HV * pStash = SvSTASH (sv) ;
+
+            if (pStash)
+                {
+                sObjName = HvNAME(pStash) ;
+                if (sObjName && strcmp (sObjName, "DBIx::Recordset") == 0)
+                    {
+                    SV * pSV = newSVpvf ("DBIx::Recordset::Undef ('%s')", s) ;
+
+	            if (bDebug)
+	                lprintf (r, "[%d]CUP: Recordset *%s\n", r -> nPid, s) ;
+                    EvalDirect (r, pSV, 0, NULL) ;
+                    SvREFCNT_dec (pSV) ;
+                    }
+                }
+            }
+
+        if((sv = GvSV((GV*)val)) && SvROK (sv) && SvOBJECT (SvRV(sv)))
+	    {
+            HV * pStash = SvSTASH (SvRV(sv)) ;
+        lprintf (r, "[%d]CUP: rv type = %d\n", r -> nPid, SvTYPE (SvRV(GvSV((GV*)val)))) ;
+            if (pStash)
+                {
+                sObjName = HvNAME(pStash) ;
+                if (sObjName && strcmp (sObjName, "DBIx::Recordset") == 0)
+                    {
+                    SV * pSV = newSVpvf ("DBIx::Recordset::Undef ('%s')", s) ;
+
+	            if (bDebug)
+	                lprintf (r, "[%d]CUP: Recordset *%s\n", r -> nPid, s) ;
+                    EvalDirect (r, pSV, 0, NULL) ;
+                    SvREFCNT_dec (pSV) ;
+                    }
+                }
+            }
+	if((sv = GvSV((GV*)val)) && (SvOK (sv) || SvROK (sv)))
 	    {
 	    if (bDebug)
-	        lprintf (r, "[%d]CUP: $%s = %s\n", r -> nPid, s, SvPV (sv, l)) ;
+                lprintf (r, "[%d]CUP: $%s = %s %s%s\n", r -> nPid, s, SvPV (sv, l), sObjName?" Object of ":"", sObjName?sObjName:"") ;
 	
-	    sv_unmagic (sv, 'q') ; /* untie */
-	    sv_setsv(sv, &sv_undef);
+	    if ((sv = GvSV((GV*)val)) && SvREADONLY (sv))
+	        {
+	        if (bDebug)
+	            lprintf (r, "[%d]CUP: Ignore %s because it's readonly\n", r -> nPid, s) ;
+	        }
+            else
+                {
+	        sv_unmagic (sv, 'q') ; /* untie */
+	        sv_setsv(sv, &sv_undef);
+                }
 	    }
 	if((hv = GvHV((GV*)val)))
 	    {
 	    if (bDebug)
 	        lprintf (r, "[%d]CUP: %%%s = ...\n", r -> nPid, s) ;
-	    sv_unmagic ((SV *)hv, 'P') ; /* untie */
+            sv_unmagic ((SV *)hv, 'P') ; /* untie */
 	    hv_clear(hv);
 	    }
 	if((av = GvAV((GV*)val)))

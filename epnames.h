@@ -10,7 +10,7 @@
 #   IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 #   WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 #
-#   $Id: epnames.h,v 1.27 2001/05/02 04:08:56 richter Exp $
+#   $Id: epnames.h,v 1.28 2001/05/29 06:28:11 richter Exp $
 #
 ###################################################################################*/
 
@@ -117,6 +117,85 @@
 #define InitialReq             EMBPERL_InitialReq
 #define pCurrReq               EMBPERL_pCurrReq
 
+#define ArrayAdd		    EMBPERL_ArrayAdd		   
+#define ArrayClone		    EMBPERL_ArrayClone		   
+#define ArrayFree		    EMBPERL_ArrayFree		   
+#define ArrayGetSize		    EMBPERL_ArrayGetSize		   
+#define ArrayNew		    EMBPERL_ArrayNew		   
+#define ArraySet		    EMBPERL_ArraySet		   
+#define ArraySetSize		    EMBPERL_ArraySetSize		   
+#define ArraySub		    EMBPERL_ArraySub		   
+#define Attr_selfValue		    EMBPERL_Attr_selfValue		   
+#define BuildTokenTable		    EMBPERL_BuildTokenTable		   
+#define CallStoredCV		    EMBPERL_CallStoredCV		   
+#define DefaultTokenTable	    EMBPERL_DefaultTokenTable	   
+#define DomInit			    EMBPERL_DomInit			   
+#define DomStats		    EMBPERL_DomStats		   
+#define DomTree_alloc		    EMBPERL_DomTree_alloc		   
+#define DomTree_checkpoint	    EMBPERL_DomTree_checkpoint	   
+#define DomTree_clone		    EMBPERL_DomTree_clone		   
+#define DomTree_delete		    EMBPERL_DomTree_delete		   
+#define DomTree_discardAfterCheckpoint   EMBPERL_DomTree_discardAfterCheckpoint
+#define DomTree_mvtTab		    EMBPERL_DomTree_mvtTab		   
+#define DomTree_new		    EMBPERL_DomTree_new		   
+#define DomTree_selfCheckpoint	    EMBPERL_DomTree_selfCheckpoint	   
+#define DomTree_selfDiscardAfterCheckpoint   EMBPERL_DomTree_selfDiscardAfterCheckpoint  
+#define Element_selfGetAttribut     EMBPERL_Element_selfGetAttribut    
+#define Element_selfGetNthAttribut  EMBPERL_Element_selfGetNthAttribut 
+#define Element_selfRemoveAttribut  EMBPERL_Element_selfRemoveAttribut 
+#define Element_selfSetAttribut     EMBPERL_Element_selfSetAttribut    
+#define EvalStore		    EMBPERL_EvalStore		   
+#define NdxStringFree		    EMBPERL_NdxStringFree		   
+#define NodeList_toString	    EMBPERL_NodeList_toString	   
+#define Node_appendChild	    EMBPERL_Node_appendChild	   
+#define Node_childsText		    EMBPERL_Node_childsText		   
+#define Node_cloneNode		    EMBPERL_Node_cloneNode		   
+#define Node_insertAfter	    EMBPERL_Node_insertAfter	   
+#define Node_insertAfter_CDATA      EMBPERL_Node_insertAfter_CDATA     
+#define Node_newAndAppend	    EMBPERL_Node_newAndAppend	   
+#define Node_nextSibling	    EMBPERL_Node_nextSibling	   
+#define Node_previousSibling	    EMBPERL_Node_previousSibling	   
+#define Node_removeChild	    EMBPERL_Node_removeChild	   
+#define Node_replaceChildWithCDATA  EMBPERL_Node_replaceChildWithCDATA 
+#define Node_replaceChildWithNode   EMBPERL_Node_replaceChildWithNode  
+#define Node_replaceChildWithUrlDATA    EMBPERL_Node_replaceChildWithUrlDATA
+#define Node_selfCloneNode	    EMBPERL_Node_selfCloneNode	   
+#define Node_selfCondCloneNode      EMBPERL_Node_selfCondCloneNode     
+#define Node_selfExpand		    EMBPERL_Node_selfExpand		   
+#define Node_selfLastChild	    EMBPERL_Node_selfLastChild	   
+#define Node_selfNextSibling	    EMBPERL_Node_selfNextSibling	   
+#define Node_selfNthChild	    EMBPERL_Node_selfNthChild	   
+#define Node_selfPreviousSibling    EMBPERL_Node_selfPreviousSibling   
+#define Node_selfRemoveChild	    EMBPERL_Node_selfRemoveChild	   
+#define Node_toString		    EMBPERL_Node_toString		   
+#define Node_toString2		    EMBPERL_Node_toString2		   
+#define ParseFile		    EMBPERL_ParseFile
+#define String2NdxInc		    EMBPERL_String2NdxInc		   
+#define StringAdd		    EMBPERL_StringAdd		   
+#define StringFree		    EMBPERL_StringFree		   
+#define StringNew		    EMBPERL_StringNew		   
+#define dom_free		    EMBPERL_dom_free		   
+#define dom_malloc		    EMBPERL_dom_malloc		   
+#define dom_realloc		    EMBPERL_dom_realloc		   
+#define mydie			    EMBPERL_mydie			   
+#define nCheckpointCache	    EMBPERL_nCheckpointCache	   
+#define nCheckpointCacheMask	    EMBPERL_nCheckpointCacheMask	   
+#define nInitialNodePadSize	    EMBPERL_nInitialNodePadSize	   
+#define pDomTrees		    EMBPERL_pDomTrees		   
+#define pFreeDomTrees		    EMBPERL_pFreeDomTrees		   
+#define pStringTableArray	    EMBPERL_pStringTableArray	   
+#define pStringTableHash	    EMBPERL_pStringTableHash	   
+#define str_free		    EMBPERL_str_free		   
+#define str_malloc		    EMBPERL_str_malloc		   
+#define str_realloc		    EMBPERL_str_realloc		   
+#define xCheckpointCache	    EMBPERL_xCheckpointCache	   
+#define xDocument		    EMBPERL_xDocument		   
+#define xDocumentFraq		    EMBPERL_xDocumentFraq		   
+#define xDomTreeAttr		    EMBPERL_xDomTreeAttr		   
+#define xNoName			    EMBPERL_xNoName			   
+#define xOrderIndexAttr		    EMBPERL_xOrderIndexAttr		   
+ 
+ 
 #ifndef PERL_VERSION
 #include <patchlevel.h>
 #define PERL_VERSION PATCHLEVEL

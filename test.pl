@@ -11,7 +11,7 @@
 #   IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 #   WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 #
-#   $Id: test.pl,v 1.107 2001/05/15 10:41:27 richter Exp $
+#   $Id: test.pl,v 1.109 2001/06/03 18:15:45 richter Exp $
 #
 ###################################################################################
 
@@ -69,6 +69,9 @@
         'errors'     => '1',
         },
     'notfound.htm' => { 
+        'errors'     => '1',
+        },
+    'execnotfound.htm' => { 
         'errors'     => '1',
         },
     'notallow.xhtm' => { 
@@ -219,7 +222,7 @@
     'upload.htm' => { 
         'query_info' => 'multval=A&multval=B&multval=C&single=S',
         'offline'    => 0,
-#        'noloop'     => 1,
+        'noloop'     => 1,
         'reqbody'    => "Hi there!",
         },
     'reqrec.htm' => {
@@ -525,7 +528,7 @@
         },
     'EmbperlObject/sub/eponotfound.htm' => { 
         'offline'    => 0,
-	'cgi'	     => 0,
+        'cgi'        => 0,
         },
     'EmbperlObject/sub/epobless.htm' => { 
         'offline'    => 0,
@@ -591,7 +594,7 @@
         'version'    => 2,
         'syntax'     => 'RTF',
         'offline'    => 1,
-        'param'      => { one => 1, hash => { a => 111, b => 222, c => [1111,2222,3333,4444]}, array => [11,22,33] },
+        'param'      => { one => 1, hash => { a => 111, b => 222, c => [1111,2222,3333,4444]}, array => [11,22,33], uml => 'ÄÖÜ', brace => 'open { close } end' },
         },
     'rtf/rtffull.asc' => { 
         'version'    => 2,
@@ -1915,8 +1918,9 @@ do
 
 	if ($EPWIN32)
 	    {
-	    $ENV{PATH} .= ";$EPHTTPDDLL" if ($EPWIN32) ;
-	    $ENV{PERL_STARTUP_DONE} = 1 ;
+            #$ENV{PATH} .= ";$EPHTTPDDLL;$EPHTTPDDLL\\..\\os\\win32\\release;$EPHTTPDDLL\\..\\os\\win32\\debug" if ($EPWIN32) ;
+
+            $ENV{PERL_STARTUP_DONE} = 1 ;
 
             $EPAPACHEVERSION =~ m#Apache/1\.3\.(\d+) # ;
 

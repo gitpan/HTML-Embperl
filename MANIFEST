@@ -72,6 +72,7 @@ test/html/errdoc/errdoc.htm
 test/html/errdoc/epl/errdoc2.htm
 test/html/errmsg.htm
 test/html/errmsg2.htm
+test/html/execnotfound.htm
 test/html/escape.htm
 test/html/escraw.htm
 test/html/spaces.htm
@@ -291,6 +292,7 @@ test/cmp/delwrsess.htm
 test/cmp/setbadsess.htm
 test/cmp/setunknownsess.htm
 test/cmp/inctext.htm
+test/cmp/execnotfound.htm
 test/conf/httpd.conf.src
 test/conf/startup.pl
 test/conf/startup_dso.pl

@@ -1,6 +1,6 @@
 /*###################################################################################
 #
-#   Embperl - Copyright (c) 1997-1999 Gerald Richter / ECOS
+#   Embperl - Copyright (c) 1997-2001 Gerald Richter / ECOS
 #
 #   You may distribute under the terms of either the GNU General Public
 #   License or the Artistic License, as specified in the Perl README file.
@@ -9,6 +9,8 @@
 #   THIS PACKAGE IS PROVIDED "AS IS" AND WITHOUT ANY EXPRESS OR
 #   IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 #   WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+#
+#   $Id: epdat.h,v 1.31 2001/05/29 06:28:10 richter Exp $
 #
 ###################################################################################*/
 
@@ -110,6 +112,8 @@ struct tToken
     enum tNodeType	    nCDataType ;/* type for sub nodes that contains text */
     enum tNodeType	    nForceType ;/* force this type for sub nodes */
     int			    bUnescape ;	/* translate input?  */
+    int			    bAddFlags ;	/* add flags to node  */
+    int			    bRemoveSpaces ;	/* 1 remove spaces before tag, 2 remove after */
     unsigned char *	    pContains ;	/* chars that could be contained in the string */
     struct tTokenTable *    pFollowedBy;/* table of tokens that can follow this one */
     struct tTokenTable *    pInside ;	/* table of tokens that can apear inside this one */
@@ -406,12 +410,12 @@ struct tReq
     
     /* --- DomTree ---*/
 
-    tNode	xDocument ;
-    tNode	xCurrNode ;
-    tIndex	xCurrDomTree ;
+    tNode	xDocument ;	/* Document node */
+    tNode	xCurrNode ;	/* node that was last executed */
+    tIndex	xCurrDomTree ;	/* DomTree we are currently working on */
+    tIndex	xSourceDomTree ;/* DomTree which contains the source */
 #endif
-    tTokenTable *  pTokenTable ;
-
+    struct tTokenTable *  pTokenTable ; /* holds the current syntax */
 
     /* --- Source in memory --- */
 

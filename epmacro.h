@@ -30,7 +30,8 @@ int EMBPERL_mgGet##name (pTHX_ SV * pSV, MAGIC * mg) \
     { \
 \
     sv_setiv (pSV, var) ; \
-    used++ ; \
+    if (pCurrReq -> bReqRunning) \
+	used++ ; \
     if ((pCurrReq -> bDebug & dbgTab) && pCurrReq -> bReqRunning) \
         lprintf (pCurrReq, "[%d]TAB:  get %s = %d, Used = %d\n", pCurrReq -> nPid, #name, var, used) ; \
     return 0 ; \

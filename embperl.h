@@ -10,7 +10,7 @@
 #   IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 #   WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 #
-#   $Id: embperl.h,v 1.24 2001/02/13 05:39:16 richter Exp $
+#   $Id: embperl.h,v 1.25 2001/05/29 06:28:09 richter Exp $
 #
 ###################################################################################*/
 
@@ -71,8 +71,8 @@ enum tRc
     rcUnclosedCmd,
     rcNotAllowed,
     rcNotHashRef,
-    rcTagMismatch
-    
+    rcTagMismatch,
+    rcCleanupErr
     } ;
 
 

@@ -9,6 +9,14 @@ use HTML::Embperl ;
 
 my($r) = @_;
 
+# workaround for broken $r -> chdir_file in Apache::Registry on ActiveState perl
+use Cwd ;
+use File::Basename ;
+
+my $fn = $r -> filename ;
+chdir(dirname ($fn)) ;
+
+
 $HTML::Embperl::DebugDefault = 811005 ;
 
 
