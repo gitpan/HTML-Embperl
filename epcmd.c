@@ -18,90 +18,64 @@
 
 
 
-static struct tCmd * pCurrCmd ;    /* Current cmd which is excuted */
-
-
-/* *************************
-*  Stack for meta commands
-*************************** */
-
-
-
-struct tStackEntry Stack [nStackMax] ; /* Stack for if, while, etc. */
-
-int nStack = 0 ;                /* Stackpointer */
-
-struct tStackEntry State ;             /* current State */
-
-char ArgStack [16384] ;
-
-char * pArgStack = ArgStack ;
-
-/* *************************
-*  Stack for html tags
-*************************** */
-
-
-struct tStackEntry HtmlStack [nStackMax] ; /* Stack for if, while, etc. */
-
-int nHtmlStack = 0 ;                /* Stackpointer */
-
-struct tStackEntry HtmlState ;             /* current State */
-
-char ArgHtmlStack [16384] ;
-
-char * pArgHtmlStack = ArgHtmlStack ;
-
-
-/* **********************************
-/* Stack for dynamic table counters */
-/********************************** */
-
-
-struct tTableStackEntry TableStack [nStackMax] ; /* Stack for table */
-
-int nTableStack = 0 ;                /* Stackpointer */
-
-struct tTableStackEntry TableState ;             /* current State */
-
-
-int nTabMode    ;    /* mode for next table (only takes affect after next <TABLE> */
-int nTabMaxRow  ;    /* maximum rows for next table (only takes affect after next <TABLE> */
-int nTabMaxCol  ;    /* maximum columns for next table (only takes affect after next <TABLE> */
-
 /* ---------------------------------------------------------------------------- */
 /* Commandtable...                                                              */
 /* ---------------------------------------------------------------------------- */
 
 
-static int CmdIf (/*in*/ const char *   sArg) ;
-static int CmdElse (/*in*/ const char *   sArg) ;
-static int CmdElsif (/*in*/ const char *   sArg) ;
-static int CmdEndif (/*in*/ const char *   sArg) ;
+static int CmdIf (/*i/o*/ register req * r,
+			/*in*/ const char *   sArg) ;
+static int CmdElse (/*i/o*/ register req * r,
+			/*in*/ const char *   sArg) ;
+static int CmdElsif (/*i/o*/ register req * r,
+			/*in*/ const char *   sArg) ;
+static int CmdEndif (/*i/o*/ register req * r,
+			/*in*/ const char *   sArg) ;
 
-static int CmdWhile    (/*in*/ const char *   sArg) ;
-static int CmdEndwhile (/*in*/ const char *   sArg) ;
-static int CmdDo       (/*in*/ const char *   sArg) ;
-static int CmdUntil    (/*in*/ const char *   sArg) ;
-static int CmdForeach  (/*in*/ const char *   sArg) ;
-static int CmdEndforeach(/*in*/ const char *   sArg) ;
+static int CmdWhile (/*i/o*/ register req * r,
+			/*in*/ const char *   sArg) ;
+static int CmdEndwhile (/*i/o*/ register req * r,
+			/*in*/ const char *   sArg) ;
+static int CmdDo (/*i/o*/ register req * r,
+			/*in*/ const char *   sArg) ;
+static int CmdUntil (/*i/o*/ register req * r,
+			/*in*/ const char *   sArg) ;
+static int CmdForeach (/*i/o*/ register req * r,
+			/*in*/ const char *   sArg) ;
+static int CmdEndforeach (/*i/o*/ register req * r,
+			/*in*/ const char *   sArg) ;
 
-static int CmdHidden (/*in*/ const char *   sArg) ;
-static int CmdVar    (/*in*/ const char *   sArg) ;
+static int CmdHidden (/*i/o*/ register req * r,
+			/*in*/ const char *   sArg) ;
+static int CmdVar (/*i/o*/ register req * r,
+			/*in*/ const char *   sArg) ;
 
-static int HtmlTable    (/*in*/ const char *   sArg) ;
-static int HtmlTableHead(/*in*/ const char *   sArg) ;
-static int HtmlSelect   (/*in*/ const char *   sArg) ;
-static int HtmlOption   (/*in*/ const char *   sArg) ;
-static int HtmlEndtable (/*in*/ const char *   sArg) ;
-static int HtmlRow      (/*in*/ const char *   sArg) ;
-static int HtmlEndrow   (/*in*/ const char *   sArg) ;
-static int HtmlInput    (/*in*/ const char *   sArg) ;
-static int HtmlTextarea   (/*in*/ const char *   sArg) ;
-static int HtmlEndtextarea(/*in*/ const char *   sArg) ;
-static int HtmlBody       (/*in*/ const char *   sArg) ;
-static int HtmlA         (/*in*/ const char *   sArg) ;
-static int HtmlMeta      (/*in*/ const char *   sArg) ;
+static int HtmlTable (/*i/o*/ register req * r,
+			/*in*/ const char *   sArg) ;
+static int HtmlTableHead (/*i/o*/ register req * r,
+			/*in*/ const char *   sArg) ;
+static int HtmlSelect (/*i/o*/ register req * r,
+			/*in*/ const char *   sArg) ;
+static int HtmlOption (/*i/o*/ register req * r,
+			/*in*/ const char *   sArg) ;
+static int HtmlEndtable (/*i/o*/ register req * r,
+			/*in*/ const char *   sArg) ;
+static int HtmlRow (/*i/o*/ register req * r,
+			/*in*/ const char *   sArg) ;
+static int HtmlEndrow (/*i/o*/ register req * r,
+			/*in*/ const char *   sArg) ;
+static int HtmlInput (/*i/o*/ register req * r,
+			/*in*/ const char *   sArg) ;
+static int HtmlTextarea (/*i/o*/ register req * r,
+			/*in*/ const char *   sArg) ;
+static int HtmlEndtextarea (/*i/o*/ register req * r,
+			/*in*/ const char *   sArg) ;
+static int HtmlBody (/*i/o*/ register req * r,
+			/*in*/ const char *   sArg) ;
+static int HtmlA (/*i/o*/ register req * r,
+			/*in*/ const char *   sArg) ;
+static int HtmlMeta (/*i/o*/ register req * r,
+			/*in*/ const char *   sArg) ;
 
     
 
@@ -127,7 +101,7 @@ struct tCmd CmdTab [] =
         { "endforeach", CmdEndforeach,  0, 1, cmdForeach,       0, 0, cnNop    , 0                  , 0 } ,
         { "endif",    CmdEndif,         0, 1, (enum tCmdType)(cmdIf | cmdEndif), 0, 0, cnNop    , 0,  0 } ,
         { "endwhile", CmdEndwhile,      0, 1, cmdWhile,         0, 0, cnNop    , 0                  , 0 } ,
-        { "foreach",  CmdForeach,       1, 0, cmdForeach,       0, 0, cnNop    , 0                  , 0 } ,
+        { "foreach",  CmdForeach,       1, 0, cmdForeach,       0, 1, cnNop    , 0                  , 0 } ,
         { "hidden",   CmdHidden,        0, 0, cmdNorm,          0, 0, cnNop    , 0                  , 0 } ,
         { "if",       CmdIf,            1, 0, (enum tCmdType)(cmdIf | cmdEndif), 0, 0, cnNop    , 0,  0 } ,
         { "input",    HtmlInput,        0, 0, cmdNorm,          1, 0, cnNop    , optDisableInputScan, 1 } ,
@@ -154,7 +128,7 @@ struct tCmd CmdTab [] =
 /* */
 
 static int CmpCmd (/*in*/ const void *  p1,
-            /*in*/ const void *  p2)
+                   /*in*/ const void *  p2)
 
     {
     return strcmp (*((const char * *)p1), *((const char * *)p2)) ;
@@ -166,7 +140,8 @@ static int CmpCmd (/*in*/ const void *  p1,
 /* Search Command in Commandtable */
 /* */
 
-int  SearchCmd          (/*in*/  const char *    sCmdName,
+int SearchCmd (/*i/o*/ register req * r,
+			/*in*/  const char *    sCmdName,
                          /*in*/  int             nCmdLen,
                          /*in*/  const char *    sArg,
                          /*in*/  int             bIgnore,
@@ -192,27 +167,27 @@ int  SearchCmd          (/*in*/  const char *    sCmdName,
     
     p = sCmdLwr ;
     pCmd = (struct tCmd *)bsearch (&p, CmdTab, sizeof (CmdTab) / sizeof (struct tCmd), sizeof (struct tCmd), CmpCmd) ;
-    if (pCmd && (pCmd -> bDisableOption & bOptions))
+    if (pCmd && (pCmd -> bDisableOption & r -> bOptions))
         pCmd = NULL ; /* command is disabled */
 
-    if (bDebug & dbgAllCmds)
+    if (r -> bDebug & dbgAllCmds)
         if (sArg && *sArg != '\0')
-            lprintf ("[%d]CMD%c:  +%02d Cmd = '%s' Arg = '%s'\n", nPid, (pCmd == NULL)?'-':'+', nStack, sCmdLwr, sArg) ;
+            lprintf (r, "[%d]CMD%c:  Cmd = '%s' Arg = '%s'\n", r -> nPid, (pCmd == NULL)?'-':'+', sCmdLwr, sArg) ;
         else
-            lprintf ("[%d]CMD%c:  +%02d Cmd = '%s'\n", nPid, (pCmd == NULL)?'-':'+', nStack, sCmdLwr) ;
+            lprintf (r, "[%d]CMD%c:  Cmd = '%s'\n", r -> nPid, (pCmd == NULL)?'-':'+', sCmdLwr) ;
 
     if (pCmd == NULL && bIgnore)
         return rcCmdNotFound ;
 
-    if ((bDebug & dbgCmd) && (bDebug & dbgAllCmds) == 0)
+    if ((r -> bDebug & dbgCmd) && (r -> bDebug & dbgAllCmds) == 0)
         if (sArg && *sArg != '\0')
-            lprintf ("[%d]CMD:  +%02d Cmd = '%s' Arg = '%s'\n", nPid, nStack, sCmdLwr, sArg) ;
+            lprintf (r, "[%d]CMD:  Cmd = '%s' Arg = '%s'\n", r -> nPid, sCmdLwr, sArg) ;
         else
-            lprintf ("[%d]CMD:  +%02d Cmd = '%s'\n", nPid, nStack, sCmdLwr) ;
+            lprintf (r, "[%d]CMD:  Cmd = '%s'\n", r -> nPid, sCmdLwr) ;
     
     if (pCmd == NULL)
         {
-        strncpy (errdat1, sCmdLwr, sizeof (errdat1) - 1) ;
+        strncpy (r -> errdat1, sCmdLwr, sizeof (r -> errdat1) - 1) ;
         return rcCmdNotFound ;
         }
 
@@ -230,155 +205,98 @@ int  SearchCmd          (/*in*/  const char *    sCmdName,
 
 
 
-static int  ProcessMetaCmd    (/*in*/ struct tCmd *  pCmd,
-                               /*in*/ const char *    sArg)
+static int ProcessAllCmds (/*i/o*/ register req *   r,
+			   /*in*/  struct tCmd *    pCmd,
+                           /*in*/  const char *     sArg,
+                           /*in*/  tStackPointer    *pSP)
 
     {                        
-    int            rc ;
-    int            nArgLen ;
+    int                     rc ;
+    struct tStackEntry *    pStack ;
+    struct tStackEntry *    pState = &pSP -> State ;
 
-    EPENTRY (ProcessMetaCmd) ;
+    EPENTRY (ProcessAllCmds) ;
     
     if (pCmd -> bPush)
-        if (nStack > nStackMax - 2)
-            return rcStackOverflow ;
+        {
+        if (pSP -> pStackFree)
+            {
+            pStack = pSP -> pStackFree ;
+            pSP -> pStackFree = pSP -> pStackFree -> pNext ;
+            }
         else
             {
-            if (pCmd -> bSaveArg)
-                {
-                nArgLen = strlen (sArg) + 1 ;
-                if (pArgStack + nArgLen >= ArgStack + sizeof (ArgStack))
-                    {
-                    sprintf (errdat1, "nArgLen=%d, pArgStack=%d",nArgLen,  pArgStack - ArgStack) ;
-                    return rcArgStackOverflow ;
-                    }
-                }
-
-            Stack[nStack++] = State ;
-            
-            State.nCmdType  = pCmd -> nCmdType ;
-            /*State.bProcessCmds = Stack[nStack-1].bProcessCmds ;*/
-            State.pStart    = pCurrPos ;
-            if (pCmd -> bSaveArg)
-                {
-                State.sArg      = strcpy (pArgStack, sArg) ;
-                pArgStack += nArgLen ;
-                }
-            else
-                State.sArg = NULL ;
-            State.pSV       = NULL ;
-            State.pSV2      = NULL ;
-            State.pBuf      = NULL ;
-            State.pCmd      = pCmd ;
+            pStack = _malloc (r, sizeof (struct tStackEntry)) ;
             }
+        memcpy (pStack, pState, sizeof (*pStack)) ;
+        
+        pStack -> pNext = pSP -> pStack ;
+        pSP -> pStack   = pStack ;
+        
+        pState -> nCmdType  = pCmd -> nCmdType ;
+        pState -> pStart    = r -> Buf.pCurrPos ;
+        if (pCmd -> bSaveArg)
+            pState -> sArg      = __strdup (r, sArg) ;
+        else
+            pState -> sArg = NULL ;
+        
+        pState -> pSV       = NULL ;
+        pState -> pSV2      = NULL ;
+        pState -> pBuf      = NULL ;
+        pState -> pNext     = NULL ;
+        pState -> pCmd      = pCmd ;
+        }
 
-    pCurrCmd = pCmd ;
+    r -> pCurrCmd = pCmd ;
 
-    rc = (*pCmd -> pProc)(sArg) ;
+    rc = (*pCmd -> pProc)(r, sArg) ;
     if (rc == rcEvalErr)
         rc = ok ;
 
-    if (pCmd -> bPop && State.pStart == NULL)
-        if (nStack < 1)
+    if (pCmd -> bPop && pState -> pStart == NULL)
+        {
+        pStack = pSP -> pStack ; 
+
+        if (pStack == NULL)
             return rcStackUnderflow ;
         else
             {
-            if (State.sArg)
-                pArgStack = State.sArg ;
-            if (State.pSV)
-                SvREFCNT_dec (State.pSV) ;
-            if (State.pSV2)
-                SvREFCNT_dec (State.pSV2) ;
+            if (pState -> sArg)
+                _free (r, pState -> sArg) ;
+            if (pState -> pSV)
+                SvREFCNT_dec (pState -> pSV) ;
+            if (pState -> pSV2)
+                SvREFCNT_dec (pState -> pSV2) ;
 
-            State = Stack[--nStack];
-            }
-
-    return rc ;
-    }
-
-
-static int  ProcessHtml   (/*in*/ struct tCmd *  pCmd,
-                           /*in*/ const char *    sArg)
-
-    {                        
-    int            rc ;
-    int            nArgLen ;
-
-    EPENTRY (ProcessHtml) ;
-
-    if (pCmd -> bPush)
-        if (nHtmlStack > nStackMax - 2)
-            return rcStackOverflow ;
-        else
-            {
-            if (pCmd -> bSaveArg)
-                {
-                nArgLen = strlen (sArg) + 1 ;
-                if (pArgHtmlStack + nArgLen >= ArgHtmlStack + sizeof (ArgHtmlStack))
-                    {
-                    sprintf (errdat1, "nArgLen=%d, pArgHtmlStack=%d",nArgLen,  pArgHtmlStack - ArgHtmlStack) ;
-                    return rcArgStackOverflow ;
-                    }
-                }
-
-            HtmlStack[nHtmlStack++] = HtmlState ;
+            memcpy (pState, pStack, sizeof (*pState)) ;
             
-            HtmlState.nCmdType  = pCmd -> nCmdType ;
-            /*HtmlState.bProcessCmds = HtmlStack[nHtmlStack-1].bProcessCmds ;*/
-            HtmlState.pStart    = pCurrPos ;
-            if (pCmd -> bSaveArg)
-                {
-                HtmlState.sArg      = strcpy (pArgHtmlStack, sArg) ;
-                pArgHtmlStack += nArgLen ;
-                }
-            else
-                HtmlState.sArg = NULL ;
-            HtmlState.pSV       = NULL ;
-            HtmlState.pSV2      = NULL ;
-            HtmlState.pBuf      = NULL ;
-            HtmlState.pCmd      = pCmd ;
+            pSP -> pStack = pStack -> pNext ;
+            pStack -> pNext = pSP -> pStackFree ;
+            pSP -> pStackFree = pStack ;
             }
-
-    pCurrCmd = pCmd ;
-
-    rc = (*pCmd -> pProc)(sArg) ;
-    if (rc == rcEvalErr)
-        rc = ok ;
-
-    if (pCmd -> bPop && HtmlState.pStart == NULL)
-        if (nHtmlStack < 1)
-            return rcStackUnderflow ;
-        else
-            {
-            if (HtmlState.sArg)
-                pArgHtmlStack = HtmlState.sArg ;
-            if (HtmlState.pSV)
-                SvREFCNT_dec (HtmlState.pSV) ;
-            if (HtmlState.pSV2)
-                SvREFCNT_dec (HtmlState.pSV2) ;
-
-            HtmlState = HtmlStack[--nHtmlStack];
-            }
+        }
 
     return rc ;
     }
 
 
 
-int  ProcessCmd        (/*in*/ struct tCmd *  pCmd,
-                        /*in*/ const char *    sArg)
+
+int ProcessCmd (/*i/o*/ register req *  r,
+		/*in*/ struct tCmd *    pCmd,
+                /*in*/ const char *     sArg)
 
     {                        
     EPENTRY (ProcessCmd) ;
     
     
-    if ((pCmd -> nCmdType & State.bProcessCmds) == 0)
+    if ((pCmd -> nCmdType & r -> CmdStack.State.bProcessCmds) == 0)
         return ok ; /* ignore it */
 
     if (pCmd -> bHtml)
-        return ProcessHtml (pCmd, sArg) ;
+        return ProcessAllCmds (r, pCmd, sArg, &r -> HtmlStack) ;
 
-    return ProcessMetaCmd (pCmd, sArg) ;
+    return ProcessAllCmds (r, pCmd, sArg, &r -> CmdStack) ;
     }
 
 /* ---------------------------------------------------------------------------- */
@@ -387,27 +305,28 @@ int  ProcessCmd        (/*in*/ struct tCmd *  pCmd,
 /*                                                                              */
 /* ---------------------------------------------------------------------------- */
 
-static int CmdIf (/*in*/ const char *   sArg)
+static int CmdIf (/*i/o*/ register req * r,
+			/*in*/ const char *   sArg)
     {
     int rc = ok ;
 
     EPENTRY (CmdIf) ;
     
-    if (State.bProcessCmds == cmdAll)
+    if (r -> CmdStack.State.bProcessCmds == cmdAll)
         {
-        rc = EvalBool ((char *)sArg, (sArg - pBuf), &State.nResult) ;
+        rc = EvalBool (r, (char *)sArg, (sArg - r -> Buf.pBuf), &r -> CmdStack.State.nResult) ;
     
-        if (State.nResult && rc == ok) 
+        if (r -> CmdStack.State.nResult && rc == ok) 
             {
-            State.bProcessCmds = cmdAll ;
+            r -> CmdStack.State.bProcessCmds = cmdAll ;
             }
         else
             {
-            State.bProcessCmds = cmdIf ;
+            r -> CmdStack.State.bProcessCmds = cmdIf ;
             }
         }
     else
-        State.nResult = -1 ;
+        r -> CmdStack.State.nResult = -1 ;
 
     return rc ;
     }
@@ -418,33 +337,34 @@ static int CmdIf (/*in*/ const char *   sArg)
 /*                                                                              */
 /* ---------------------------------------------------------------------------- */
 
-static int CmdElsif  (/*in*/ const char *   sArg)
+static int CmdElsif (/*i/o*/ register req * r,
+			/*in*/ const char *   sArg)
     {
     int rc = ok ;
 
 
     EPENTRY (CmdElsif) ;
     
-    if ((State.nCmdType & cmdIf) == 0)
+    if ((r -> CmdStack.State.nCmdType & cmdIf) == 0)
         return rcElseWithoutIf ;
     
         
-    if (State.nResult == -1)
+    if (r -> CmdStack.State.nResult == -1)
         return ok ;
 
-    if (State.nResult == 0)
+    if (r -> CmdStack.State.nResult == 0)
         {    
-        rc = EvalBool ((char *)sArg, (sArg - pBuf), &State.nResult) ;
+        rc = EvalBool (r, (char *)sArg, (sArg - r -> Buf.pBuf), &r -> CmdStack.State.nResult) ;
     
-        if (State.nResult && rc == ok) 
-            State.bProcessCmds = cmdAll ;
+        if (r -> CmdStack.State.nResult && rc == ok) 
+            r -> CmdStack.State.bProcessCmds = cmdAll ;
         else
-            State.bProcessCmds = cmdIf ;
+            r -> CmdStack.State.bProcessCmds = cmdIf ;
         }
     else
         {
-        State.bProcessCmds = cmdEndif ;
-        State.nResult      = 0 ;
+        r -> CmdStack.State.bProcessCmds = cmdEndif ;
+        r -> CmdStack.State.nResult      = 0 ;
         }
 
     return rc ;
@@ -456,29 +376,30 @@ static int CmdElsif  (/*in*/ const char *   sArg)
 /*                                                                              */
 /* ---------------------------------------------------------------------------- */
 
-static int CmdElse  (/*in*/ const char *   sArg)
+static int CmdElse (/*i/o*/ register req * r,
+			/*in*/ const char *   sArg)
     {
 
     EPENTRY (CmdElse) ;
     
     
-    if ((State.nCmdType & cmdIf) == 0)
+    if ((r -> CmdStack.State.nCmdType & cmdIf) == 0)
         return rcElseWithoutIf ;
 
-    if (State.nResult == -1)
+    if (r -> CmdStack.State.nResult == -1)
         return ok ;
 
 
     
-    if (State.nResult)
+    if (r -> CmdStack.State.nResult)
         {
-        State.bProcessCmds = cmdIf ;
-        State.nResult      = 0 ;
+        r -> CmdStack.State.bProcessCmds = cmdIf ;
+        r -> CmdStack.State.nResult      = 0 ;
         }
     else
         {
-        State.bProcessCmds = cmdAll ;
-        State.nResult      = 1 ;
+        r -> CmdStack.State.bProcessCmds = cmdAll ;
+        r -> CmdStack.State.nResult      = 1 ;
         }
 
     return ok ;
@@ -491,15 +412,16 @@ static int CmdElse  (/*in*/ const char *   sArg)
 /*                                                                              */
 /* ---------------------------------------------------------------------------- */
 
-static int CmdEndif (/*in*/ const char *   sArg)
+static int CmdEndif (/*i/o*/ register req * r,
+			/*in*/ const char *   sArg)
     {
     EPENTRY (CmdEndif) ;
 
     
     
-    State.pStart    = NULL ;
+    r -> CmdStack.State.pStart    = NULL ;
 
-    if ((State.nCmdType & cmdIf) == 0)
+    if ((r -> CmdStack.State.nCmdType & cmdIf) == 0)
         return rcEndifWithoutIf ;
 
     return ok ;
@@ -513,21 +435,22 @@ static int CmdEndif (/*in*/ const char *   sArg)
 /*                                                                              */
 /* ---------------------------------------------------------------------------- */
 
-int CmdWhile (/*in*/ const char *   sArg)
+int CmdWhile (/*i/o*/ register req * r,
+			/*in*/ const char *   sArg)
     {
     int rc ;
     
     EPENTRY (CmdWhile) ;
 
-    if (State.bProcessCmds == cmdWhile)
+    if (r -> CmdStack.State.bProcessCmds == cmdWhile)
         return ok ;
 
-    rc = EvalBool ((char *)sArg, (State.pStart - pBuf), &State.nResult) ;
+    rc = EvalBool (r, (char *)sArg, (r -> CmdStack.State.pStart - r -> Buf.pBuf), &r -> CmdStack.State.nResult) ;
     
-    if (State.nResult && rc == ok) 
-        State.bProcessCmds = cmdAll ;
+    if (r -> CmdStack.State.nResult && rc == ok) 
+        r -> CmdStack.State.bProcessCmds = cmdAll ;
     else
-        State.bProcessCmds = cmdWhile ;
+        r -> CmdStack.State.bProcessCmds = cmdWhile ;
 
     return rc ;
     }
@@ -538,29 +461,30 @@ int CmdWhile (/*in*/ const char *   sArg)
 /*                                                                              */
 /* ---------------------------------------------------------------------------- */
 
-static int CmdEndwhile (/*in*/ const char *   sArg)
+static int CmdEndwhile (/*i/o*/ register req * r,
+			/*in*/ const char *   sArg)
     {
     int rc = ok ;
 
     EPENTRY (CmdEndwhile) ;
 
 
-    if (State.nCmdType != cmdWhile)
+    if (r -> CmdStack.State.nCmdType != cmdWhile)
         return rcEndwhileWithoutWhile ;
 
     
-    if (State.nResult)
+    if (r -> CmdStack.State.nResult)
         {
-        rc = EvalBool (State.sArg, (State.pStart - pBuf), &State.nResult) ;
+        rc = EvalBool (r, r -> CmdStack.State.sArg, (r -> CmdStack.State.pStart - r -> Buf.pBuf), &r -> CmdStack.State.nResult) ;
     
-        if (State.nResult && rc == ok) 
+        if (r -> CmdStack.State.nResult && rc == ok) 
             {
-            pCurrPos = State.pStart ;        
+            r -> Buf.pCurrPos = r -> CmdStack.State.pStart ;        
             return rc ;
             }
         }
 
-    State.pStart    = NULL ;
+    r -> CmdStack.State.pStart    = NULL ;
 
     return rc ;
     }
@@ -571,7 +495,8 @@ static int CmdEndwhile (/*in*/ const char *   sArg)
 /*                                                                              */
 /* ---------------------------------------------------------------------------- */
 
-int CmdDo (/*in*/ const char *   sArg)
+int CmdDo (/*i/o*/ register req * r,
+			/*in*/ const char *   sArg)
     {
     EPENTRY (CmdDo) ;
 
@@ -584,26 +509,27 @@ int CmdDo (/*in*/ const char *   sArg)
 /*                                                                              */
 /* ---------------------------------------------------------------------------- */
 
-static int CmdUntil (/*in*/ const char *   sArg)
+static int CmdUntil (/*i/o*/ register req * r,
+			/*in*/ const char *   sArg)
     {
     int rc = ok ;
 
     EPENTRY (CmdUntil) ;
 
 
-    if (State.nCmdType != cmdDo)
+    if (r -> CmdStack.State.nCmdType != cmdDo)
         return rcUntilWithoutDo ;
 
     
-    rc = EvalBool (sArg, (State.pStart - pBuf), &State.nResult) ;
+    rc = EvalBool (r, (char *)sArg, (r -> CmdStack.State.pStart - r -> Buf.pBuf), &r -> CmdStack.State.nResult) ;
 
-    if (!State.nResult && rc == ok) 
+    if (!r -> CmdStack.State.nResult && rc == ok) 
         {
-        pCurrPos = State.pStart ;        
+        r -> Buf.pCurrPos = r -> CmdStack.State.pStart ;        
         return rc ;
         }
 
-    State.pStart    = NULL ;
+    r -> CmdStack.State.pStart    = NULL ;
 
     return rc ;
     }
@@ -614,11 +540,11 @@ static int CmdUntil (/*in*/ const char *   sArg)
 /*                                                                              */
 /* ---------------------------------------------------------------------------- */
 
-int CmdForeach (/*in*/ const char *   sArg)
+int CmdForeach (/*i/o*/ register req * r,
+			/*in*/ const char *   sArg)
     {
     int rc ;
     char *  sArgs ;
-    int     nArgLen ;
     char *  sVarName ;
     char    sVar[512] ;
     SV * *  ppSV ;
@@ -627,19 +553,12 @@ int CmdForeach (/*in*/ const char *   sArg)
 
     EPENTRY (CmdForeach) ;
 
-    if (State.bProcessCmds == cmdForeach)
+    if (r -> CmdStack.State.bProcessCmds == cmdForeach)
         return ok ;
 
-    nArgLen = strlen (sArg) + 1 ;
-    if (pArgStack + nArgLen >= ArgStack + sizeof (ArgStack))
-        {
-        sprintf (errdat1, "nArgLen=%d, pArgStack=%d",nArgLen,  pArgStack - ArgStack) ;
-        return rcArgStackOverflow ;
-        }
-    
-    if (nArgLen > 1)
+    sArgs = r -> CmdStack.State.sArg ;
+    if (*sArgs != '\0')
         {            
-        sArgs = strcpy (pArgStack, sArg) ;
         if (sVarName = strtok (sArgs, ", \t\n"))
             {
             if (*sVarName == '$')
@@ -647,25 +566,24 @@ int CmdForeach (/*in*/ const char *   sArg)
         
             if (!strstr (sVarName, "::"))
                 {            
-                strncpy (sVar, sEvalPackage, sizeof (sVar) - 5) ;
-                sVar[nEvalPackage] = ':' ;
-                sVar[nEvalPackage+1] = ':' ;
+                strncpy (sVar, r -> Buf.sEvalPackage, sizeof (sVar) - 5) ;
+                sVar[r -> Buf.nEvalPackage] = ':' ;
+                sVar[r -> Buf.nEvalPackage+1] = ':' ;
                 sVar[sizeof(sVar) - 1] = '\0' ;
-                nMax = sizeof(sVar) - nEvalPackage - 3 ;
-                nArgLen = strlen (sVarName) ;
-                strncpy (sVar + nEvalPackage + 2, sVarName, nMax) ;
-                if ((State.pSV = perl_get_sv (sVar, TRUE)) == NULL)
+                nMax = sizeof(sVar) - r -> Buf.nEvalPackage - 3 ;
+                strncpy (sVar + r -> Buf.nEvalPackage + 2, sVarName, nMax) ;
+                if ((r -> CmdStack.State.pSV = perl_get_sv (sVar, TRUE)) == NULL)
                     return rcPerlVarError ;
                 }
             else
-                if ((State.pSV = perl_get_sv (sVarName, TRUE)) == NULL)
+                if ((r -> CmdStack.State.pSV = perl_get_sv (sVarName, TRUE)) == NULL)
                     return rcPerlVarError ;
  
             
-            SvREFCNT_inc (State.pSV) ;
+            SvREFCNT_inc (r -> CmdStack.State.pSV) ;
 
             if (sVarName = strtok (NULL, ""))
-                if ((rc = EvalTransFlags (sVarName, (State.pStart - pBuf), G_ARRAY, &pRV)) != ok)
+                if ((rc = EvalTransFlags (r, sVarName, (r -> CmdStack.State.pStart - r -> Buf.pBuf), G_ARRAY, &pRV)) != ok)
                     return rc ;
 
             if (pRV == NULL)
@@ -677,32 +595,32 @@ int CmdForeach (/*in*/ const char *   sArg)
                 return rcNotAnArray ;
                 }
 
-            State.pSV2 = SvRV (pRV) ;
-            SvREFCNT_inc (State.pSV2) ;
+            r -> CmdStack.State.pSV2 = SvRV (pRV) ;
+            SvREFCNT_inc (r -> CmdStack.State.pSV2) ;
             SvREFCNT_dec (pRV) ;
 
-            if (SvTYPE (State.pSV2) != SVt_PVAV)
+            if (SvTYPE (r -> CmdStack.State.pSV2) != SVt_PVAV)
                 return rcNotAnArray ;
             }
         }
 
     
-    if (State.pSV == NULL || State.pSV2 == NULL)
+    if (r -> CmdStack.State.pSV == NULL || r -> CmdStack.State.pSV2 == NULL)
         return rcMissingArgs ;
 
 
-    State.nResult = 0 ; /* array index */
+    r -> CmdStack.State.nResult = 0 ; /* array index */
 
-    ppSV = av_fetch ((AV *)State.pSV2, State.nResult, 0) ;
+    ppSV = av_fetch ((AV *)r -> CmdStack.State.pSV2, r -> CmdStack.State.nResult, 0) ;
 
     if (ppSV != NULL && *ppSV != NULL)
         {
-        State.bProcessCmds = cmdAll ;
-        sv_setsv (State.pSV, *ppSV) ;
-        State.nResult++ ;
+        r -> CmdStack.State.bProcessCmds = cmdAll ;
+        sv_setsv (r -> CmdStack.State.pSV, *ppSV) ;
+        r -> CmdStack.State.nResult++ ;
         }
     else
-        State.bProcessCmds = cmdForeach ;
+        r -> CmdStack.State.bProcessCmds = cmdForeach ;
 
     return ok ;
     }
@@ -713,29 +631,30 @@ int CmdForeach (/*in*/ const char *   sArg)
 /*                                                                              */
 /* ---------------------------------------------------------------------------- */
 
-static int CmdEndforeach (/*in*/ const char *   sArg)
+static int CmdEndforeach (/*i/o*/ register req * r,
+			/*in*/ const char *   sArg)
     {
     SV ** ppSV ;        
 
     EPENTRY (CmdEndforeach) ;
 
 
-    if (State.nCmdType != cmdForeach)
+    if (r -> CmdStack.State.nCmdType != cmdForeach)
         return rcEndforeachWithoutForeach ;
 
-    if (State.pSV == NULL)
+    if (r -> CmdStack.State.pSV == NULL)
         return ok ;
     
-    ppSV = av_fetch ((AV *)State.pSV2, State.nResult, 0) ;
+    ppSV = av_fetch ((AV *)r -> CmdStack.State.pSV2, r -> CmdStack.State.nResult, 0) ;
 
     if (ppSV != NULL && *ppSV != NULL)
         {
-        sv_setsv (State.pSV, *ppSV) ;
-        State.nResult++ ;
-        pCurrPos = State.pStart ;        
+        sv_setsv (r -> CmdStack.State.pSV, *ppSV) ;
+        r -> CmdStack.State.nResult++ ;
+        r -> Buf.pCurrPos = r -> CmdStack.State.pStart ;        
         }
     else
-        State.pStart    = NULL ;
+        r -> CmdStack.State.pStart    = NULL ;
 
     return ok ;
     }
@@ -746,19 +665,19 @@ static int CmdEndforeach (/*in*/ const char *   sArg)
 /*                                                                              */
 /* ---------------------------------------------------------------------------- */
 
-static int CmdHidden (/*in*/ const char *   sArg)
+static int CmdHidden (/*i/o*/ register req * r,
+			/*in*/ const char *   sArg)
 
     {
     char *  pKey ;
     SV *    psv ;
     SV * *  ppsv ;
-    HV *    pAddHash = pFormHash ;
-    HV *    pSubHash = pInputHash ;
+    HV *    pAddHash = r -> pFormHash ;
+    HV *    pSubHash = r -> pInputHash ;
     AV *    pSort    = NULL ;
     HE *    pEntry ;
     I32     l ;
     char *  sArgs ;
-    int     nArgLen ;
     char *  sVarName ;
     char    sVar[512] ;
     int     nMax ;
@@ -767,32 +686,26 @@ static int CmdHidden (/*in*/ const char *   sArg)
     EPENTRY (CmdHidden) ;
 
     
-    nArgLen = strlen (sArg) + 1 ;
-    if (pArgStack + nArgLen >= ArgStack + sizeof (ArgStack))
-        {
-        sprintf (errdat1, "nArgLen=%d, pArgStack=%d",nArgLen,  pArgStack - ArgStack) ;
-        return rcArgStackOverflow ;
-        }
-    if (nArgLen > 1)
+    sArgs = __strdup (r, sArg) ;
+    if (sArgs && *sArgs != '\0')
         {            
-        strncpy (sVar, sEvalPackage, sizeof (sVar) - 5) ;
-        sVar[nEvalPackage] = ':' ;
-        sVar[nEvalPackage+1] = ':' ;
+        strncpy (sVar, r -> Buf.sEvalPackage, sizeof (sVar) - 5) ;
+        sVar[r -> Buf.nEvalPackage] = ':' ;
+        sVar[r -> Buf.nEvalPackage+1] = ':' ;
         sVar[sizeof(sVar) - 1] = '\0' ;
-        nMax = sizeof(sVar) - nEvalPackage - 3 ;
+        nMax = sizeof(sVar) - r -> Buf.nEvalPackage - 3 ;
         
-        sArgs = strcpy (pArgStack, sArg) ;
         if (sVarName = strtok (sArgs, ", \t\n"))
             {
             if (*sVarName == '%')
                 sVarName++ ;
         
-            nArgLen = strlen (sVarName) ;
-            strncpy (sVar + nEvalPackage + 2, sVarName, nMax) ;
+            strncpy (sVar + r -> Buf.nEvalPackage + 2, sVarName, nMax) ;
             
             if ((pAddHash = perl_get_hv ((char *)sVar, FALSE)) == NULL)
                 {
-                strncpy (errdat1, sVar, sizeof (errdat1) - 1) ;
+                strncpy (r -> errdat1, sVar, sizeof (r -> errdat1) - 1) ;
+                _free (r, sArgs) ;
                 return rcHashError ;
                 }
 
@@ -801,12 +714,12 @@ static int CmdHidden (/*in*/ const char *   sArg)
                 if (*sVarName == '%')
                     sVarName++ ;
         
-                nArgLen = strlen (sVarName) ;
-                strncpy (sVar + nEvalPackage + 2, sVarName, nMax) ;
+                strncpy (sVar + r -> Buf.nEvalPackage + 2, sVarName, nMax) ;
         
                 if ((pSubHash = perl_get_hv ((char *)sVar, FALSE)) == NULL)
                     {
-                    strncpy (errdat1, sVar, sizeof (errdat1) - 1) ;
+                    strncpy (r -> errdat1, sVar, sizeof (r -> errdat1) - 1) ;
+                    _free (r, sArgs) ;
                     return rcHashError ;
                     }
 
@@ -815,12 +728,12 @@ static int CmdHidden (/*in*/ const char *   sArg)
                     if (*sVarName == '@')
                         sVarName++ ;
         
-                    nArgLen = strlen (sVarName) ;
-                    strncpy (sVar + nEvalPackage + 2, sVarName, nMax) ;
+                    strncpy (sVar + r -> Buf.nEvalPackage + 2, sVarName, nMax) ;
         
                     if ((pSort = perl_get_av ((char *)sVar, FALSE)) == NULL)
                         {
-                        strncpy (errdat1, sVar, sizeof (errdat1) - 1) ;
+                        strncpy (r -> errdat1, sVar, sizeof (r -> errdat1) - 1) ;
+                        _free (r, sArgs) ;
                         return rcArrayError ;
                         }
                     }
@@ -828,10 +741,10 @@ static int CmdHidden (/*in*/ const char *   sArg)
             }
         }
     else
-        pSort = pFormArray ;
+        pSort = r -> pFormArray ;
 
 
-    oputc ('\n') ;
+    oputc (r, '\n') ;
     if (pSort)
         {
         int n = AvFILL (pSort) + 1 ;
@@ -846,11 +759,11 @@ static int CmdHidden (/*in*/ const char *   sArg)
                 
                 if (ppsv)
                     {
-                    oputs ("<input type=\"hidden\" name=\"") ;
-                    oputs (pKey) ;
-                    oputs ("\" value=\"") ;
-                    OutputToHtml (SvPV (*ppsv, na)) ;
-                    oputs ("\">\n") ;
+                    oputs (r, "<input type=\"hidden\" name=\"") ;
+                    oputs (r, pKey) ;
+                    oputs (r, "\" value=\"") ;
+                    OutputToHtml (r, SvPV (*ppsv, na)) ;
+                    oputs (r, "\">\n") ;
                     }
                 }
             }
@@ -866,14 +779,17 @@ static int CmdHidden (/*in*/ const char *   sArg)
                 psv = hv_iterval (pAddHash, pEntry) ;
 
             
-                oputs ("<input type=\"hidden\" name=\"") ;
-                oputs (pKey) ;
-                oputs ("\" value=\"") ;
-                OutputToHtml (SvPV (psv, na)) ;
-                oputs ("\">\n") ;
+                oputs (r, "<input type=\"hidden\" name=\"") ;
+                oputs (r, pKey) ;
+                oputs (r, "\" value=\"") ;
+                OutputToHtml (r, SvPV (psv, na)) ;
+                oputs (r, "\">\n") ;
                 }
             }
         }
+
+    if (sArgs)
+        _free (r, sArgs) ;
 
     return ok ;
     }
@@ -885,24 +801,25 @@ static int CmdHidden (/*in*/ const char *   sArg)
 /*                                                                              */
 /* ---------------------------------------------------------------------------- */
 
-static int CmdVar (/*in*/ const char *   sArg)
+static int CmdVar (/*i/o*/ register req * r,
+			/*in*/ const char *   sArg)
 
     {
     int    rc ;
     char * pVarName ;
     void * p ;
     SV **  ppSV ;
-    int    nFilepos = (sArg - pBuf) ;
+    int    nFilepos = (sArg - r -> Buf.pBuf) ;
     SV *   pSV ;
 
 
     EPENTRY (CmdVar) ;
     
-    bStrict = HINT_STRICT_REFS | HINT_STRICT_SUBS | HINT_STRICT_VARS ;
+    r -> bStrict = HINT_STRICT_REFS | HINT_STRICT_SUBS | HINT_STRICT_VARS ;
     
     /* Already compiled ? */
     
-    ppSV = hv_fetch(pCacheHash, (char *)&nFilepos, sizeof (nFilepos), 1) ;  
+    ppSV = hv_fetch(r -> Buf.pFile -> pCacheHash, (char *)&nFilepos, sizeof (nFilepos), 1) ;  
     if (ppSV == NULL)
         return rcHashError ;
     
@@ -911,8 +828,8 @@ static int CmdVar (/*in*/ const char *   sArg)
     
     sv_setiv (*ppSV, 1) ;
     
-    pSV = newSVpvf("package %s ; \n#line %d %s\n use vars qw(%s);\n",sEvalPackage, nSourceline, sSourcefile, sArg) ;
-    rc = EvalDirect (pSV) ;
+    pSV = newSVpvf("package %s ; \n#line %d %s\n use vars qw(%s);\n",r -> Buf.sEvalPackage, r -> Buf.nSourceline, r -> Buf.pFile -> sSourcefile, sArg) ;
+    rc = EvalDirect (r, pSV) ;
     SvREFCNT_dec(pSV);
 
     return rc ;
@@ -927,7 +844,8 @@ static int CmdVar (/*in*/ const char *   sArg)
 /* ---------------------------------------------------------------------------- */
 
 
-static int HtmlMeta (/*in*/ const char *   sArg)
+static int HtmlMeta (/*i/o*/ register req * r,
+			/*in*/ const char *   sArg)
     
     {
     const char *  pType ;
@@ -940,7 +858,7 @@ static int HtmlMeta (/*in*/ const char *   sArg)
     EPENTRY (HtmlMeta) ;
 
 #ifdef APACHE
-    if (pReq == NULL)
+    if (r -> pApacheReq == NULL)
         return ok ;
     
     pType = GetHtmlArg (sArg, "HTTP-EQUIV", &tlen) ;
@@ -954,12 +872,12 @@ static int HtmlMeta (/*in*/ const char *   sArg)
 
     if (strnicmp (pType, "content-type", tlen) == 0)
         {
-        pReq->content_type = pstrndup(pReq->pool, pContent, clen);
+        r -> pApacheReq->content_type = pstrndup(r -> pApacheReq->pool, pContent, clen);
         return ok ;
         }
 
-    table_set(pReq->headers_out, pstrndup (pReq->pool, pType, tlen), 
-                                 pstrndup (pReq->pool, pContent, clen));
+    table_set(r -> pApacheReq->headers_out, pstrndup (r -> pApacheReq->pool, pType, tlen), 
+                                 pstrndup (r -> pApacheReq->pool, pContent, clen));
     
     
 #endif
@@ -973,32 +891,68 @@ static int HtmlMeta (/*in*/ const char *   sArg)
 /* ---------------------------------------------------------------------------- */
 
 
-static int HtmlBody (/*in*/ const char *   sArg)
+static int HtmlBody (/*i/o*/ register req * r,
+			/*in*/ const char *   sArg)
     {
     SV * pSV ;
 
     
     EPENTRY (HtmlBody) ;
 
-    if ((bDebug & dbgLogLink) == 0)
+    if ((r -> bDebug & dbgLogLink) == 0)
         return ok ;
 
-    oputs (pCurrTag) ;
+    oputs (r, r -> Buf.pCurrTag) ;
     if (*sArg != '\0')
         {
-        oputc (' ') ;
-        oputs (sArg) ;
+        oputc (r, ' ') ;
+        oputs (r, sArg) ;
         }
-    oputc ('>') ;
+    oputc (r, '>') ;
     
-    
-    pSV = perl_get_sv (sLogfileURLName, FALSE) ;
-    
-    if (pSV)
-        oputs (SvPV (pSV, na)) ;
-
-    pCurrPos = NULL ;
+    r -> Buf.pCurrPos = NULL ;
     	
+    if (r -> bDebug & dbgLogLink)
+	{
+        char pid [30] ;
+        char fp [30] ;
+        
+        if (!r -> pConf -> sVirtLogURI)
+            {
+            LogError (r, rcVirtLogNotSet) ;
+            return ok ;
+            }
+        
+        sprintf (pid, "%d", r -> nPid) ;
+        sprintf (fp, "%d", r -> nLogFileStartPos) ;
+        
+        oputs (r, "<A HREF=\"") ;
+        oputs (r, r -> pConf -> sVirtLogURI) ;    
+        oputs (r, "?") ;    
+        oputs (r, fp) ;    
+        oputs (r, "&") ;    
+        oputs (r, pid) ;    
+        oputs (r, "\">Logfile</A> / ") ;
+
+        oputs (r, "<A HREF=\"") ;
+        oputs (r, r -> pConf -> sVirtLogURI) ;    
+        oputs (r, "?") ;    
+        oputs (r, fp) ;    
+        oputs (r, "&") ;    
+        oputs (r, pid) ;    
+        oputs (r, "&SRC:") ;    
+        oputs (r, "\">Source only</A> / ") ;
+
+        oputs (r, "<A HREF=\"") ;
+        oputs (r, r -> pConf -> sVirtLogURI) ;    
+        oputs (r, "?") ;    
+        oputs (r, fp) ;    
+        oputs (r, "&") ;    
+        oputs (r, pid) ;    
+        oputs (r, "&EVAL") ;    
+        oputs (r, "\">Eval only</A>\n") ;
+	}
+
     return ok ;
     }
 
@@ -1009,7 +963,8 @@ static int HtmlBody (/*in*/ const char *   sArg)
 /* ---------------------------------------------------------------------------- */
 
 
-static int HtmlA (/*in*/ const char *   sArg)
+static int HtmlA (/*i/o*/ register req * r,
+			/*in*/ const char *   sArg)
     {
     int    rc ;
     char * pArgBuf  = NULL ;
@@ -1018,40 +973,40 @@ static int HtmlA (/*in*/ const char *   sArg)
     
     EPENTRY (HtmlA) ;
 
-    if (pCurrEscape == NULL)
+    if (r -> pCurrEscape == NULL)
         return ok ;
     
     if (*sArg != '\0')
     	{
-        struct tCharTrans * pCurrEscapeSave = pCurrEscape ;
-        if (bEscMode & escUrl)
-            pCurrEscape = Char2Url ;
+        struct tCharTrans * pCurrEscapeSave = r -> pCurrEscape ;
+        if (r -> nEscMode & escUrl)
+            r -> pCurrEscape = Char2Url ;
         
-        if ((rc = ScanCmdEvalsInString ((char *)sArg, &pArgBuf, nInitialScanOutputSize, &pFreeBuf)) != ok)
+        if ((rc = ScanCmdEvalsInString (r, (char *)sArg, &pArgBuf, nInitialScanOutputSize, &pFreeBuf)) != ok)
             {
-            pCurrEscape = pCurrEscapeSave ;
+            r -> pCurrEscape = pCurrEscapeSave ;
             if (pFreeBuf)
-                _free (pFreeBuf) ;
+                _free (r, pFreeBuf) ;
             
             return rc ;
             }
-        pCurrEscape = pCurrEscapeSave ;
+        r -> pCurrEscape = pCurrEscapeSave ;
     	}
     else
     	pArgBuf = (char *)sArg ;
 
-    oputs (pCurrTag) ;
+    oputs (r, r -> Buf.pCurrTag) ;
     if (*pArgBuf != '\0')
         {
-        oputc (' ') ;
-        oputs (pArgBuf) ;
+        oputc (r, ' ') ;
+        oputs (r, pArgBuf) ;
         }
-    oputc ('>') ;
+    oputc (r, '>') ;
     
     if (pFreeBuf)
-        _free (pFreeBuf) ;
+        _free (r, pFreeBuf) ;
     
-    pCurrPos = NULL ;
+    r -> Buf.pCurrPos = NULL ;
     	
     return ok ;
     }
@@ -1062,34 +1017,42 @@ static int HtmlA (/*in*/ const char *   sArg)
 /*                                                                              */
 /* ---------------------------------------------------------------------------- */
 
-static int HtmlTable (/*in*/ const char *   sArg)
+static int HtmlTable (/*i/o*/ register req * r,
+		      /*in*/  const char *   sArg)
     {
+    tTableStackEntry *  pStack ;
+    
     EPENTRY (HtmlTable) ;
 
-    oputs (pCurrTag) ;
+    oputs (r, r -> Buf.pCurrTag) ;
     if (*sArg != '\0')
         {
-        oputc (' ') ;
-        oputs (sArg) ;
+        oputc (r, ' ') ;
+        oputs (r, sArg) ;
         }
-    oputc ('>') ;
+    oputc (r, '>') ;
     
-    if (nTableStack > nStackMax - 2)
-        return rcStackOverflow ;
+    pStack = r -> TableStack.pStackFree ;
+    if (pStack)
+        r -> TableStack.pStackFree = pStack -> pNext ;
+    else
+        pStack = _malloc (r, sizeof (struct tTableStackEntry)) ;
 
-    TableStack[nTableStack++] = TableState ;
+    memcpy (pStack, &r -> TableStack.State, sizeof (*pStack)) ;
 
-    memset (&TableState, 0, sizeof (TableState)) ;
-    TableState.nResult   = 1 ;
-    TableState.nTabMode  = nTabMode ;
-    TableState.nMaxRow   = nTabMaxRow ;
-    TableState.nMaxCol   = nTabMaxCol ;
-    TableState.nStackTable = nHtmlStack ;
+    pStack -> pNext        = r -> TableStack.pStack ;
+    r -> TableStack.pStack = pStack ;
+
+    memset (&r -> TableStack.State, 0, sizeof (r -> TableStack.State)) ;
+    r -> TableStack.State.nResult   = 1 ;
+    r -> TableStack.State.nTabMode  = r -> nTabMode ;
+    r -> TableStack.State.nMaxRow   = r -> nTabMaxRow ;
+    r -> TableStack.State.nMaxCol   = r -> nTabMaxCol ;
     
-    if ((TableState.nTabMode & epTabRow) == epTabRowDef)
-        HtmlState.pBuf = oBegin () ;
+    if ((r -> TableStack.State.nTabMode & epTabRow) == epTabRowDef)
+        r -> HtmlStack.State.pBuf = oBegin (r) ;
 
-    pCurrPos = NULL ;
+    r -> Buf.pCurrPos = NULL ;
     	
     return ok ;
     }
@@ -1101,45 +1064,59 @@ static int HtmlTable (/*in*/ const char *   sArg)
 /* ---------------------------------------------------------------------------- */
 
 
-static int HtmlEndtable (/*in*/ const char *   sArg)
+static int HtmlEndtable (/*i/o*/ register req * r,
+			/*in*/ const char *   sArg)
     {
+    tTableStackEntry *  pStack ;
+    
     EPENTRY (HtmlEndtable) ;
 
-    if (HtmlState.nCmdType != cmdTable || HtmlState.pCmd -> nCmdNo != pCurrCmd -> nCmdNo)
+    if (r -> HtmlStack.State.nCmdType != cmdTable || r -> HtmlStack.State.pCmd -> nCmdNo != r -> pCurrCmd -> nCmdNo)
         {
-        strncpy (errdat1, pCurrTag + 1, sizeof (errdat1) - 1) ; 
-        if (HtmlState.pCmd)
-            strcpy (errdat2, HtmlState.pCmd -> sCmdName) ; 
+        strncpy (r -> errdat1, r -> Buf.pCurrTag + 1, sizeof (r -> errdat1) - 1) ; 
+        if (r -> HtmlStack.State.pCmd)
+            strcpy (r -> errdat2, r -> HtmlStack.State.pCmd -> sCmdName) ; 
         else
-            strcpy (errdat2, "NO TAG") ; 
+            strcpy (r -> errdat2, "NO TAG") ; 
         
         return rcEndtableWithoutTable ;
         }
 
-    if (bDebug & dbgTab)
-        lprintf ("[%d]TAB:  nResult=%d nRow=%d Used=%d nCol=%d Used=%d nCnt=%d Used=%d \n",
-               nPid, TableState.nTabMode, TableState.nResult, TableState.nRow, TableState.nRowUsed, TableState.nCol, TableState.nColUsed, TableState.nCount, TableState.nCountUsed) ;
+    if (r -> bDebug & dbgTab)
+        lprintf (r, "[%d]TAB:  nResult=%d nRow=%d Used=%d nCol=%d Used=%d nCnt=%d Used=%d \n",
+               r -> nPid, r -> TableStack.State.nTabMode, r -> TableStack.State.nResult, r -> TableStack.State.nRow, r -> TableStack.State.nRowUsed, r -> TableStack.State.nCol, r -> TableStack.State.nColUsed, r -> TableStack.State.nCount, r -> TableStack.State.nCountUsed) ;
 
-    if ((TableState.nTabMode & epTabRow) == epTabRowDef)
-        if (TableState.nResult || TableState.nCol > 0)
-            oCommit (HtmlState.pBuf) ;
+    if ((r -> TableStack.State.nTabMode & epTabRow) == epTabRowDef)
+        if (r -> TableStack.State.nResult || r -> TableStack.State.nCol > 0)
+            oCommit (r, r -> HtmlStack.State.pBuf) ;
         else
-            oRollback (HtmlState.pBuf) ;
+            oRollback (r, r -> HtmlStack.State.pBuf) ;
 
-    TableState.nRow++ ;
-    if (((TableState.nTabMode & epTabRow) == epTabRowMax ||
-         ((TableState.nResult || TableState.nCol > 0) && (TableState.nRowUsed || TableState.nCountUsed) )) &&
-          TableState.nRow < TableState.nMaxRow)
+    r -> TableStack.State.nRow++ ;
+    if (((r -> TableStack.State.nTabMode & epTabRow) == epTabRowMax ||
+         ((r -> TableStack.State.nResult || r -> TableStack.State.nCol > 0) && (r -> TableStack.State.nRowUsed || r -> TableStack.State.nCountUsed) )) &&
+          r -> TableStack.State.nRow < r -> TableStack.State.nMaxRow)
         {
-        pCurrPos = HtmlState.pStart ;        
-        if ((TableState.nTabMode & epTabRow) == epTabRowDef)
-            HtmlState.pBuf = oBegin () ;
+        r -> Buf.pCurrPos = r -> HtmlStack.State.pStart ;        
+        if ((r -> TableStack.State.nTabMode & epTabRow) == epTabRowDef)
+            r -> HtmlStack.State.pBuf = oBegin (r) ;
 
         return ok ;
         }
 
-    HtmlState.pStart    = NULL ;
-    TableState = TableStack[--nTableStack];
+    r -> HtmlStack.State.pStart    = NULL ;
+
+    pStack = r -> TableStack.pStack ;
+    if (pStack == NULL)
+        return rcStackUnderflow ;
+    else
+        {
+        memcpy (&r -> TableStack.State, pStack, sizeof (r -> TableStack.State)) ;
+        
+        r -> TableStack.pStack = pStack -> pNext ;
+        pStack -> pNext = r -> TableStack.pStackFree ;
+        r -> TableStack.pStackFree = pStack ;
+        }
 
     return ok ;
     }
@@ -1150,34 +1127,32 @@ static int HtmlEndtable (/*in*/ const char *   sArg)
 /*                                                                              */
 /* ---------------------------------------------------------------------------- */
 
-static int HtmlRow (/*in*/ const char *   sArg)
+static int HtmlRow (/*i/o*/ register req * r,
+			/*in*/ const char *   sArg)
     {
     EPENTRY (HtmlRow) ;
 
             
-    if (TableState.nStackTable <= 0 || 
-        nHtmlStack <= TableState.nStackTable ||
-        HtmlStack[TableState.nStackTable].pCmd -> nCmdNo  != cnTable)
+    if (r -> TableStack.pStack == NULL)
         return rcTablerowOutsideOfTable ;
-
     
-    oputs (pCurrTag) ;
+    oputs (r, r -> Buf.pCurrTag) ;
     if (*sArg != '\0')
         {
-        oputc (' ') ;
-        oputs (sArg) ;
+        oputc (r, ' ') ;
+        oputs (r, sArg) ;
         }
-    oputc ('>') ;
+    oputc (r, '>') ;
 
-    TableState.nResult    = 1 ;
-    TableState.nCol       = 0 ; 
-    TableState.nColUsed   = 0 ; 
-    TableState.bHead      = TableState.bRowHead = 0 ;
+    r -> TableStack.State.nResult    = 1 ;
+    r -> TableStack.State.nCol       = 0 ; 
+    r -> TableStack.State.nColUsed   = 0 ; 
+    r -> TableStack.State.bHead      = r -> TableStack.State.bRowHead = 0 ;
 
-    if ((TableState.nTabMode & epTabCol) == epTabColDef)
-        HtmlState.pBuf = oBegin () ;
+    if ((r -> TableStack.State.nTabMode & epTabCol) == epTabColDef)
+        r -> HtmlStack.State.pBuf = oBegin (r) ;
     
-    pCurrPos = NULL ;
+    r -> Buf.pCurrPos = NULL ;
     
     return ok ;
     }
@@ -1188,40 +1163,46 @@ static int HtmlRow (/*in*/ const char *   sArg)
 /*                                                                              */
 /* ---------------------------------------------------------------------------- */
 
-int HtmlEndrow (/*in*/ const char *   sArg)
+int HtmlEndrow (/*i/o*/ register req * r,
+			/*in*/ const char *   sArg)
     {
     EPENTRY (HtmlEndrow) ;
 
     
-    if (HtmlState.nCmdType != cmdTablerow)
+    if (r -> HtmlStack.State.nCmdType != cmdTablerow)
         return rcEndtableWithoutTablerow ;
 
-    if (bDebug & dbgTab)
-        lprintf ("[%d]TAB:  nTabMode=%d nResult=%d nRow=%d Used=%d nCol=%d Used=%d nCnt=%d Used=%d \n",
-               nPid, TableState.nTabMode, TableState.nResult, TableState.nRow, TableState.nRowUsed, TableState.nCol, TableState.nColUsed, TableState.nCount, TableState.nCountUsed) ;
+    if (r -> bDebug & dbgTab)
+        lprintf (r, "[%d]TAB:  r -> nTabMode=%d nResult=%d nRow=%d Used=%d nCol=%d Used=%d nCnt=%d Used=%d \n",
+               r -> nPid, r -> TableStack.State.nTabMode, r -> TableStack.State.nResult, r -> TableStack.State.nRow, r -> TableStack.State.nRowUsed, r -> TableStack.State.nCol, r -> TableStack.State.nColUsed, r -> TableStack.State.nCount, r -> TableStack.State.nCountUsed) ;
 
     
-    if ((TableState.nTabMode & epTabCol) == epTabColDef)
-        if (TableState.nResult || (!TableState.nColUsed && !TableState.nCountUsed && !TableState.nRowUsed))
-            oCommit (HtmlState.pBuf) ;
+    if ((r -> TableStack.State.nTabMode & epTabCol) == epTabColDef)
+        if (r -> TableStack.State.nResult || (!r -> TableStack.State.nColUsed && !r -> TableStack.State.nCountUsed && !r -> TableStack.State.nRowUsed))
+            oCommit (r, r -> HtmlStack.State.pBuf) ;
         else
-            oRollback (HtmlState.pBuf), TableState.nCol-- ;
+            oRollback (r, r -> HtmlStack.State.pBuf), r -> TableStack.State.nCol-- ;
 
-    if (TableState.bRowHead)    
-        HtmlStack[TableState.nStackTable].pStart = pCurrPos ;
-
-    TableState.nCount++ ;
-    TableState.nCol++ ;
-    if (((TableState.nTabMode & epTabCol) == epTabColMax ||
-         (TableState.nResult && (TableState.nColUsed || TableState.nCountUsed)))
-        && TableState.nCol < TableState.nMaxCol)
+    if (r -> TableStack.State.bRowHead)    
         {
-        pCurrPos = HtmlState.pStart ;        
-        if ((TableState.nTabMode & epTabCol) == epTabColDef)
-            HtmlState.pBuf = oBegin () ;
+        if (r -> HtmlStack.pStack == NULL)
+            return rcTablerowOutsideOfTable ;
+        r -> HtmlStack.pStack -> pStart = r -> Buf.pCurrPos ;
+        }
+    
+
+    r -> TableStack.State.nCount++ ;
+    r -> TableStack.State.nCol++ ;
+    if (((r -> TableStack.State.nTabMode & epTabCol) == epTabColMax ||
+         (r -> TableStack.State.nResult && (r -> TableStack.State.nColUsed || r -> TableStack.State.nCountUsed)))
+        && r -> TableStack.State.nCol < r -> TableStack.State.nMaxCol)
+        {
+        r -> Buf.pCurrPos = r -> HtmlStack.State.pStart ;        
+        if ((r -> TableStack.State.nTabMode & epTabCol) == epTabColDef)
+            r -> HtmlStack.State.pBuf = oBegin (r) ;
         }
     else
-        HtmlState.pStart    = NULL ;
+        r -> HtmlStack.State.pStart    = NULL ;
 
     return ok ;
     }
@@ -1232,14 +1213,15 @@ int HtmlEndrow (/*in*/ const char *   sArg)
 /*                                                                              */
 /* ---------------------------------------------------------------------------- */
 
-static int HtmlTableHead (/*in*/ const char *   sArg)
+static int HtmlTableHead (/*i/o*/ register req * r,
+			/*in*/ const char *   sArg)
     {
     EPENTRY (HtmlTableHead) ;
 
-    if (TableState.nCol == 0)
-        TableState.bHead = TableState.bRowHead = 1 ;
+    if (r -> TableStack.State.nCol == 0)
+        r -> TableStack.State.bHead = r -> TableStack.State.bRowHead = 1 ;
     else
-        TableState.bRowHead = 0 ;
+        r -> TableStack.State.bRowHead = 0 ;
 
     return ok ;
     }
@@ -1251,7 +1233,8 @@ static int HtmlTableHead (/*in*/ const char *   sArg)
 /* ---------------------------------------------------------------------------- */
 
 
-static SV * SplitFdat     (/*in*/  SV ** ppSVfdat,
+static SV * SplitFdat     (/*i/o*/ register req * r,
+                           /*in*/  SV ** ppSVfdat,
                            /*out*/ SV ** ppSVerg,
                            /*in*/  char * pName,
                            /*in*/  STRLEN nlen)
@@ -1263,7 +1246,7 @@ static SV * SplitFdat     (/*in*/  SV ** ppSVfdat,
     char * p ;
     
     if (ppSVerg && *ppSVerg)
-        lprintf ("ok refcnt = %d type=%d\n", SvREFCNT (*ppSVerg), SvTYPE (*ppSVerg)) ;
+        lprintf (r, "ok refcnt = %d type=%d\n", SvREFCNT (*ppSVerg), SvTYPE (*ppSVerg)) ;
     if (ppSVerg && *ppSVerg && SvTYPE (*ppSVerg))
         {
         return *ppSVerg ;
@@ -1272,7 +1255,7 @@ static SV * SplitFdat     (/*in*/  SV ** ppSVfdat,
     pData = SvPV (*ppSVfdat, dlen) ;
     s = pData ;
 
-    if (p = strchr (s, cMultFieldSep))
+    if (p = strchr (s, r -> pConf -> cMultFieldSep))
         { /* Multiple values -> put them into a hash */
         HV * pHV = newHV () ;
         SV * pSV ;
@@ -1282,25 +1265,25 @@ static SV * SplitFdat     (/*in*/  SV ** ppSVfdat,
             {
             hv_store (pHV, s, p - s, &sv_undef, 0) ;
             s = p + 1 ;
-            p = strchr (s, cMultFieldSep) ;
+            p = strchr (s, r -> pConf -> cMultFieldSep) ;
             }
 
         l = dlen - (s - pData) ;
         if (l > 0)
             hv_store (pHV, s, l, &sv_undef, 0) ;
-        hv_store (pFormSplitHash, (char *)pName, nlen, (SV *)pHV, 0) ;
-        if (bDebug & dbgInput)
-            lprintf ("[%d]INPU: <mult values>\n", nPid) ; 
-        lprintf ("new hv refcnt = %d type=%d dat=%s\n", SvREFCNT (pHV), SvTYPE (pHV), pData) ;
+        hv_store (r -> pFormSplitHash, (char *)pName, nlen, (SV *)pHV, 0) ;
+        if (r -> bDebug & dbgInput)
+            lprintf (r, "[%d]INPU: <mult values>\n", r -> nPid) ; 
+        lprintf (r, "new hv refcnt = %d type=%d dat=%s\n", SvREFCNT (pHV), SvTYPE (pHV), pData) ;
         return (SV *)pHV;
         }
     else
         {
         SvREFCNT_inc (*ppSVfdat) ;
-        hv_store (pFormSplitHash, (char *)pName, nlen, *ppSVfdat, 0) ;
-        lprintf ("new refcnt = %d type=%d dat=%s\n", SvREFCNT (*ppSVfdat), SvTYPE (*ppSVfdat), pData) ;
-        if (bDebug & dbgInput)
-            lprintf ("[%d]INPU: value = %s\n", nPid, SvPV(*ppSVfdat, na)) ; 
+        hv_store (r -> pFormSplitHash, (char *)pName, nlen, *ppSVfdat, 0) ;
+        lprintf (r, "new refcnt = %d type=%d dat=%s\n", SvREFCNT (*ppSVfdat), SvTYPE (*ppSVfdat), pData) ;
+        if (r -> bDebug & dbgInput)
+            lprintf (r, "[%d]INPU: value = %s\n", r -> nPid, SvPV(*ppSVfdat, na)) ; 
         return *ppSVfdat ;
         }
     }    
@@ -1311,7 +1294,8 @@ static SV * SplitFdat     (/*in*/  SV ** ppSVfdat,
 /*                                                                              */
 /* ---------------------------------------------------------------------------- */
 
-static int HtmlSelect (/*in*/ const char *   sArg)
+static int HtmlSelect (/*i/o*/ register req * r,
+			/*in*/ const char *   sArg)
     {
     const char * pName ;
     int          nlen ;
@@ -1323,39 +1307,32 @@ static int HtmlSelect (/*in*/ const char *   sArg)
     pName = GetHtmlArg (sArg, "NAME", &nlen) ;
     if (nlen == 0)
         {
-        if (bDebug & dbgInput)
-            lprintf ("[%d]INPU: Select has no name\n", nPid) ; 
+        if (r -> bDebug & dbgInput)
+            lprintf (r, "[%d]INPU: Select has no name\n", r -> nPid) ; 
         }
     else
         {
-        if (pArgHtmlStack + nlen + 1 >= ArgHtmlStack + sizeof (ArgHtmlStack))
-           {
-           sprintf (errdat1, "nArgLen=%d, pArgHtmlStack=%d",nlen + 1,  pArgHtmlStack - ArgHtmlStack) ;
-           return rcArgStackOverflow ;
-           }
-        HtmlState.sArg   = strncpy (pArgHtmlStack, pName, nlen) ;
-        HtmlState.sArg[nlen] = '\0' ;
-        pArgHtmlStack   += nlen + 1 ;
+        r -> HtmlStack.State.sArg   = __strndup (r, pName, nlen) ;
 
-        ppSV = hv_fetch(pFormHash, (char *)pName, nlen, 0) ;  
+        ppSV = hv_fetch(r -> pFormHash, (char *)pName, nlen, 0) ;  
         if (ppSV == NULL)
             {
-            if (bDebug & dbgInput)
-                lprintf ("[%d]INPU: Select %s: no data available in form data\n", nPid, HtmlState.sArg) ; 
+            if (r -> bDebug & dbgInput)
+                lprintf (r, "[%d]INPU: Select %s: no data available in form data\n", r -> nPid, r -> HtmlStack.State.sArg) ; 
             }
         else
             {
-            SV * * ppSVerg = hv_fetch(pFormSplitHash, (char *)pName, nlen, 0) ;  
+            SV * * ppSVerg = hv_fetch(r -> pFormSplitHash, (char *)pName, nlen, 0) ;  
 
-            HtmlState.pSV = SplitFdat (ppSV, ppSVerg, (char *)pName, nlen) ;
-            SvREFCNT_inc (HtmlState.pSV) ;
-            if (bDebug & dbgInput)
-                lprintf ("[%d]INPU: Select %s = %s\n", nPid, HtmlState.sArg, SvPV(HtmlState.pSV, na)) ; 
+            r -> HtmlStack.State.pSV = SplitFdat (r, ppSV, ppSVerg, (char *)pName, nlen) ;
+            SvREFCNT_inc (r -> HtmlStack.State.pSV) ;
+            if (r -> bDebug & dbgInput)
+                lprintf (r, "[%d]INPU: Select %s = %s\n", r -> nPid, r -> HtmlStack.State.sArg, SvPV(r -> HtmlStack.State.pSV, na)) ; 
            }    
         }
 
 
-    return HtmlTable (sArg) ;
+    return HtmlTable (r, sArg) ;
     }
 
 
@@ -1366,7 +1343,8 @@ static int HtmlSelect (/*in*/ const char *   sArg)
 /* ---------------------------------------------------------------------------- */
 
 
-static int HtmlOption (/*in*/ const char *   sArg)
+static int HtmlOption (/*i/o*/ register req * r,
+			/*in*/ const char *   sArg)
     {
     int           rc ;
     const char *  pVal ;
@@ -1381,12 +1359,12 @@ static int HtmlOption (/*in*/ const char *   sArg)
 
     EPENTRY (HtmlOption) ;
 
-    pName = HtmlState.sArg?HtmlState.sArg:"" ;
+    pName = r -> HtmlStack.State.sArg?r -> HtmlStack.State.sArg:"" ;
 
-    if (HtmlState.pSV == NULL)
+    if (r -> HtmlStack.State.pSV == NULL)
         {
         /*if (bDebug & dbgInput)
-            lprintf ("[%d]INPU: <Select>/<Option> no data available\n", nPid) ; */
+            lprintf (r, "[%d]INPU: <Select>/<Option> no data available\n", r -> nPid) ; */
         
         return ok ; /* no name or no data for select */
         }
@@ -1394,8 +1372,8 @@ static int HtmlOption (/*in*/ const char *   sArg)
     pVal = GetHtmlArg (sArg, "VALUE", &vlen) ;
     if (vlen == 0)    
         {
-        if (bDebug & dbgInput)
-            lprintf ("[%d]INPU: <Option> for Select %s has no value\n", nPid, pName) ; 
+        if (r -> bDebug & dbgInput)
+            lprintf (r, "[%d]INPU: <Option> for Select %s has no value\n", r -> nPid, pName) ; 
         
         return ok ; /* has no value */
         }
@@ -1404,39 +1382,39 @@ static int HtmlOption (/*in*/ const char *   sArg)
     bSel = 0 ;
 
     
-    if (SvTYPE (HtmlState.pSV) == SVt_PVHV)
+    if (SvTYPE (r -> HtmlStack.State.pSV) == SVt_PVHV)
         { /* -> Hash -> check if key exists */
-        if (hv_exists ((HV *)HtmlState.pSV, (char *)pVal, vlen))
+        if (hv_exists ((HV *)r -> HtmlStack.State.pSV, (char *)pVal, vlen))
             bSel = 1 ;
         }
     else
         {
-        pData = SvPV (HtmlState.pSV, dlen) ;
+        pData = SvPV (r -> HtmlStack.State.pSV, dlen) ;
         if (dlen == vlen && strncmp (pVal, pData, dlen) == 0)
             bSel = 1 ;
         }
             
-    if (bDebug & dbgInput)
-        lprintf ("[%d]INPU: <Option> %s is now%s selected\n", nPid, pName, (bSel?"":" not")) ; 
+    if (r -> bDebug & dbgInput)
+        lprintf (r, "[%d]INPU: <Option> %s is now%s selected\n", r -> nPid, pName, (bSel?"":" not")) ; 
 
     if (bSel)
         { /* -> selected */
         SV * pSV = newSVpv ((char *)pVal, vlen) ;
-        if (hv_store (pInputHash, pName, strlen (pName), pSV, 0) == NULL)
+        if (hv_store (r -> pInputHash, pName, strlen (pName), pSV, 0) == NULL)
             return rcHashError ;
 
         if (pSelected)
             return ok ;
         else
             {
-            oputs (pCurrTag) ;
+            oputs (r, r -> Buf.pCurrTag) ;
             if (*sArg != '\0')
                 {
-                oputc (' ') ;
-                oputs (sArg) ;
+                oputc (r, ' ') ;
+                oputs (r, sArg) ;
                 }
-            oputs (" SELECTED>") ;
-            pCurrPos = NULL ; /* nothing more left of html tag */
+            oputs (r, " SELECTED>") ;
+            r -> Buf.pCurrPos = NULL ; /* nothing more left of html tag */
             return ok ;
             }
         }
@@ -1446,12 +1424,12 @@ static int HtmlOption (/*in*/ const char *   sArg)
             return ok ;
         else
             {
-            oputs (pCurrTag) ;
-            oputc (' ') ;
-            owrite (sArg, pSelected - sArg, 1) ;
-            oputs (pSelected + 8) ;
-            oputc ('>') ;
-            pCurrPos = NULL ; /* nothing more left of html tag */
+            oputs (r, r -> Buf.pCurrTag) ;
+            oputc (r, ' ') ;
+            owrite (r, sArg, pSelected - sArg) ;
+            oputs (r, pSelected + 8) ;
+            oputc (r, '>') ;
+            r -> Buf.pCurrPos = NULL ; /* nothing more left of html tag */
             return ok ;
             }
         }
@@ -1467,7 +1445,8 @@ static int HtmlOption (/*in*/ const char *   sArg)
 /* ---------------------------------------------------------------------------- */
 
 
-static int HtmlInput (/*in*/ const char *   sArg)
+static int HtmlInput (/*i/o*/ register req * r,
+			/*in*/ const char *   sArg)
     {
     const char *  pName ;
     const char *  pVal ;
@@ -1492,8 +1471,8 @@ static int HtmlInput (/*in*/ const char *   sArg)
     pName = GetHtmlArg (sArg, "NAME", &nlen) ;
     if (nlen == 0)
         {
-        if (bDebug & dbgInput)
-            lprintf ("[%d]INPU: has no name\n", nPid) ; 
+        if (r -> bDebug & dbgInput)
+            lprintf (r, "[%d]INPU: has no name\n", r -> nPid) ; 
         return ok ; /* no Name */
         }
 
@@ -1515,34 +1494,34 @@ static int HtmlInput (/*in*/ const char *   sArg)
         {
         pSV = newSVpv ((char *)pVal, vlen) ;
 
-        if (bDebug & dbgInput)
-            lprintf ("[%d]INPU: %s already has a value = %s\n", nPid, sName, SvPV (pSV, na)) ; 
+        if (r -> bDebug & dbgInput)
+            lprintf (r, "[%d]INPU: %s already has a value = %s\n", r -> nPid, sName, SvPV (pSV, na)) ; 
         
-        if (hv_store (pInputHash, sName, strlen (sName), pSV, 0) == NULL)
+        if (hv_store (r -> pInputHash, sName, strlen (sName), pSV, 0) == NULL)
             return rcHashError ;
         
         return ok ; /* has already a value */
         }
 
 
-    ppSV = hv_fetch(pFormHash, (char *)pName, nlen, 0) ;  
+    ppSV = hv_fetch(r -> pFormHash, (char *)pName, nlen, 0) ;  
     if (ppSV == NULL)
         {
-        if (bOptions & optUndefToEmptyValue)
+        if (r -> bOptions & optUndefToEmptyValue)
             {
             pData = "" ;
             dlen = 0 ;
             }
         else
             {
-            if (bDebug & dbgInput)
-                lprintf ("[%d]INPU: %s: no data available in form data\n", nPid, sName) ; 
+            if (r -> bDebug & dbgInput)
+                lprintf (r, "[%d]INPU: %s: no data available in form data\n", r -> nPid, sName) ; 
 
             if (vlen != 0)    
                 {
                 pSV = newSVpv ((char *)pVal, vlen) ;
 
-                if (hv_store (pInputHash, sName, strlen (sName), pSV, 0) == NULL)
+                if (hv_store (r -> pInputHash, sName, strlen (sName), pSV, 0) == NULL)
                     return rcHashError ;
                 }
 
@@ -1560,9 +1539,9 @@ static int HtmlInput (/*in*/ const char *   sArg)
         if (vlen > 0 && ppSV)
             {
             SV * pSV ;
-            SV * * ppSVerg = hv_fetch(pFormSplitHash, (char *)pName, nlen, 0) ;  
-            lprintf ("ref name = <%s> %d\n", pName, nlen) ; 
-            pSV = SplitFdat (ppSV, ppSVerg, (char *)pName, nlen) ;
+            SV * * ppSVerg = hv_fetch(r -> pFormSplitHash, (char *)pName, nlen, 0) ;  
+            lprintf (r, "ref name = <%s> %d\n", pName, nlen) ; 
+            pSV = SplitFdat (r, ppSV, ppSVerg, (char *)pName, nlen) ;
     
             if (SvTYPE (pSV) == SVt_PVHV)
                 { /* -> Hash -> check if key exists */
@@ -1582,25 +1561,25 @@ static int HtmlInput (/*in*/ const char *   sArg)
             {
             if (!bEqual)
                 { /* Remove "checked" */
-                oputs ("<INPUT ") ;
+                oputs (r, "<INPUT ") ;
                 
-                owrite (sArg, pCheck - sArg, 1) ;
+                owrite (r, sArg, pCheck - sArg) ;
     
-                oputs (pCheck + 7) ; /* write rest of html tag */
-                oputc ('>') ;
+                oputs (r, pCheck + 7) ; /* write rest of html tag */
+                oputc (r, '>') ;
 
-                pCurrPos = NULL ; /* nothing more left of html tag */
+                r -> Buf.pCurrPos = NULL ; /* nothing more left of html tag */
                 }
             }
         else
             {
             if (bEqual)
                 { /* Insert "checked" */
-                oputs ("<INPUT ") ;
-                oputs (sArg) ;
-                oputs (" CHECKED>") ;
+                oputs (r, "<INPUT ") ;
+                oputs (r, sArg) ;
+                oputs (r, " CHECKED>") ;
     
-                pCurrPos = NULL ; /* nothing more left of html tag */
+                r -> Buf.pCurrPos = NULL ; /* nothing more left of html tag */
                 }
             }
         }
@@ -1608,41 +1587,41 @@ static int HtmlInput (/*in*/ const char *   sArg)
         { /* text field */
         if (pVal)
             {
-            oputs ("<INPUT ") ;
+            oputs (r, "<INPUT ") ;
 
-            owrite (sArg, pVal - sArg, 1) ;
+            owrite (r, sArg, pVal - sArg) ;
 
-            oputs (" VALUE=\"") ;
-            OutputToHtml (pData) ;
-            oputs ("\" ") ;
+            oputs (r, " VALUE=\"") ;
+            OutputToHtml (r, pData) ;
+            oputs (r, "\" ") ;
 
             while (*pVal && !isspace(*pVal))
                 pVal++ ;
         
-            oputs (pVal) ; /* write rest of html tag */
-            oputc ('>') ;
+            oputs (r, pVal) ; /* write rest of html tag */
+            oputc (r, '>') ;
 
-            pCurrPos = NULL ; /* nothing more left of html tag */
+            r -> Buf.pCurrPos = NULL ; /* nothing more left of html tag */
             }
         else
             {
-            oputs ("<INPUT ") ;
-            oputs (sArg) ;
-            oputs (" VALUE=\"") ;
-            OutputToHtml (pData) ;
-            oputs ("\">") ;
+            oputs (r, "<INPUT ") ;
+            oputs (r, sArg) ;
+            oputs (r, " VALUE=\"") ;
+            OutputToHtml (r, pData) ;
+            oputs (r, "\">") ;
     
-            pCurrPos = NULL ; /* nothing more left of html tag */
+            r -> Buf.pCurrPos = NULL ; /* nothing more left of html tag */
             }
         }
 
-    if (bDebug & dbgInput)
+    if (r -> bDebug & dbgInput)
         {
-        lprintf ("[%d]INPU: %s=%s %s\n", nPid, sName, pData, bCheck?(bEqual?"CHECKED":"NOT CHECKED"):"") ; 
+        lprintf (r, "[%d]INPU: %s=%s %s\n", r -> nPid, sName, pData, bCheck?(bEqual?"CHECKED":"NOT CHECKED"):"") ; 
         }
     
     pSV = newSVpv ((char *)pData, dlen) ;
-    if (hv_store (pInputHash, sName, strlen (sName), pSV, 0) == NULL)
+    if (hv_store (r -> pInputHash, sName, strlen (sName), pSV, 0) == NULL)
         return rcHashError ;
 
     return ok ;
@@ -1654,7 +1633,8 @@ static int HtmlInput (/*in*/ const char *   sArg)
 /* ---------------------------------------------------------------------------- */
 
 
-static int HtmlTextarea (/*in*/ const char *   sArg)
+static int HtmlTextarea (/*i/o*/ register req * r,
+			/*in*/ const char *   sArg)
     {
     EPENTRY (HtmlTextarea) ;
 
@@ -1668,7 +1648,8 @@ static int HtmlTextarea (/*in*/ const char *   sArg)
 /* ---------------------------------------------------------------------------- */
 
 
-static int HtmlEndtextarea (/*in*/ const char *   sArg)
+static int HtmlEndtextarea (/*i/o*/ register req * r,
+			/*in*/ const char *   sArg)
     {
     const char *  pName ;
     const char *  pVal ;
@@ -1686,19 +1667,19 @@ static int HtmlEndtextarea (/*in*/ const char *   sArg)
     EPENTRY (HtmlEndtextarea) ;
     
     
-    pVal = HtmlState.pStart ;
+    pVal = r -> HtmlStack.State.pStart ;
 
-    HtmlState.pStart = NULL ;
+    r -> HtmlStack.State.pStart = NULL ;
 
-    if (HtmlState.nCmdType != cmdTextarea)
+    if (r -> HtmlStack.State.nCmdType != cmdTextarea)
         return rcEndtextareaWithoutTextarea ;
 
 
-    pName = GetHtmlArg (HtmlState.sArg, "NAME", &nlen) ;
+    pName = GetHtmlArg (r -> HtmlStack.State.sArg, "NAME", &nlen) ;
     if (nlen == 0)
         {
-        if (bDebug & dbgInput)
-            lprintf ("[%d]TEXT: has no name\n", nPid) ; 
+        if (r -> bDebug & dbgInput)
+            lprintf (r, "[%d]TEXT: has no name\n", r -> nPid) ; 
         return ok ; /* no Name */
         }
 
@@ -1708,7 +1689,7 @@ static int HtmlEndtextarea (/*in*/ const char *   sArg)
     sName [nlen] = '\0' ;        
 
 
-    pEnd = pCurrTag - 1 ;
+    pEnd = r -> Buf.pCurrTag - 1 ;
     while (pVal <= pEnd && isspace (*pVal))
         pVal++ ;
 
@@ -1720,23 +1701,23 @@ static int HtmlEndtextarea (/*in*/ const char *   sArg)
     if (vlen != 0)    
         {
         pSV = newSVpv ((char *)pVal, vlen) ;
-        TransHtml (SvPV (pSV, na)) ;
+        TransHtml (r, SvPV (pSV, na)) ;
 
-        if (bDebug & dbgInput)
-            lprintf ("[%d]TEXT: %s already has a value = %s\n", nPid, sName, SvPV (pSV, na)) ; 
+        if (r -> bDebug & dbgInput)
+            lprintf (r, "[%d]TEXT: %s already has a value = %s\n", r -> nPid, sName, SvPV (pSV, na)) ; 
         
-        if (hv_store (pInputHash, sName, strlen (sName), pSV, 0) == NULL)
+        if (hv_store (r -> pInputHash, sName, strlen (sName), pSV, 0) == NULL)
             return rcHashError ;
         
         return ok ; /* has already a value */
         }
 
 
-    ppSV = hv_fetch(pFormHash, (char *)pName, nlen, 0) ;  
+    ppSV = hv_fetch(r -> pFormHash, (char *)pName, nlen, 0) ;  
     if (ppSV == NULL)
         {
-        if (bDebug & dbgInput)
-            lprintf ("[%d]TEXT: %s: no data available in form data\n", nPid, sName) ; 
+        if (r -> bDebug & dbgInput)
+            lprintf (r, "[%d]TEXT: %s: no data available in form data\n", r -> nPid, sName) ; 
         return ok ; /* no data available */
         }
 
@@ -1744,16 +1725,16 @@ static int HtmlEndtextarea (/*in*/ const char *   sArg)
     
     if (pVal)
         {
-        OutputToHtml (pData) ;
+        OutputToHtml (r, pData) ;
         }
 
-    if (bDebug & dbgInput)
+    if (r -> bDebug & dbgInput)
         {
-        lprintf ("[%d]TEXT: %s=%s\n", nPid, sName, pData) ; 
+        lprintf (r, "[%d]TEXT: %s=%s\n", r -> nPid, sName, pData) ; 
         }
     
     pSV = newSVpv ((char *)pData, dlen) ;
-    if (hv_store (pInputHash, sName, strlen (sName), pSV, 0) == NULL)
+    if (hv_store (r -> pInputHash, sName, strlen (sName), pSV, 0) == NULL)
         return rcHashError ;
 
     return ok ;

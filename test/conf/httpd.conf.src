@@ -46,6 +46,7 @@ AddType text/html .htm
 
 Alias /embperl/sub/ $EPPATH/test/html/
 Alias /embperl/ $EPPATH/test/html/
+Alias /eg/ $EPPATH/eg/
 
 <Location /embperl/sub>
 SetHandler perl-script
@@ -212,6 +213,11 @@ PerlHandler Apache::Registry
 Options ExecCGI
 </Location>
 
+<Location /eg>
+SetHandler perl-script
+PerlHandler HTML::Embperl
+Options ExecCGI
+</Location>
 
 ErrorLog tmp/httpd.err.log
 PidFile tmp/httpd.pid

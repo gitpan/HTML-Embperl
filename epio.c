@@ -18,31 +18,14 @@
 
 
 
-/*
-*   Files
-*/
-
-#ifdef PerlIO
-
-#define FILEIOTYPE "PerlIO"
-
-static PerlIO *  ifd = NULL ;  /* input file */
-static PerlIO *  ofd = NULL ;  /* output file */
-static PerlIO *  lfd = NULL ;  /* log file */
-#else
-
-#define FILEIOTYPE "StdIO"
-
-static FILE *  ifd = NULL ;  /* input file */
-static FILE *  ofd = NULL ;  /* output file */
-static FILE *  lfd = NULL ;  /* log file */
-#endif
 
 
 static char sLogFilename [512] = "" ;
 
 #ifndef PerlIO
 
+
+#define FILEIOTYPE "StdIO"
 /* define same helper macros to let it run with plain perl 5.003 */
 /* where no PerlIO is present */
 
@@ -63,6 +46,8 @@ static char sLogFilename [512] = "" ;
 
 #else
 
+#define FILEIOTYPE "PerlIO"
+
 #define PerlIO_stdinF PerlIO_stdin ()
 #define PerlIO_stdoutF PerlIO_stdout ()
 #define PerlIO_stderrF PerlIO_stderr ()
@@ -79,37 +64,6 @@ static char sLogFilename [512] = "" ;
 static request_rec * pAllocReq = NULL ;
 #endif
 
-/*
-*  Alloced memory for debugging
-*/
-
-size_t nAllocSize = 0 ;
-
-
-/*
-*  Datastructure for buffering output
-*/
-
-
-
-static struct tBuf *    pFirstBuf = NULL ;  /* First buffer */
-static struct tBuf *    pLastBuf  = NULL ;  /* Last written buffer */
-static struct tBuf *    pFreeBuf  = NULL ;  /* List of unused buffers */
-static struct tBuf *    pLastFreeBuf  = NULL ;  /* End of list of unused buffers */
-
-
-static char * pMemBuf ;         /* temporary output */
-static char * pMemBufPtr ;      /* temporary output */
-static size_t nMemBufSize ;     /* size of pMemBuf */
-static size_t nMemBufSizeFree ; /* remaining space in pMemBuf */
-
-
-/*
-*  Makers for rollback output
-*/
-
-
-int     nMarker ;
 
 
 /* -------------------------------------------------------------------------------------
@@ -118,14 +72,14 @@ int     nMarker ;
 *
 -------------------------------------------------------------------------------------- */
 
-struct tBuf *   oBegin ()
+struct tBuf *   oBegin (/*i/o*/ register req * r)
 
     {
-    EPENTRY1N (oBegin, nMarker) ;
+    EPENTRY1N (oBegin, r -> nMarker) ;
     
-    nMarker++ ;
+    r -> nMarker++ ;
     
-    return pLastBuf ;
+    return r -> pLastBuf ;
     }
 
 /* -------------------------------------------------------------------------------------
@@ -134,40 +88,41 @@ struct tBuf *   oBegin ()
 *
 -------------------------------------------------------------------------------------- */
 
-void oRollbackOutput (struct tBuf *   pBuf) 
+void oRollbackOutput (/*i/o*/ register req * r,
+			struct tBuf *   pBuf) 
 
     {
-    EPENTRY1N (oRollback, nMarker) ;
+    EPENTRY1N (oRollback, r -> nMarker) ;
 
     if (pBuf == NULL)
         {
-        if (pLastFreeBuf)
-            pLastFreeBuf -> pNext = pFirstBuf ;
+        if (r -> pLastFreeBuf)
+            r -> pLastFreeBuf -> pNext = r -> pFirstBuf ;
         else 
-            pFreeBuf = pFirstBuf ;
+            r -> pFreeBuf = r -> pFirstBuf ;
         
-        pLastFreeBuf = pLastBuf ;
+        r -> pLastFreeBuf = r -> pLastBuf ;
         
-        pFirstBuf   = NULL ;
-        nMarker     = 0 ;
+        r -> pFirstBuf   = NULL ;
+        r -> nMarker     = 0 ;
         }
     else
 	{
-        if (pLastBuf == pBuf || pBuf -> pNext == NULL)
-            nMarker-- ;
+        if (r -> pLastBuf == pBuf || pBuf -> pNext == NULL)
+            r -> nMarker-- ;
         else
             {
-            nMarker = pBuf -> pNext -> nMarker - 1 ;
-            if (pLastFreeBuf)
-                pLastFreeBuf -> pNext = pBuf -> pNext ;
+            r -> nMarker = pBuf -> pNext -> nMarker - 1 ;
+            if (r -> pLastFreeBuf)
+                r -> pLastFreeBuf -> pNext = pBuf -> pNext ;
             else
-                pFreeBuf = pBuf -> pNext ;
-            pLastFreeBuf = pLastBuf ;
+                r -> pFreeBuf = pBuf -> pNext ;
+            r -> pLastFreeBuf = r -> pLastBuf ;
             }
         pBuf -> pNext = NULL ;
         }
         
-    pLastBuf = pBuf ;
+    r -> pLastBuf = pBuf ;
 
     }
 
@@ -178,12 +133,13 @@ void oRollbackOutput (struct tBuf *   pBuf)
 *
 -------------------------------------------------------------------------------------- */
 
-void oRollback (struct tBuf *   pBuf) 
+void oRollback (/*i/o*/ register req * r,
+			struct tBuf *   pBuf) 
 
     {
-    oRollbackOutput (pBuf) ;
+    oRollbackOutput (r, pBuf) ;
     
-    RollbackError () ;
+    RollbackError (r) ;
     }
 
 /* ---------------------------------------------------------------------------- */
@@ -192,25 +148,26 @@ void oRollback (struct tBuf *   pBuf)
 /*                                                                              */
 /* ---------------------------------------------------------------------------- */
 
-void oCommitToMem (struct tBuf *   pBuf,
+void oCommitToMem (/*i/o*/ register req * r,
+			struct tBuf *   pBuf,
                    char *          pOut) 
 
     {
-    EPENTRY1N (oCommit, nMarker) ;
+    EPENTRY1N (oCommit, r -> nMarker) ;
 
     
     if (pBuf == NULL)
-        nMarker = 0 ;
+        r -> nMarker = 0 ;
     else
-        if (pLastBuf == pBuf)
-            nMarker-- ;
+        if (r -> pLastBuf == pBuf)
+            r -> nMarker-- ;
         else
-            nMarker = pBuf -> pNext -> nMarker - 1 ;
+            r -> nMarker = pBuf -> pNext -> nMarker - 1 ;
     
-    if (nMarker == 0)
+    if (r -> nMarker == 0)
         {
         if (pBuf == NULL)
-            pBuf = pFirstBuf ;
+            pBuf = r -> pFirstBuf ;
         else
             pBuf = pBuf -> pNext ;
         
@@ -228,13 +185,13 @@ void oCommitToMem (struct tBuf *   pBuf,
             {
             while (pBuf)
                 {
-                owrite (pBuf + 1, 1, pBuf -> nSize) ;
+                owrite (r, pBuf + 1, pBuf -> nSize) ;
                 pBuf = pBuf -> pNext ;
                 }
             }
         }
 
-    CommitError () ;
+    CommitError (r) ;
     }
 
 /* ---------------------------------------------------------------------------- */
@@ -243,12 +200,13 @@ void oCommitToMem (struct tBuf *   pBuf,
 /*                                                                              */
 /* ---------------------------------------------------------------------------- */
 
-void oCommit (struct tBuf *   pBuf) 
+void oCommit (/*i/o*/ register req *  r,
+		      struct tBuf *   pBuf) 
 
     {
-    EPENTRY1N (oCommit, nMarker) ;
+    EPENTRY1N (oCommit, r -> nMarker) ;
 
-    oCommitToMem (pBuf, NULL) ;
+    oCommitToMem (r, pBuf, NULL) ;
     }
 
 /* ---------------------------------------------------------------------------- */
@@ -261,15 +219,16 @@ void oCommit (struct tBuf *   pBuf)
 /* ---------------------------------------------------------------------------- */
 
 
-static int bufwrite (/*in*/ const void * ptr, size_t size) 
+static int bufwrite (/*i/o*/ register req * r,
+		     /*in*/ const void * ptr, size_t size) 
 
 
     {
     struct tBuf * pBuf ;
 
-    EPENTRY1N (bufwrite, nMarker) ;
+    EPENTRY1N (bufwrite, r -> nMarker) ;
 
-    pBuf = (struct tBuf *)_malloc (size + sizeof (struct tBuf)) ;
+    pBuf = (struct tBuf *)_malloc (r, size + sizeof (struct tBuf)) ;
 
     if (pBuf == NULL)
         return 0 ;
@@ -277,19 +236,19 @@ static int bufwrite (/*in*/ const void * ptr, size_t size)
     memcpy (pBuf + 1,  ptr, size) ;
     pBuf -> pNext   = NULL ;
     pBuf -> nSize   = size ;
-    pBuf -> nMarker = nMarker ;
+    pBuf -> nMarker = r -> nMarker ;
 
-    if (pLastBuf)
+    if (r -> pLastBuf)
         {
-        pLastBuf -> pNext = pBuf ;
-        pBuf -> nCount    = pLastBuf -> nCount + size ;
+        r -> pLastBuf -> pNext = pBuf ;
+        pBuf -> nCount    = r -> pLastBuf -> nCount + size ;
         }
     else
         pBuf -> nCount    = size ;
         
-    if (pFirstBuf == NULL)
-        pFirstBuf = pBuf ;
-    pLastBuf = pBuf ;
+    if (r -> pFirstBuf == NULL)
+        r -> pFirstBuf = pBuf ;
+    r -> pLastBuf = pBuf ;
 
 
     return size ;
@@ -307,49 +266,49 @@ static int bufwrite (/*in*/ const void * ptr, size_t size)
 /* ---------------------------------------------------------------------------- */
 
 
-static void buffree ()
+static void buffree (/*i/o*/ register req * r)
 
     {
     struct tBuf * pNext = NULL ;
     struct tBuf * pBuf ;
 
 #ifdef APACHE
-    if ((bDebug & dbgMem) == 0 && pAllocReq != NULL)
+    if ((r -> bDebug & dbgMem) == 0 && pAllocReq != NULL)
         {
-        pFirstBuf    = NULL ;
-        pLastBuf     = NULL ;
-        pFreeBuf     = NULL ;
-        pLastFreeBuf = NULL ;
+        r -> pFirstBuf    = NULL ;
+        r -> pLastBuf     = NULL ;
+        r -> pFreeBuf     = NULL ;
+        r -> pLastFreeBuf = NULL ;
         return ; /* no need for apache to free memory */
         }
 #endif
         
     /* first walk thru the used buffers */
 
-    pBuf = pFirstBuf ;
+    pBuf = r -> pFirstBuf ;
     while (pBuf)
         {
         pNext = pBuf -> pNext ;
-        _free (pBuf) ;
+        _free (r, pBuf) ;
         pBuf = pNext ;
         }
 
-    pFirstBuf = NULL ;
-    pLastBuf  = NULL ;
+    r -> pFirstBuf = NULL ;
+    r -> pLastBuf  = NULL ;
 
 
     /* now walk thru the unused buffers */
     
-    pBuf = pFreeBuf ;
+    pBuf = r -> pFreeBuf ;
     while (pBuf)
         {
         pNext = pBuf -> pNext ;
-        _free (pBuf) ;
+        _free (r, pBuf) ;
         pBuf = pNext ;
         }
 
-    pFreeBuf = NULL ;
-    pLastFreeBuf  = NULL ;
+    r -> pFreeBuf = NULL ;
+    r -> pLastFreeBuf  = NULL ;
     }
 
 /* ---------------------------------------------------------------------------- */
@@ -358,10 +317,10 @@ static void buffree ()
 /*                                                                              */
 /* ---------------------------------------------------------------------------- */
 
-int GetContentLength ()
+int GetContentLength (/*i/o*/ register req * r)
     {
-    if (pLastBuf)
-        return pLastBuf -> nCount ;
+    if (r -> pLastBuf)
+        return r -> pLastBuf -> nCount ;
     else
         return 0 ;
     
@@ -374,40 +333,41 @@ int GetContentLength ()
 /* ---------------------------------------------------------------------------- */
 
 
-int OpenInput (/*in*/ const char *  sFilename)
+int OpenInput (/*i/o*/ register req * r,
+			/*in*/ const char *  sFilename)
 
     {
 #ifdef APACHE
-    if (pReq)
+    if (r -> pApacheReq)
         return ok ;
 #endif
     
-    if (ifd && ifd != PerlIO_stdinF)
-        PerlIO_close (ifd) ;
+    if (r -> ifd && r -> ifd != PerlIO_stdinF)
+        PerlIO_close (r -> ifd) ;
 
-    ifd = NULL ;
+    r -> ifd = NULL ;
 
     if (sFilename == NULL || *sFilename == '\0')
         {
         /*
         GV * io = gv_fetchpv("STDIN", TRUE, SVt_PVIO) ;
-        if (io == NULL || (ifd = IoIFP(io)) == NULL)
+        if (io == NULL || (r -> ifd = IoIFP(io)) == NULL)
             {
-            if (bDebug)
-                lprintf ("[%d]Cannot get Perl STDIN, open os stdin\n", nPid) ;
-            ifd = PerlIO_stdinF ;
+            if (r -> bDebug)
+                lprintf (r, "[%d]Cannot get Perl STDIN, open os stdin\n", r -> nPid) ;
+            r -> ifd = PerlIO_stdinF ;
             }
         */
         
-        ifd = PerlIO_stdinF ;
+        r -> ifd = PerlIO_stdinF ;
 
         return ok ;
         }
 
-    if ((ifd = PerlIO_open (sFilename, "r")) == NULL)
+    if ((r -> ifd = PerlIO_open (sFilename, "r")) == NULL)
         {
-        strncpy (errdat1, sFilename, sizeof (errdat1) - 1) ;
-        strncpy (errdat2, Strerror(errno), sizeof (errdat2) - 1) ; 
+        strncpy (r -> errdat1, sFilename, sizeof (r -> errdat1) - 1) ;
+        strncpy (r -> errdat2, Strerror(errno), sizeof (r -> errdat2) - 1) ; 
         return rcFileOpenErr ;
         }
 
@@ -422,18 +382,18 @@ int OpenInput (/*in*/ const char *  sFilename)
 /* ---------------------------------------------------------------------------- */
 
 
-int CloseInput ()
+int CloseInput (/*i/o*/ register req * r)
 
     {
 #ifdef APACHE
-    if (pReq)
+    if (r -> pApacheReq)
         return ok ;
 #endif
 
-    if (ifd && ifd != PerlIO_stdinF)
-        PerlIO_close (ifd) ;
+    if (r -> ifd && r -> ifd != PerlIO_stdinF)
+        PerlIO_close (r -> ifd) ;
 
-    ifd = NULL ;
+    r -> ifd = NULL ;
 
     return ok ;
     }
@@ -447,23 +407,24 @@ int CloseInput ()
 /* ---------------------------------------------------------------------------- */
 
 
-int iread (/*in*/ void * ptr, size_t size) 
+int iread (/*i/o*/ register req * r,
+			/*in*/ void * ptr, size_t size) 
 
     {
     if (size == 0)
         return 0 ;
 
 #if defined (APACHE)
-    if (pReq)
+    if (r -> pApacheReq)
         {
-        setup_client_block(pReq, REQUEST_CHUNKED_ERROR); 
-        if(should_client_block(pReq))
+        setup_client_block(r -> pApacheReq, REQUEST_CHUNKED_ERROR); 
+        if(should_client_block(r -> pApacheReq))
             {
             int c ;
             int n = 0 ;
             while (1)
                 {
-                c = get_client_block(pReq, ptr, size); 
+                c = get_client_block(r -> pApacheReq, ptr, size); 
                 if (c < 0 || c == 0)
                     return n ;
                 n    	     += c ;
@@ -476,7 +437,7 @@ int iread (/*in*/ void * ptr, size_t size)
         } 
 #endif
 
-    return PerlIO_read (ifd, ptr, size) ;
+    return PerlIO_read (r -> ifd, ptr, size) ;
     }
 
 
@@ -487,26 +448,27 @@ int iread (/*in*/ void * ptr, size_t size)
 /* ---------------------------------------------------------------------------- */
 
 
-char * igets    (/*in*/ char * s,   int    size) 
+char * igets (/*i/o*/ register req * r,
+			/*in*/ char * s,   int    size) 
 
     {
 #if defined (APACHE)
-    if (pReq)
+    if (r -> pApacheReq)
         return NULL ;
 #endif
 
 #ifdef PerlIO
         {
         /*
-        FILE * f = PerlIO_exportFILE (ifd, 0) ;
+        FILE * f = PerlIO_exportFILE (r -> ifd, 0) ;
         char * p = fgets (s, size, f) ;
-        PerlIO_releaseFILE (ifd, f) ;
+        PerlIO_releaseFILE (r -> ifd, f) ;
         return p ;
         */
         return NULL ;
         }
 #else
-    return fgets (s, size, ifd) ;
+    return fgets (s, size, r -> ifd) ;
 #endif
     }
 
@@ -516,7 +478,8 @@ char * igets    (/*in*/ char * s,   int    size)
 /*                                                                              */
 /* ---------------------------------------------------------------------------- */
 
-int ReadHTML (/*in*/    char *    sInputfile,
+int ReadHTML (/*i/o*/ register req * r,
+	      /*in*/    char *    sInputfile,
               /*in*/    size_t *  nFileSize,
               /*out*/   SV   * *  ppBuf)
 
@@ -529,8 +492,8 @@ int ReadHTML (/*in*/    char *    sInputfile,
     FILE *   ifd ;
 #endif
     
-    if (bDebug)
-        lprintf ("[%d]Reading %s as input using %s ...\n", nPid, sInputfile, FILEIOTYPE) ;
+    if (r -> bDebug)
+        lprintf (r, "[%d]Reading %s as input using %s ...\n", r -> nPid, sInputfile, FILEIOTYPE) ;
 
 #ifdef WIN32
     if ((ifd = PerlIO_open (sInputfile, "rb")) == NULL)
@@ -538,8 +501,8 @@ int ReadHTML (/*in*/    char *    sInputfile,
     if ((ifd = PerlIO_open (sInputfile, "r")) == NULL)
 #endif        
         {
-        strncpy (errdat1, sInputfile, sizeof (errdat1) - 1) ;
-        strncpy (errdat2, Strerror(errno), sizeof (errdat2) - 1) ; 
+        strncpy (r -> errdat1, sInputfile, sizeof (r -> errdat1) - 1) ;
+        strncpy (r -> errdat2, Strerror(errno), sizeof (r -> errdat2) - 1) ; 
         return rcFileOpenErr ;
         }
 
@@ -569,73 +532,70 @@ int ReadHTML (/*in*/    char *    sInputfile,
 
 
 
-int OpenOutput (/*in*/ const char *  sFilename)
+int OpenOutput (/*i/o*/ register req * r,
+			/*in*/ const char *  sFilename)
 
     {
-    pFirstBuf = NULL ; 
-    pLastBuf  = NULL ; 
-    nMarker   = 0 ;
-    pMemBuf   = NULL ;
-    nMemBufSize = 0 ;
-
-
-    /* make sure all old buffers are freed */
-
-    buffree () ;
-
+    r -> pFirstBuf = NULL ; 
+    r -> pLastBuf  = NULL ; 
+    r -> nMarker   = 0 ;
+    r -> pMemBuf   = NULL ;
+    r -> nMemBufSize = 0 ;
+    r -> pFreeBuf     = NULL ;
+    r -> pLastFreeBuf = NULL ;
 
 #if defined (APACHE)
-    if (pReq)
+    if (r -> pApacheReq)
         {
-        if (bDebug)
-            lprintf ("[%d]Using APACHE for output...\n", nPid) ;
+        if (r -> bDebug)
+            lprintf (r, "[%d]Using APACHE for output...\n", r -> nPid) ;
         return ok ;
         }
 #endif
 
     
-    if (ofd && ofd != PerlIO_stdoutF)
-        PerlIO_close (ofd) ;
+    if (r -> ofd && r -> ofd != PerlIO_stdoutF)
+        PerlIO_close (r -> ofd) ;
 
-    ofd = NULL ;
+    r -> ofd = NULL ;
 
     if (sFilename == NULL || *sFilename == '\0')
         {
         /*
         GV * io = gv_fetchpv("STDOUT", TRUE, SVt_PVIO) ;
-        if (io == NULL || (ofd = IoOFP(io)) == NULL)
+        if (io == NULL || (r -> ofd = IoOFP(io)) == NULL)
             {
-            if (bDebug)
-                lprintf ("[%d]Cannot get Perl STDOUT, open os stdout\n", nPid) ;
-            ofd = PerlIO_stdoutF ;
+            if (r -> bDebug)
+                lprintf ("[%d]Cannot get Perl STDOUT, open os stdout\n", r -> nPid) ;
+            r -> ofd = PerlIO_stdoutF ;
             }
         */
 
-        ofd = PerlIO_stdoutF ;
+        r -> ofd = PerlIO_stdoutF ;
         
-        if (bDebug)
+        if (r -> bDebug)
             {
 #ifdef APACHE
-             if (pReq)
-                lprintf ("[%d]Open STDOUT to Apache for output...\n", nPid) ;
+             if (r -> pApacheReq)
+                lprintf (r, "[%d]Open STDOUT to Apache for output...\n", r -> nPid) ;
              else
 #endif
-             lprintf ("[%d]Open STDOUT for output...\n", nPid) ;
+             lprintf (r, "[%d]Open STDOUT for output...\n", r -> nPid) ;
             }
         return ok ;
         }
 
-    if (bDebug)
-        lprintf ("[%d]Open %s for output...\n", nPid, sFilename) ;
+    if (r -> bDebug)
+        lprintf (r, "[%d]Open %s for output...\n", r -> nPid, sFilename) ;
 
 #ifdef WIN32
-    if ((ofd = PerlIO_open (sFilename, "wb")) == NULL)
+    if ((r -> ofd = PerlIO_open (sFilename, "wb")) == NULL)
 #else
-    if ((ofd = PerlIO_open (sFilename, "w")) == NULL)
+    if ((r -> ofd = PerlIO_open (sFilename, "w")) == NULL)
 #endif        
         {
-        strncpy (errdat1, sFilename, sizeof (errdat1) - 1) ;
-        strncpy (errdat2, Strerror(errno), sizeof (errdat2) - 1) ; 
+        strncpy (r -> errdat1, sFilename, sizeof (r -> errdat1) - 1) ;
+        strncpy (r -> errdat2, Strerror(errno), sizeof (r -> errdat2) - 1) ; 
         return rcFileOpenErr ;
         }
 
@@ -650,23 +610,23 @@ int OpenOutput (/*in*/ const char *  sFilename)
 /* ---------------------------------------------------------------------------- */
 
 
-int CloseOutput ()
+int CloseOutput (/*i/o*/ register req * r)
 
     {
     
     /* make sure all buffers are freed */
 
-    /* buffree () ; */
+    buffree (r) ; 
 
 #if defined (APACHE)
-    if (pReq)
+    if (r -> pApacheReq)
         return ok ;
 #endif
 
-    if (ofd && ofd != PerlIO_stdoutF)
-        PerlIO_close (ofd) ;
+    if (r -> ofd && r -> ofd != PerlIO_stdoutF)
+        PerlIO_close (r -> ofd) ;
 
-    ofd = NULL ;
+    r -> ofd = NULL ;
 
     return ok ;
     }
@@ -680,14 +640,15 @@ int CloseOutput ()
 
 
 
-void OutputToMemBuf (/*in*/ char *  pBuf,
+void OutputToMemBuf (/*i/o*/ register req * r,
+			/*in*/ char *  pBuf,
                      /*in*/ size_t  nBufSize)
 
     {
-    pMemBuf         = pBuf ;
-    pMemBufPtr      = pBuf ;
-    nMemBufSize     = nBufSize ;
-    nMemBufSizeFree = nBufSize ;
+    r -> pMemBuf         = pBuf ;
+    r -> pMemBufPtr      = pBuf ;
+    r -> nMemBufSize     = nBufSize ;
+    r -> nMemBufSizeFree = nBufSize ;
     }
 
 
@@ -698,13 +659,13 @@ void OutputToMemBuf (/*in*/ char *  pBuf,
 /* ---------------------------------------------------------------------------- */
 
 
-char * OutputToStd    ()
+char * OutputToStd (/*i/o*/ register req * r)
 
     {
-    char * p = pMemBuf ;
-    pMemBuf         = NULL ;
-    nMemBufSize     = 0 ;
-    nMemBufSizeFree = 0 ;
+    char * p = r -> pMemBuf ;
+    r -> pMemBuf         = NULL ;
+    r -> nMemBufSize     = 0 ;
+    r -> nMemBufSizeFree = 0 ;
     return p ;
     }
 
@@ -716,10 +677,11 @@ char * OutputToStd    ()
 /*                                                                              */
 /* ---------------------------------------------------------------------------- */
 
-int oputs (/*in*/ const char *  str) 
+int oputs (/*i/o*/ register req * r,
+			/*in*/ const char *  str) 
 
     {
-    return owrite (str, 1, strlen (str)) ;
+    return owrite (r, str, strlen (str)) ;
     }
 
 
@@ -729,57 +691,59 @@ int oputs (/*in*/ const char *  str)
 /*                                                                              */
 /* ---------------------------------------------------------------------------- */
 
-int owrite (/*in*/ const void * ptr, size_t size, size_t nmemb) 
+int owrite (/*i/o*/ register req * r,
+	    /*in*/ const void * ptr, size_t size) 
 
     {
-    int n = size * nmemb ;
+    int n = size ;
 
     if (n == 0)
         return 0 ;
 
-    if (pMemBuf)
+    if (r -> pMemBuf)
         {
         char * p ;
-        int s = nMemBufSize ;
-        if (n >= nMemBufSizeFree)
+        int s = r -> nMemBufSize ;
+        if (n >= r -> nMemBufSizeFree)
             {
+            int oldsize = s ;
             if (s < n)
-                s = n + nMemBufSize ;
+                s = n + r -> nMemBufSize ;
             
-            nMemBufSize      += s ;
-            nMemBufSizeFree  += s ;
-            /*lprintf ("[%d]MEM:  Realloc pMemBuf, nMemSize = %d\n", nPid, nMemBufSize) ; */
-            p = _realloc (pMemBuf, nMemBufSize) ;
+            r -> nMemBufSize      += s ;
+            r -> nMemBufSizeFree  += s ;
+            /*lprintf (r, "[%d]MEM:  Realloc pMemBuf, nMemSize = %d\n", nPid, nMemBufSize) ; */
+            p = _realloc (r, r -> pMemBuf, oldsize, r -> nMemBufSize) ;
             if (p == NULL)
                 {
-                nMemBufSize      -= s ;
-                nMemBufSizeFree  -= s ;
+                r -> nMemBufSize      -= s ;
+                r -> nMemBufSizeFree  -= s ;
                 return 0 ;
                 }
-            pMemBufPtr = p + (pMemBufPtr - pMemBuf) ;
-            pMemBuf = p ;
+            r -> pMemBufPtr = p + (r -> pMemBufPtr - r -> pMemBuf) ;
+            r -> pMemBuf = p ;
             }
                 
-        memcpy (pMemBufPtr, ptr, n) ;
-        pMemBufPtr += n ;
-        *pMemBufPtr = '\0' ;
-        nMemBufSizeFree -= n ;
-        return n / size ;
+        memcpy (r -> pMemBufPtr, ptr, n) ;
+        r -> pMemBufPtr += n ;
+        *(r -> pMemBufPtr) = '\0' ;
+        r -> nMemBufSizeFree -= n ;
+        return n ;
         }
 
     
-    if (nMarker)
-        return bufwrite (ptr, n) / size ;
+    if (r -> nMarker)
+        return bufwrite (r, ptr, n) ;
 
 #if defined (APACHE)
-    if (pReq)
+    if (r -> pApacheReq)
         {
         if (n > 0)
             {
-            n = rwrite (ptr, n, pReq) ;
-            if (bDebug & dbgFlushOutput)
-                rflush (pReq) ;
-            return n / size ;
+            n = rwrite (ptr, n, r -> pApacheReq) ;
+            if (r -> bDebug & dbgFlushOutput)
+                rflush (r -> pApacheReq) ;
+            return n ;
             }
         else
             return 0 ;
@@ -787,13 +751,13 @@ int owrite (/*in*/ const void * ptr, size_t size, size_t nmemb)
 #endif
     if (n > 0)
         {
-        n = PerlIO_write (ofd, (void *)ptr, size * nmemb) ;
+        n = PerlIO_write (r -> ofd, (void *)ptr, size) ;
 
-        if (bDebug & dbgFlushOutput)
-            PerlIO_flush (ofd) ;
+        if (r -> bDebug & dbgFlushOutput)
+            PerlIO_flush (r -> ofd) ;
         }
 
-    return n / size ;
+    return n ;
     }
 
 
@@ -805,28 +769,29 @@ int owrite (/*in*/ const void * ptr, size_t size, size_t nmemb)
 /* ---------------------------------------------------------------------------- */
 
 
-void oputc (/*in*/ char c)
+void oputc (/*i/o*/ register req * r,
+			/*in*/ char c)
 
     {
-    if (nMarker || pMemBuf)
+    if (r -> nMarker || r -> pMemBuf)
         {
-        owrite (&c, 1, 1) ;
+        owrite (r, &c, 1) ;
         return ;
         }
 
 #if defined (APACHE)
-    if (pReq)
+    if (r -> pApacheReq)
         {
-        rputc (c, pReq) ;
-        if (bDebug & dbgFlushOutput)
-            rflush (pReq) ;
+        rputc (c, r -> pApacheReq) ;
+        if (r -> bDebug & dbgFlushOutput)
+            rflush (r -> pApacheReq) ;
         return ;
         }
 #endif
-    PerlIO_putc (ofd, c) ;
+    PerlIO_putc (r -> ofd, c) ;
 
-    if (bDebug & dbgFlushOutput)
-        PerlIO_flush (ofd) ;
+    if (r -> bDebug & dbgFlushOutput)
+        PerlIO_flush (r -> ofd) ;
     }
 
 
@@ -842,20 +807,21 @@ void oputc (/*in*/ char c)
 /* ---------------------------------------------------------------------------- */
 
 
-int OpenLog (/*in*/ const char *  sFilename,
+int OpenLog (/*i/o*/ register req * r,
+			/*in*/ const char *  sFilename,
              /*in*/ int           nMode)
 
     {
     if (sFilename == NULL)
         sFilename = "" ;
 
-    if (lfd && (nMode == 2 || strcmp (sLogFilename, sFilename) == 0))
+    if (r -> lfd && (nMode == 2 || strcmp (sLogFilename, sFilename) == 0))
         return ok ; /*already open */
 
-    if (lfd && lfd != PerlIO_stdoutF)
-        PerlIO_close (lfd) ;  /* close old logfile */
+    if (r -> lfd && r -> lfd != PerlIO_stdoutF)
+        PerlIO_close (r -> lfd) ;  /* close old logfile */
    
-    lfd = NULL ;
+    r -> lfd = NULL ;
 
     if (nMode != 2)
         {
@@ -866,17 +832,17 @@ int OpenLog (/*in*/ const char *  sFilename,
     if (*sLogFilename == '\0')
         {
         sLogFilename[0] = '\0' ;
-        lfd = PerlIO_stdoutF ;
+        r -> lfd = PerlIO_stdoutF ;
         return ok ;
         }
 
     if (nMode == 0)
         return ok ;
     
-    if ((lfd = PerlIO_open (sLogFilename, "a")) == NULL)
+    if ((r -> lfd = PerlIO_open (sLogFilename, "a")) == NULL)
         {
-        strncpy (errdat1, sLogFilename, sizeof (errdat1) - 1) ;
-        strncpy (errdat2, Strerror(errno), sizeof (errdat2) - 1) ; 
+        strncpy (r -> errdat1, sLogFilename, sizeof (r -> errdat1) - 1) ;
+        strncpy (r -> errdat2, Strerror(errno), sizeof (r -> errdat2) - 1) ; 
         return rcLogFileOpenErr ;
         }
 
@@ -890,11 +856,11 @@ int OpenLog (/*in*/ const char *  sFilename,
 /* ---------------------------------------------------------------------------- */
 
 
-int GetLogHandle ()
+int GetLogHandle (/*i/o*/ register req * r)
 
     {
-    if (lfd)
-	return PerlIO_fileno (lfd) ;
+    if (r -> lfd)
+	return PerlIO_fileno (r -> lfd) ;
 
     return 0 ;
     }
@@ -907,11 +873,11 @@ int GetLogHandle ()
 /* ---------------------------------------------------------------------------- */
 
 
-long GetLogFilePos ()
+long GetLogFilePos (/*i/o*/ register req * r)
 
     {
-    if (lfd)
-	return PerlIO_tell (lfd) ;
+    if (r -> lfd)
+	return PerlIO_tell (r -> lfd) ;
 
     return 0 ;
     }
@@ -924,13 +890,13 @@ long GetLogFilePos ()
 /* ---------------------------------------------------------------------------- */
 
 
-int CloseLog ()
+int CloseLog (/*i/o*/ register req * r)
 
     {
-    if (lfd && lfd != PerlIO_stdoutF)
-        PerlIO_close (lfd) ;
+    if (r -> lfd && r -> lfd != PerlIO_stdoutF)
+        PerlIO_close (r -> lfd) ;
 
-    lfd = NULL ;
+    r -> lfd = NULL ;
 
     return ok ;
     }
@@ -944,11 +910,11 @@ int CloseLog ()
 /* ---------------------------------------------------------------------------- */
 
 
-int FlushLog ()
+int FlushLog (/*i/o*/ register req * r)
 
     {
-    if (lfd != NULL)
-        PerlIO_flush (lfd) ;
+    if (r -> lfd != NULL)
+        PerlIO_flush (r -> lfd) ;
 
     return ok ;
     }
@@ -961,22 +927,23 @@ int FlushLog ()
 /*                                                                              */
 /* ---------------------------------------------------------------------------- */
 
-int lprintf (/*in*/ const char *  sFormat,
+int lprintf (/*i/o*/ register req * r,
+			/*in*/ const char *  sFormat,
              /*in*/ ...) 
 
     {
     va_list  ap ;
     int      n ;
 
-    if (lfd == NULL)
+    if (r -> lfd == NULL)
         return 0 ;
     
     va_start (ap, sFormat) ;
     
         {
-        n = PerlIO_vprintf (lfd, sFormat, ap) ;
-        if (bDebug & dbgFlushLog)
-            PerlIO_flush (lfd) ;
+        n = PerlIO_vprintf (r -> lfd, sFormat, ap) ;
+        if (r -> bDebug & dbgFlushLog)
+            PerlIO_flush (r -> lfd) ;
         }
 
 
@@ -993,18 +960,20 @@ int lprintf (/*in*/ const char *  sFormat,
 /* ---------------------------------------------------------------------------- */
 
 
-int lwrite (/*in*/ const void * ptr, size_t size, size_t nmemb) 
+int lwrite (/*i/o*/ register req * r,
+	    /*in*/  const void * ptr, 
+            /*in*/  size_t size) 
 
     {
     int n ;
 
-    if (lfd == NULL)
+    if (r -> lfd == NULL)
         return 0 ;
     
-    n = PerlIO_write (lfd, (void *)ptr, size * nmemb) ;
+    n = PerlIO_write (r -> lfd, (void *)ptr, size) ;
 
-    if (bDebug & dbgFlushLog)
-        PerlIO_flush (lfd) ;
+    if (r -> bDebug & dbgFlushLog)
+        PerlIO_flush (r -> lfd) ;
 
     return n ;
     }
@@ -1019,68 +988,70 @@ int lwrite (/*in*/ const void * ptr, size_t size, size_t nmemb)
 /* ---------------------------------------------------------------------------- */
 
 
-void _free (void * p)
+void _free (/*i/o*/ register req * r,
+			void * p)
 
     {
     size_t size ;
     size_t * ps ;
 
 #ifdef APACHE
-    if (pAllocReq && !(bDebug & dbgMem))
+    if (pAllocReq && !(r -> bDebug & dbgMem))
         return ;
 #endif
 
 
-    /* we do it a bit complicted so it compiles also on aix */
-    ps = (size_t *)p ;
-    ps-- ;
-    size = *ps ;
-    p = ps ;
-    if (bDebug & dbgMem)
+    if (r -> bDebug & dbgMem)
         {
-        nAllocSize -= size ;
-        lprintf ("[%d]MEM:  Free %d Bytes at %08x  Allocated so far %d Bytes\n" ,nPid, size, p, nAllocSize) ;
+        /* we do it a bit complicted so it compiles also on aix */
+        ps = (size_t *)p ;
+        ps-- ;
+        size = *ps ;
+        p = ps ;
+        r -> nAllocSize -= size ;
+        lprintf (r, "[%d]MEM:  Free %d Bytes at %08x  Allocated so far %d Bytes\n" ,r -> nPid, size, p, r -> nAllocSize) ;
         }
 
 #ifdef APACHE
-    if (pReq == NULL)
+    if (r -> pApacheReq == NULL)
 #endif
         free (p) ;
     }
 
-void * _malloc (size_t  size)
+void * _malloc (/*i/o*/ register req * r, 
+                        size_t  size)
 
     {
     void * p ;
     size_t * ps ;
 
 #ifdef APACHE
-    pAllocReq = pReq ;
+    pAllocReq = r -> pApacheReq  ;
 
-    if (pReq)
+    if (r -> pApacheReq)
         {
-        p = palloc (pReq -> pool, size + sizeof (size)) ;
+        p = palloc (r -> pApacheReq -> pool, size + sizeof (size)) ;
         }
     else
 #endif
         
         p = malloc (size + sizeof (size)) ;
 
-    /* we do it a bit complicted so it compiles also on aix */
-    ps = (size_t *)p ;
-    *ps = size ;
-    p = ps + 1 ;
-
-    if (bDebug & dbgMem)
+    if (r -> bDebug & dbgMem)
         {
-        nAllocSize += size ;
-        lprintf ("[%d]MEM:  Alloc %d Bytes at %08x   Allocated so far %d Bytes\n" ,nPid, size, p, nAllocSize) ;
+        /* we do it a bit complicted so it compiles also on aix */
+        ps = (size_t *)p ;
+        *ps = size ;
+        p = ps + 1 ;
+
+        r -> nAllocSize += size ;
+        lprintf (r, "[%d]MEM:  Alloc %d Bytes at %08x   Allocated so far %d Bytes\n" ,r -> nPid, size, p, r -> nAllocSize) ;
         }
 
     return p ;
     }
 
-void * _realloc (void * ptr, size_t  size)
+void * _realloc (/*i/o*/ register req * r,  void * ptr, size_t oldsize, size_t  size)
 
     {
     void * p ;
@@ -1088,49 +1059,57 @@ void * _realloc (void * ptr, size_t  size)
     size_t sizeold ;
     
 #ifdef APACHE
-    if (pReq)
+    if (r -> pApacheReq)
         {
-        p = palloc (pReq -> pool, size + sizeof (size)) ;
+        p = palloc (r -> pApacheReq -> pool, size + sizeof (size)) ;
         if (p == NULL)
             return NULL ;
         
-        /* we do it a bit complicted so it compiles also on aix */
-        ps = (size_t *)p ;
-        *ps = size ;
-        p = ps + 1;
+        if (r -> bDebug & dbgMem)
+            {
+            /* we do it a bit complicted so it compiles also on aix */
+            ps = (size_t *)p ;
+            *ps = size ;
+            p = ps + 1;
         
-        ps = (size_t *)ptr ;
-        ps-- ;
-        sizeold = *ps ;
+            ps = (size_t *)ptr ;
+            ps-- ;
+            sizeold = *ps ;
+            r -> nAllocSize += size - sizeold ;
 
-        memcpy (p, ptr, sizeold) ; 
+            lprintf (r, "[%d]MEM:  ReAlloc %d Bytes at %08x   Allocated so far %d Bytes\n" ,r -> nPid, size, p, r -> nAllocSize) ;
+            }
+
+        memcpy (p, ptr, oldsize) ; 
         }
     else
 #endif
-        {        
-        ps = (size_t *)ptr ;
-        ps-- ;
-        p = realloc (ps, size + sizeof (size)) ;
-        if (p == NULL)
-            return NULL ;
+        if (r -> bDebug & dbgMem)
+            {
+            ps = (size_t *)ptr ;
+            ps-- ;
+            r -> nAllocSize -= *ps ;
+        
+            p = realloc (ps, size + sizeof (size)) ;
+            if (p == NULL)
+                return NULL ;
 
-        /* we do it a bit complicted so it compiles also on aix */
-        ps = (size_t *)p ;
-        *ps = size ;
-        p = ps + 1;
-        }
-
-    if (bDebug & dbgMem)
-        {
-        nAllocSize += size ;
-        lprintf ("[%d]MEM:  ReAlloc %d Bytes at %08x   Allocated so far %d Bytes\n" ,nPid, size, p, nAllocSize) ;
-        }
+            /* we do it a bit complicted so it compiles also on aix */
+            ps = (size_t *)p ;
+            *ps = size ;
+            p = ps + 1;
+            r -> nAllocSize += size ;
+            lprintf (r, "[%d]MEM:  ReAlloc %d Bytes at %08x   Allocated so far %d Bytes\n" ,r -> nPid, size, p, r -> nAllocSize) ;
+            }
+        else
+            p = realloc (ptr, size + sizeof (size)) ;
 
     return p ;
     }
 
 
-char *  _memstrcat (const char *s, ...) 
+char * _memstrcat (/*i/o*/ register req * r,
+			const char *s, ...) 
 
     {
     va_list ap ;
@@ -1155,7 +1134,7 @@ char *  _memstrcat (const char *s, ...)
 
     va_end (ap) ;
 
-    sp = str = _malloc (sum+1) ;
+    sp = str = _malloc (r, sum+1) ;
 
     va_start(ap, s) ;
 
@@ -1174,4 +1153,43 @@ char *  _memstrcat (const char *s, ...)
 
     return sp ;
     }
+
+
+
+char * __strdup (/*i/o*/ register req * r,
+                 /*in*/  const char * str)
+
+    {
+    char * p ;        
+    int    len = strlen (str) ;
+
+    p = (char *)_malloc (r, len + 1) ;
+
+    if (p)
+        strcpy (p, str) ;
+
+    return p ;
+    }
+    
+
+
+char * __strndup (/*i/o*/ register req * r,
+                  /*in*/  const char *   str,
+                  /*in*/  int            len)
+
+    {
+    char * p ;        
+
+    p = (char *)_malloc (r, len + 1) ;
+
+    if (p)
+        {
+        strncpy (p, str, len) ;
+
+        p[len] = '\0' ;
+        }
+
+    return p ;
+    }
+    
 

@@ -13,6 +13,7 @@ Embperl is a Perl extension module which gives you the power to
 embed Perl code directly in your HTML documents (like server-side 
 includes for shell commands).
 
+=head1 DESCRIPTION
 
 =head1 Operating-Modes
 
@@ -156,6 +157,11 @@ your browser!
 
 
 =head2 By calling HTML::Embperl::Execute (\%param)
+
+Execute can be used to call Embperl from your own modules/scripts (for example
+from a Apache::Registry or CGI script) or from within another Embperl page (only 1.2b1
+or higher) to nest multiple Embperl pages (for example to store a common header or
+footer in an different file). 
 
 Execute takes a hash reference as its argument. This gives it the chance to
 vary the parameters according to the job that should be done.
@@ -1242,6 +1248,15 @@ which they appear in your form.
 
 Contains all the values from all input tags processed so far.
 
+=head2 %udat (only 1.2b1 or higher)
+
+You can use B<%udat> to store per user data. As long as you don't use %udat, nothing
+happens, but as soon as you write anything to %udat, Embperl creates a session id and
+sends it via a cookie to the browser. The data you have written to %udat is stored by
+Apache::Session. The next time the same user request an Embperl page, the browser sends
+the cookie with the session id back and Embperl fill the %udat hash from Apache::Session
+with just the same values as you have stored for that user. (See also L<"Session handling">)
+
 =head2 $row, $col
 
 Row and column counts for use in dynamic tables.  
@@ -1385,6 +1400,37 @@ be read and set by the corresponding variables.
 
     [+ $dbgCmd +] # Output the state of the dbgCmd flag
 
+
+=head1 Session handling
+
+From 1.2b1 and higher Embperl is able to handle per user sessions for you. You can store any data
+in the L<%udat> hash and if the same user request again an Embperl document, you will see the same 
+values in that hash again.
+
+To configure Embperl to do session management for you, you must have installed Apache::Session and
+loaded it before you load Embperl and you must tell Embperl which storage you would like to use for
+Apache::Session, by setting the environement variable EMBPERL_SESSION_CLASS.
+You may have a startup.pl for your httpd which looks like this:
+
+
+ $ENV{EMBPERL_SESSION_CLASS}='File' ;
+ use Apache::Session::File ;
+ use HTML::Embperl ;
+
+ 1 ;
+
+
+NOTE: You can use all the environement variables recognized by Apache::Session to configure it.
+
+
+Now you are able to use the %udat hash for your user sessions. As long as you don't touch %udat
+Embperl will not create any session, also Apache::Session is loaded. As soon as you store any
+value to %udat, Embperl will create a new session and send a cookie to the browser to maintain
+it's id, while the data is stored by Apache::Session. (Further version may also be able to use
+URL rewriting for storing the id).
+
+B<NOTE: In the current version (1.2b1) session handling is experimental and not very well tested!
+also it works only under mod_perl, CGI will come in one of the next releases>
 
 
 =head1 (Safe-)Namespaces and opcode restrictions
@@ -1987,7 +2033,7 @@ please send e-mail to info@ecos.de.
 =head2 CVS
 
 The lastest developements are available from a CVS.
-Look at L<"perldoc CVS.pod"|CVS/"DESCRIPTION"> for a detailed description.
+Look at L<"perldoc CVS.pod"|CVS/"INTRO"> for a detailed description.
 
 =head1 Author
 

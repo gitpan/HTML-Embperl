@@ -60,6 +60,8 @@ enum tRc
     rcEndforeachWithoutForeach, 
     rcMissingArgs,
     rcNotAnArray,
+    rcCallInputFuncFailed,
+    rcCallOutputFuncFailed,
     } ;
 
 
@@ -145,10 +147,7 @@ enum epIO
 
 
 
-#define ERRDATLEN 1024
 
-extern char errdat1 [ERRDATLEN]  ;
-extern char errdat2 [ERRDATLEN]  ;
 
 /*
     Escape modes

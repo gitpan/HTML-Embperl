@@ -20,6 +20,9 @@ used to build mod_perl.
 
 - B<make install>
 
+B<NOTE:> (Embperl-1.2b1 or higher) For using session handling you need Apache::Session-0.16 or higher.
+For Apache-Session-0.16 to work, you must apply the session.patch from the
+Embperl distribution.
 
 =head2 WIN 32
 

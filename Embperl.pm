@@ -23,10 +23,49 @@ require Cwd ;
 require Exporter;
 require DynaLoader;
 
+use strict ;
+use vars qw(
+    $DefaultLog 
+    $DebugDefault
+    
+    %cache
+    %mtime
+    %filepack
+    $packno
+
+    @cleanups
+    
+    $LogOutputFileno
+    %LogFileColors
+    %NameSpace
+    @ISA
+    $VERSION
+    
+    %watchval
+
+    $cwd
+    
+    $escmode
+    %fdat
+    %udat
+    %mdat
+    @ffld
+
+    $evalpackage
+
+    $optRedirectStdout
+    $optDisableFormData
+
+    $escmode
+
+    $SessionMgnt
+    ) ;
+
+
 @ISA = qw(Exporter DynaLoader);
 
 
-$VERSION = '1.1.1';
+$VERSION = '1.2b1';
 
 
 bootstrap HTML::Embperl $VERSION;
@@ -36,16 +75,12 @@ bootstrap HTML::Embperl $VERSION;
 # Default logfilename
 
 $DefaultLog = '/tmp/embperl.log' ;
-$Outputfile = '' ;  # Default to stdout
-
 
 %cache    = () ;    # cache for evaled code
 %filepack = () ;    # translate filename to packagename
-$package  = '' ;    # package name for current document
 $packno   = 1 ;     # for assigning unique packagenames
+
 @cleanups = () ;    # packages which need a cleanup
-@errfill  = () ;    # predefine -> avoid waring
-@errstate = () ;    # predefine -> avoid waring
 $LogOutputFileno = 0 ;
 
 # setup constans
@@ -134,6 +169,8 @@ use constant rcUnknownVarType => 31 ;
 use constant rcVirtLogNotSet => 33 ;
 use constant rcWriteErr => 16 ;
 use constant rcXNotSet => 29 ;
+use constant rcCallInputFuncFailed => 40 ;
+use constant rcCallOutputFuncFailed => 41 ;
 
 
 $DebugDefault = dbgStd ;
@@ -173,7 +210,7 @@ $DebugDefault = dbgStd ;
 
         {
         shift ;
-        HTML::Embperl::embperl_log(join ('', @_)) ;
+        HTML::Embperl::log(join ('', @_)) ;
         }
 
     sub PRINTF
@@ -181,7 +218,7 @@ $DebugDefault = dbgStd ;
         {
         shift ;
         my $fmt = shift ;
-        HTML::Embperl::embperl_log(sprintf ($fmt, @_)) ;
+        HTML::Embperl::log(sprintf ($fmt, @_)) ;
         }
     }
 
@@ -209,7 +246,7 @@ $DebugDefault = dbgStd ;
 
         {
         shift ;
-        HTML::Embperl::embperl_output(join ('', @_)) ;
+        HTML::Embperl::output(join ('', @_)) ;
         }
 
     sub PRINTF
@@ -217,7 +254,7 @@ $DebugDefault = dbgStd ;
         {
         shift ;
         my $fmt = shift ;
-        HTML::Embperl::embperl_output(sprintf ($fmt, @_)) ;
+        HTML::Embperl::output(sprintf ($fmt, @_)) ;
         }
     }
 
@@ -234,16 +271,23 @@ if (defined ($ENV{MOD_PERL}))
     { 
     eval 'use Apache' ; # make sure Apache.pm is loaded (is not at server startup in mod_perl < 1.11)
     die "use Apache failed: $@" if ($@); 
-    eval 'use Apache::Constants qw(:common &OPT_EXECCGI)' ;
+    #eval 'use Apache::Constants qw(:common &OPT_EXECCGI)' ;
+    eval 'use Apache::Constants qw(&OPT_EXECCGI &DECLINED &OK &FORBIDDEN)' ;
     die "use Apache::Constants failed: $@" if ($@); 
-    embperl_init (epIOMod_Perl, $DefaultLog) ;
+    XS_Init (epIOMod_Perl, $DefaultLog, $DebugDefault) ;
+#    eval 'sub OK        { 0 ;   }' if (!defined (&OK)) ;
+    eval 'sub NOT_FOUND { 404 ; }' if (!defined (&NOT_FOUND)) ;
+#    eval 'sub FORBIDDEN { 401 ; }' if (!defined (&FORBIDDEN)) ;
+
     }
 else
     {
     eval 'sub OK        { 0 ;   }' ;
     eval 'sub NOT_FOUND { 404 ; }' ;
     eval 'sub FORBIDDEN { 401 ; }' ;
-    embperl_init (epIOPerl, $DefaultLog) ;
+no strict ;
+    XS_Init (epIOPerl, $DefaultLog, $DebugDefault) ;
+use strict ;
     }
 
 $cwd       = Cwd::fastcwd();
@@ -251,6 +295,18 @@ $cwd       = Cwd::fastcwd();
 tie *LOG, 'HTML::Embperl::Log' ;
 tie *OUT, 'HTML::Embperl::Out' ;
 
+#use Apache::Session ;
+#use Apache::Session::Win32 ;
+
+$SessionMgnt = 0 ;
+if (exists $INC{'Apache/Session.pm'})
+    {
+    $SessionMgnt = 1 ;
+    tie %udat, 'Apache::Session', $ENV{EMBPERL_SESSION_CLASS} || 'Win32',
+                  undef, {not_lazy=>0, autocommit=>0, lifetime=>&Apache::Session::LIFETIME} ;
+    warn "[$$]SES:  Embperl Session management enabled\n" ;
+    #tie %mdat, 'Apache::Session', 'Win32', undef, {not_lazy=>0} ;
+    }
 
 #######################################################################################
 
@@ -260,7 +316,7 @@ sub _eval_ ($)
     {
     my $result = eval "package $evalpackage ; $_[0] " ;
     if ($@ ne '')
-        { embperl_logevalerr ($@) ; }
+        { logevalerr ($@) ; }
     return $result ;
     }
 
@@ -272,7 +328,7 @@ sub _evalsub_ ($)
     {
     my $result = eval "package $evalpackage ; sub { $_[0] } " ;
     if ($@ ne '')
-        { embperl_logevalerr ($@) ; }
+        { logevalerr ($@) ; }
     return $result ;
     }
 
@@ -284,12 +340,13 @@ sub Warn
     my $msg = $_[0] ;
     chop ($msg) ;
     
-    my $lineno = embperl_getlineno () ;
+    my $lineno = getlineno () ;
+    my $Inputfile = Sourcefile () ;
     if ($msg =~ /HTML\/Embperl/)
         {
         $msg =~ s/at (.*?) line (\d*)/at $Inputfile in block starting at line $lineno/ ;
         }
-    embperl_logerror (rcPerlWarn, $msg);
+    logerror (rcPerlWarn, $msg);
     }
 
 #######################################################################################
@@ -317,10 +374,10 @@ sub AddCompartment ($)
 
 #######################################################################################
 
-sub SendLogFile ($$)
+sub SendLogFile ($$$)
 
     {
-    my ($fn, $info) = @_ ;
+    my ($fn, $info, $req_rec) = @_ ;
     
     my $lastpid = 0 ;
     my ($filepos, $pid, $src) = split (/&/, $info) ;
@@ -329,7 +386,11 @@ sub SendLogFile ($$)
     my $tag ;
     my $fontcol ;
 
-    $escmode = 3 ;
+    if (defined ($req_rec))
+        {
+        $req_rec -> content_type ('text/html') ;
+        $req_rec -> send_http_header ;
+        }
         
     open (LOGFILE, $fn) || return 500 ;
 
@@ -379,7 +440,12 @@ sub SendLogFile ($$)
                     { print "<A NAME=\"N$cnt\">" ; }
                 }
 
-            embperl_output ("$_") ;
+            
+            s/&/&amp;/g;
+            s/\"/&quot;/g;
+            s/>/&gt;/g;
+            s/</&lt;/g;
+            print $_ ;
             print '</A>' ;
             last if (/Request finished/) ;
             }
@@ -392,211 +458,44 @@ sub SendLogFile ($$)
     return 200 ;
     }
 
-#######################################################################################
-
-sub SendErrorDoc ()
-
-    {
-    local $SIG{__WARN__} = 'Default' ;
-    my $err ;
-    my $cnt = 0 ;
-    local $escmode = 0 ;
-    my $time = localtime ;
-    my $mail = $req_rec -> server -> server_admin if (defined ($req_rec)) ;
-    $mail ||= '' ;
-    my $virtlog = $ENV{EMBPERL_VIRTLOG} || '' ;
-    my $url     = $LogfileURL || '' ;
-
-    $req_rec -> content_type('text/html') if (defined ($req_rec)) ;
-
-    embperl_output ("<HTML><HEAD><TITLE>Embperl Error</TITLE></HEAD><BODY bgcolor=\"#FFFFFF\">\r\n$url") ;
-    embperl_output ("<H1>Internal Server Error</H1>\r\n") ;
-    embperl_output ("The server encountered an internal error or misconfiguration and was unable to complete your request.<P>\r\n") ;
-    embperl_output ("Please contact the server administrator, $mail and inform them of the time the error occurred, and anything you might have done that may have caused the error.<P><P>\r\n") ;
-
-    if (defined ($LogfileURL) && $virtlog ne '')
-        {
-        foreach $err (@errors)
-            {
-            embperl_output ("<A HREF=\"$virtlog?$logfilepos&$$#E$cnt\">") ; #<tt>") ;
-            $escmode = 3 ;
-            $err =~ s|\n|\n\\<br\\>\\&nbsp;\\&nbsp;\\&nbsp;\\&nbsp;|g;
-            $err =~ s|(Line [0-9]*:)|$1\\</a\\>|;
-            embperl_output ($err) ;
-            $escmode = 0 ;
-            embperl_output ("<p>\r\n") ;
-            #embperl_output ("</tt><p>\r\n") ;
-            $cnt++ ;
-            }
-        }
-    else
-        {
-	$escmode = 3 ;
-        foreach $err (@errors)
-            {
-            $err =~ s|\n|\n\\<br\\>\\&nbsp;\\&nbsp;\\&nbsp;\\&nbsp;|g;
-            embperl_output ("$err\\<p\\>\r\n") ;
-            #embperl_output ("\\<tt\\>$err\\</tt\\>\\<p\\>\r\n") ;
-            $cnt++ ;
-            }
-	$escmode = 0 ;
-        }
-         
-    my $server = $ENV{SERVER_SOFTWARE} || 'Offline' ;
-
-    embperl_output ("$server HTML::Embperl $VERSION [$time]<P>\r\n") ;
-    embperl_output ("</BODY></HTML>\r\n\r\n") ;
-
-    }
 
 
-#######################################################################################
-
+##########################################################################################
 
 sub CheckFile
 
     {
-    my ($filename) = @_ ;
+    my ($filename, $req_rec) = @_ ;
 
 
     unless (-r $filename && -s _)
         {
-	embperl_logerror (rcNotFound, $filename);
+	logerror (rcNotFound, $filename);
 	return &NOT_FOUND ;
         }
 
     if (defined ($req_rec) && !($req_rec->allow_options & &OPT_EXECCGI))
         {
-	embperl_logerror (rcExecCGIMissing, $filename);
+	logerror (undef, rcExecCGIMissing, $filename);
 	return &FORBIDDEN ;
  	}
 	
     if (-d _)
         {
-	embperl_logerror (rcIsDir, $filename);
+	logerror (rcIsDir, $filename);
 	return &FORBIDDEN ;
 	}                 
     
     return ok ;
     }
 
-#######################################################################################
-
-sub CheckCache
-
-    {
-    my ($filename, $mtime, $pack) = @_ ;
-
-
-
-    # Escape everything into valid perl identifiers
-    if (!defined ($pack))
-        {
-        $package = $filepack{$filename} ;
-        if (!defined($package))
-            {
-            $package = "HTML::Embperl::DOC::_$packno" ;
-            $packno++ ;
-            $filepack{$filename} = $package ;
-            }
-        }
-    else
-        {
-        $filepack{$filename} = $package = $pack ;
-        }
-
-
-
-    if (!defined($mtime{$filename}) || !defined($mtime) || $mtime{$filename} != $mtime) 
-        {
-        # clear out any entries in the cache
-        delete $cache{$filename} ;
- 	$mtime{$filename} = $mtime ;
-        # This will remove the functions to avoid redefinition warnings
-        # but the symbol table entrys still remain
-        #Apache::Symbol::undef_functions ($package) if (defined(&Apache::Symbol::undef_functions)) ;
-        # setup one function, so we can check later if it was undef'd by another request
-        #eval "sub $package\:\:__info__ { my %info = ('filename' => '$filename', 'mtime' => $mtime) ; } " ;
-        print LOG  "[$$]MEM: Reload $filename in $package\n" if ($Debugflags);
-        }
-    
-    if (!defined(${"$package\:\:row"}))
-        { # create new aliases for Embperl magic vars
-        *{"$package\:\:fdat"}    = \%fdat ;
-        *{"$package\:\:fsplitdat"}  = \%fsplitdat ;
-        *{"$package\:\:ffld"}    = \@ffld ;
-        *{"$package\:\:idat"}    = \%idat ;
-        *{"$package\:\:cnt"}     = \$cnt ;
-        *{"$package\:\:row"}     = \$row ;
-        *{"$package\:\:col"}     = \$col ;
-        *{"$package\:\:maxrow"}  = \$maxrow ;
-        *{"$package\:\:maxcol"}  = \$maxcol ;
-        *{"$package\:\:tabmode"} = \$tabmode ;
-        *{"$package\:\:escmode"} = \$escmode ;
-    	*{"$package\:\:req_rec"} = \$req_rec if defined ($req_rec) ;
-    	*{"$package\:\:exit"}    = \&Apache::exit if defined (&Apache::exit) ;
-        
-        *{"$package\:\:MailFormTo"} = \&MailFormTo ;
-
-        tie *{"$package\:\:LOG"}, 'HTML::Embperl::Log' ;
-        tie *{"$package\:\:OUT"}, 'HTML::Embperl::Out' ;
-
-        *{"$package\:\:optDisableChdir"}                = \$optDisableChdir                   ;
-        *{"$package\:\:optDisableEmbperlErrorPage"}     = \$optDisableEmbperlErrorPage ;
-        *{"$package\:\:optDisableFormData"}             = \$optDisableFormData         ;
-        *{"$package\:\:optDisableHtmlScan"}             = \$optDisableHtmlScan         ;
-        *{"$package\:\:optDisableInputScan"}            = \$optDisableInputScan        ;
-        *{"$package\:\:optDisableMetaScan"}             = \$optDisableMetaScan         ;
-        *{"$package\:\:optDisableTableScan"}            = \$optDisableTableScan        ;
-        *{"$package\:\:optDisableVarCleanup"}           = \$optDisableVarCleanup       ;
-        *{"$package\:\:optEarlyHttpHeader"}             = \$optEarlyHttpHeader         ;
-        *{"$package\:\:optOpcodeMask"}                  = \$optOpcodeMask              ;
-        *{"$package\:\:optRawInput"}                    = \$optRawInput                ;
-        *{"$package\:\:optSafeNamespace"}               = \$optSafeNamespace           ;
-        *{"$package\:\:optSendHttpHeader"}              = \$optSendHttpHeader          ;
-        *{"$package\:\:optAllFormData"}                 = \$optAllFormData ;
-        *{"$package\:\:optRedirectStdout"}              = \$optRedirectStdout ;
-        *{"$package\:\:optUndefToEmptyValue"}           = \$optUndefToEmptyValue ;
-        
-
-        *{"$package\:\:dbgAllCmds"}               = \$dbgAllCmds           ;
-        *{"$package\:\:dbgCacheDisable"}          = \$dbgCacheDisable      ;
-        *{"$package\:\:dbgCmd"}                   = \$dbgCmd               ;
-        *{"$package\:\:dbgDefEval"}               = \$dbgDefEval           ;
-        *{"$package\:\:dbgEarlyHttpHeader"}       = \$dbgEarlyHttpHeader   ;
-        *{"$package\:\:dbgEnv"}                   = \$dbgEnv               ;
-        *{"$package\:\:dbgEval"}                  = \$dbgEval              ;
-        *{"$package\:\:dbgFlushLog"}              = \$dbgFlushLog          ;
-        *{"$package\:\:dbgFlushOutput"}           = \$dbgFlushOutput       ;
-        *{"$package\:\:dbgForm"}                  = \$dbgForm              ;
-        *{"$package\:\:dbgFunc"}                  = \$dbgFunc              ;
-        *{"$package\:\:dbgHeadersIn"}             = \$dbgHeadersIn         ;
-        *{"$package\:\:dbgInput"}                 = \$dbgInput             ;
-        *{"$package\:\:dbgLogLink"}               = \$dbgLogLink           ;
-        *{"$package\:\:dbgMem"}                   = \$dbgMem               ;
-        *{"$package\:\:dbgShowCleanup"}           = \$dbgShowCleanup       ;
-        *{"$package\:\:dbgSource"}                = \$dbgSource            ;
-        *{"$package\:\:dbgStd"}                   = \$dbgStd               ;
-        *{"$package\:\:dbgTab"}                   = \$dbgTab               ;
-        *{"$package\:\:dbgWatchScalar"}           = \$dbgWatchScalar       ;
-
-        #print LOG  "[$$]MEM: Created Aliases for $package\n" ;
-        }
-
-
-    $cache{$filename}{'~-1'} = 1 ; # make sure hash is defined 
-    
-    return \$cache{$filename} ;
-    }
-
-
 ##########################################################################################
 
 sub ScanEnvironement
 
     {
-    my $req = shift ; 
-    
+    my ($req, $req_rec) = @_ ; 
+
     %ENV = %{{$req_rec->cgi_env, %ENV}} if (defined ($req_rec)) ;
     
     $$req{'virtlog'}     = $ENV{EMBPERL_VIRTLOG}     if (exists ($ENV{EMBPERL_VIRTLOG})) ;
@@ -627,103 +526,87 @@ sub Execute
     my $rc ;
     my $req = shift ;
     
-    $Debugflags   = defined ($$req{'debug'})?$$req{'debug'}:$DebugDefault ;
-    $req_rec      = $$req{'req_rec'} if (defined ($$req{'req_rec'})) ;
-    $rc = embperl_setreqrec ($req_rec) if (defined ($req_rec)) ;
-        
-    undef $package if (defined ($package)) ; 
-   
+    my $req_rec ;
+    $req_rec = $$req{'req_rec'} if (defined ($$req{req_rec})) ;
+
+
     if (defined ($$req{'virtlog'}) && $$req{'virtlog'} eq $$req{'uri'})
         {
-        if (defined ($req_rec))
-            {
-            $req_rec -> content_type ('text/html') ;
-            $req_rec -> send_http_header ;
-            }
-        $rc = SendLogFile ($DefaultLog, $ENV{QUERY_STRING}) ;
-        embperl_resetreqrec () ;
-        return $rc ;
+        return SendLogFile ($DefaultLog, $ENV{QUERY_STRING}, $$req{'req_rec'}) ;
         }
 
+    my $ns ;
+    my $opcodemask ;
 
-    if (defined($$req{'escmode'}))
-        { $escmode    = $$req{'escmode'} }
-    else
-        { $escmode    = escStd ; }
+    if (defined ($ns = $$req{'compartment'}))
+        {
+        my $cp = AddCompartment ($ns) ;
+        $opcodemask = $cp -> mask ;
+        }
+
+    my $conf = SetupConfData ($req, $opcodemask) ;
+
     
-    my $Outputfile = $$req{'outputfile'} || '' ;
-    my $Options    = $$req{'options'}    || 0 ;
+    my $Outputfile = $$req{'outputfile'} ;
     my $cleanup    = $$req{'cleanup'}    || 0 ;
     my $In         = $$req{'input'}   ;
     my $Out        = $$req{'output'}  ;
-    my $ns ;
-    my $pcodecache ;
     my $filesize ;
     my $mtime ;
-    my $InFunc ;
-    my $OutFunc ;
-    my $InData ;
     my $OutData ;
+    my $InData ;
 
-     if (exists $$req{'input_func'})  
+    if (exists $$req{'input_func'})  
         {
         my @p ;
         $In = \$InData ;
         $$req{mtime} = 0 ;
         @p = split (/\s*\,\s*/, $$req{'input_func'}) ;
-        $InFunc = shift @p ;
+        my $InFunc = shift @p ;
+no strict ;
         eval {$rc = &{$InFunc} ($req_rec, $In, \$$req{mtime}, @p)} ;
+use strict ;
         if ($rc || $@)
             {
             if ($@) 
                 {
                 $rc = 500 ;
-                print LOG "[$$]ERR:  $@\n" 
+                logerror (rcCallInputFuncFailed, $@) ;
                 }
 
-            embperl_resetreqrec () ;
             return $rc ;
             }
         }
 
     $Out = \$OutData if (exists $$req{'output_func'}) ;
 
-    $Inputfile    = $$req{'inputfile'} ;
+    my $Inputfile    = $$req{'inputfile'} || '<none>' ;
     
     if (defined ($In))
         {
         $filesize = -1 ;
-        $mtime    = $$req{'mtime'} ;
+        $mtime    = $$req{'mtime'} || 0 ;
         }
    else
         {
-        if ($rc = CheckFile ($Inputfile)) 
+        if ($rc = CheckFile ($Inputfile, $req_rec)) 
             {
-            embperl_resetreqrec () ;
             return $rc ;
             }
         $filesize = -s _ ;
         $mtime = -M _ ;
         }
 
-    $pcodecache = CheckCache ($Inputfile, $mtime, $$req{'package'}) ;
-    if (defined ($ns = $$req{'compartment'}))
-        {
-        my $cp = AddCompartment ($ns) ;
-        $opcodemask = $cp -> mask ;
-        }
-    else
-        {
-        undef $opcodemask if (defined ($opcodemask)) ;
-        }
+    
+    my $r = SetupRequest ($req_rec, $Inputfile, $mtime, $filesize, $Outputfile, $conf, &epIOMod_Perl, $In, $Out) ;
+    
+    my $package = $r -> CurrPackage ;
+    $evalpackage = $package ;   
+    
+    $r -> CreateAliases () ;
    
-    if (($Options & optSafeNamespace))
-	{ $evalpackage = 'main' ; }
-    else
-	{ $evalpackage = $package ; }
 
-
-    if (!($Options & optDisableFormData) &&
+    if (!($optDisableFormData) &&
            defined($ENV{'CONTENT_TYPE'}) &&
            $ENV{'CONTENT_TYPE'}=~m|^multipart/form-data|)
         { # just let CGI.pm read the multipart form data, see cgi docu
@@ -743,56 +626,87 @@ sub Execute
     else
         {
         local $^W = 0 ;
-        @ffld = @{$$req{'ffld'}} ;
-        %fdat = %{$$req{'fdat'}} ;
+        @ffld = @{$$req{'ffld'}} if (defined ($$req{'ffld'})) ;
+        %fdat = %{$$req{'fdat'}} if (defined ($$req{'fdat'})) ;
         }
 
+no strict ;
     # pass parameters via @param
     *{"$package\:\:param"}   = $$req{'param'} if (exists $$req{'param'}) ;
+use strict ;
     
-    @errors = () ;
+    my $udat ;
+    if ($SessionMgnt)
+        {
+        $udat = tied(%udat) ;
 
+        if (defined ($ENV{HTTP_COOKIE}) && ($ENV{HTTP_COOKIE} =~ /EMBPERL_UID=(.*?)(\s|$)/))
+	    {
+	    $udat -> {ID} = $1 ;
+            print LOG "[$$]SES:  Received session cookie $1\n" ;
+	    }
+        else
+	    {
+	    $udat -> {ID} = undef ;
+	    }
+    
+        $udat -> {DIRTY} = 0 ;
 
-    if ($Debugflags & dbgLogLink)
-	{
-        embperl_logerror (rcVirtLogNotSet, '') if (!defined($$req{'virtlog'})) ;
-        $logfilepos = embperl_getlogfilepos () ;
-        $LogfileURL = "<A HREF=\"$$req{'virtlog'}?$logfilepos&$$\">Logfile</A> / <A HREF=\"$ENV{EMBPERL_VIRTLOG}?$logfilepos&$$&SRC:\">Source only</A> / <A HREF=\"$ENV{EMBPERL_VIRTLOG}?$logfilepos&$$&EVAL\<\">Eval only</A><BR>" ;
-	}
-    else
-	{ undef $LogfileURL if (defined ($LogfileURL)) ; }    
+        #tied(%mdat) -> {ID} = $Inputfile ;
+        }
 
         {
         local $SIG{__WARN__} = \&Warn ;
         local *0 = \$Inputfile;
-        my $oldfh = select (OUT) if ($Options & optRedirectStdout) ;
+        my $oldfh = select (OUT) if ($optRedirectStdout) ;
 
-        $rc = embperl_req ($Inputfile, $Outputfile, $Debugflags, $Options, $filesize, $pcodecache, $In, $Out) ;
+        $rc = $r -> ExecuteReq ($$req{'param'}) ;
         
-        select ($oldfh) if ($Options & optRedirectStdout) ;
+        select ($oldfh) if ($optRedirectStdout) ;
         
         if (exists $$req{'output_func'}) 
             {
             my @p ;
+            my $OutFunc ;
             ($OutFunc, @p) = split (/\s*,\s*/, $$req{'output_func'}) ;
+no strict ;
             eval { &$OutFunc ($req_rec, $Out,@p) } ;
-            if ($@) 
-                {
-                print LOG "[$$]ERR:  $@\n" 
-                }
-
+use strict ;
+            $r -> logerror (rcCallOutputFuncFailed, $@) if ($@) ;
             }
         }
 
 
+    no strict ;
     undef *{"$package\:\:param"} ;
+    use strict ;
+
+    
+    if ($SessionMgnt)
+        {
+        if ($udat->{'DIRTY'})
+	    {
+            print LOG "[$$]SES:  Store session data for $udat->{ID}\n" ;
+            $udat->{'DATA'}->store ;
+	    }
+
+        $udat->{'DATA'} = undef ;
+        $udat -> {ID}   = undef ;
+        }
 
     if ($cleanup == -1)
         { ; } 
-    elsif ($cleanup == 0 && defined ($req_rec))
+    elsif ($cleanup == 0)
         {
         push @cleanups, $package ;
-        $req_rec -> register_cleanup(\&HTML::Embperl::cleanup) if ($#cleanups == 0) ;
+        if (defined ($req_rec) )
+            {
+            $req_rec -> register_cleanup(\&HTML::Embperl::cleanup) if ($#cleanups == 0) ;
+            }
+        elsif (!$r -> SubReq ())
+            {
+            cleanup () ;
+            }
         }
     else
         {
@@ -800,6 +714,8 @@ sub Execute
         cleanup () ;
         }
 
+    $r -> FreeRequest () ;
+    
     return 0 ;
     }
 
@@ -813,7 +729,7 @@ sub Init
     $DebugDefault = shift ;
     $DebugDefault = dbgStd if (!defined ($DebugDefault)) ;
         
-    embperl_init (epIOPerl, $Logfile || $DefaultLog) ;
+    XS_Init (epIOPerl, $Logfile || $DefaultLog, $DebugDefault) ;
     
     tie *LOG, 'HTML::Embperl::Log' ;
     }
@@ -825,7 +741,7 @@ sub Term
 
     {
     cleanup () ;
-    embperl_term () ;
+    XS_Term () ;
     }
 
 
@@ -845,16 +761,13 @@ sub run (\@)
     my $ioType ;
     my %req ;
 
-    $Inputfile  = '' ;
-    undef $req_rec ;
-
     ScanEnvironement (\%req) ;
     
 
     if (defined ($$args[0]) && $$args[0] eq 'dbgbreak') 
     	{
     	shift @$args ;
-    	embperl_dbgbreak () ;
+    	dbgbreak () ;
     	}
 
     while ($#{$args} >= 0)
@@ -912,21 +825,21 @@ sub run (\@)
         }
 
 
-    embperl_init ($ioType, $Logfile) ;
+    XS_Init ($ioType, $Logfile, $DebugDefault) ;
 
     
     tie *LOG, 'HTML::Embperl::Log' ;
 
     $req{'uri'} = $ENV{SCRIPT_NAME} ;
 
-    $req{'cleanup'} = 1 ;
+    $req{'cleanup'} = 0 ;
     $req{'cleanup'} = -1 if (($req{'options'} & optDisableVarCleanup)) ;
     $req{'options'} |= optSendHttpHeader ;
 
     $rc = Execute (\%req) ;
 
     #close LOG ;
-    embperl_term () ;
+    XS_Term () ;
 
     return $rc ;
     }
@@ -941,13 +854,11 @@ sub handler
     {
     #log_svs ("handler entry") ;
 
-    $req_rec = shift ;
+    my $req_rec = shift ;
 
     my %req ;
 
-    ScanEnvironement (\%req) ;
-    
-    undef $package if (defined ($package)) ; 
+    ScanEnvironement (\%req, $req_rec) ;
     
     $req{'uri'}       = $req_rec -> Apache::uri ;
 
@@ -955,8 +866,7 @@ sub handler
                          !($req{'uri'} =~ m{$ENV{EMBPERL_FILESMATCH}})) 
         {
         # Reset the perl-handler to work with older mod_perl versions
-        embperl_setreqrec ($req_rec) ;
-        embperl_resetreqrec (1) ;
+        ResetHandler ($req_rec) ;
         return &DECLINED ;
         }
 
@@ -967,6 +877,7 @@ sub handler
 
     $req{'cleanup'} = -1 if (($req{'options'} & optDisableVarCleanup)) ;
     $req{'options'} |= optSendHttpHeader ;
+    $req{'req_rec'} = $req_rec ;
 
     my $rc = Execute (\%req) ;
 
@@ -975,6 +886,9 @@ sub handler
     }
 
 #######################################################################################
+
+no strict ;
+
 
 sub cleanup 
     {
@@ -1002,50 +916,60 @@ sub cleanup
             {
 	    while (($key,$val) = each(%{*{"$package\::"}}))
                 {
-	        local(*ENTRY) = $val;
-                $glob = $package.'::'.$key ;
-                if (defined (*ENTRY{SCALAR})) 
-                    {
-                    print LOG "[$$]CUP:  \$$key = ${$glob}\n" ;
-                    undef ${$glob} ;
-                    }
-                if (defined (*ENTRY{HASH}) && !($key =~ /\:\:$/))
-                    {
-                    print LOG "[$$]CUP:  \%$key\n" ;
-                    undef %{$glob} ;
-                    }
-                if (defined (*ENTRY{ARRAY}))
-                    {
-                    print LOG "[$$]CUP:  \@$key\n" ;
-                    undef @{$glob} ;
-                    }
-                }
+		if ($key ne 'udat')
+		    {
+		    local(*ENTRY) = $val;
+		    $glob = $package.'::'.$key ;
+		    if (defined (*ENTRY{SCALAR})) 
+			{
+			print LOG "[$$]CUP:  \$$key = ${$glob}\n" ;
+			undef ${$glob} ;
+			}
+		    if (defined (*ENTRY{HASH}) && !($key =~ /\:\:$/))
+			{
+			print LOG "[$$]CUP:  \%$key\n" ;
+			undef %{$glob} ;
+			}
+		    if (defined (*ENTRY{ARRAY}))
+			{
+			print LOG "[$$]CUP:  \@$key\n" ;
+			undef @{$glob} ;
+			}
+		    }
+		}
             }
         else
             {
             while (($key,$val) = each(%{*{"$package\::"}}))
                 {
-	        local(*ENTRY) = $val;
-                $glob = $package.'::'.$key ;
-                undef ${$glob} if (defined (*ENTRY{SCALAR})) ;
-                undef %{$glob} if (defined (*ENTRY{HASH}) && !($key =~ /\:\:$/)) ;
-                undef @{$glob} if (defined (*ENTRY{ARRAY})) ;
-                }
+		if ($key ne 'udat')
+		    {
+		    local(*ENTRY) = $val;
+		    $glob = $package.'::'.$key ;
+		    undef ${$glob} if (defined (*ENTRY{SCALAR})) ;
+		    undef %{$glob} if (defined (*ENTRY{HASH}) && !($key =~ /\:\:$/)) ;
+		    undef @{$glob} if (defined (*ENTRY{ARRAY})) ;
+		    }
+		}
             }
         }
 
     @cleanups = () ;
 
-    embperl_flushlog () ;
+    flushlog () ;
 
     #log_svs ("cleanup exit") ;
     return &OK ;
     }
 
+use strict ;
+
 #######################################################################################
 
 sub watch 
     {
+    my ($package) = @_ ;
+
     my $glob ;
     my $key  ;
     my $val  ;
@@ -1079,7 +1003,7 @@ sub MailFormTo
     eval 'require Net::SMTP' ;
     die "require Net::SMTP failed: $@" if ($@); 
 
-    $smtp = Net::SMTP->new($ENV{EMBPERL_MAILHOST} || 'localhost') or die "Cannot connect to Mailhost" ;
+    $smtp = Net::SMTP->new($ENV{'EMBPERL_MAILHOST'} || 'localhost') or die "Cannot connect to mailhost" ;
     if ($ret)
         { $smtp->mail($ret); }
     else
@@ -1114,7 +1038,7 @@ sub ProxyInput
     {
     my ($r, $in, $mtime, $src, $dest) = @_ ;
 
-
+    my $url ;
 
     if (defined ($src))
         {
@@ -1138,6 +1062,8 @@ sub ProxyInput
     $request  = new HTTP::Request($r -> method, $url);
 
     my %headers_in = $r->headers_in;
+    my $key ;
+    my $val ;
     while (($key,$val) = each %headers_in)
         {
  	$request->header($key,$val) if (lc ($key) ne 'connection') ;
@@ -1148,14 +1074,14 @@ sub ProxyInput
     my $code = $response -> code ;
     my $mod  = $response -> last_modified || '???' ;
 
-    if ($Debugflags) 
-        { 
-        print LOG "[$$]PXY: uri=" . $r->uri . "\n" ;
-        print LOG "[$$]PXY: src=$src, dest=$dest\n" ;
-        print LOG "[$$]PXY: -> url=$url\n" ;
-        print LOG "[$$]PXY: code=$code,  last modified = $mod\n" ;
-        print LOG "[$$]PXY: msg =". $response -> message . "\n" ;
-        }
+    #if ($Debugflags) 
+    #    { 
+    #    print LOG "[$$]PXY: uri=" . $r->uri . "\n" ;
+    #    print LOG "[$$]PXY: src=$src, dest=$dest\n" ;
+    #    print LOG "[$$]PXY: -> url=$url\n" ;
+    #    print LOG "[$$]PXY: code=$code,  last modified = $mod\n" ;
+    #    print LOG "[$$]PXY: msg =". $response -> message . "\n" ;
+    #    }
             
     $$in    = $response -> content ;
     $$mtime = $mod if ($mod ne '???') ;
@@ -1187,12 +1113,170 @@ sub LogOutput
     print L $$out ;
     close L ;
 
-    if ($Debugflags) 
-        { 
-        print LOG "[$$]OUT:  Logged output to $basepath.$$.$LogOutputFileno\n" ;
-        }
+    #if ($Debugflags) 
+    #    { 
+    #    print LOG "[$$]OUT:  Logged output to $basepath.$$.$LogOutputFileno\n" ;
+    #    }
 
     return 0 ;
+    }
+
+#######################################################################################
+
+package HTML::Embperl::Req ; 
+
+#######################################################################################
+
+use strict ;
+
+#######################################################################################
+
+sub CreateAliases
+
+    {
+    my ($self) = @_ ;
+    
+    my $package = $self -> CurrPackage ;
+    
+    no strict ;
+
+    if (!defined(${"$package\:\:row"}))
+        { # create new aliases for Embperl magic vars
+
+        *{"$package\:\:fdat"}    = \%HTML::Embperl::fdat ;
+        *{"$package\:\:udat"}    = \%HTML::Embperl::udat ;
+        *{"$package\:\:mdat"}    = \%HTML::Embperl::mdat ;
+        *{"$package\:\:fsplitdat"}    = \%HTML::Embperl::fsplitdat ;
+        *{"$package\:\:ffld"}    = \@HTML::Embperl::ffld ;
+        *{"$package\:\:idat"}    = \%HTML::Embperl::idat ;
+        *{"$package\:\:cnt"}     = \$HTML::Embperl::cnt ;
+        *{"$package\:\:row"}     = \$HTML::Embperl::row ;
+        *{"$package\:\:col"}     = \$HTML::Embperl::col ;
+        *{"$package\:\:maxrow"}  = \$HTML::Embperl::maxrow ;
+        *{"$package\:\:maxcol"}  = \$HTML::Embperl::maxcol ;
+        *{"$package\:\:tabmode"} = \$HTML::Embperl::tabmode ;
+        *{"$package\:\:escmode"} = \$HTML::Embperl::escmode ;
+    	*{"$package\:\:req_rec"} = \$HTML::Embperl::req_rec if defined ($req_rec) ;
+    	*{"$package\:\:exit"}    = \&Apache::exit if defined (&Apache::exit) ;
+        
+        *{"$package\:\:MailFormTo"} = \&HTML::Embperl::MailFormTo ;
+        *{"$package\:\:Execute"} = \&HTML::Embperl::Execute ;
+
+        tie *{"$package\:\:LOG"}, 'HTML::Embperl::Log' ;
+        tie *{"$package\:\:OUT"}, 'HTML::Embperl::Out' ;
+
+        *{"$package\:\:optDisableChdir"}                = \$HTML::Embperl::optDisableChdir                   ;
+        *{"$package\:\:optDisableEmbperlErrorPage"}     = \$HTML::Embperl::optDisableEmbperlErrorPage ;
+        *{"$package\:\:optDisableFormData"}             = \$HTML::Embperl::optDisableFormData         ;
+        *{"$package\:\:optDisableHtmlScan"}             = \$HTML::Embperl::optDisableHtmlScan         ;
+        *{"$package\:\:optDisableInputScan"}            = \$HTML::Embperl::optDisableInputScan        ;
+        *{"$package\:\:optDisableMetaScan"}             = \$HTML::Embperl::optDisableMetaScan         ;
+        *{"$package\:\:optDisableTableScan"}            = \$HTML::Embperl::optDisableTableScan        ;
+        *{"$package\:\:optDisableVarCleanup"}           = \$HTML::Embperl::optDisableVarCleanup       ;
+        *{"$package\:\:optEarlyHttpHeader"}             = \$HTML::Embperl::optEarlyHttpHeader         ;
+        *{"$package\:\:optOpcodeMask"}                  = \$HTML::Embperl::optOpcodeMask              ;
+        *{"$package\:\:optRawInput"}                    = \$HTML::Embperl::optRawInput                ;
+        *{"$package\:\:optSafeNamespace"}               = \$HTML::Embperl::optSafeNamespace           ;
+        *{"$package\:\:optSendHttpHeader"}              = \$HTML::Embperl::optSendHttpHeader          ;
+        *{"$package\:\:optAllFormData"}                 = \$HTML::Embperl::optAllFormData ;
+        *{"$package\:\:optRedirectStdout"}              = \$HTML::Embperl::optRedirectStdout ;
+        *{"$package\:\:optUndefToEmptyValue"}           = \$HTML::Embperl::optUndefToEmptyValue ;
+        
+
+        *{"$package\:\:dbgAllCmds"}               = \$HTML::Embperl::dbgAllCmds           ;
+        *{"$package\:\:dbgCacheDisable"}          = \$HTML::Embperl::dbgCacheDisable      ;
+        *{"$package\:\:dbgCmd"}                   = \$HTML::Embperl::dbgCmd               ;
+        *{"$package\:\:dbgDefEval"}               = \$HTML::Embperl::dbgDefEval           ;
+        *{"$package\:\:dbgEarlyHttpHeader"}       = \$HTML::Embperl::dbgEarlyHttpHeader   ;
+        *{"$package\:\:dbgEnv"}                   = \$HTML::Embperl::dbgEnv               ;
+        *{"$package\:\:dbgEval"}                  = \$HTML::Embperl::dbgEval              ;
+        *{"$package\:\:dbgFlushLog"}              = \$HTML::Embperl::dbgFlushLog          ;
+        *{"$package\:\:dbgFlushOutput"}           = \$HTML::Embperl::dbgFlushOutput       ;
+        *{"$package\:\:dbgForm"}                  = \$HTML::Embperl::dbgForm              ;
+        *{"$package\:\:dbgFunc"}                  = \$HTML::Embperl::dbgFunc              ;
+        *{"$package\:\:dbgHeadersIn"}             = \$HTML::Embperl::dbgHeadersIn         ;
+        *{"$package\:\:dbgInput"}                 = \$HTML::Embperl::dbgInput             ;
+        *{"$package\:\:dbgLogLink"}               = \$HTML::Embperl::dbgLogLink           ;
+        *{"$package\:\:dbgMem"}                   = \$HTML::Embperl::dbgMem               ;
+        *{"$package\:\:dbgShowCleanup"}           = \$HTML::Embperl::dbgShowCleanup       ;
+        *{"$package\:\:dbgSource"}                = \$HTML::Embperl::dbgSource            ;
+        *{"$package\:\:dbgStd"}                   = \$HTML::Embperl::dbgStd               ;
+        *{"$package\:\:dbgTab"}                   = \$HTML::Embperl::dbgTab               ;
+        *{"$package\:\:dbgWatchScalar"}           = \$HTML::Embperl::dbgWatchScalar       ;
+
+        #print LOG  "[$$]MEM:  Created Aliases for $package\n" ;
+
+        }
+
+    use strict ;
+    }
+
+#######################################################################################
+
+sub SendErrorDoc ()
+
+    {
+    my ($self) = @_ ;
+    local $SIG{__WARN__} = 'Default' ;
+    
+    my $LogfileURL ; # = $self -> VirtLogURI () ;
+    my $logfilepos = $self -> getlogfilepos () ;
+#	}
+#
+#no strict ;
+#sub xx {
+#    
+    my $req_rec = $self -> ApacheReq ;
+    my $err ;
+    my $cnt = 0 ;
+    local $HTML::Embperl::escmode = 0 ;
+    my $time = localtime ;
+    my $mail = $req_rec -> server -> server_admin if (defined ($req_rec)) ;
+    $mail ||= '' ;
+    my $virtlog = $self -> VirtLogURI || '' ;
+    my $url     = $LogfileURL || '' ;
+
+    $req_rec -> content_type('text/html') if (defined ($req_rec)) ;
+
+    $self -> output ("<HTML><HEAD><TITLE>Embperl Error</TITLE></HEAD><BODY bgcolor=\"#FFFFFF\">\r\n$url") ;
+    $self -> output ("<H1>Internal Server Error</H1>\r\n") ;
+    $self -> output ("The server encountered an internal error or misconfiguration and was unable to complete your request.<P>\r\n") ;
+    $self -> output ("Please contact the server administrator, $mail and inform them of the time the error occurred, and anything you might have done that may have caused the error.<P><P>\r\n") ;
+
+    my $errors = $self -> ErrArray() ;
+    if (defined ($LogfileURL) && $virtlog ne '')
+        {
+        foreach $err (@$errors)
+            {
+            $self -> output ("<A HREF=\"$virtlog?$logfilepos&$$#E$cnt\">") ; #<tt>") ;
+            $HTML::Embperl::escmode = 3 ;
+            $err =~ s|\n|\n\\<br\\>\\&nbsp;\\&nbsp;\\&nbsp;\\&nbsp;|g;
+            $err =~ s|(Line [0-9]*:)|$1\\</a\\>|;
+            $self -> output ($err) ;
+            $HTML::Embperl::escmode = 0 ;
+            $self -> output ("<p>\r\n") ;
+            #$self -> output ("</tt><p>\r\n") ;
+            $cnt++ ;
+            }
+        }
+    else
+        {
+        $HTML::Embperl::escmode = 3 ;
+        foreach $err (@$errors)
+            {
+            $err =~ s|\n|\n\\<br\\>\\&nbsp;\\&nbsp;\\&nbsp;\\&nbsp;|g;
+            $self -> output ("$err\\<p\\>\r\n") ;
+            #$self -> output ("\\<tt\\>$err\\</tt\\>\\<p\\>\r\n") ;
+            $cnt++ ;
+            }
+        $HTML::Embperl::escmode = 0 ;
+        }
+         
+    my $server = $ENV{SERVER_SOFTWARE} || 'Offline' ;
+
+    $self -> output ("$server HTML::Embperl $HTML::Embperl::VERSION [$time]<P>\r\n") ;
+    $self -> output ("</BODY></HTML>\r\n\r\n") ;
+
     }
 
 

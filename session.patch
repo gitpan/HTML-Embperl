@@ -1,0 +1,72 @@
+--- Session.pm.org	Wed Sep 23 05:18:36 1998
++++ Session.pm	Thu Oct  8 22:22:05 1998
+@@ -67,6 +67,9 @@
+     tie (%$self, 'Apache::TiedSession', $class, $session)  ||
+        confess "couldn't create tied hash to $class";
+   }
++  else {
++    %$ahash = %$session ;
++  }
+ 
+   $opt = options( $opt, $class->options() );
+   foreach my $key (keys %$opt) {
+@@ -184,7 +187,7 @@
+   my $subclass = $self->{'SUBCLASS'};
+ 
+   if ( $id ) {
+-    $sessionobj = $subclass->open ($id, $self->{'OPTIONS'}, 1) or die "Cannot open session $id";
++    $sessionobj = $subclass->open ($id, $self->{'OPTIONS'}, 1) ; # or die "Cannot open session $id";
+   }
+ 
+   if ( !$sessionobj ) {
+@@ -226,6 +229,7 @@
+ 
+   my $so = $self->{'DATA'};
+   $so = $self->create_session_object if ( !$self->{'DATA'} && $self->{'ID'} );
++  return undef if (!$so) ;	
+   my $reset = scalar keys %{ $so };
+   each %{ $so };
+ }
+@@ -233,6 +237,7 @@
+ sub NEXTKEY {            # continue key-looping 
+   my $self = shift;
+ 
++  return undef if (!$self->{'DATA'}) ;	
+   return each %{ $self->{'DATA'} };
+ }
+ 
+@@ -242,6 +247,7 @@
+ 
+   $self->create_session_object  if ( !$self->{'DATA'} && $self-> {'ID'}) ;
+ 
++  return undef if (!$self->{'DATA'}) ;	
+   return exists $self->{'DATA'}->{$key};
+ }
+ 
+@@ -257,7 +263,8 @@
+   my $val  = shift;
+ 
+   my $rv;
+-  warn "Okay, got to STORE";
++  #warn "Okay, got to STORE $self->{'DATA'}";
++
+   $self->create_session_object if ( !$self->{'DATA'} );
+ 
+   $rv = $self->{'DATA'}->{$key} = $val;
+@@ -280,6 +287,7 @@
+   my $rv;
+   $self->create_session_object if (!$self->{'DATA'} && $self-> {'ID'} );
+   
++  return undef if (!$self->{'DATA'}) ;	
+   $rv = $self->{'DATA'}->{$key};
+   
+   return $rv;
+@@ -307,7 +315,7 @@
+ 
+ sub DESTROY {
+   my $self = shift;
+-  warn "Now would be a good time to commit..";
++  #warn "Now would be a good time to commit..";
+   $self->{'DATA'}->store if $self->{'DIRTY'};
+ }
+ 

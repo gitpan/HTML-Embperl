@@ -19,13 +19,15 @@
 
 
 /* ---------------------------------------------------------------------------- */
-/* Output a string and escapte html special character to html special representation (&xxx;) */
-/* */
-/* i/o sData     = input:  perl string */
-/* */
+/* Output a string and escape html special character to html special            */
+/* representation (&xxx;)                                                       */
+/*                                                                              */
+/* i/o sData     = input:  perl string                                          */
+/*                                                                              */
 /* ---------------------------------------------------------------------------- */
 
-void OutputToHtml (/*i/o*/ const char *  sData)
+void OutputToHtml (/*i/o*/ register req * r,
+ 		   /*i/o*/ const char *   sData)
 
     {
     char * pHtml  ;
@@ -33,9 +35,9 @@ void OutputToHtml (/*i/o*/ const char *  sData)
     
     EPENTRY (OutputToHtml) ;
 
-    if (pCurrEscape == NULL)
+    if (r -> pCurrEscape == NULL)
         {
-        oputs (sData) ;
+        oputs (r, sData) ;
         return ;
         }
 
@@ -45,38 +47,37 @@ void OutputToHtml (/*i/o*/ const char *  sData)
         if (*sData == '\\')
             {
             if (p != sData)
-                owrite (p, 1, sData - p) ;
+                owrite (r, p, sData - p) ;
             sData++ ;
             p = sData ;
             }
         else
             {
-            pHtml = pCurrEscape[(unsigned char)(*sData)].sHtml ;
+            pHtml = r -> pCurrEscape[(unsigned char)(*sData)].sHtml ;
             if (*pHtml)
                 {
                 if (p != sData)
-                    owrite (p, 1, sData - p) ;
-                oputs (pHtml) ;
+                    owrite (r, p, sData - p) ;
+                oputs (r, pHtml) ;
                 p = sData + 1;
                 }
             }
         sData++ ;
         }
     if (p != sData)
-        owrite (p, 1, sData - p) ;
+        owrite (r, p, sData - p) ;
     }
 
 
 
-
 /* ---------------------------------------------------------------------------- */
-/* find substring ignore case */
-/* */
-/* in  pSring  = string to search in (any case) */
-/* in  pSubStr = string to search for (must be upper case) */
-/* */
-/* out ret  = pointer to pSubStr in pStringvalue or NULL if not found */
-/* */
+/* find substring ignore case                                                   */
+/*                                                                              */
+/* in  pSring  = string to search in (any case)                                 */
+/* in  pSubStr = string to search for (must be upper case)                      */
+/*                                                                              */
+/* out ret  = pointer to pSubStr in pStringvalue or NULL if not found           */
+/*                                                                              */
 /* ---------------------------------------------------------------------------- */
 
 
@@ -127,6 +128,30 @@ static char * strlower (/*in*/ char *   pString)
     }
 
 
+/* ---------------------------------------------------------------------------- */
+/* save strdup                                                                  */
+/*                                                                              */
+/* in  pSring  = string to save on memory heap                                  */
+/*                                                                              */
+/* ---------------------------------------------------------------------------- */
+
+
+char * sstrdup (/*in*/ char *   pString)
+
+    {
+    char * p ;
+    
+    if (pString == NULL)
+        return NULL ;
+
+    p = malloc (strlen (pString) + 1) ;
+
+    strcpy (p, pString) ;
+
+    return p ;
+    }
+
+
 
 /* */
 /* compare html escapes */
@@ -156,7 +181,8 @@ static int CmpCharTrans (/*in*/ const void *  pKey,
 /*                                                                           */
 /* ------------------------------------------------------------------------- */
 
-void TransHtml (/*i/o*/ char *  sData)
+void TransHtml (/*i/o*/ register req * r,
+			/*i/o*/ char *  sData)
 
     {
     char * p = sData ;
@@ -166,7 +192,7 @@ void TransHtml (/*i/o*/ char *  sData)
 
     EPENTRY (TransHtml) ;
 	
-    if (bOptions & optRawInput)
+    if (r -> bOptions & optRawInput)
 	{ /* Just remove CR for raw input */
 	while (*p != '\0')
 	    {
@@ -390,6 +416,46 @@ char * GetHashValue (/*in*/  HV *           pHash,
     }
 
 
+
+
+int    GetHashValueInt (/*in*/  HV *           pHash,
+                        /*in*/  const char *   sKey,
+                        /*in*/  int            nDefault)
+
+    {
+    SV **   ppSV ;
+    char *  p ;
+    STRLEN  len ;        
+
+    EPENTRY (GetHashValueInt) ;
+
+    ppSV = hv_fetch(pHash, (char *)sKey, strlen (sKey), 0) ;  
+    if (ppSV != NULL)
+        return SvIV (*ppSV) ;
+        
+    return nDefault ;
+    }
+
+
+char * GetHashValueStr (/*in*/  HV *           pHash,
+                        /*in*/  const char *   sKey,
+                        /*in*/  char *         sDefault)
+
+    {
+    SV **   ppSV ;
+    char *  p ;
+    STRLEN  len ;        
+
+    EPENTRY (GetHashValueInt) ;
+
+    ppSV = hv_fetch(pHash, (char *)sKey, strlen (sKey), 0) ;  
+    if (ppSV != NULL)
+        return SvPV (*ppSV, na) ;
+        
+    return sDefault ;
+    }
+
+
 /* ------------------------------------------------------------------------- */
 /*                                                                           */
 /* GetLineNo								     */
@@ -402,44 +468,44 @@ char * GetHashValue (/*in*/  HV *           pHash,
 /* ------------------------------------------------------------------------- */
 
 
-int GetLineNo ()
+int GetLineNo (/*i/o*/ register req * r)
 
     {
-    char * pPos = pCurrPos ;
+    char * pPos = r -> Buf.pCurrPos ;
     
-    if (pSourcelinePos == NULL)
-        return nSourceline = 1 ;
+    if (r -> Buf.pSourcelinePos == NULL)
+        return r -> Buf.nSourceline = 1 ;
 
-    if (pLineNoCurrPos)
-        pPos = pLineNoCurrPos ;
+    if (r -> Buf.pLineNoCurrPos)
+        pPos = r -> Buf.pLineNoCurrPos ;
 
-    if (pPos == NULL || pPos == pSourcelinePos || pPos < pBuf || pPos > pEndPos)
-        return nSourceline ;
+    if (pPos == NULL || pPos == r -> Buf.pSourcelinePos || pPos < r -> Buf.pBuf || pPos > r -> Buf.pEndPos)
+        return r -> Buf.nSourceline ;
 
 
-    if (pPos > pSourcelinePos)
+    if (pPos > r -> Buf.pSourcelinePos)
         {
-        char * p = pSourcelinePos ;
+        char * p = r -> Buf.pSourcelinePos ;
 
-        while (p < pPos && p < pEndPos)
+        while (p < pPos && p < r -> Buf.pEndPos)
             {
             if (*p++ == '\n')
-                nSourceline++ ;
+                r -> Buf.nSourceline++ ;
             }
         }
     else
         {
-        char * p = pSourcelinePos ;
+        char * p = r -> Buf.pSourcelinePos ;
 
-        while (p > pPos && p > pBuf)
+        while (p > pPos && p > r -> Buf.pBuf)
             {
             if (*--p == '\n')
-                nSourceline-- ;
+                r -> Buf.nSourceline-- ;
             }
         }
 
-    pSourcelinePos = pPos ;
-    return nSourceline ;
+    r -> Buf.pSourcelinePos = pPos ;
+    return r -> Buf.nSourceline ;
     }
 
 

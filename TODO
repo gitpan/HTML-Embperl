@@ -6,8 +6,15 @@ TODO for Embperl
 
 - @param -> @_
 
-- delete empty lines
+- delete empty lines [Todd Eigenshrink]
 
+- test FORBIDDEN
 
-- dSP; at setup request [Philip Chu]
+- Apache::Session tests
 
+- NOT_FOUND -> Apache::Constants ?
+- upload.htm leaks one SV -> CGI.pm problem ?
+
+- include patch for empty form field [Steve Willer]
+
+- patch for complie on AIX [Gerald McLarnon]

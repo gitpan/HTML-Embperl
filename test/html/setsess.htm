@@ -1,0 +1,49 @@
+<html>
+<head>
+<title>Tests for Embperl - Set Session Data</title>
+</head>
+
+
+<body>
+
+
+	fdat:<br>
+	[- @ks = sort keys %fdat -]
+
+	<table>
+		<tr>
+			<td>[+ $ks[$row] +]</td><td>[+ $fdat{$ks[$row] || ''} +]</td>
+		</tr>
+	</table>
+
+	udat:<br>
+	[- @ks = sort keys %udat -]
+
+	<table>
+		<tr>
+			<td>[+ $ks[$row] +]</td><td>[+ $udat{$ks[$row] || ''} +]</td>
+		</tr>
+	</table>
+
+	[- 
+	while (($k, $v) = each (%fdat))
+		{
+		$udat{$k} = $fdat{$k} ;
+		}
+	-]
+
+
+
+	[- $s = $Apache::Session::Win32::sessions -]
+
+	[- @ks = sort keys %$s -]
+
+	sessions:
+	<table>
+		<tr>
+			<td>[+ $ks[$row] +]</td><td>[+ $s -> {$ks[$row] || ''} +]</td>
+		</tr>
+	</table>
+
+</body>
+</html>

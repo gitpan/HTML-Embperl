@@ -65,6 +65,7 @@
 
 #include "epnames.h"
 
+#include "epdat.h"
 #include "embperl.h"
 
 #ifdef WIN32
@@ -75,76 +76,61 @@
 #define PATH_MAX 512
 #endif
 
+
+/* ---- global variables ---- */
+
+extern tReq * pCurrReq ;                  /* Set before every eval (NOT thread safe!!) */ 
+extern tReq   InitialReq ;                /* Initial request - holds default values */
+
+
 /* ---- from epmain.c ----- */
 
-/* Debug Flags */
-
-extern int  bDebug ;
-
-/* Options */
-
-extern int  bOptions ;
-
-
-extern int  bError ;       /* Error has occured somewhere */
-extern char lastwarn [ERRDATLEN]  ;
-
-/* Apache Request Record */
-
-#ifdef APACHE
-extern request_rec * pReq ;
-#endif
-
-
-extern char cMultFieldSep ;  /* Separator if a form filed is multiplie defined */
-
-
-
-extern HV *    pCacheHash ; /* Hash containing CVs to precompiled subs */
-extern HV *    pFormHash ;  /* Formular data */
-extern HV *    pFormSplitHash ; /* Formular data split up at \t */
-extern AV *    pFormArray ; /* Fieldnames */
-extern HV *    pInputHash ; /* Data of input fields */
-
-extern char *  sEvalPackage ; /* Currently active Package */
-extern STRLEN  nEvalPackage ; /* Currently active Package (length) */
-
-extern char sLogfileURLName[] ;
-
-extern char * pBuf ;        /* Buffer which holds the html source file */
-extern char * pCurrPos ;    /* Current position in html file */
-extern char * pCurrStart ;  /* Current start position of html tag / eval expression */
-extern char * pEndPos ;     /* end of html file */
-extern char * pCurrTag ;    /* Current start position of html tag */
-
-extern char * sSourcefile ; /* Name of sourcefile */
-extern int    nSourceline ; /* Currentline in sourcefile */
-extern char * pSourcelinePos ; /* Positon of nSourceline in sourcefile */
-extern char * pLineNoCurrPos ; /* save pCurrPos for line no calculation */                     
                      
 #define nInitialScanOutputSize 2048
 
-int iembperl_init (int  nIOType,
-                   const char * sLogFile) ;
-int iembperl_setreqrec  (/*in*/ SV *   pReqSV) ;
-int iembperl_resetreqrec  (/*in*/ int bResetHandler) ;
-int iembperl_term (void) ;
-int iembperl_req  (/*in*/ char *  sInputfile,
-                   /*in*/ char *  sOutputfile,
-                   /*in*/ int     bDebugFlags,
-                   /*in*/ int     bOptionFlags,
-                   /*in*/ STRLEN  nFileSize,
-                   /*in*/ HV *    pCache,
-                   /*in*/ SV *    pInData,
-                   /*in*/ SV *    pOutData) ;
-int ScanCmdEvalsInString (/*in*/  char *   pIn,
+int Init          (int          nIOType,
+                   const char * sLogFile,
+                   int          nDebugDefault) ;
+
+int ResetHandler (/*in*/ SV * pApacheReqSV) ;
+
+int Term (void) ;
+
+int ExecuteReq (/*i/o*/ register req * r,
+                /*in*/  SV *           pReqSV) ;
+
+tReq * SetupRequest (/*in*/ SV *    pApacheReqSV,
+                     /*in*/ char *  sSourcefile,
+                     /*in*/ long    mtime,
+                     /*in*/ long    nFilesize,
+                     /*in*/ char *  sOutputfile,
+                     /*in*/ tConf * pConf,
+                     /*in*/ int     nIOType,
+                     /*in*/ SV *    pIn,
+                     /*in*/ SV *    pOut) ;
+
+void FreeRequest (/*i/o*/ register req * r) ;
+                   
+tFile * SetupFileData   (/*i/o*/ register req * r,
+                         /*in*/ char *  sSourcefile,
+                         /*in*/ long    mtime,
+                         /*in*/ long    nFilesize,
+                         /*in*/ tConf * pConf) ;
+
+tConf * SetupConfData   (/*in*/ HV *   pReqInfo,
+                         /*in*/ SV *   pOpcodeMask) ;
+                         
+
+int ScanCmdEvalsInString (/*i/o*/ register req * r,
+			/*in*/  char *   pIn,
                           /*out*/ char * * pOut,
                           /*in*/  size_t   nSize,
                           /*out*/ char * * pFree) ;
     
-char * LogError (/*in*/ int   rc) ;
-void CommitError (void) ;
-void RollbackError (void) ;
+char * LogError (/*i/o*/ register req * r,
+			/*in*/ int   rc) ;
+void CommitError (/*i/o*/ register req * r) ;
+void RollbackError (/*i/o*/ register req * r) ;
 
 /* ---- from epio.c ----- */
 
@@ -162,56 +148,86 @@ struct tBuf
     } ;
 
 
-extern int     nMarker ;
-
 
 /* i/o functions */
 
 
-int OpenInput   (/*in*/ const char *  sFilename) ;
-int CloseInput  (void) ;
-int iread       (/*in*/ void * ptr, size_t size) ;
-char * igets    (/*in*/ char * s,   int    size) ;
+int OpenInput (/*i/o*/ register req * r,
+			/*in*/ const char *  sFilename) ;
+int CloseInput (/*i/o*/ register req * r) ;
+int iread (/*i/o*/ register req * r,
+			/*in*/ void * ptr,
+                        /*in*/ size_t size) ;
+char * igets (/*i/o*/ register req * r,
+			/*in*/ char * s,
+                        /*in*/ int    size) ;
+
+int ReadHTML (/*i/o*/ register req * r,
+	      /*in*/    char *    sInputfile,
+              /*in*/    size_t *  nFileSize,
+              /*out*/   SV   * *  ppBuf) ;
 
 
-int OpenOutput  (/*in*/ const char *  sFilename) ;
-int CloseOutput (void) ;
-int owrite      (/*in*/ const void * ptr, size_t size, size_t nmemb) ;
-void oputc       (/*in*/ char c) ;
-int oputs (/*in*/ const char *  str) ;
+int OpenOutput (/*i/o*/ register req * r,
+			/*in*/ const char *  sFilename) ;
+int CloseOutput (/*i/o*/ register req * r) ;
+int owrite (/*i/o*/ register req * r,
+			/*in*/ const void * ptr, 
+                        /*in*/ size_t size) ;
+void oputc (/*i/o*/ register req * r,
+			/*in*/ char c) ;
+int oputs (/*i/o*/ register req * r,
+			/*in*/ const char *  str) ;
 
-void OutputToMemBuf (/*in*/ char *  pBuf,
+void OutputToMemBuf (/*i/o*/ register req * r,
+			/*in*/ char *  pBuf,
                      /*in*/ size_t  nBufSize) ;
-char * OutputToStd (void) ;
+char * OutputToStd (/*i/o*/ register req * r) ;
 
 
              
-struct tBuf *   oBegin (void) ;
-void oRollback (struct tBuf *   pBuf) ;
-void oRollbackOutput (struct tBuf *   pBuf) ;
-void oCommit (struct tBuf *   pBuf) ;
-void oCommitToMem (struct tBuf *   pBuf,
+struct tBuf *   oBegin (/*i/o*/ register req * r) ;
+void oRollback (/*i/o*/ register req * r,
+			struct tBuf *   pBuf) ;
+void oRollbackOutput (/*i/o*/ register req * r,
+			struct tBuf *   pBuf) ;
+void oCommit (/*i/o*/ register req * r,
+			struct tBuf *   pBuf) ;
+void oCommitToMem (/*i/o*/ register req * r,
+			struct tBuf *   pBuf,
                    char *          pOut) ;
 
-int GetContentLength (void) ;
+int GetContentLength (/*i/o*/ register req * r) ;
 
-int OpenLog     (/*in*/ const char *  sFilename,
+int OpenLog (/*i/o*/ register req * r,
+			/*in*/ const char *  sFilename,
                  /*in*/ int           nMode) ;
-int CloseLog    (void) ;
-int FlushLog    (void) ;
-int lprintf     (/*in*/ const char *  sFormat,
+int CloseLog (/*i/o*/ register req * r) ;
+int FlushLog (/*i/o*/ register req * r) ;
+int lprintf (/*i/o*/ register req * r,
+			/*in*/ const char *  sFormat,
                  /*in*/ ...) ;
+int lwrite (/*i/o*/ register req * r,
+	    /*in*/  const void * ptr, 
+            /*in*/  size_t size) ;
 
-long GetLogFilePos (void) ;
-int GetLogHandle (void) ;
-
+long GetLogFilePos (/*i/o*/ register req * r) ;
+int GetLogHandle (/*i/o*/ register req * r) ;
 
 /* Memory Allocation */
 
-void _free (void * p) ;
-void * _malloc (size_t  size) ;
-void * _realloc (void * ptr, size_t  size) ;
-char *  _memstrcat (const char *s, ...) ;
+void _free          (/*i/o*/ register req * r,
+			     void * p) ;
+void * _malloc      (/*i/o*/ register req * r, size_t  size) ;
+void * _realloc     (/*i/o*/ register req * r,  void * ptr, size_t oldsize, size_t  size) ;
+char * _memstrcat   (/*i/o*/ register req * r,
+			     const char *s, ...) ;
+char * __strdup     (/*i/o*/ register req * r,
+                     /*in*/  const char * str) ;
+char * __strndup    (/*i/o*/ register req * r,
+                     /*in*/  const char *   str,
+                     /*in*/  int            len) ;
+
 
 /* ---- from epchar.c ----- */
 
@@ -231,140 +247,21 @@ extern struct tCharTrans Char2Html [] ;
 extern struct tCharTrans Char2Url  [] ; 
 extern struct tCharTrans Html2Char [] ;
 extern int sizeHtml2Char ;
-extern struct tCharTrans * pCurrEscape ;
-extern struct tCharTrans * pNextEscape ;
-extern int bEscMode ;
-extern int bEscModeSet ;
 
 /* ---- from epcmd.c ----- */
 
-/*
-   Commandtypes 
-*/
-
-enum tCmdType
-    {
-    cmdNorm     = 1,
-    cmdIf       = 2,
-    cmdEndif    = 4,
-    cmdWhile    = 8,
-    cmdTable    = 16,
-    cmdTablerow = 32,
-    cmdTextarea = 64,
-    cmdDo       = 128,
-    cmdForeach  = 256,
-
-    cmdAll      = 511
-    } ;
-
-enum tCmdNo
-    {
-    cnNop,       
-    cnTable,
-    cnTr,
-    cnDir,
-    cnMenu,
-    cnOl,
-    cnUl,
-    cnDl,
-    cnSelect,
-    cnDo,
-    cnForeach,
-    } ;
-
-/* */
-/* Commands */
-/* */
-
-struct tCmd
-    {
-    const char *    sCmdName ;     /* Commandname */
-    int            ( *pProc)(/*in*/ const char *   sArg) ;   /* pointer to the procedure */
-    bool            bPush ;         /* Push current state? */
-    bool            bPop ;          /* Pop last state? */
-    enum tCmdType   nCmdType ;      /* Type of the command  */
-    bool            bScanArg ;      /* is it nessesary to scan the command arg */
-    bool            bSaveArg ;      /* is it nessesary to save the command arg for later use */
-    enum tCmdNo     nCmdNo ;        /* number of command to catch mismatch in start/end */
-    int             bDisableOption ; /* option bit which disables this cmd */
-    bool            bHtml ;          /* this is an html tag */
-    } ;
 
 
-/*
-   Stack 
-*/
-
-struct tStackEntry
-    {
-    enum tCmdType   nCmdType ;      /* Type of the command which the pushed the entry on the stack */
-    char *          pStart ;        /* Startposition fpr loops */
-    long            bProcessCmds ;  /* Process corresponding cmds */
-    int             nResult ;       /* Result of Command which starts the block */
-    char *          sArg ;          /* Argument of Command which starts the block */
-    SV *            pSV ;           /* Additional Data */
-    SV *            pSV2 ;          /* Additional Data */
-    struct tBuf *   pBuf ;          /* Output buf for table rollback          */
-    struct tCmd *   pCmd ;          /* pointer to command infos */
-    } ;
-
-#define nStackMax 100           /* Max level of nesting */
-
-
-extern int nStack  ;                /* Stackpointer */
-extern struct tStackEntry State ;             /* current State */
-extern char ArgStack [16384] ;
-extern char * pArgStack  ;
-
-extern int nHtmlStack  ;                /* Stackpointer */
-extern struct tStackEntry HtmlState ;             /* current State */
-extern char ArgHtmlStack [16384] ;
-extern char * pArgHtmlStack  ;
-
-/* */
-/* Stack for dynamic table counters */
-/* */
-
-struct tTableStackEntry
-    {
-    int             nResult ;       /* Result of Command which starts the block */
-    int             nCount ;        /* Count for tables, lists etc */
-    int             nCountUsed ;    /* Count for tables, lists is used in Table  */
-    int             nRow ;          /* Row Count for tables, lists etc */
-    int             nRowUsed ;      /* Row Count for tables, lists is used in Table  */
-    int             nCol ;          /* Column Count for tables, lists etc */
-    int             nColUsed ;      /* Column Count for tables, lists is used in Table  */
-    int             nMaxRow ;       /* maximum rows */
-    int             nMaxCol ;       /* maximum columns */
-    int             nTabMode ;      /* table mode */
-    int             bHead ;         /* this row contains a heading */
-    int             bRowHead ;      /* the entire row is made of th tags */
-    int             nStackTable ;   /* stack entry for table tag */
-    } ;
-
-
-extern struct tTableStackEntry TableStack [nStackMax] ; /* Stack for table */
-
-extern int nTableStack  ;                /* Stackpointer */
-
-extern struct tTableStackEntry TableState ;             /* current State */
-
-
-extern int nTabMode    ;    /* mode for next table (only takes affect after next <TABLE> */
-extern int nTabMaxRow  ;    /* maximum rows for next table (only takes affect after next <TABLE> */
-extern int nTabMaxCol  ;    /* maximum columns for next table (only takes affect after next <TABLE> */
-
-
-int  SearchCmd          (/*in*/  const char *    sCmdName,
+int SearchCmd (/*i/o*/ register req * r,
+			/*in*/  const char *    sCmdName,
                          /*in*/  int             nCmdLen,
                          /*in*/  const char *    sArg,
                          /*in*/  int             bIgnore,
                          /*out*/ struct tCmd * * ppCmd) ;
 
-int  ProcessCmd        (/*in*/ struct tCmd *  pCmd,
+int ProcessCmd (/*i/o*/ register req * r,
+			/*in*/ struct tCmd *  pCmd,
                         /*in*/ const char *    sArg) ;
-
-extern int  bStrict ; /* aply use strict in each eval */
 
 /* ---- from eputil.c ----- */
 
@@ -380,14 +277,27 @@ char * GetHashValueLen (/*in*/  HV *           pHash,
                         /*in*/  int            nMaxLen,
                         /*out*/ char *         sValue) ;
 
+int    GetHashValueInt (/*in*/  HV *           pHash,
+                        /*in*/  const char *   sKey,
+                        /*in*/  int            nDefault) ;
+
+char * GetHashValueStr (/*in*/  HV *           pHash,
+                        /*in*/  const char *   sKey,
+                        /*in*/  char *         sDefault) ;
+
+
 const char * GetHtmlArg (/*in*/  const char *    pTag,
                          /*in*/  const char *    pArg,
                          /*out*/ int *           pLen) ;
 
-void TransHtml (/*i/o*/ char *  sData) ;
+void OutputToHtml (/*i/o*/ register req * r,
+ 		   /*i/o*/ const char *   sData) ;
+
+void TransHtml (/*i/o*/ register req * r,
+		/*i/o*/ char *  sData) ;
 
 
-int GetLineNo (void) ;
+int GetLineNo (/*i/o*/ register req * r) ;
 
 #ifndef WIN32
 #define strnicmp strncasecmp
@@ -397,31 +307,41 @@ void Dirname (/*in*/ const char * filename,
               /*out*/ char *      dirname,
               /*in*/  int         size) ;
 
+char * sstrdup (/*in*/ char *   pString) ;
 
 /* ---- from epeval.c ----- */
 
-extern int numEvals ;
-extern int numCacheHits ;
 
-int EvalDirect (/*in*/  SV * pArg) ;
+int EvalDirect (/*i/o*/ register req * r,
+			/*in*/  SV * pArg) ;
 
-int EvalNum (/*in*/  char *        sArg,
+int EvalNum (/*i/o*/ register req * r,
+	     /*in*/  char *        sArg,
              /*in*/  int           nFilepos,
              /*out*/ int *         pNum) ;            
 
-int Eval (/*in*/  const char *  sArg,
+int Eval (/*i/o*/ register req * r,
+	  /*in*/  const char *  sArg,
           /*in*/  int           nFilepos,
           /*out*/ SV **         pRet) ;
 
-int EvalTrans (/*in*/  char *   sArg,
+int EvalTrans (/*i/o*/ register req * r,
+	       /*in*/  char *   sArg,
                /*in*/  int      nFilepos,
                /*out*/ SV **    pRet) ;
 
-int EvalTransFlags (/*in*/  char *   sArg,
+int EvalTransFlags (/*i/o*/ register req * r,
+ 		    /*in*/  char *   sArg,
                    /*in*/  int      nFilepos,
                    /*in*/  int      flags,
                    /*out*/ SV **    pRet) ;
 
-int EvalTransOnFirstCall (/*in*/  char *   sArg,
+int EvalTransOnFirstCall (/*i/o*/ register req * r,
+			  /*in*/  char *   sArg,
                           /*in*/  int      nFilepos,
                           /*out*/ SV **    pRet) ;            
+
+int EvalBool (/*i/o*/ register req * r,
+	      /*in*/  char *        sArg,
+              /*in*/  int           nFilepos,
+              /*out*/ int *         pTrue) ;

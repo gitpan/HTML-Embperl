@@ -1,0 +1,33 @@
+TYPEMAP
+tConf * T_PTROBJ_CONF
+tReq *  T_PTROBJ_REQ
+tFile * T_PTROBJ_FILE
+
+INPUT
+T_PTROBJ_CONF
+    if (sv_derived_from ($arg, \"HTML::Embperl::Conf\"))
+        $var = (tConf *)(SvIV((SV *)SvRV($arg))) ;
+    else
+        croak (\"$var is not of type HTML::Embperl::Conf\") ;
+
+T_PTROBJ_REQ
+    if (sv_derived_from ($arg, \"HTML::Embperl::Req\"))
+        $var = (tReq *)(SvIV((SV *)SvRV($arg))) ;
+    else
+        croak (\"$var is not of type HTML::Embperl::Req\") ;
+
+T_PTROBJ_FILE
+    if (sv_derived_from ($arg, \"HTML::Embperl::File\"))
+        $var = (tFile *)(SvIV((SV *)SvRV($arg))) ;
+    else
+        croak (\"$var is not of type HTML::Embperl::File\") ;
+
+OUTPUT
+T_PTROBJ_CONF
+    sv_setref_pv ($arg, \"HTML::Embperl::Conf\", (void *)$var) ;
+
+T_PTROBJ_REQ
+    sv_setref_pv ($arg, \"HTML::Embperl::Req\", (void *)$var) ;
+ 
+T_PTROBJ_FILE
+    sv_setref_pv ($arg, \"HTML::Embperl::File\", (void *)$var) ;

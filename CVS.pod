@@ -1,7 +1,7 @@
 
 =head1 CVS - Access to the Embperl CVS development tree
 
-=head2 DESCRIPTION
+=head2 INTRO
 
 The Embperl development tree lives on the same machine as
 perl.apache.org.  This tree contains the latest Embperl bug fixes and

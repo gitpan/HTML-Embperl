@@ -1,5 +1,19 @@
 =pod
 
+=head1 1.2b1  8 Oct 1998
+
+   - I have reworked the whole source code so Embperl is now
+     going to be an object. This means Embperl is reentrant, you
+     can call Execute within an Embperl page, for example to include
+     the same header on each page.
+   - Addeded Session handling via Apache::Session. Simply store data
+     to %udat and let Embperl do the rest for you. Experimental!
+     NOTE: You need Apache-Session-0.16.1 or higher and must apply
+     the patch from session.patch to it.
+   - Added test for calling Execute inside a Embperl page
+   - Errors of Input/Output function now also log to the httpd error log
+   - Added an test for input file not found
+
 =head1 1.1.1  15 Sep 1998
 
    - A lot of documentation updates. Now Embperl ships with most of 

@@ -14,13 +14,13 @@
 
 #define ADDINTMG(name)    \
     if (rc == 0)    \
-        rc = AddMagic (s##name##Name, &EMBPERL_mvtTab##name) ;
+        rc = AddMagic (r, s##name##Name, &EMBPERL_mvtTab##name) ;
 
 #define OPTPREFIX "HTML::Embperl::"
 
 #define ADDOPTMG(name)    \
     if (rc == 0)    \
-        rc = AddMagic (OPTPREFIX#name, &EMBPERL_mvtTab##name) ;
+        rc = AddMagic (r, OPTPREFIX#name, &EMBPERL_mvtTab##name) ;
 
 
 #define INTMG(name,var,used,sub) \
@@ -28,19 +28,21 @@
 int EMBPERL_mgGet##name (SV * pSV, MAGIC * mg) \
 \
     { \
+\
     sv_setiv (pSV, var) ; \
     used++ ; \
-    if ((bDebug & dbgTab) && bReqRunning) \
-        lprintf ("[%d]TAB:  get %s = %d, Used = %d\n", nPid, #name, var, used) ; \
+    if ((pCurrReq -> bDebug & dbgTab) && pCurrReq -> bReqRunning) \
+        lprintf (pCurrReq, "[%d]TAB:  get %s = %d, Used = %d\n", pCurrReq -> nPid, #name, var, used) ; \
     return 0 ; \
     } \
 \
     int EMBPERL_mgSet##name (SV * pSV, MAGIC * mg) \
 \
     { \
+\
     var = SvIV (pSV) ; \
-    if ((bDebug & dbgTab) && bReqRunning) \
-        lprintf ("[%d]TAB:  set %s = %d, Used = %d\n", nPid, #name, var, used) ; \
+    if ((pCurrReq -> bDebug & dbgTab) && pCurrReq -> bReqRunning) \
+        lprintf (pCurrReq, "[%d]TAB:  set %s = %d, Used = %d\n", pCurrReq -> nPid, #name, var, used) ; \
     sub ; \
     return 0 ; \
     } \
@@ -53,6 +55,7 @@ int EMBPERL_mgGet##name (SV * pSV, MAGIC * mg) \
 int EMBPERL_mgGet##name (SV * pSV, MAGIC * mg) \
 \
     { \
+\
     sv_setiv (pSV, (var & name)?1:0) ; \
     return 0 ; \
     } \
@@ -71,6 +74,7 @@ int EMBPERL_mgGet##name (SV * pSV, MAGIC * mg) \
 int EMBPERL_mgGet##name (SV * pSV, MAGIC * mg) \
 \
     { \
+\
     sv_setiv (pSV, (var & name)?1:0) ; \
     return 0 ; \
     } \
@@ -78,6 +82,7 @@ int EMBPERL_mgGet##name (SV * pSV, MAGIC * mg) \
     int EMBPERL_mgSet##name (SV * pSV, MAGIC * mg) \
 \
     { \
+\
     if (SvIV (pSV)) \
         var |= name ; \
     else \
@@ -91,9 +96,9 @@ int EMBPERL_mgGet##name (SV * pSV, MAGIC * mg) \
 
 
 #ifdef EPDEBUGALL
-#define EPENTRY(func) if (bDebug & dbgFunc) { lprintf ("[%d]DBG:  %dms %s\n", nPid, clock () * 1000 / CLOCKS_PER_SEC, #func) ; FlushLog () ; }
-#define EPENTRY1N(func,arg1) if (bDebug & dbgFunc) { lprintf ("[%d]DBG:  %dms %s %d\n", nPid, clock () * 1000 / CLOCKS_PER_SEC, #func, arg1) ; FlushLog () ; }
-#define EPENTRY1S(func,arg1) if (bDebug & dbgFunc) { lprintf ("[%d]DBG:  %dms %s %s\n", nPid, clock () * 1000 / CLOCKS_PER_SEC, #func, arg1) ; FlushLog () ; }
+#define EPENTRY(func) if (r -> bDebug & dbgFunc) { lprintf ("[%d]DBG:  %dms %s\n", r -> nPid, clock () * 1000 / CLOCKS_PER_SEC, #func) ; FlushLog () ; }
+#define EPENTRY1N(func,arg1) if (r -> bDebug & dbgFunc) { lprintf ("[%d]DBG:  %dms %s %d\n", r -> nPid, clock () * 1000 / CLOCKS_PER_SEC, #func, arg1) ; FlushLog () ; }
+#define EPENTRY1S(func,arg1) if (r -> bDebug & dbgFunc) { lprintf ("[%d]DBG:  %dms %s %s\n", r -> nPid, clock () * 1000 / CLOCKS_PER_SEC, #func, arg1) ; FlushLog () ; }
 #else
 #define EPENTRY(func)
 #define EPENTRY1N(func,arg1)

@@ -22,9 +22,7 @@ extern "C" {
 }
 #endif
 
-#include "epnames.h"
-#include "embperl.h"
-#include <time.h>
+#include "ep.h"
 
 static int
 not_here(s)
@@ -125,7 +123,9 @@ static int constants()
     return ok;
 }
 
-MODULE = HTML::Embperl		PACKAGE = HTML::Embperl
+# /* ############################################################################### */
+
+MODULE = HTML::Embperl      PACKAGE = HTML::Embperl     PREFIX = embperl_
 
 
 int
@@ -137,28 +137,34 @@ OUTPUT:
 
 
 int
-embperl_init(nIOType, sLogFile)
+embperl_XS_Init(nIOType, sLogFile, nDebugDefault)
     int nIOType
     char * sLogFile
+    int    nDebugDefault
 CODE:
-    RETVAL = iembperl_init(nIOType, sLogFile) ;
+    RETVAL = Init(nIOType, sLogFile, nDebugDefault) ;
 OUTPUT:
     RETVAL
+
+
+
 
 int
-embperl_setreqrec(pReqSV)
-    SV * pReqSV
+embperl_XS_Term()
 CODE:
-    RETVAL = iembperl_setreqrec(pReqSV) ;
+    RETVAL = Term() ;
 OUTPUT:
     RETVAL
 
-void
-embperl_resetreqrec(bResetHandler=0)
-int bResetHandler
-CODE:
-    iembperl_resetreqrec(bResetHandler) ;
 
+
+int
+embperl_ResetHandler(pReqSV)
+    SV * pReqSV
+CODE:
+    RETVAL = ResetHandler(pReqSV) ;
+OUTPUT:
+    RETVAL
 
 
 
@@ -172,103 +178,44 @@ CODE:
 #endif
 
 
-int
-embperl_req(sInputfile, sOutputfile, bDebugFlags, bOptionFlags, nFileSize, pCache, pInData, pOutData)
-    char * sInputfile
-    char * sOutputfile
-    int bDebugFlags
-    int bOptionFlags
-    int    nFileSize
-    HV   * pCache = NO_INIT 
-    SV   * pInData 
-    SV   * pOutData 
+# /* ---- Configuration data ----- */
+
+tConf *
+embperl_SetupConfData(req,opcodemask) 
+    HV *    req = NO_INIT
+    SV *    opcodemask 
 INIT:
-    pCache = (HV *)SvRV((SvRV(ST(5))));
+    req = (HV *)SvRV(ST(0));
 CODE:
-    RETVAL = iembperl_req(sInputfile, sOutputfile, bDebugFlags, bOptionFlags, nFileSize, pCache, pInData, pOutData) ; 
+    RETVAL = SetupConfData(req, opcodemask) ;
 OUTPUT:
     RETVAL
 
 
-int
-embperl_term()
-CODE:
-    RETVAL = iembperl_term() ;
+# /* ----- Request data ----- */
+
+tReq *
+embperl_SetupRequest(req_rec,sInputfile,mtime,filesize,sOutputfile,pConf,nIOtype,pIn,pOut) 
+    SV *    req_rec
+    char *  sInputfile
+    long    mtime
+    long    filesize
+    char *  sOutputfile = NO_INIT
+    tConf * pConf
+    int     nIOtype
+    SV *    pIn
+    SV *    pOut
+INIT:
+    if (SvOK(ST(4)))
+        sOutputfile = SvPV(ST(4), na);
+    else
+        sOutputfile = "\1" ; 
+CODE:        
+    RETVAL = SetupRequest(req_rec,sInputfile,mtime,filesize,sOutputfile,pConf,nIOtype,pIn,pOut) ;
 OUTPUT:
     RETVAL
 
 
-int
-embperl_logevalerr(sText)
-    char * sText
-CODE:
-     int l = strlen (sText) ;
-     while (l > 0 && isspace(sText[l-1]))
-        sText[--l] = '\0' ;
-
-     strncpy (errdat1, sText, sizeof (errdat1) - 1) ;
-     LogError (rcEvalErr) ;
-
-int
-embperl_logerror(code, sText)
-    int    code
-    char * sText
-CODE:
-     strncpy (errdat1, sText, sizeof (errdat1) - 1) ;
-     LogError (code) ;
-
-int
-embperl_getloghandle()
-CODE:
-    RETVAL = GetLogHandle() ;
-OUTPUT:
-    RETVAL
-
-
-long
-embperl_getlogfilepos()
-CODE:
-    OpenLog ("", 2) ;
-    RETVAL = GetLogFilePos() ;
-OUTPUT:
-    RETVAL
-
-
-
-void
-embperl_output(sText)
-    char * sText
-CODE:
-    OutputToHtml (sText) ;
-
-
-void
-embperl_log(sText)
-    char * sText
-CODE:
-    OpenLog ("", 2) ;
-    lwrite (sText, strlen (sText), 1) ;
-
-void
-embperl_flushlog()
-CODE:
-    FlushLog () ;
-
-
-
-int
-embperl_getlineno()
-CODE:
-    RETVAL = GetLineNo () ;
-OUTPUT:
-    RETVAL
-
-
-void
-log_svs(sText)
-    char * sText
-CODE:
-        lprintf ("[%d]MEM:  %s: SVs: %d OBJs: %d\n", nPid, sText, sv_count, sv_objcount) ;
 
 
 
@@ -282,3 +229,275 @@ CODE:
 #endif        
 OUTPUT:
     RETVAL
+
+
+int
+embperl_logerror(code, sText)
+    int    code
+    char * sText
+INIT:
+    tReq * r = pCurrReq ;
+CODE:
+     strncpy (r->errdat1, sText, sizeof (r->errdat1) - 1) ;
+     LogError (r,code) ;
+
+
+void
+embperl_log(sText)
+    char * sText
+INIT:
+    tReq * r = pCurrReq ;
+CODE:
+    OpenLog (r,"", 2) ;
+    lwrite (r,sText, strlen (sText)) ;
+
+
+void
+embperl_output(sText)
+    char * sText
+INIT:
+    tReq * r = pCurrReq ;
+CODE:
+    OutputToHtml (r,sText) ;
+
+
+int
+embperl_logevalerr(r,sText)
+    char * sText
+PREINIT:
+    int l ;
+INIT:
+    tReq * r = pCurrReq ;
+CODE:
+     l = strlen (sText) ;
+     while (l > 0 && isspace(sText[l-1]))
+        sText[--l] = '\0' ;
+
+     strncpy (r -> errdat1, sText, sizeof (r -> errdat1) - 1) ;
+     LogError (r, rcEvalErr) ;
+
+
+int
+embperl_getlineno()
+INIT:
+    tReq * r = pCurrReq ;
+CODE:
+    RETVAL = GetLineNo (r) ;
+OUTPUT:
+    RETVAL
+
+
+void
+embperl_flushlog()
+INIT:
+    tReq * r = pCurrReq ;
+CODE:
+    FlushLog (r) ;
+
+
+char *
+embperl_Sourcefile()
+INIT:
+    tReq * r = pCurrReq ;
+CODE:
+    if (r -> Buf.pFile)
+        RETVAL = r -> Buf.pFile -> sSourcefile ;
+    else
+        RETVAL = NULL ;
+OUTPUT:
+    RETVAL
+
+
+
+################################################################################
+
+MODULE = HTML::Embperl      PACKAGE = HTML::Embperl::Req     PREFIX = embperl_
+
+
+char *
+embperl_CurrPackage(r)
+    tReq * r
+CODE:
+    if (r -> Buf.pFile)
+        RETVAL = r -> Buf.pFile -> sCurrPackage ;
+    else
+        RETVAL = NULL ;
+OUTPUT:
+    RETVAL
+
+
+char *
+embperl_Sourcefile(r)
+    tReq * r
+CODE:
+    if (r -> Buf.pFile)
+        RETVAL = r -> Buf.pFile -> sSourcefile ;
+    else
+        RETVAL = NULL ;
+OUTPUT:
+    RETVAL
+
+
+SV *
+embperl_ApacheReq(r)
+    tReq * r
+CODE:
+#ifdef APACHE
+    ST(0) = r -> pApacheReqSV ;
+    SvREFCNT_inc(ST(0)) ;
+    sv_2mortal(ST(0));
+#else
+    ST(0) = &sv_undef ;
+#endif
+
+
+
+SV *
+embperl_ErrArray(r)
+    tReq * r
+CODE:
+    RETVAL = newRV_inc((SV *)r -> pErrArray) ;
+OUTPUT:
+    RETVAL
+
+
+
+
+
+char *
+embperl_VirtLogURI(r)
+    tReq * r
+CODE:
+    if (r -> pConf)
+        RETVAL = r -> pConf -> sVirtLogURI ;
+    else
+        RETVAL = NULL ;
+OUTPUT:
+    RETVAL
+
+
+int
+embperl_SubReq(r)
+    tReq * r
+CODE:
+    RETVAL = r -> bSubReq ;
+OUTPUT:
+    RETVAL
+
+
+
+
+int
+embperl_logevalerr(r,sText)
+    tReq * r
+    char * sText
+PREINIT:
+    int l ;
+CODE:
+     l = strlen (sText) ;
+     while (l > 0 && isspace(sText[l-1]))
+        sText[--l] = '\0' ;
+
+     strncpy (r -> errdat1, sText, sizeof (r -> errdat1) - 1) ;
+     LogError (r, rcEvalErr) ;
+
+int
+embperl_logerror(r,code, sText)
+    tReq * r
+    int    code
+    char * sText
+CODE:
+     strncpy (r->errdat1, sText, sizeof (r->errdat1) - 1) ;
+     LogError (r,code) ;
+
+int
+embperl_getloghandle(r)
+    tReq * r
+CODE:
+    RETVAL = GetLogHandle(r) ;
+OUTPUT:
+    RETVAL
+
+
+long
+embperl_getlogfilepos(r)
+    tReq * r
+CODE:
+    OpenLog (r, "", 2) ;
+    RETVAL = GetLogFilePos(r) ;
+OUTPUT:
+    RETVAL
+
+
+
+void
+embperl_output(r,sText)
+    tReq * r
+    char * sText
+CODE:
+    OutputToHtml (r,sText) ;
+
+
+void
+embperl_log(r,sText)
+    tReq * r
+    char * sText
+CODE:
+    OpenLog (r,"", 2) ;
+    lwrite (r, sText, strlen (sText)) ;
+
+void
+embperl_flushlog(r)
+    tReq * r
+CODE:
+    FlushLog (r) ;
+
+
+
+int
+embperl_getlineno(r)
+    tReq * r
+CODE:
+    RETVAL = GetLineNo (r) ;
+OUTPUT:
+    RETVAL
+
+
+void
+log_svs(r,sText)
+    tReq * r
+    char * sText
+CODE:
+    lprintf (r,"[%d]MEM:  %s: SVs: %d OBJs: %d\n", r->nPid, sText, sv_count, sv_objcount) ;
+
+
+
+int
+embperl_ExecuteReq(r, param)
+    tReq * r
+    AV *   param = NO_INIT 
+CODE:
+    RETVAL = ExecuteReq(r, ST(0)) ; 
+OUTPUT:
+    RETVAL
+
+
+
+
+int
+embperl_Abort(r)
+    tReq * r
+CODE:
+    FreeRequest(r) ;
+    RETVAL = 0 ;
+OUTPUT:
+    RETVAL
+
+
+
+
+void
+embperl_FreeRequest(r)
+    tReq * r
+CODE:
+    FreeRequest(r) ; 

@@ -17,11 +17,6 @@
 #include "epmacro.h"
 
 
-int numEvals ;
-int numCacheHits ;
-
-int  bStrict ; /* aply use strict in each eval */
-
 /* -------------------------------------------------------------------------------
 *
 * Eval PERL Statements 
@@ -31,7 +26,8 @@ int  bStrict ; /* aply use strict in each eval */
 *
 ------------------------------------------------------------------------------- */
 
-int EvalDirect (/*in*/    SV * pArg) 
+int EvalDirect (/*i/o*/ register req * r,
+			/*in*/    SV * pArg) 
     {
     dSP;
     SV *  pSVErr  ;
@@ -39,6 +35,7 @@ int EvalDirect (/*in*/    SV * pArg)
     EPENTRY (EvalDirect) ;
 
     tainted = 0 ;
+    pCurrReq = r ;
 
     PUSHMARK(sp);
     perl_eval_sv(pArg, G_SCALAR | G_KEEPERR);
@@ -49,14 +46,14 @@ int EvalDirect (/*in*/    SV * pArg)
 	{
         STRLEN l ;
         char * p = SvPV (pSVErr, l) ;
-        if (l > sizeof (errdat1) - 1)
-            l = sizeof (errdat1) - 1 ;
-        strncpy (errdat1, p, l) ;
-        if (l > 0 && errdat1[l-1] == '\n')
+        if (l > sizeof (r -> errdat1) - 1)
+            l = sizeof (r -> errdat1) - 1 ;
+        strncpy (r -> errdat1, p, l) ;
+        if (l > 0 && r -> errdat1[l-1] == '\n')
             l-- ;
-        errdat1[l] = '\0' ;
+        r -> errdat1[l] = '\0' ;
          
-	LogError (rcEvalErr) ;
+	LogError (r, rcEvalErr) ;
 
 	sv_setpv(pSVErr,"");
         return rcEvalErr ;
@@ -76,7 +73,8 @@ int EvalDirect (/*in*/    SV * pArg)
 *
 ------------------------------------------------------------------------------- */
 
-static int EvalAll (/*in*/  const char *  sArg,
+static int EvalAll (/*i/o*/ register req * r,
+			/*in*/  const char *  sArg,
                     /*in*/  int           flags,
                     /*out*/ SV **         pRet)             
     {
@@ -91,23 +89,24 @@ static int EvalAll (/*in*/  const char *  sArg,
     
     EPENTRY (EvalAll) ;
 
-    GetLineNo () ;
+    GetLineNo (r) ;
 
-    if (bDebug & dbgDefEval)
-        lprintf ("[%d]DEF:  Line %d: %s\n", nPid, nSourceline, sArg) ;
+    if (r -> bDebug & dbgDefEval)
+        lprintf (r, "[%d]DEF:  Line %d: %s\n", r -> nPid, r -> Buf.nSourceline, sArg) ;
 
     tainted = 0 ;
+    pCurrReq = r ;
 
-    if (bStrict)
+    if (r -> bStrict)
         if (flags & G_ARRAY)
-            pSVCmd = newSVpvf(sFormatStrictArray, sEvalPackage, nSourceline, sSourcefile, sArg) ;
+            pSVCmd = newSVpvf(sFormatStrictArray, r -> Buf.sEvalPackage, r -> Buf.nSourceline, r -> Buf.pFile -> sSourcefile, sArg) ;
         else
-            pSVCmd = newSVpvf(sFormatStrict, sEvalPackage, nSourceline, sSourcefile, sArg) ;
+            pSVCmd = newSVpvf(sFormatStrict, r -> Buf.sEvalPackage, r -> Buf.nSourceline, r -> Buf.pFile -> sSourcefile, sArg) ;
     else
         if (flags & G_ARRAY)
-            pSVCmd = newSVpvf(sFormatArray, sEvalPackage, nSourceline, sSourcefile, sArg) ;
+            pSVCmd = newSVpvf(sFormatArray, r -> Buf.sEvalPackage, r -> Buf.nSourceline, r -> Buf.pFile -> sSourcefile, sArg) ;
         else
-            pSVCmd = newSVpvf(sFormat, sEvalPackage, nSourceline, sSourcefile, sArg) ;
+            pSVCmd = newSVpvf(sFormat, r -> Buf.sEvalPackage, r -> Buf.nSourceline, r -> Buf.pFile -> sSourcefile, sArg) ;
 
     PUSHMARK(sp);
     perl_eval_sv(pSVCmd, G_SCALAR | G_KEEPERR);
@@ -117,24 +116,24 @@ static int EvalAll (/*in*/  const char *  sArg,
     *pRet = POPs;
     PUTBACK;
 
-    if (bDebug & dbgMem)
-        lprintf ("[%d]SVs:  %d\n", nPid, sv_count) ;
+    if (r -> bDebug & dbgMem)
+        lprintf (r, "[%d]SVs:  %d\n", r -> nPid, sv_count) ;
     
     pSVErr = ERRSV ;
     if (SvTRUE (pSVErr))
         {
         STRLEN l ;
         char * p = SvPV (pSVErr, l) ;
-        if (l > sizeof (errdat1) - 1)
-            l = sizeof (errdat1) - 1 ;
-        strncpy (errdat1, p, l) ;
-        if (l > 0 && errdat1[l-1] == '\n')
+        if (l > sizeof (r -> errdat1) - 1)
+            l = sizeof (r -> errdat1) - 1 ;
+        strncpy (r -> errdat1, p, l) ;
+        if (l > 0 && r -> errdat1[l-1] == '\n')
             l-- ;
-        errdat1[l] = '\0' ;
+        r -> errdat1[l] = '\0' ;
          
-	*pRet = newSVpv (errdat1, 0) ;
+	*pRet = newSVpv (r -> errdat1, 0) ;
          
-        LogError (rcEvalErr) ;
+        LogError (r, rcEvalErr) ;
 	sv_setpv(pSVErr, "");
         return rcEvalErr ;
         }
@@ -154,13 +153,14 @@ static int EvalAll (/*in*/  const char *  sArg,
 
 #define EVAL_SUB
 
-static int EvalAllNoCache (/*in*/  const char *  sArg,
+static int EvalAllNoCache (/*i/o*/ register req * r,
+			/*in*/  const char *  sArg,
                            /*out*/ SV **         pRet)             
     {
     int   num ;         
-    int   nCountUsed = TableState.nCountUsed ;
-    int   nRowUsed   = TableState.nRowUsed ;
-    int   nColUsed   = TableState.nColUsed ;
+    int   nCountUsed = r -> TableStack.State.nCountUsed ;
+    int   nRowUsed   = r -> TableStack.State.nRowUsed ;
+    int   nColUsed   = r -> TableStack.State.nColUsed ;
 #ifndef EVAL_SUB    
     SV *  pSVArg ;
 #endif
@@ -169,10 +169,11 @@ static int EvalAllNoCache (/*in*/  const char *  sArg,
 
     EPENTRY (EvalAll) ;
 
-    if (bDebug & dbgEval)
-        lprintf ("[%d]EVAL< %s\n", nPid, sArg) ;
+    if (r -> bDebug & dbgEval)
+        lprintf (r, "[%d]EVAL< %s\n", r -> nPid, sArg) ;
 
     tainted = 0 ;
+    pCurrReq = r ;
 
 #ifdef EVAL_SUB    
 
@@ -192,41 +193,41 @@ static int EvalAllNoCache (/*in*/  const char *  sArg,
 #endif    
     SPAGAIN;                        /* refresh stack pointer         */
     
-    if (bDebug & dbgMem)
-        lprintf ("[%d]SVs:  %d\n", nPid, sv_count) ;
+    if (r -> bDebug & dbgMem)
+        lprintf (r, "[%d]SVs:  %d\n", r -> nPid, sv_count) ;
     /* pop the return value from stack */
     if (num == 1)   
         {
         *pRet = POPs ;
         SvREFCNT_inc (*pRet) ;
 
-        if (bDebug & dbgEval)
+        if (r -> bDebug & dbgEval)
             if (SvOK (*pRet))
-                lprintf ("[%d]EVAL> %s\n", nPid, SvPV (*pRet, na)) ;
+                lprintf (r, "[%d]EVAL> %s\n", r -> nPid, SvPV (*pRet, na)) ;
             else
-                lprintf ("[%d]EVAL> <undefined>\n", nPid) ;
+                lprintf (r, "[%d]EVAL> <undefined>\n", r -> nPid) ;
         
-        if ((nCountUsed != TableState.nCountUsed ||
-             nColUsed != TableState.nColUsed ||
-             nRowUsed != TableState.nRowUsed) &&
+        if ((nCountUsed != r -> TableStack.State.nCountUsed ||
+             nColUsed != r -> TableStack.State.nColUsed ||
+             nRowUsed != r -> TableStack.State.nRowUsed) &&
               !SvOK (*pRet))
             {
-            TableState.nResult = 0 ;
+            r -> TableStack.State.nResult = 0 ;
             SvREFCNT_dec (*pRet) ;
             *pRet = newSVpv("", 0) ;
             } 
 
-        if ((bDebug & dbgTab) &&
-            (TableState.nCountUsed ||
-             TableState.nColUsed ||
-             TableState.nRowUsed))
-            lprintf ("[%d]TAB:  nResult = %d\n", nPid, TableState.nResult) ;
+        if ((r -> bDebug & dbgTab) &&
+            (r -> TableStack.State.nCountUsed ||
+             r -> TableStack.State.nColUsed ||
+             r -> TableStack.State.nRowUsed))
+            lprintf (r, "[%d]TAB:  nResult = %d\n", r -> nPid, r -> TableStack.State.nResult) ;
         }
     else
         {
         *pRet = NULL ;
-        if (bDebug & dbgEval)
-            lprintf ("[%d]EVAL> <NULL>\n", nPid) ;
+        if (r -> bDebug & dbgEval)
+            lprintf (r, "[%d]EVAL> <NULL>\n", r -> nPid) ;
         }
 
 	PUTBACK;
@@ -234,8 +235,8 @@ static int EvalAllNoCache (/*in*/  const char *  sArg,
     pSVErr = ERRSV ;
     if (SvTRUE (pSVErr))
         {
-        strncpy (errdat1, SvPV (pSVErr, na), sizeof (errdat1) - 1) ;
-        LogError (rcEvalErr) ;
+        strncpy (r -> errdat1, SvPV (pSVErr, na), sizeof (r -> errdat1) - 1) ;
+        LogError (r, rcEvalErr) ;
 	num = rcEvalErr ;
         }
     else
@@ -258,7 +259,7 @@ static int EvalAllNoCache (/*in*/  const char *  sArg,
 ------------------------------------------------------------------------------- */
 
 
-static int Watch  ()
+static int Watch (/*i/o*/ register req * r)
 
     {
     dSP;                            /* initialize stack pointer      */
@@ -283,15 +284,16 @@ static int Watch  ()
 ------------------------------------------------------------------------------- */
 
 
-static int CallCV  (/*in*/  const char *  sArg,
+static int CallCV (/*i/o*/ register req * r,
+			/*in*/  const char *  sArg,
                     /*in*/  CV *          pSub,
                     /*in*/  int           flags,
                     /*out*/ SV **         pRet)             
     {
     int   num ;         
-    int   nCountUsed = TableState.nCountUsed ;
-    int   nRowUsed   = TableState.nRowUsed ;
-    int   nColUsed   = TableState.nColUsed ;
+    int   nCountUsed = r -> TableStack.State.nCountUsed ;
+    int   nRowUsed   = r -> TableStack.State.nRowUsed ;
+    int   nColUsed   = r -> TableStack.State.nColUsed ;
     int   bDynTab    = 0 ;
     SV *  pSVErr ;
 
@@ -300,11 +302,11 @@ static int CallCV  (/*in*/  const char *  sArg,
 
     EPENTRY (CallCV) ;
 
-    if (bDebug & dbgEval)
-        lprintf ("[%d]EVAL< %s\n", nPid, sArg) ;
+    if (r -> bDebug & dbgEval)
+        lprintf (r, "[%d]EVAL< %s\n", r -> nPid, sArg) ;
 
     tainted = 0 ;
-
+    pCurrReq = r ;
 
     ENTER ;
     SAVETMPS ;
@@ -314,8 +316,8 @@ static int CallCV  (/*in*/  const char *  sArg,
     
     SPAGAIN;                        /* refresh stack pointer         */
     
-    if (bDebug & dbgMem)
-        lprintf ("[%d]SVs:  %d\n", nPid, sv_count) ;
+    if (r -> bDebug & dbgMem)
+        lprintf (r, "[%d]SVs:  %d\n", r -> nPid, sv_count) ;
     /* pop the return value from stack */
     if (num == 1)   
         {
@@ -328,46 +330,46 @@ static int CallCV  (/*in*/  const char *  sArg,
         else        
             SvREFCNT_inc (*pRet) ;
 
-        if (bDebug & dbgEval)
+        if (r -> bDebug & dbgEval)
             {
             if (SvOK (*pRet))
-                lprintf ("[%d]EVAL> %s\n", nPid, SvPV (*pRet, na)) ;
+                lprintf (r, "[%d]EVAL> %s\n", r -> nPid, SvPV (*pRet, na)) ;
             else
-                lprintf ("[%d]EVAL> <undefined>\n", nPid) ;
+                lprintf (r, "[%d]EVAL> <undefined>\n", r -> nPid) ;
             }                
             
-        if ((nCountUsed != TableState.nCountUsed ||
-             nColUsed != TableState.nColUsed ||
-             nRowUsed != TableState.nRowUsed) &&
+        if ((nCountUsed != r -> TableStack.State.nCountUsed ||
+             nColUsed != r -> TableStack.State.nColUsed ||
+             nRowUsed != r -> TableStack.State.nRowUsed) &&
               !SvOK (*pRet))
             {
-            TableState.nResult = 0 ;
+            r -> TableStack.State.nResult = 0 ;
             SvREFCNT_dec (*pRet) ;
             *pRet = newSVpv("", 0) ;
             } 
 
-        if ((bDebug & dbgTab) &&
-            (TableState.nCountUsed ||
-             TableState.nColUsed ||
-             TableState.nRowUsed))
-            lprintf ("[%d]TAB:  nResult = %d\n", nPid, TableState.nResult) ;
+        if ((r -> bDebug & dbgTab) &&
+            (r -> TableStack.State.nCountUsed ||
+             r -> TableStack.State.nColUsed ||
+             r -> TableStack.State.nRowUsed))
+            lprintf (r, "[%d]TAB:  nResult = %d\n", r -> nPid, r -> TableStack.State.nResult) ;
 
         }
      else if (num == 0)
         {
         *pRet = NULL ;
-        if (bDebug & dbgEval)
-            lprintf ("[%d]EVAL> <NULL>\n", nPid) ;
+        if (r -> bDebug & dbgEval)
+            lprintf (r, "[%d]EVAL> <NULL>\n", r -> nPid) ;
         }
      else
         {
         *pRet = &sv_undef ;
-        if (bDebug & dbgEval)
-            lprintf ("[%d]EVAL> returns %d args instead of one\n", nPid, num) ;
+        if (r -> bDebug & dbgEval)
+            lprintf (r, "[%d]EVAL> returns %d args instead of one\n", r -> nPid, num) ;
         }
 
      /*if (SvREFCNT(*pRet) != 2)
-            lprintf ("[%d]EVAL refcnt != 2 !!= %d !!!!!\n", nPid, SvREFCNT(*pRet)) ;*/
+            lprintf (r, "[%d]EVAL refcnt != 2 !!= %d !!!!!\n", r -> nPid, SvREFCNT(*pRet)) ;*/
 
      PUTBACK;
      FREETMPS ;
@@ -395,22 +397,22 @@ static int CallCV  (/*in*/  const char *  sArg,
             }
 
         p = SvPV (pSVErr, l) ;
-        if (l > sizeof (errdat1) - 1)
-            l = sizeof (errdat1) - 1 ;
-        strncpy (errdat1, p, l) ;
-        if (l > 0 && errdat1[l-1] == '\n')
+        if (l > sizeof (r -> errdat1) - 1)
+            l = sizeof (r -> errdat1) - 1 ;
+        strncpy (r -> errdat1, p, l) ;
+        if (l > 0 && r -> errdat1[l-1] == '\n')
              l-- ;
-        errdat1[l] = '\0' ;
+        r -> errdat1[l] = '\0' ;
          
-	LogError (rcEvalErr) ;
+	LogError (r, rcEvalErr) ;
 
 	sv_setpv(pSVErr,"");
 
 	return rcEvalErr ;
         }
 
-     if (bDebug & dbgWatchScalar)
-         Watch () ;
+     if (r -> bDebug & dbgWatchScalar)
+         Watch (r) ;
 
      
     return ok ;
@@ -427,7 +429,8 @@ static int CallCV  (/*in*/  const char *  sArg,
 ------------------------------------------------------------------------------- */
 
 
-static int EvalAndCall (/*in*/  const char *  sArg,
+static int EvalAndCall (/*i/o*/ register req * r,
+			/*in*/  const char *  sArg,
                         /*in*/  SV **         ppSV,
                         /*in*/  int           flags,
                         /*out*/ SV **         pRet)             
@@ -440,9 +443,9 @@ static int EvalAndCall (/*in*/  const char *  sArg,
     
     EPENTRY (EvalAndCall) ;
 
-    lastwarn[0] = '\0' ;
+    r -> lastwarn[0] = '\0' ;
     
-    rc = EvalAll (sArg, flags, &pSub) ;
+    rc = EvalAll (r, sArg, flags, &pSub) ;
 
     if (rc == ok && pSub != NULL && SvTYPE (pSub) == SVt_RV)
         {
@@ -455,26 +458,26 @@ static int EvalAndCall (/*in*/  const char *  sArg,
         {
         if (pSub != NULL && SvTYPE (pSub) == SVt_PV)
             *ppSV = pSub ; /* save error message */
-        else if (lastwarn[0] != '\0')
-    	    *ppSV = newSVpv (lastwarn, 0) ;
+        else if (r -> lastwarn[0] != '\0')
+    	    *ppSV = newSVpv (r -> lastwarn, 0) ;
         else
     	    *ppSV = newSVpv ("Compile Error", 0) ;
         
         *pRet = NULL ;
-        bError = 1 ;
+        r -> bError = 1 ;
         return rc ;
         }
 
     if (*ppSV && SvTYPE (*ppSV) == SVt_PVCV)
         { /* Call the compiled eval */
-        return CallCV (sArg, (CV *)*ppSV, flags, pRet) ;
+        return CallCV (r, sArg, (CV *)*ppSV, flags, pRet) ;
         }
     
     *pRet = NULL ;
-    bError = 1 ;
+    r -> bError = 1 ;
     
-    if (lastwarn[0] != '\0')
-    	*ppSV = newSVpv (lastwarn, 0) ;
+    if (r -> lastwarn[0] != '\0')
+    	*ppSV = newSVpv (r -> lastwarn, 0) ;
     else
     	*ppSV = newSVpv ("Compile Error", 0) ;
 
@@ -492,7 +495,8 @@ static int EvalAndCall (/*in*/  const char *  sArg,
 *
 ------------------------------------------------------------------------------- */
 
-int Eval (/*in*/  const char *  sArg,
+int Eval (/*i/o*/ register req * r,
+			/*in*/  const char *  sArg,
           /*in*/  int           nFilepos,
           /*out*/ SV **         pRet)             
 
@@ -504,30 +508,30 @@ int Eval (/*in*/  const char *  sArg,
     
     EPENTRY (Eval) ;
 
-    numEvals++ ;
+    r -> numEvals++ ;
     *pRet = NULL ;
 
-    if (bDebug & dbgCacheDisable)
-        return EvalAllNoCache (sArg, pRet) ;
+    if (r -> bDebug & dbgCacheDisable)
+        return EvalAllNoCache (r, sArg, pRet) ;
 
     /* Already compiled ? */
 
-    ppSV = hv_fetch(pCacheHash, (char *)&nFilepos, sizeof (nFilepos), 1) ;  
+    ppSV = hv_fetch(r -> Buf.pFile -> pCacheHash, (char *)&nFilepos, sizeof (nFilepos), 1) ;  
     if (ppSV == NULL)
         return rcHashError ;
 
     if (*ppSV != NULL && SvTYPE (*ppSV) == SVt_PV)
         {
-        strncpy (errdat1, SvPV(*ppSV, na), sizeof (errdat1) - 1) ; 
-        LogError (rcEvalErr) ;
+        strncpy (r -> errdat1, SvPV(*ppSV, na), sizeof (r -> errdat1) - 1) ; 
+        LogError (r, rcEvalErr) ;
         return rcEvalErr ;
         }
 
     if (*ppSV == NULL || SvTYPE (*ppSV) != SVt_PVCV)
-        return EvalAndCall (sArg, ppSV, G_SCALAR, pRet) ;
+        return EvalAndCall (r, sArg, ppSV, G_SCALAR, pRet) ;
 
-    numCacheHits++ ;
-    return CallCV (sArg, (CV *)*ppSV, G_SCALAR, pRet) ;
+    r -> numCacheHits++ ;
+    return CallCV (r, sArg, (CV *)*ppSV, G_SCALAR, pRet) ;
     }
 
 
@@ -543,7 +547,8 @@ int Eval (/*in*/  const char *  sArg,
 ------------------------------------------------------------------------------- */
 
 
-int EvalTransFlags (/*in*/  char *   sArg,
+int EvalTransFlags (/*i/o*/ register req * r,
+			/*in*/  char *   sArg,
                     /*in*/  int      nFilepos,
                     /*in*/  int      flags,
                     /*out*/ SV **    pRet)             
@@ -556,50 +561,51 @@ int EvalTransFlags (/*in*/  char *   sArg,
     EPENTRY (EvalTrans) ;
 
 
-    numEvals++ ;
+    r -> numEvals++ ;
     *pRet = NULL ;
 
-    if (bDebug & dbgCacheDisable)
+    if (r -> bDebug & dbgCacheDisable)
         {
         /* strip off all <HTML> Tags */
-        TransHtml (sArg) ;
+        TransHtml (r, sArg) ;
         
-        return EvalAllNoCache (sArg, pRet) ;
+        return EvalAllNoCache (r, sArg, pRet) ;
         }
 
     /* Already compiled ? */
 
-    ppSV = hv_fetch(pCacheHash, (char *)&nFilepos, sizeof (nFilepos), 1) ;  
+    ppSV = hv_fetch(r -> Buf.pFile -> pCacheHash, (char *)&nFilepos, sizeof (nFilepos), 1) ;  
     if (ppSV == NULL)
         return rcHashError ;
 
     if (*ppSV != NULL && SvTYPE (*ppSV) == SVt_PV)
         {
-        strncpy (errdat1, SvPV(*ppSV, na), sizeof (errdat1) - 1) ; 
-        LogError (rcEvalErr) ;
+        strncpy (r -> errdat1, SvPV(*ppSV, na), sizeof (r -> errdat1) - 1) ; 
+        LogError (r, rcEvalErr) ;
         return rcEvalErr ;
         }
 
     if (*ppSV == NULL || SvTYPE (*ppSV) != SVt_PVCV)
         {
         /* strip off all <HTML> Tags */
-        TransHtml (sArg) ;
+        TransHtml (r, sArg) ;
 
-        return EvalAndCall (sArg, ppSV, flags, pRet) ;
+        return EvalAndCall (r, sArg, ppSV, flags, pRet) ;
         }
 
-    numCacheHits++ ;
+    r -> numCacheHits++ ;
     
-    return CallCV (sArg, (CV *)*ppSV, flags, pRet) ;
+    return CallCV (r, sArg, (CV *)*ppSV, flags, pRet) ;
     }
 
 
-int EvalTrans      (/*in*/  char *   sArg,
+int EvalTrans (/*i/o*/ register req * r,
+			/*in*/  char *   sArg,
                     /*in*/  int      nFilepos,
                     /*out*/ SV **    pRet)             
     
     {
-    return EvalTransFlags (sArg, nFilepos, G_SCALAR, pRet) ;
+    return EvalTransFlags (r, sArg, nFilepos, G_SCALAR, pRet) ;
     }
     
     
@@ -616,7 +622,8 @@ int EvalTrans      (/*in*/  char *   sArg,
 ------------------------------------------------------------------------------- */
 
 
-int EvalTransOnFirstCall (/*in*/  char *   sArg,
+int EvalTransOnFirstCall (/*i/o*/ register req * r,
+			/*in*/  char *   sArg,
                           /*in*/  int      nFilepos,
                           /*out*/ SV **    pRet)             
 
@@ -628,31 +635,31 @@ int EvalTransOnFirstCall (/*in*/  char *   sArg,
     EPENTRY (EvalTrans) ;
 
 
-    numEvals++ ;
+    r -> numEvals++ ;
     *pRet = NULL ;
 
     /* Already compiled ? */
 
-    ppSV = hv_fetch(pCacheHash, (char *)&nFilepos, sizeof (nFilepos), 1) ;  
+    ppSV = hv_fetch(r -> Buf.pFile -> pCacheHash, (char *)&nFilepos, sizeof (nFilepos), 1) ;  
     if (ppSV == NULL)
         return rcHashError ;
 
     if (*ppSV != NULL && SvTYPE (*ppSV) == SVt_PV)
         {
-        strncpy (errdat1, SvPV(*ppSV, na), sizeof (errdat1) - 1) ; 
-        LogError (rcEvalErr) ;
+        strncpy (r -> errdat1, SvPV(*ppSV, na), sizeof (r -> errdat1) - 1) ; 
+        LogError (r, rcEvalErr) ;
         return rcEvalErr ;
         }
 
     if (*ppSV == NULL || SvTYPE (*ppSV) != SVt_PVCV)
         {
         /* strip off all <HTML> Tags */
-        TransHtml (sArg) ;
+        TransHtml (r, sArg) ;
 
-        return EvalAndCall (sArg, ppSV, G_SCALAR, pRet) ;
+        return EvalAndCall (r, sArg, ppSV, G_SCALAR, pRet) ;
         }
 
-    numCacheHits++ ;
+    r -> numCacheHits++ ;
     
     return ok ; /* Do not call this a second time */
     }
@@ -671,7 +678,8 @@ int EvalTransOnFirstCall (/*in*/  char *   sArg,
 
 
 
-int EvalNum (/*in*/  char *        sArg,
+int EvalNum (/*i/o*/ register req * r,
+			/*in*/  char *        sArg,
              /*in*/  int           nFilepos,
              /*out*/ int *         pNum)             
     {
@@ -681,7 +689,7 @@ int EvalNum (/*in*/  char *        sArg,
     EPENTRY (EvalNum) ;
 
 
-    n = Eval (sArg, nFilepos, &pRet) ;
+    n = Eval (r, sArg, nFilepos, &pRet) ;
     
     if (pRet)
         {
@@ -707,7 +715,8 @@ int EvalNum (/*in*/  char *        sArg,
 
 
 
-int EvalBool (/*in*/  char *        sArg,
+int EvalBool (/*i/o*/ register req * r,
+	      /*in*/  char *        sArg,
               /*in*/  int           nFilepos,
               /*out*/ int *         pTrue)             
     {
@@ -717,7 +726,7 @@ int EvalBool (/*in*/  char *        sArg,
     EPENTRY (EvalNum) ;
 
 
-    rc = Eval (sArg, nFilepos, &pRet) ;
+    rc = Eval (r, sArg, nFilepos, &pRet) ;
     
     if (pRet)
         {

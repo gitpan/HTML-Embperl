@@ -10,6 +10,7 @@ CVS.pod
 INSTALL.pod
 Intro.pod
 Embperl.pod
+typemap
 eg/README
 eg/images/jazzbkgd.gif
 eg/x/neu.htm
@@ -29,6 +30,7 @@ embperl.h
 embpexec.pl
 embpexec.bat
 ep.h
+epdat.h
 epio.c
 epmain.c
 epchar.c
@@ -61,6 +63,11 @@ test/html/inc.htm
 test/html/sub.htm
 test/html/registry/Execute.htm
 test/html/registry/errpage.htm
+test/html/include.htm
+test/html/incsub.htm
+test/html/incerr.htm
+test/html/includeerr1.htm
+test/html/includeerr2.htm
 test/html/div.htm
 test/html/object.htm
 test/html/discard.htm
@@ -85,6 +92,7 @@ test/html/match/div.htm
 test/html/match/div.asc
 test/html/ofunc/div.htm
 test/html/ifuncsrc/proxy.htm
+test/html/setsess.htm
 test/cmp/ascii
 test/cmp/pure.htm
 test/cmp/plain.htm
@@ -106,6 +114,9 @@ test/cmp/inputjava.htm
 test/cmp/tagscan.htm
 test/cmp/Execute.htm
 test/cmp/errpage.htm
+test/cmp/include.htm
+test/cmp/includeerr1.htm
+test/cmp/includeerr2.htm
 test/cmp/sub.htm
 test/cmp/div.htm
 test/cmp/object.htm
@@ -134,3 +145,4 @@ test/conf/null
 embpexec.test.pl
 embpexec.test.bat
 win32.patch
+session.patch

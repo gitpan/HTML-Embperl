@@ -2,23 +2,6 @@
 # Before `make install' is performed this script should be runnable with
 # `make test'. After `make install' it should work as `perl test.pl'
 
-# avoid some warnings:
-
-use vars qw ($httpconfsrc $httpconf $EPPORT $EPPORT2 *SAVEERR *ERR $EPHTTPDDLL $EPSTARTUP $EPDEBUG) ;
-
-    {
-    local $^W = 0 ;
-    eval " use Win32::Process; " ;
-    $win32loaderr = $@ ;
-    eval " use Win32; " ;
-    $win32loaderr ||= $@ ;
-    }
-
-BEGIN { $fatal = 1 ; $^W = 1 ; }
-END     { 
-        print "\nTest terminated with fatal error\n" if ($fatal) ; 
-	system "kill `cat $tmppath/httpd.pid` 2> /dev/null" if ($EPHTTPD ne '' && $killhttpd && !$EPWIN32) ;
-        }
 
 @tests = (
     'ascii',
@@ -29,6 +12,7 @@ END     {
     'error.htm???7',
     'error.htm???7',
     'error.htm???7',
+#    'notfound.htm???1',
     'noerr/noerrpage.htm???7?2',
     'rawinput/rawinput.htm????16',
     'var.htm',
@@ -41,7 +25,7 @@ END     {
     'loop.htm?erstes=Hallo&zweites=Leer+zeichen&drittes=%21%22%23&erstes=Wert2',
     'table.htm',
     'table.htm??1',
-    'table.htm??32769',
+#   'table.htm??32769',
 #   'table.htm??131085',
     'lists.htm?sel=2&SEL1=B&SEL3=D&SEL4=cc',
     'nesting.htm',
@@ -55,6 +39,9 @@ END     {
     'upload.htm',
     'reqrec.htm',
     'reqrec.htm',
+    'include.htm',
+    'includeerr1.htm???1',
+    'includeerr2.htm???4',
     'registry/Execute.htm',
     'registry/errpage.htm???14',
     'nph/div.htm????64',
@@ -78,6 +65,53 @@ END     {
     'opmask/opmask.htm???-1?12?TEST',
     'opmask/opmasktrap.htm???2?12?TEST',
     ) ;
+
+
+# avoid some warnings:
+
+use vars qw ($httpconfsrc $httpconf $EPPORT $EPPORT2 *SAVEERR *ERR $EPHTTPDDLL $EPSTARTUP $EPDEBUG) ;
+
+    {
+    local $^W = 0 ;
+    eval " use Win32::Process; " ;
+    $win32loaderr = $@ ;
+    eval " use Win32; " ;
+    $win32loaderr ||= $@ ;
+    }
+
+BEGIN 
+    { 
+    $fatal  = 1 ;
+    $^W     = 1 ;
+    $|      = 1;
+    
+    eval 'use ExtUtils::testlib' if ($ARGV[0] =~ /b/) ;
+
+    #### install handler which kill httpd when terminating ####
+
+    $SIG{__DIE__} = sub { 
+	return unless $_[0] =~ /^\*\*\*/ ;
+	return unless $killhttpd ;
+	if ($EPWIN32)
+	    {
+	    $HttpdObj->Kill(-1) if ($HttpdObj) ;
+	    }
+	else
+	    {
+	    system "kill `cat $tmppath/httpd.pid` 2> /dev/null" if ($EPHTTPD ne '') ;
+	    }
+	} ;
+
+    print "\nloading...              ";
+    }
+
+END 
+    { 
+    print "\nTest terminated with fatal error\n" if ($fatal) ; 
+    system "kill `cat $tmppath/httpd.pid` 2> /dev/null" if ($EPHTTPD ne '' && $killhttpd && !$EPWIN32) ;
+    }
+
+
 
 
 $confpath = './test/conf' ;
@@ -141,6 +175,9 @@ $defaultdebug = 0x85ffd ;
 if ($cmdarg =~ /\?/)
     {
     print "\n\n" ;
+    print "test.pl [options] [files]\n" ;
+    print "files: <filename>|<testnumber>|-<testnumber>\n\n" ;
+    print "options:\n" ;
     print "o	test offline\n" ;
     print "c	test cgi\n" ;
     print "h	test mod_perl\n" ;
@@ -149,13 +186,15 @@ if ($cmdarg =~ /\?/)
     print "l	loop forever\n" ;
     print "m	start httpd with mulitple childs\n" ;
     print "v    memory check\n" ;
-    print "g    exit if httpd grows after 2 loop\n" ;	
+    print "g    exit if httpd grows after 2 loop\n" ;   
     print "f    file to use for config.pl\n" ;
     print "x    do not start httpd\n" ;
     print "u    use unique filenames\n" ;
     print "n    do not check httpd errorlog\n" ;
     print "q    set debug to 0\n" ;
     print "i    ignore errors\n" ;
+    print "t    list tests\n" ;
+    print "b    use uninstalled version (from blib/..)\n" ;
     print "\n\n" ;
     print "path\t$EPPATH\n" ;
     print "httpd\t$EPHTTPD\n" ;
@@ -163,7 +202,19 @@ if ($cmdarg =~ /\?/)
     exit (1) ;
     }
 
+if ($cmdarg =~ /t/)
+    {
+    $i = 0 ;
+    foreach $t (@tests)
+	{
+	print "$i = $t\n" ;
+	$i++ ;
+	}
+    exit (1) ;
+    }
 
+
+	
 $killhttpd = 1 ; # kill httpd at end of test
 $multhttpd = 0 ; # start httpd with child fork
 $looptest  = 0 ; # endless loop tests
@@ -301,7 +352,7 @@ sub REQ
 	$request = POST ("http://$host:$port/$loc$file?$query",
 					Content_Type => 'form-data',
 					Content      => [ upload => [undef, 'upload', Content => $upload],
-                                                          content => $content ]) ;
+							  content => $content ]) ;
 	}
 	    
     #print "Request: " . $request -> as_string () ;
@@ -397,23 +448,23 @@ sub CheckSVs
     seek SVLOG, -3000, 2 ;
 
     while (<SVLOG>)
-        {
-        if (/Exit-SVs: (\d+)/)
-            {
-            $num_sv = $1 || 0;
-            $last_sv[$n] ||= 0 ;
-            print "SVs=$num_sv/$last_sv[$n]/$max_sv " ;
-            if ($num_sv > $max_sv) 
-                {
-                print "GROWN " ;
-                $max_sv = $num_sv ;
+	{
+	if (/Exit-SVs: (\d+)/)
+	    {
+	    $num_sv = $1 || 0;
+	    $last_sv[$n] ||= 0 ;
+	    print "SVs=$num_sv/$last_sv[$n]/$max_sv " ;
+	    if ($num_sv > $max_sv) 
+		{
+		print "GROWN " ;
+		$max_sv = $num_sv ;
 		
-                }
-            die "\n\nMemory problem (SVs)" if ($exitonmem && $loopcnt > 2 && $last_sv[$n] != $num_sv) ;
-            $last_sv[$n] = $num_sv  ;
-            last ;
-            }
-         }
+		}
+	    die "\n\nMemory problem (SVs)" if ($exitonmem && $loopcnt > 2 && $last_sv[$n] < $num_sv) ;
+	    $last_sv[$n] = $num_sv  ;
+	    last ;
+	    }
+	 }
 
      close SVLOG ;
      }
@@ -426,24 +477,6 @@ sub CheckSVs
 #use Config qw (myconfig);
 #print myconfig () ;
 
-#### install handler which kill httpd when terminating ####
-
-BEGIN { $| = 1;
-	$SIG{__DIE__} = sub { 
-	    return unless $_[0] =~ /^\*\*\*/ ;
-	    return unless $killhttpd ;
-	    if ($EPWIN32)
-		{
-		$HttpdObj->Kill(-1) if ($HttpdObj) ;
-		}
-	    else
-		{
-		system "kill `cat $tmppath/httpd.pid` 2> /dev/null" if ($EPHTTPD ne '') ;
-		}
-	    } ;
-
-	print "\nloading...              ";
-      }
 
 ##################
 
@@ -477,18 +510,22 @@ $ignoreerror = 1 if ($cmdarg =~/i/) ;
 if ($#ARGV >= 0)
     {
     if ($ARGV[0] =~ /^-/)
-        {
-        $#tests = - $ARGV[0] ;
-        }
+	{
+	$#tests = - $ARGV[0] ;
+	}
     elsif ($ARGV[0] =~ /^\d/)
-        {
-        $t = $tests[$ARGV[0]] ;
-        @tests = ($t) ;
-        }
+	{
+	@savetests = @tests ;
+	@tests = () ;
+	while ($t = shift @ARGV)
+	    {
+	    push @tests, $savetests[$t] ;
+	    }
+	}
     else
-        {
-        @tests = @ARGV ;
-        }
+	{
+	@tests = @ARGV ;
+	}
     }
     
 
@@ -520,6 +557,7 @@ $cp = HTML::Embperl::AddCompartment ('TEST') ;
 
 $cp -> deny (':base_loop') ;
 
+
 do  
     {
     #############
@@ -532,13 +570,16 @@ do
 	{
 	print "\nTesting offline mode...\n\n" ;
 
-	open (SAVEERR, ">&STDERR")  || die "Cannot save stderr" ;  
-	open (STDERR, ">$offlineerr") || die "Cannot redirect stderr" ;  
-	open (ERR, "$offlineerr")  || die "Cannot open redirected stderr ($offlineerr)" ;  ;  
+	if ($loopcnt == 0)
+	    {   
+	    open (SAVEERR, ">&STDERR")  || die "Cannot save stderr" ;  
+	    open (STDERR, ">$offlineerr") || die "Cannot redirect stderr" ;  
+	    open (ERR, "$offlineerr")  || die "Cannot open redirected stderr ($offlineerr)" ;  ;  
+	    }
 
-        $n = 0 ;
-        $t_offline = 0 ;
-        $n_offline = 0 ;
+	$n = 0 ;
+	$t_offline = 0 ;
+	$n_offline = 0 ;
 	foreach $url (@tests)
 	    {
 	    ($file, $query_info, $debug, $errcnt, $option, $ns) = split (/\?/, $url) ;
@@ -578,12 +619,12 @@ do
     
 	    unlink ($outfile) ;
 
-            $n_offline++ ;
-            $t1 = HTML::Embperl::Clock () ;
+	    $n_offline++ ;
+	    $t1 = HTML::Embperl::Clock () ;
 	    $err = HTML::Embperl::run (@testargs) ;
 	    $t_offline += HTML::Embperl::Clock () - $t1 ;
 
-            if ($memcheck)
+	    if ($memcheck)
 		{
 		my $vmsize = GetMem ($$) ;
 		$vminitsize = $vmsize if $loopcnt == 2 ;
@@ -591,11 +632,11 @@ do
 		print "GROWN! at iteration = $loopcnt  " if ($vmsize > $vmmaxsize) ;
 		$vmmaxsize = $vmsize if ($vmsize > $vmmaxsize) ;
 		CheckSVs ($loopcnt, $n) ;
-                }
+		}
 		
-	    $err = CheckError ($errcnt) if ($err == 0) ;
+	    $err = CheckError ($errcnt) if ($err == 0 || $file eq 'notfound.htm') ;
     
-	    if ($err == 0)
+	    if ($err == 0 && $file ne 'notfound.htm')
 		{
 		$page =~ /.*\/(.*)$/ ;
 		$org = "$cmppath/$1" ;
@@ -604,9 +645,10 @@ do
 		}
 
 	    print "ok\n" unless ($err) ;
+	    $err = 0 if ($ignoreerror) ;
 	    last if $err ;
 	    $n++ ;
-            }
+	    }
 	}
     
     if ($testtype =~ /e/)
@@ -644,7 +686,7 @@ do
 	    $^A = '' ;
 
 	    unlink ($outfile) ;
-            $t1 = HTML::Embperl::Clock () ;
+	    $t1 = HTML::Embperl::Clock () ;
 	    $err = HTML::Embperl::Execute ({'inputfile'  => $src,
 					    'mtime'      => 1,
 					    'outputfile' => $outfile,
@@ -664,14 +706,14 @@ do
 		$^A = '' ;
 
 		unlink ($outfile) ;
-                $t1 = HTML::Embperl::Clock () ;
+		$t1 = HTML::Embperl::Clock () ;
 		$err = HTML::Embperl::Execute ({'input'      => \$indata,
 						'inputfile'  => 'i1',
 						'mtime'      => 1,
 						'outputfile' => $outfile,
 						'debug'      => $defaultdebug,
 						}) ;
-	        $t_exec += HTML::Embperl::Clock () - $t1 ; 
+		$t_exec += HTML::Embperl::Clock () - $t1 ; 
 		    
 		$err = CheckError ($errcnt) if ($err == 0) ;
 		$err = CmpFiles ($outfile, $org)  if ($err == 0) ;
@@ -686,13 +728,13 @@ do
 
 		my $outdata ;
 		unlink ($outfile) ;
-                $t1 = HTML::Embperl::Clock () ;
+		$t1 = HTML::Embperl::Clock () ;
 		$err = HTML::Embperl::Execute ({'inputfile'  => $src,
 						'mtime'      => 1,
 						'output'     => \$outdata,
 						'debug'      => $defaultdebug,
 						}) ;
-	        $t_exec += HTML::Embperl::Clock () - $t1 ; 
+		$t_exec += HTML::Embperl::Clock () - $t1 ; 
 		    
 		$err = CheckError ($errcnt) if ($err == 0) ;
 	
@@ -711,14 +753,14 @@ do
 
 		my $outdata ;
 		unlink ($outfile) ;
-                $t1 = HTML::Embperl::Clock () ;
+		$t1 = HTML::Embperl::Clock () ;
 		$err = HTML::Embperl::Execute ({'input'      => \$indata,
 						'inputfile'  => $src,
 						'mtime'      => 1,
 						'output'     => \$outdata,
 						'debug'      => $defaultdebug,
 						}) ;
-	        $t_exec += HTML::Embperl::Clock () - $t1 ; 
+		$t_exec += HTML::Embperl::Clock () - $t1 ; 
 		    
 		$err = CheckError ($errcnt) if ($err == 0) ;
 	
@@ -745,13 +787,13 @@ do
 
 		my $outdata ;
 		unlink ($outfile) ;
-                $t1 = HTML::Embperl::Clock () ;
+		$t1 = HTML::Embperl::Clock () ;
 		$err = HTML::Embperl::Execute ({'inputfile'  => $src,
 						'mtime'      => 1,
 						'output'     => \$outdata,
 						'debug'      => $defaultdebug,
 						}) ;
-	        $t_exec += HTML::Embperl::Clock () - $t1 ; 
+		$t_exec += HTML::Embperl::Clock () - $t1 ; 
 		    
 		$err = CheckError (7) if ($err == 0) ;
 	
@@ -766,7 +808,7 @@ do
 	    }
 	}
 
-    if (($testtype =~ /e/) || ($testtype =~ /o/))
+    if ((($testtype =~ /e/) || ($testtype =~ /o/)) && $looptest == 0)
 	{
 	close STDERR ;
 	open (STDERR, ">&SAVEERR") ;
@@ -860,9 +902,9 @@ do
 	else
 	    { print "\nTesting cgi mode...\n\n" ; }
 
-        $t_req = 0 ;
-        $n_req = 0 ;
-        $n = 0 ;
+	$t_req = 0 ;
+	$n_req = 0 ;
+	$n = 0 ;
 	foreach $url (@tests)
 	    {
 	    ($file, $query_info, $debug, $errcnt) = split (/\?/, $url) ;
@@ -879,6 +921,7 @@ do
 	    next if ($file eq 'http.htm' && $loc eq $cgiloc) ;
 	    next if ($file eq 'chdir.htm' && $EPWIN32) ;
 	    next if ($file =~ /opmask/ && $EPSTARTUP =~ /_dso/) ;
+	    next if ($file eq 'upload.htm' && $memcheck) ;
      
 	    $debug ||= $defaultdebug ;  
 	    $errcnt ||= 0 ;
@@ -909,15 +952,15 @@ do
 	    $content = "f1=abc1&f2=1234567890&f3=" . 'X' x 8192 if ($file eq 'post.htm') ;
 	    $upload = undef ;
 	    if ($file eq 'upload.htm') 
-                {
-                $upload = "f1=abc1\r\n&f2=1234567890&f3=" . 'X' x 8192 ;
-                $content = "Hi there!" ;
-                }
+		{
+		$upload = "f1=abc1\r\n&f2=1234567890&f3=" . 'X' x 8192 ;
+		$content = "Hi there!" ;
+		}
 
-            $n_req++ ;
-            $t1 = HTML::Embperl::Clock () ;
+	    $n_req++ ;
+	    $t1 = HTML::Embperl::Clock () ;
 	    $m = REQ ($loc, $file, $query_info, $outfile, $content, $upload) ;
-            $t_req += HTML::Embperl::Clock () - $t1 ; 
+	    $t_req += HTML::Embperl::Clock () - $t1 ; 
 
 	    if ($memcheck)
 		{
@@ -929,7 +972,7 @@ do
 		$vmhttpdsize = $vmsize if ($vmsize > $vmhttpdsize) ;
 		CheckSVs ($loopcnt, $n) ;
 		
-                }
+		}
 	    if (($m || '') ne 'ok' && $errcnt == 0)
 		{
 		$err = 1 ;
@@ -937,8 +980,8 @@ do
 		last ;
 		}
 
-	    $err = CheckError ($errcnt) if ($err == 0 && $checkerr) ;
-	    if ($err == 0)
+	    $err = CheckError ($errcnt) if (($err == 0 || $file eq 'notfound.htm') && $checkerr ) ;
+	    if ($err == 0 && $file ne 'notfound.htm')
 		{
 		$page =~ /.*\/(.*)$/ ;
 		$org = "$cmppath/$1" ;
@@ -949,38 +992,38 @@ do
 
 	    print "ok\n" unless ($err) ;
 	    $err = 0 if ($ignoreerror) ;
-            last if ($err) ;
+	    last if ($err) ;
 	    $n++ ;
-            }
+	    }
 
 	if ($loc ne $cgiloc)   
 	    { 
-            $t_mp = $t_req ;
-            $n_mp = $n_req ;
-            }
+	    $t_mp = $t_req ;
+	    $n_mp = $n_req ;
+	    }
 	else
 	    {
-            $t_cgi = $t_req ;
-            $n_cgi = $n_req ;
-            }
+	    $t_cgi = $t_req ;
+	    $n_cgi = $n_req ;
+	    }
 
 	if ($testtype =~ /c/ && $err == 0 && $loc ne $cgiloc && $loopcnt == 0)   
 	    { 
-            $loc = $cgiloc ;
-            }
+	    $loc = $cgiloc ;
+	    }
 	else
 	    {
-            $loc = '' ;
-            }
+	    $loc = '' ;
+	    }
 	}
 
     if ($defaultdebug == 0)
-        {
-        print "\n" ;
-        print "Offline:  $n_offline tests takes $t_offline sec = ", int($t_offline / $n_offline * 1000) / 1000.0, " sec per test\n" if ($t_offline) ;
-        print "mod_perl: $n_mp tests takes $t_mp sec = ", int($t_mp / $n_mp * 1000) / 1000.0 , " sec per test\n"  if ($t_mp) ;
-        print "CGI:      $n_cgi tests takes $t_cgi sec = ", int($t_cgi / $n_cgi * 1000) / 1000.0 , " sec per test\n"  if ($t_cgi) ;
-        }
+	{
+	print "\n" ;
+	print "Offline:  $n_offline tests takes $t_offline sec = ", int($t_offline / $n_offline * 1000) / 1000.0, " sec per test\n" if ($t_offline) ;
+	print "mod_perl: $n_mp tests takes $t_mp sec = ", int($t_mp / $n_mp * 1000) / 1000.0 , " sec per test\n"  if ($t_mp) ;
+	print "CGI:      $n_cgi tests takes $t_cgi sec = ", int($t_cgi / $n_cgi * 1000) / 1000.0 , " sec per test\n"  if ($t_cgi) ;
+	}
 
     $loopcnt++ ;
     }

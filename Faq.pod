@@ -521,7 +521,7 @@ and override certain of its methods?  (For example, I'd like to let it
 parse the file for me, but then let me control the manipulation of the
 form tags.)
 
-Embperl will be converted to an Object in the near future. This will, 
+Embperl is going to be an Object from version 1.2b1. This, 
 among other things, make it re-entrant, so that you will be able to 
 call Execute from within an Embperl page. It will also mean that 
 Embperl will come with hooks, which will allow you to alter or change

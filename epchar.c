@@ -662,8 +662,3 @@ struct tCharTrans Html2Char [] =
 
 int sizeHtml2Char = sizeof (Html2Char) / sizeof (struct tCharTrans) ;
 
-struct tCharTrans * pCurrEscape = Char2Html ;
-struct tCharTrans * pNextEscape = Char2Html ;
-
-int bEscMode = escUrl | escHtml ;
-int bEscModeSet = 0 ;
