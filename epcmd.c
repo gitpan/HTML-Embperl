@@ -10,7 +10,7 @@
 #   IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 #   WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 #
-#   $Id: epcmd.c,v 1.37.4.7 2001/11/13 07:35:16 richter Exp $
+#   $Id: epcmd.c,v 1.46 2001/09/01 21:31:10 richter Exp $
 #
 ###################################################################################*/
 
@@ -886,7 +886,6 @@ static int CmdVar (/*i/o*/ register req * r,
     pSV = newSVpvf("package %s ; \n#line %d %s\n use vars qw(%s); map { $%s::CLEANUP{substr ($_, 1)} = 1 } qw(%s) ;\n",
 	           r -> Buf.sEvalPackage, r -> Buf.nSourceline, r -> Buf.pFile -> sSourcefile, sArg,
 		   r -> Buf.sEvalPackage, sArg) ;
-    newSVpvf2(pSV) ;
 
     rc = EvalDirect (r, pSV, 0, NULL) ;
     SvREFCNT_dec(pSV);

@@ -80,3 +80,20 @@ params in sub.pm  = [+ "@_" +]
 [$endsub$]
 
 
+[###### table header #####]
+[$sub tabheader $]
+
+<table>
+<tr><th>1</th><th>2></th></tr>
+<tr>
+
+[$endsub$]
+
+
+[###### table footer #####]
+[$sub tabfooter $]
+
+</tr>
+</table>
+
+[$endsub$]

@@ -1,168 +1,6 @@
 =pod
 
-=head1 2.0b5 (BETA) 27. Nov. 2001
-
-   - Add xsltparam parameter which takes a hashref and is used to
-     pass parameters to the xslt processor. If not given defaults
-     to %fdat.
-   - Add require URI::URL to test.pl so make test work with newer LWP.
-     Patch from Jonathan Stowe.
-   - Fixed problem in registry/tied test, which failed for some Apache
-     versions because of addtional http header. Patch from Jonathan Stowe.
-   - Fixed problem with comments inside [! !] blocks. Reported by
-     Alan Milligan.
-   - Fixed compiling problem with very recent versions of libxslt.
-     Reported by Michael Stevens and Jonathan Stowe.
-   - Fixed make test so it skips session tests if Apache::SessionX isn't 
-     installed. Reported by from Jonathan Stowe.
-   - Fixed path problem with Execute ({sub => foo,... }) on win32.
-   - Fixed a problem with duplicate subroutine names when running
-     multiple pages in the same package.
-   - Fixed problem with reloading when file changed, which sometimes
-     didn't reload correctly in 2.0b4
-   - Fixed memory leak which occured when using libxslt.
-   - Fixed MakeMaker problem with Perl 5.7.1.
-   - Removed some uninitialized value warnings.
-   - Added "make start" and "make stop" to start and stop test httpd
-
-=head1 2.0b4 (BETA) 20. Nov. 2001
-
-   - Enhancements for RTF syntax, allowing no IF fields and passes
-     thru any unkown fields.
-   - Fixed problem when loading syntax. Spotted by Michael Stevens.
-   - Allow Perl code inside of HTML attributes in ASP syntax, together with
-     EmbperlHTML syntax. Spotted by Ivan G. Shevchenko.
-   - Added POD syntax, which converts POD to XML, which can transformed to
-     any other output format using XSLT.
-   - Enhanced Makefile.PL to support plugins for linking of extra libraries.
-   - Added support for libxslt
-   - Added support for Xalan-C XSLT
-   - Added the concept of recipes which allows to dynamicly tell Embperl
-     how to process a request. A recipe is basicly a tree structure
-     with put different providers together. Every provider can act 
-     upon the output of the preceeding providers. See README.v2
-     and perldoc HTML::Embperl::Recipe for more details.
-   - Added new configuration directive EMBPERL_RECIPE/Execute parameter 
-     recipe, which tells Embperl how a file should be processed. 
-   - Added recipes for XSLT transformation.
-   - Rebuild cache management to work together with recipes. Now every
-     intermediate step could be cached.
-   - Add new debug flags dbgOutput, dbgRun, dbgCache, dbgCompile, dbgXML,
-     dbgXSLT, dbgCheckpoint, dbgDOM to have a more fine control what's
-     going into the log file
-   - Changes in Embperl's internal tree representation, to fix serveral
-     small problems and in preparation for proper XML handling.
-   - print OUT inside loop works now correctly      
-   - Added new escmode 8/15 which generates correct XML escaping. 
-   - $row_foo will no longer treated as $row. Bug reported by Dave Fischer. 
-   - Add patch from Wim Kerkhoff so SSI syntax works together with 
-     EmbperlObject, i.e. included files are searched in the same way as
-     normal Embperl files.
-   - Add new method AddTagInside in HTML::Embperl::Syntax::HTML to allow
-     tags inside of other tags.
-
-=head1 2.0b3 (BETA) 9. July 2001
-
-   - correct package handling in EP1COMPAT mode
-   - compiles now with sun-cc. Patches from Michael Stevens.
-   - fixed several bugs that caused weired behaviour with nested subs
-     and tables.
-   - fixed a bug that caused Embperl to stop when it sees a checkbox
-     inside a loop, for which no value is in %fdat.   
-   - fixed a bug that caused Embperl alias a value in %fdat and %idat
-   - Execute work now also on the very first line of a file. Spotted 
-     by Michael Smith.
-   - [- -] can now contain Perl comments. Spotted by Michael Stevens.
-   - [- -] can now start with =pod. Spotted by Jonny Cavell.   
-   - fixed a parser error so <[+ $foo +]> generates the correct result.
-     Spotted by Michael Stevens.
-   - fixed bug in Node_insertAfter which may cause a single Execute
-     on the second line of a file to loop endless. Spotted by
-     Janny Cavell.
-   - Embperl doesn't search for attributes inside of quotes inside of
-     html tags anymore. Spotted by Ian Van der Poel.
-   - type=checkbox|radio is now case insensitiv as it should. Spotted
-     by Jonny Cavell.
-   - print OUT and Execute now works together. Spotted by Jonny Cavell.
-   - Embperl doesn't insert a linefeed after an Execute anymore.
-   - Embperl now keeps single or double quote the same as in the source
-     file. Requested by Jonny Cavell.
-   - [$hidden$] works now correctly inside of loops. Spotted by Jonny Cavell.
-   - The parser now checks for the correct end of an html tag. Spotted
-     by Jonny Cavell.
-   - Added RTF syntax. This allows you for example to create serial letters
-     with your favorite word processing program, save them as RTF and process 
-     them with Embperl. See HTML::Embperl::Syntax::RTF for docs.
-
-=head1 2.0b2 (BETA)  29. Mar 2001
-
-   - Embperl files can now debugged via the interavtive debugger.
-     The debugger shows the Embperl page source along with the
-     correct linenumbers. 
-     This works in various ways:
-        # perl interacive command line debugger
-        perl -d embpexec.pl file.epl  
-        # ddd graphical debugger (http://www.gnu.org/software/ddd/)
-        ddd --debugger 'perl -d embpexec.pl file.epl'
-        or via Apache::DB under mod_perl
-   - Embperl has now a defined API for creating/adding a new
-     syntax. See perldoc HTML::Embperl::Syntax for details.
-   - Which syntax (also multiple at the same time) 
-     a given page uses can be defined via EMBPERL_SYNTAX configuration
-     directive.
-   - Added Syntax definitions for SSI, Perl and plain Text
-   - New [$ syntax $] metacommand can switch the syntax of the file
-     on the fly. It's also usefull to load addtional taglibs.
-   - print OUT works again
-   - HTML comments are not touched anymore
-   - Embperl doesn't log a warning if a undefined value is in %ENV and
-     dbgEnv is on.
-   - 2.0b2 now contains all contains all changes up to 1.3.2 .
-
-=head1 2.0b1 (BETA)  22. Dec 2000
-
-   - Syntax of Embperl is now defined in module HTML::Embperl::Syntax
-   - Processing of Embperl is now divided in smaller steps:
-        1 reading the source
-        2 parseing 
-        3 compiling 
-        4 executing
-        5 outputing
-     Since steps 1-3 has only to take place for the first time a file
-     is processed, Embperl is about 50-100% faster the Embperl 1.x.
-     (Embperl 1.x has also precompiled the Perl code, but Embperl
-     goes much further and stores also a precompiled structure of
-     the document)
-     This modularisation will also allow to replace single steps
-     with other modules and to cascade multiple processors, that
-     work on one document.
-   - The following options can currently only set from the httpd.conf:
-     optRawInput, optKeepSpaces
-   - The following options are currently not supported:
-     optDisableHtmlScan, optDisableTableScan,
-     optDisableInputScan, optDisableMetaScan 
-   - Nesting must be properly. I.e. you cannot put a <table> tag (for an
-     dynamic table) inside an if and the </table> inside another if.
-     (That still works for static tables)
-   - optUndefToEmptyValue is always set and cannot be disabled.
-   - [$ foreach $x (@x) $] requires now the bracket around the
-     array (like Perl)
-   - [* *] blocks works now as expected.
-   - option tag can take value optional from html text, so 
-     <option value="foo"> and <option>foo</option> are the same
-   - Execute ('file.htm#subname') works now without a previous
-     import
-   - Added cacheing of output. There are serveral parameters that
-     controls the caching. They can be either given as configuration
-     directives in httpd.conf, as parameters to Execute or as
-     Perl vars/subs inside a [! !] of the page itself.
-   - [+ +] blocks must now contain a valid Perl expression. Embperl 1.x
-     allows you to put multiple statements into such a block. For performance
-     reasons this is not possible anymore. Also the expression must _not_
-     terminated with a semikolon. To let old code work, just wrap it into a do
-     e.g. [+ do { my $a = $b + 5 ; $a } +]
-
-=head1 1.3.4_dev 
+=head1 1.3.4 (RELEASE)   5. Dec 2001
 
    - Added method $r -> Espace for html & url escaping
    - URL escpage # to %23
@@ -204,7 +42,10 @@
    - Added optShowBacktrace to enable backtrace of filename in error messages
    - Removed obsolete debug flags dbgDisableCache, dbgWatchScalar,
      dbgEarlyHttpHeader
-
+   - Fixed problem with changeing to page directory on win32. Reported by
+     Hans de Groot.
+   - Fixed problems with mod_perl environement handling with ActiveState Perl 
+     on win32.
 
 =head1 1.3.3 (RELEASE)   6. Juni 2001
 
@@ -269,6 +110,7 @@
      Spotted by Lukas Zapletal.
    - Perl search path (@INC) in make test is set to abosulte paths to be independend
      of directory changes that Apache might issue. Spotted by Randy Korbes.
+
 
 =head1 1.3.1 (RELEASE)   13 Feb. 2001
 

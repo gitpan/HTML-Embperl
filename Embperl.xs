@@ -268,11 +268,8 @@ CODE:
     if (!r->bEP1Compat)
 	{
 	char * p = SvPV (sText, l) ;
-        /*if Node_self(DomTree_self (r -> xCurrDomTree), r -> xCurrNode) -> nType == ntypDocumentFraq)
-            Node_appendChild (DomTree_self (r -> xCurrDomTree), r -> xCurrNode, r -> nCurrRepeatLevel, ntypCDATA, 0, p, l, 0, 0, NULL) ; 
-                else*/
-        r -> xCurrNode = Node_insertAfter_CDATA (p, l, (r -> nCurrEscMode & 3)== 3?1 + (r -> nCurrEscMode & 4):r -> nCurrEscMode, DomTree_self (r -> xCurrDomTree), r -> xCurrNode, r -> nCurrRepeatLevel) ; 
-        
+        /* Node_appendChild (DomTree_self (r -> xCurrDomTree), ntypCDATA, 0, p, l, r -> xCurrNode, 0, 0) ; */
+        r -> xCurrNode = Node_insertAfter_CDATA (p, l, (r -> nCurrEscMode & 3)== 3?1 + (r -> nCurrEscMode & 4):r -> nCurrEscMode, DomTree_self (r -> xCurrDomTree), r -> xCurrNode) ; 
         }
     else
 #endif
@@ -572,14 +569,6 @@ embperl_SubReq(r)
     tReq * r
 CODE:
     RETVAL = r -> bSubReq ;
-OUTPUT:
-    RETVAL
-
-int
-embperl_IsImport(r)
-    tReq * r
-CODE:
-    RETVAL = r -> pImportStash?1:0 ;
 OUTPUT:
     RETVAL
 

@@ -3,7 +3,7 @@
 #
 # (C) 1997-2001 G.Richter (richter@dev.ecos.de) / ECOS
 #
-# $Id: Makefile.PL,v 1.31.4.36 2001/11/27 08:37:55 richter Exp $
+# $Id: Makefile.PL,v 1.55 2001/12/04 07:43:15 richter Exp $
 #
 
 

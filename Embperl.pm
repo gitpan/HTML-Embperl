@@ -10,7 +10,7 @@
 #   IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 #   WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 #
-#   $Id: Embperl.pm,v 1.118.4.65 2001/11/27 10:43:36 richter Exp $
+#   $Id: Embperl.pm,v 1.176 2001/12/05 07:32:54 richter Exp $
 #
 ###################################################################################
 
@@ -24,11 +24,6 @@ require Cwd ;
 require Exporter;
 require DynaLoader;
 
-##ep2## 
-use HTML::Embperl::Syntax ;
-use HTML::Embperl::Recipe ;
-##/ep2## 
-
 use strict ;
 use vars qw(
     $DefaultLog 
@@ -40,7 +35,6 @@ use vars qw(
     $packno
 
     @cleanups
-    @cleanupfuncs
     
     $LogOutputFileno
     %LogFileColors
@@ -59,19 +53,18 @@ use vars qw(
 
     $pathsplit
 
-    @AliasScalar
-    @AliasHash
+    @AliasScalar 
+    @AliasHash 
     @AliasArray
+
+    $dummy
     ) ;
 
 
 @ISA = qw(Exporter DynaLoader);
 
 
-##ep2##
-$VERSION = '2.0b5' ;
-##/ep2##
-##ep1##$VERSION = '1.3.4_dev';
+$VERSION = '1.3.4';
 
 # HTML::Embperl cannot be bootstrapped in nonlazy mode except
 # under mod_perl, because its dependencies import symbols like ap_palloc
@@ -103,7 +96,6 @@ $DefaultLog = '/tmp/embperl.log' ;
 %filepack = () ;    # translate filename to packagename
 $packno   = 1 ;     # for assigning unique packagenames
 
-
 @cleanups = () ;    # packages which need a cleanup
 $LogOutputFileno = 0 ;
 $pathsplit = $^O eq 'MSWin32'?';':';|:' ;   # separators for path
@@ -114,6 +106,7 @@ use constant dbgAll                 => -1 ;
 use constant dbgAllCmds             => 1024 ;
 use constant dbgCmd                 => 8 ;
 use constant dbgDefEval             => 16384 ;
+use constant dbgEarlyHttpHeader     => 65536 ;
 use constant dbgEnv                 => 16 ;
 use constant dbgEval                => 4 ;
 use constant dbgFlushLog            => 512 ;
@@ -131,16 +124,9 @@ use constant dbgSource              => 2048 ;
 use constant dbgStd                 => 1 ;
 use constant dbgSession             => 0x200000 ;
 use constant dbgTab                 => 64 ;
-use constant dbgParse               => 0x1000000 ; 
+use constant dbgWatchScalar         => 131072 ;
+use constant dbgParse               => 0x1000000 ; # reserved for Embperl 2.x
 use constant dbgObjectSearch        => 0x2000000 ;
-use constant dbgDOM                 => 0x10000 ;
-use constant dbgOutput              => 0x08000 ;
-use constant dbgRun                 => 0x20000 ;
-use constant dbgCache               => 0x4000000 ;
-use constant dbgCompile             => 0x8000000 ;
-use constant dbgXML                 => 0x10000000 ;
-use constant dbgXSLT                => 0x20000000 ;
-use constant dbgCheckpoint          => 0x40000000 ;
 
 use constant epIOCGI                => 1 ;
 use constant epIOMod_Perl           => 3 ;
@@ -152,7 +138,6 @@ use constant escNone                => 0 ;
 use constant escStd                 => 3 ;
 use constant escUrl                 => 2 ;
 use constant escEscape              => 4 ;
-use constant escXML                 => 8 ;
 
 
 use constant optDisableChdir            => 128 ;
@@ -185,7 +170,6 @@ use constant ok                     => 0 ;
 use constant rcArgStackOverflow => 23 ;
 use constant rcArrayError => 11 ;
 use constant rcCannotUsedRecursive => 19 ;
-use constant rcCleanupErr => 50 ;
 use constant rcCmdNotFound => 7 ;
 use constant rcElseWithoutIf => 4 ;
 use constant rcEndifWithoutIf => 3 ;
@@ -237,7 +221,6 @@ $DebugDefault = dbgStd ;
     'TAB:'  => '#FF0080',
     'INPU:' => '#008040',
                 ) ;
-
 #######################################################################################
 
 BEGIN
@@ -254,7 +237,6 @@ BEGIN
                         optRawInput               optSafeNamespace          optSendHttpHeader         optAllFormData            
                         optRedirectStdout         optUndefToEmptyValue      optNoHiddenEmptyValue     optAllowZeroFilesize      
                         optKeepSrcInMemory        optKeepSpaces	       optOpenLogEarly           optNoUncloseWarn	       
-			_ep_node
                         } ;
     @AliasHash   = qw{fdat udat mdat sdat idat http_headers_out fsplitdat} ;
     @AliasArray  = qw{ffld} ;
@@ -392,7 +374,7 @@ my %sargs = (
     create_unknown => 1,
     ) ;
 my $session_handler = $ENV{EMBPERL_SESSION_HANDLER_CLASS} || 'Apache::SessionX' ; 
-my $ver = '' ;
+my $ver = ''  ;
 
 if (defined ($ENV{EMBPERL_SESSION_ARGS}))
     {
@@ -638,6 +620,8 @@ sub CheckFile
         shift @path while ($skip--) ;
         my $fn = '' ;
         print LOG "[$$]Embperl path search Path: " . join (';',@path) . " Filename: $filename\n" if ($debug);
+        print LOG "[$$]Embperl path search pathskip = $pathskip  pathndx = $pathndx\n" if ($debug);
+
         #$$pathref = join (';', @path) ;
 
         foreach (@path)
@@ -672,7 +656,6 @@ sub CheckFile
     }
 
 
-
 ##########################################################################################
 
 sub ScanEnvironment
@@ -687,6 +670,7 @@ sub ScanEnvironment
 	my %cgienv = $req_rec->cgi_env ;
         while (($k, $v) = each %cgienv)
 		{
+                #warn "env $k = ->$v<->env=$ENV{$k}<-" ;
                 $ENV{$k} = $v if (!exists $ENV{$k}) ;
 		}
 	}
@@ -715,21 +699,6 @@ sub ScanEnvironment
     $$req{'cookie_domain'}  = $ENV{EMBPERL_COOKIE_DOMAIN} if (exists ($ENV{EMBPERL_COOKIE_DOMAIN})) ;
     $$req{'cookie_path'}    = $ENV{EMBPERL_COOKIE_PATH} if (exists ($ENV{EMBPERL_COOKIE_PATH})) ;
     $$req{'cookie_expires'} = $ENV{EMBPERL_COOKIE_EXPIRES} if (exists ($ENV{EMBPERL_COOKIE_EXPIRES})) ;
-
-    ##ep2##
-    $$req{'ep1compat'}      = $ENV{EMBPERL_EP1COMPAT}?1:0 ;
-    $$req{'cache_key'}      = $ENV{EMBPERL_CACHE_KEY} if (exists ($ENV{EMBPERL_CACHE_KEY})) ; ;
-    $$req{'cache_key_options'}   = $ENV{EMBPERL_CACHE_KEY_OPTIONS} if (exists ($ENV{EMBPERL_CACHE_KEY_OPTIONS})) ; ;
-    $$req{'expired_func'}    = $ENV{EMBPERL_EXPIRES_FUNC} if (exists ($ENV{EMBPERL_EXPIRES_FUNC})) ; ;
-    $$req{'cache_key_func'}  = $ENV{EMBPERL_CACHE_KEY_FUNC} if (exists ($ENV{EMBPERL_CACHE_KEY_FUNC})) ; ;
-    $$req{'expires_in'}     = $ENV{EMBPERL_EXPIRES_IN} if (exists ($ENV{EMBPERL_EXPIRES_IN})) ; ;
-    $$req{'syntax'}         = $ENV{EMBPERL_SYNTAX} if (exists ($ENV{EMBPERL_SYNTAX})) ; ;
-    $$req{'recipe'}         = $ENV{EMBPERL_RECIPE} if (exists ($ENV{EMBPERL_RECIPE})) ; ;
-    $$req{'xsltstylesheet'} = $ENV{EMBPERL_XSLTSTYLESHEET} if (exists ($ENV{EMBPERL_XSLTSTYLESHEET})) ; ;
-    $$req{'xsltproc'}       = $ENV{EMBPERL_XSLTPROC} if (exists ($ENV{EMBPERL_XSLTPROC})) ; ;
-    ##/ep2##
-
-
     }
 
 
@@ -789,11 +758,12 @@ sub Execute
         $req -> {'cookie_expires'} = CGI::expires($req -> {'cookie_expires'}, 'cookie') ;
         }
 
+
     my $conf = SetupConfData ($req, $opcodemask) ;
 
     
     my $Outputfile = $$req{'outputfile'} ;
-    my $In         = $$req{'input'}   ;
+    my $In         = $$req{'input'} ;
     my $Out        = $$req{'output'}  ;
     my $filesize ;
     my $mtime ;
@@ -848,11 +818,9 @@ use strict ;
     my $Sub          = $$req{'sub'} || '' ;
     my $lastreq      = CurrReq () ;
     my $pathndx      = 0 ;
-    my $lastSyntaxName  ;
-        
+
     if ($lastreq)
         {
-        $lastSyntaxName = $lastreq -> SyntaxName ; 
         if ($Inputfile eq '*') 
             {
             $Inputfile = $lastreq -> ReqFilename ;
@@ -865,7 +833,7 @@ use strict ;
             }
         $$req{'path'} ||= $lastreq -> Path  ;
         $$req{'debug'} ||= $lastreq -> Debug  ;
-	$pathndx = $lastreq -> PathNdx ; 
+        $pathndx = $lastreq -> PathNdx ;
         }
     
     if (defined ($In))
@@ -892,17 +860,14 @@ use strict ;
         $mtime = 0 ;
 	}
 
-    #ep2#
-    my $syntax = HTML::Embperl::Syntax::GetSyntax ($req -> {syntax} || $lastSyntaxName || 'Embperl') ;
-    #ep2#
-        
+
     my $package ;
     my $ar  ;
     $ar = Apache->request if (defined ($req_rec)) ; # workaround that Apache::Request has another C Interface, than Apache
     my $r = SetupRequest ($ar, $Inputfile, $mtime, $filesize, ($$req{firstline} || 1), $Outputfile, $conf,
-                          &epIOMod_Perl, $In, $Out, $Sub,
-			   defined ($import)?scalar(caller ($import > 0?$import - 1:0)):'', 
-                          $SessionMgnt, $syntax) ;
+                          &epIOMod_Perl, $In, $Out, $Sub, 
+			   defined ($import)?scalar(caller ($import > 0?$import - 1:0)):'',
+                          $SessionMgnt, $req -> {'syntax'} || '') ;
     
     eval
         {
@@ -912,9 +877,7 @@ use strict ;
             warn "\@ISA corrupted HTML::Embperl::Req must be a base class of $$req{'bless'}" if (!$r -> isa ('HTML::Embperl::Req')) ; 
             }
 
-
         $r -> Path ($req->{path}) if ($req->{path}) ;
-
         $r -> PathNdx ($pathndx) ;
 
         $package = $r -> CurrPackage ;
@@ -937,50 +900,54 @@ use strict ;
 	        %fdat = %{$$req{'fdat'}} ;
 	        @ffld = keys %fdat if (!defined ($$req{'ffld'})) ;
 	        }
-	    elsif (!defined ($import) &&
+	    else
+                {
+                my $content_type = $req_rec?$req_rec -> header_in('Content-type'):$ENV{'CONTENT_TYPE'} ;
+                if (!defined ($import) && 
                    !($optDisableFormData) &&
 	           !($r -> SubReq) &&
-	           defined($ENV{'CONTENT_TYPE'}) &&
-	           $ENV{'CONTENT_TYPE'}=~m|^multipart/form-data|)
-	        { # just let CGI.pm read the multipart form data, see cgi docu
-	        require CGI ;
+	           $content_type &&
+	           ($content_type=~m|^multipart/form-data|))
+	            { # just let CGI.pm read the multipart form data, see cgi docu
+	            require CGI ;
 
-	        my $cgi ;
-	        eval { $cgi = new CGI } ;
-	        if ($@ || !$cgi)
-                    {
-                    $r -> logerror (rcCGIError, $@)  ;
-                    $@ = '' ;
-                    }
-                else
-                    {
-	            @ffld = $cgi->param;
-    
-	            my $params ;
-    	            foreach ( @ffld )
-		        {
-    		        # the param_fetch needs CGI.pm 2.43
-		        #$params = $cgi->param_fetch( $_ ) ;
-    		        $params = $cgi->{$_} ;
-		        if ($#$params > 0)
-		            {
-		            $fdat{ $_ } = join ("\t", @$params) ;
-		            }
-		        else
-		            {
-		            $fdat{ $_ } = $params -> [0] ;
-		            }
-		        
-		        ##print LOG "[$$]FORM: $_=" . (ref ($fdat{$_})?ref ($fdat{$_}):$fdat{$_}) . "\n" if ($dbgForm) ; 
-		        print LOG "[$$]FORM: $_=$fdat{$_}\n" if ($dbgForm) ; 
-
-		        if (ref($fdat{$_}) eq 'Fh') 
-		            {
-		            $fdat{"-$_"} = $cgi -> uploadInfo($fdat{$_}) ;
-		            }
+	            my $cgi ;
+	            eval { $cgi = new CGI } ;
+	            if ($@ || !$cgi)
+                        {
+                        $r -> logerror (rcCGIError, $@)  ;
+                        $@ = '' ;
                         }
-		    }
-	        }
+                    else
+                        {
+	                @ffld = $cgi->param;
+    
+	                my $params ;
+    	                foreach ( @ffld )
+		            {
+    		            # the param_fetch needs CGI.pm 2.43
+		            #$params = $cgi->param_fetch( $_ ) ;
+    		            $params = $cgi->{$_} ;
+		            if ($#$params > 0)
+		                {
+		                $fdat{ $_ } = join ("\t", @$params) ;
+		                }
+		            else
+		                {
+		                $fdat{ $_ } = $params -> [0] ;
+		                }
+		            
+		            ##print LOG "[$$]FORM: $_=" . (ref ($fdat{$_})?ref ($fdat{$_}):$fdat{$_}) . "\n" if ($dbgForm) ; 
+		            print LOG "[$$]FORM: $_=$fdat{$_}\n" if ($dbgForm) ; 
+
+		            if (ref($fdat{$_}) eq 'Fh') 
+		                {
+		                $fdat{"-$_"} = $cgi -> uploadInfo($fdat{$_}) ;
+		                }
+            	            }
+                        }
+	            }
+                }
 
 	    my $saved_param = undef;
 	    if ( ref $$req{'param'} eq 'ARRAY') {
@@ -993,11 +960,6 @@ use strict ;
 
 
             $r -> SetupSession ($req_rec, $Inputfile) ;
-            if (!($r -> SubReq))
-                {
-                @cleanups = () ;
-                @cleanupfuncs = () ;
-                }
 
 	        {
 	        local $SIG{__WARN__} = \&Warn ;
@@ -1005,7 +967,6 @@ use strict ;
 	        my $oldfh = select (OUT) if ($optRedirectStdout) ;
 	        my $saver = $r ;
         
-
 	        $@ = undef ;
                 $rc = CleanCallExecuteReq ($r, $$req{'param'}) ;
         
@@ -1057,7 +1018,7 @@ use strict ;
 		    $req_rec -> register_cleanup(\&HTML::Embperl::cleanup) if (defined ($req_rec)) ;
 		    }
 	        push @cleanups, $package ;
-
+        
 	        cleanup () if (!$r -> SubReq () && !$req_rec) ;
 	        }
 	    else
@@ -1079,7 +1040,7 @@ use strict ;
             }
 
         @{$req -> {errors}} = @{$r -> ErrArray()} if (ref ($req -> {errors}) eq 'ARRAY')  ;
-        } ; # eval
+    } ; # eval
     if ($@)
 	{
 	my $err = $@ ;
@@ -1090,7 +1051,7 @@ use strict ;
 	}
 
     $r -> FreeRequest () ;
-
+    
     if ($rc == 0 && $req -> {'object'})
         {
         my $object = {} ;
@@ -1098,7 +1059,7 @@ use strict ;
         return $object ;
         }
 
-    
+
     return $rc ;
     }
 
@@ -1325,221 +1286,205 @@ no strict ;
 
 sub cleanup 
     {
-    my %seen ;
-    my $package ;
-    my $func ;
+    #log_svs ("cleanup entry") ;
+    my $glob ;
+    my $val ;
+    my $key ;
     local $^W = 0 ;
-
-
-    if (!$ENV{EMBPERL_EP1COMPAT})
-        {
-        $seen{''}      = 1 ;
-        $seen{'dbgShowCleanup'} = 1 ;
-        $Debugflags = dbgShowCleanup if ($cleanups[0] eq 'dbgShowCleanup') ;
-        foreach $func (@cleanupfuncs)
-            {
-            eval { &$func ; } ;
-            logerror (rcCleanupErr, "Error during cleanup function: $@") if ($@) ;
-            }
-        foreach $package (@cleanups)
-            {
-            next if ($seen{$package}) ;
-
-	    if ($Debugflags & dbgShowCleanup)
-	        {
-	        print LOG "[$$]CUP:  ***** Cleanup package: $package *****\n" ;
-                }
-	    $seen{$package} = 1 ;
-            eval { ClearSymtab ($package, $Debugflags) ; } ;
-            logerror (rcCleanupErr, $@) if ($@) ;
-            }
-        }
-    else
-        {            
-        #log_svs ("cleanup entry") ;
-        my $glob ;
-        my $val ;
-        my $key ;
-        my $Debugflags ;
-        my $packfile ;
-        my %addcleanup ;
-        my $varfile ;
-        my ($k, $v) ;
+    my $package ;
+    my %seen ;
+    my $Debugflags ;
+    my $packfile ;
+    my %addcleanup ;
+    my $varfile ;
+    my ($k, $v) ;
     
-        $seen{''}      = 1 ;
-        $seen{'dbgShowCleanup'} = 1 ;
-        foreach $package (@cleanups)
-            {
-            $Debugflags = dbgShowCleanup if ($package eq 'dbgShowCleanup') ;
-            next if ($seen{$package}) ;
+    $seen{''}      = 1 ;
+    $seen{'dbgShowCleanup'} = 1 ;
+    foreach $package (@cleanups)
+        {
+        $Debugflags = dbgShowCleanup if ($package eq 'dbgShowCleanup') ;
+        next if ($seen{$package}) ;
 
-	    $seen{$package} = 1 ;
+	$seen{$package} = 1 ;
         
-            #print LOG "GVFile $package\::__ANON__\n" ;
-	    $packfile = GVFile (*{"$package\::__ANON__"}) ;
-            $packfile = '-> No Perl in Source <-' if ($packfile eq ('_<' . __FILE__) || $packfile eq __FILE__) ;
-	    $addcleanup = \%{"$package\:\:CLEANUP"} ;
-	    $addcleanup -> {'CLEANUP'} = 0 ;
-	    $addcleanup -> {'EXPIRES'} = 0 ;
-	    $addcleanup -> {'CACHE_KEY'} = 0 ;
-	    $addcleanup -> {'ISA'} = 0 ;
-	    if ($Debugflags & dbgShowCleanup)
-	        {
-	        print LOG "[$$]CUP:  ***** Cleanup package: $package *****\n" ;
-	        print LOG "[$$]CUP:  Source $packfile\n" ;
-	        }
-	    if (defined (&{"$package\:\:CLEANUP"}))
-	        {
-    	        #$package =~ /^([a-zA-Z0-9\:\:\_]+)$/ ;
-	        #eval "\&$1\:\:CLEANUP;" ;
-	        eval "\&$package\:\:CLEANUP;" ;
-	        print LOG "[$$]CUP:  Call \&$package\:\:CLEANUP;\n" if ($Debugflags & dbgShowCleanup);
-	        logevalerr ($@) if ($@) ;
-	        }
+        #print LOG "GVFile $package\::__ANON__\n" ;
+	$packfile = GVFile (*{"$package\::__ANON__"}) ;
+        $packfile = '-> No Perl in Source <-' if ($packfile eq ('_<' . __FILE__) || $packfile eq __FILE__) ;
+	$addcleanup = \%{"$package\:\:CLEANUP"} ;
+	$addcleanup -> {'CLEANUP'} = 0 ;
+	$addcleanup -> {'ISA'} = 0 ;
+	if ($Debugflags & dbgShowCleanup)
+	    {
+	    print LOG "[$$]CUP:  ***** Cleanup package: $package  *****\n" ;
+	    print LOG "[$$]CUP:  Source $packfile\n" ;
+	    }
+	if (defined (&{"$package\:\:CLEANUP"}))
+	    {
+    	    #$package =~ /^([a-zA-Z0-9\:\:\_]+)$/ ;
+	    #eval "\&$1\:\:CLEANUP;" ;
+	    eval "\&$package\:\:CLEANUP;" ;
+	    print LOG "[$$]CUP:  Call \&$package\:\:CLEANUP;\n" if ($Debugflags & dbgShowCleanup);
+	    logevalerr ($@) if ($@) ;
+	    }
 
 
-            if ($Debugflags & dbgShowCleanup)
-                {
-	        my @vars = sort keys %{*{"$package\::"}} ;
-                my $cleanfile = \%{"$package\:\:CLEANUPFILE"} ;
-	        foreach $key (@vars)
+        if ($Debugflags & dbgShowCleanup)
+            {
+	    my @vars = sort keys %{*{"$package\::"}} ;
+            my $cleanfile = \%{"$package\:\:CLEANUPFILE"} ;
+	    foreach $key (@vars)
+		{
+                next if ($key =~ /^::/) ;
+		$val =  ${*{"$package\::"}}{$key} ;
+		local(*ENTRY) = $val;
+		#print LOG "$key = " . GVFile (*ENTRY) . "\n" ;
+		$varfile = GVFile (${*{"$package\::"}}{$key}) ;
+		#$varfile = GVFile (*ENTRY) ;
+                $glob = $package.'::'.$key ;
+		if (defined (*ENTRY{SCALAR}) && defined (${$glob}) && ref (${$glob}) eq 'DBIx::Recordset' &&
+                        !(defined ($addcleanup -> {$key}) && $addcleanup -> {$key} == 0))
 		    {
-		    next if ($key =~ /^::/) ;
-                    $val =  ${*{"$package\::"}}{$key} ;
-		    local(*ENTRY) = $val;
-		    #print LOG "$key = " . GVFile (*ENTRY) . "\n" ;
-		    $varfile = GVFile (${*{"$package\::"}}{$key}) ;
+		    print LOG "[$$]CUP:  Recordset $key\n" ;
+		    eval { DBIx::Recordset::Undef ($glob) ; } ;
+		    print LOG "[$$]CUP:  Error: $@\n" if ($@) ;
+		    } 
+		elsif (($packfile eq $varfile || $addcleanup -> {$key} ||
+                        $cleanfile->{$varfile}) &&  
+		     (!($key =~ /\:\:$/) && !(defined ($addcleanup -> {$key}) && $addcleanup -> {$key} == 0)))
+		    { # Only cleanup vars which are defined in the sourcefile
+		      # ignore all imported vars, unless they are in the CLEANUP hash which is set by VARS
+                    if (defined (*ENTRY{SCALAR}) && defined (${$glob})) 
+			{
+			print LOG "[$$]CUP:  \$$key = ${$glob}\n" ;
+			eval { undef ${$glob} } ;
+			print LOG "[$$]CUP:  Error: $@\n" if ($@) ;
+			}
+		    if (defined (*ENTRY{IO})) 
+			{
+			print LOG "[$$]CUP:  IO     $key\n" ;
+			eval { close *{$glob} ; } ;
+			print LOG "[$$]CUP:  Error: $@\n" if ($@) ;
+			}
+		    if (defined (*ENTRY{HASH})) 
+			{
+			print LOG "[$$]CUP:  \%$key = (" ;           
+			my $i = 0 ;
+			my $k ;
+			my $v ;
+                        eval { # ignore errors here (for ActiveState Perl)
+                        while (($k, $v) = each (%{$glob}))
+			    {
+			    if ($i++ > 5) 
+				{
+				print LOG '...' ;
+				last 
+				}
+			    print LOG "$k => $v, "
+			    } } ;
+			print LOG ")\n" ;
+			eval { untie %{$glob} ; } ;
+			print LOG "[$$]CUP:  Error: $@\n" if ($@) ;
+			eval { undef %{$glob} ; } ;
+			print LOG "[$$]CUP:  Error: $@\n" if ($@) ;
+			}
+		    if (defined (*ENTRY{ARRAY})) 
+			{
+			print LOG "[$$]CUP:  \@$key = ("  ;          
+			my $i = 0 ;
+			my $v ;
+			foreach $v (@{$glob})
+			    {
+			    if ($i++ > 5) 
+				{
+				print LOG '...' ;
+				last 
+				}
+			    print LOG "$v, "
+			    }
+			print LOG ")\n" ;
+			eval { untie @{$glob} ; } ;
+			print LOG "[$$]CUP:  Error: $@\n" if ($@) ;
+			eval { undef @{$glob} ; } ;
+			print LOG "[$$]CUP:  Error: $@\n" if ($@) ;
+			}
+		    print LOG "[$$]CUP:  leave unchanged LVALUE $key\n"       if (defined (*ENTRY{LVALUE})) ;
+		    print LOG "[$$]CUP:  leave unchanged FORMAT $key\n"       if (defined (*ENTRY{FORMAT})) ;
+		    print LOG "[$$]CUP:  leave unchanged \&$key\n"	      if (defined (*ENTRY{CODE})) ;
+                    }
+		}
+            }
+        else
+            {
+            my $cleanfile = \%{"$package\:\:CLEANUPFILE"} ;
+            while (($key,$val) = each(%{*{"$package\::"}}))
+                {
+                next if ($key =~ /^::/) ;
+	        local(*ENTRY) = $val;
+	        $glob = $package.'::'.$key ;
+		if (defined (*ENTRY{SCALAR}) && defined (${$glob}) && ref (${$glob}) eq 'DBIx::Recordset' &&
+                         !(defined ($addcleanup -> {$key}) && $addcleanup -> {$key} == 0))
+		    {
+		    eval { DBIx::Recordset::Undef ($glob) ; } ;
+		    print LOG "[$$]CUP:  Error: $@\n" if ($@) ;
+		    } 
+		else
+                    {
 		    #$varfile = GVFile (*ENTRY) ;
-                
-                    $glob = $package.'::'.$key ;
-		    if (defined (*ENTRY{SCALAR}) && defined (${$glob}) && ref (${$glob}) eq 'DBIx::Recordset' &&
-                            !(defined ($addcleanup -> {$key}) && $addcleanup -> {$key} == 0))
-		        {
-		        print LOG "[$$]CUP:  Recordset $key\n" ;
-		        eval { DBIx::Recordset::Undef ($glob) ; } ;
-		        print LOG "[$$]CUP:  Error: $@\n" if ($@) ;
-		        } 
-		    elsif (($packfile eq $varfile || $addcleanup -> {$key} || 
-                            $cleanfile->{$varfile}) &&  
+		    $varfile = GVFile (${*{"$package\::"}}{$key}) ;
+	            if (($packfile eq $varfile || $addcleanup -> {$key} || 
+                        $cleanfile->{$varfile}) &&  
 		         (!($key =~ /\:\:$/) && !(defined ($addcleanup -> {$key}) && $addcleanup -> {$key} == 0)))
 		        { # Only cleanup vars which are defined in the sourcefile
 		          # ignore all imported vars, unless they are in the CLEANUP hash which is set by VARS
                         if (defined (*ENTRY{SCALAR}) && defined (${$glob})) 
 			    {
-			    print LOG "[$$]CUP:  \$$key = ${$glob}\n" ;
-			    eval { undef ${$glob} } ;
-			    print LOG "[$$]CUP:  Error: $@\n" if ($@) ;
+			    eval { undef ${$glob} ; } ;
+			    print LOG "[$$]CUP:  Error while cleanup \$$glob: $@\n" if ($@) ;
 			    }
 		        if (defined (*ENTRY{IO})) 
 			    {
-			    print LOG "[$$]CUP:  IO     $key\n" ;
-			    eval { close *{$glob} ; } ;
-			    print LOG "[$$]CUP:  Error: $@\n" if ($@) ;
+			    eval { close *{"$package\:\:$key"} ; } ;
+			    print LOG "[$$]CUP:  Error while closing $glob: $@\n" if ($@) ;
 			    }
 		        if (defined (*ENTRY{HASH})) 
 			    {
-			    print LOG "[$$]CUP:  \%$key = (" ;           
-			    my $i = 0 ;
-			    my $k ;
-			    my $v ;
-                            eval { # ignore errors here (for ActiveState Perl)
-                            while (($k, $v) = each (%{$glob}))
-			        {
-			        if ($i++ > 5) 
-				    {
-				    print LOG '...' ;
-				    last 
-				    }
-			        print LOG "$k => $v, "
-			        } } ;
-			    print LOG ")\n" ;
 			    eval { untie %{$glob} ; } ;
-			    print LOG "[$$]CUP:  Error: $@\n" if ($@) ;
+			    print LOG "[$$]CUP:  Error while cleanup \%$glob: $@\n" if ($@) ;
 			    eval { undef %{$glob} ; } ;
-			    print LOG "[$$]CUP:  Error: $@\n" if ($@) ;
+			    print LOG "[$$]CUP:  Error while cleanup \%$glob: $@\n" if ($@) ;
 			    }
 		        if (defined (*ENTRY{ARRAY})) 
 			    {
-			    print LOG "[$$]CUP:  \@$key = ("  ;          
-			    my $i = 0 ;
-			    my $v ;
-			    foreach $v (@{$glob})
-			        {
-			        if ($i++ > 5) 
-				    {
-				    print LOG '...' ;
-				    last 
-				    }
-			        print LOG "$v, "
-			        }
-			    print LOG ")\n" ;
 			    eval { untie @{$glob} ; } ;
-			    print LOG "[$$]CUP:  Error: $@\n" if ($@) ;
+			    print LOG "[$$]CUP:  Error while cleanup \@$glob: $@\n" if ($@) ;
 			    eval { undef @{$glob} ; } ;
-			    print LOG "[$$]CUP:  Error: $@\n" if ($@) ;
+			    print LOG "[$$]CUP:  Error while cleanup \@$glob: $@\n" if ($@) ;
 			    }
-		        print LOG "[$$]CUP:  leave unchanged LVALUE $key\n"       if (defined (*ENTRY{LVALUE})) ;
-		        print LOG "[$$]CUP:  leave unchanged FORMAT $key\n"       if (defined (*ENTRY{FORMAT})) ;
-		        print LOG "[$$]CUP:  leave unchanged \&$key\n"	      if (defined (*ENTRY{CODE})) ;
                         }
 		    }
-                }
-            else
-                {
-                my $cleanfile = \%{"$package\:\:CLEANUPFILE"} ;
-                while (($key,$val) = each(%{*{"$package\::"}}))
-                    {
-                    next if ($key =~ /^::/) ;
-	            local(*ENTRY) = $val;
-	            $glob = $package.'::'.$key ;
-		    if (defined (*ENTRY{SCALAR}) && defined (${$glob}) && ref (${$glob}) eq 'DBIx::Recordset' &&
-                             !(defined ($addcleanup -> {$key}) && $addcleanup -> {$key} == 0))
-		        {
-		        eval { DBIx::Recordset::Undef ($glob) ; } ;
-		        print LOG "[$$]CUP:  Error: $@\n" if ($@) ;
-		        } 
-		    else
-                        {
-		        #$varfile = GVFile (*ENTRY) ;
-		        $varfile = GVFile (${*{"$package\::"}}{$key}) ;
-
-                        if (($packfile eq $varfile || $addcleanup -> {$key} ||
-                            $cleanfile->{$varfile}) &&  
-		             (!($key =~ /\:\:$/) && !(defined ($addcleanup -> {$key}) && $addcleanup -> {$key} == 0)))
-		            { # Only cleanup vars which are defined in the sourcefile
-		              # ignore all imported vars, unless they are in the CLEANUP hash which is set by VARS
-                            if (defined (*ENTRY{SCALAR}) && defined (${$glob})) 
-			        {
-			        eval { undef ${$glob} ; } ;
-			        print LOG "[$$]CUP:  Error while cleanup \$$glob: $@\n" if ($@) ;
-			        }
-		            if (defined (*ENTRY{IO})) 
-			        {
-			        eval { close *{"$package\:\:$key"} ; } ;
-			        print LOG "[$$]CUP:  Error while closing $glob: $@\n" if ($@) ;
-			        }
-		            if (defined (*ENTRY{HASH})) 
-			        {
-			        eval { untie %{$glob} ; } ;
-			        print LOG "[$$]CUP:  Error while cleanup \%$glob: $@\n" if ($@) ;
-			        eval { undef %{$glob} ; } ;
-			        print LOG "[$$]CUP:  Error while cleanup \%$glob: $@\n" if ($@) ;
-			        }
-		            if (defined (*ENTRY{ARRAY})) 
-			        {
-			        eval { untie @{$glob} ; } ;
-			        print LOG "[$$]CUP:  Error while cleanup \@$glob: $@\n" if ($@) ;
-			        eval { undef @{$glob} ; } ;
-			        print LOG "[$$]CUP:  Error while cleanup \@$glob: $@\n" if ($@) ;
-			        }
-                            }
-		        }
-		    }
-                }
+		}
             }
         }
 
     @cleanups = () ;
+
+
+    if ($^O eq 'MSWin32' && $ENV{MOD_PERL})
+        {
+        # workaround for mod_perl problems with environment
+        foreach my $k (keys %ENV)
+            {
+            delete $ENV{$k} if ($k =~ /^EMBPERL/) ;
+            }
+        delete $ENV{'QUERY_STRING'} ;
+        delete $ENV{'CONTENT_LENGTH'} ;
+        delete $ENV{'CONTENT_TYPE'} ;
+        delete $ENV{'HTTP_COOKIE'} ;
+        }
+        
+
+
 
     flushlog () ;
 
@@ -1723,20 +1668,13 @@ sub LogOutput
 
 #######################################################################################
 
-sub RegisterCleanup
-
-    {
-    push @cleanupfuncs, $_[0] ;
-    }
-
-
-#######################################################################################
-
 package HTML::Embperl::Req ; 
+
 
 #######################################################################################
 
 use strict ;
+
 
 if (defined ($ENV{MOD_PERL}))
     { 
@@ -1886,7 +1824,6 @@ sub SetSessionCookie
 
 #######################################################################################
 
-
 sub CreateAliases
 
     {
@@ -1895,8 +1832,9 @@ sub CreateAliases
     my $package = $self -> CurrPackage ;
 
     my $dummy ;
-        
+    
     no strict ;
+
 
     if (!defined(${"$package\:\:row"}))
         { # create new aliases for Embperl magic vars
@@ -1932,18 +1870,12 @@ sub CreateAliases
         tie *{"$package\:\:LOG"}, 'HTML::Embperl::Log' ;
         tie *{"$package\:\:OUT"}, 'HTML::Embperl::Out' ;
 
-	my $addcleanup = \%{"$package\:\:CLEANUP"} ;
-	$addcleanup -> {'CLEANUP'} = 0 ;
-	$addcleanup -> {'EXPIRES'} = 0 ;
-	$addcleanup -> {'CACHE_KEY'} = 0 ;
-	$addcleanup -> {'OUT'} = 0 ;
-	$addcleanup -> {'LOG'} = 0 ;
+        #warn  "[$$]MEM:  Created Aliases for $package\n" ;
         }
 
 
-    ${"$package\:\:req_rec"} = $self -> ApacheReq ;
-    #print HTML::Embperl::LOG  "[$$]MEM:  " . $self -> ApacheReq . "\n" ;
-
+     ${"$package\:\:req_rec"} = $self -> ApacheReq ;
+#    print HTML::Embperl::LOG  "[$$]MEM:  " . $self -> ApacheReq . "\n" ;
 
     use strict ;
     }

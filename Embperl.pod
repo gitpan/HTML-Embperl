@@ -889,7 +889,7 @@ a reference to a scalar, to which the input should be returned.
  Example:
 
  open F, "filename" ;
- local $\ = undef ;
+ local $/ = undef ;
  $$in = <F> ;
  close F ;
 
@@ -2586,7 +2586,9 @@ I have tested Embperl successfully
 
 =item perl5.7.1
 
-=item apache_1.3.0 - apache_1.3.19
+=item perl5.7.2
+
+=item apache_1.3.0 - apache_1.3.22
 
 =item apache_ssl (Ben SSL)
 
@@ -2600,7 +2602,7 @@ I have tested Embperl successfully
 
 I know from other people that it works on many other UNIX systems
 
-=head2 on Windows NT 4.0 with
+=head2 on Windows NT/2000 with
 
 =over 4
 
@@ -2610,7 +2612,9 @@ I know from other people that it works on many other UNIX systems
 
 =item perl5.6.0
 
-=item apache_1.3.0 - apache_1.3.19
+=item perl5.6.1
+
+=item apache_1.3.0 - apache_1.3.22
 
 =back
 

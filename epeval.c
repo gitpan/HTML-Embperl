@@ -10,7 +10,7 @@
 #   IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 #   WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 #
-#   $Id: epeval.c,v 1.23.4.12 2001/11/14 15:01:41 richter Exp $
+#   $Id: epeval.c,v 1.30 2001/11/02 10:03:48 richter Exp $
 #
 ###################################################################################*/
 
@@ -51,7 +51,6 @@ int EvalDirect (/*i/o*/ register req *  r,
     perl_eval_sv(pArg, G_SCALAR | G_KEEPERR);
 
 
-    tainted = 0 ;
     pSVErr = ERRSV ;
     if (SvTRUE (pSVErr))
 	{
@@ -111,7 +110,6 @@ int EvalConfig (/*i/o*/ register req *  r,
 	    SV * pRV ;
 
 	    pRV = perl_eval_pv (s, 0) ;
-            tainted = 0 ;
 	    if (SvROK (pRV))
 		{
 		*pCV = (CV *)SvRV (pRV) ;
@@ -215,12 +213,10 @@ static int EvalAll (/*i/o*/ register req * r,
             pSVCmd = newSVpvf(sFormatArray, r -> Buf.sEvalPackage, sName, r -> Buf.nSourceline, r -> Buf.pFile -> sSourcefile, sArg, sRef, sName) ;
         else
             pSVCmd = newSVpvf(sFormat, r -> Buf.sEvalPackage, sName, r -> Buf.nSourceline, r -> Buf.pFile -> sSourcefile, sArg, sRef, sName) ;
-    newSVpvf2(pSVCmd) ;
 
     PUSHMARK(sp);
     n = perl_eval_sv(pSVCmd, G_SCALAR | G_KEEPERR);
     SvREFCNT_dec(pSVCmd);
-    tainted = 0 ;
 
     SPAGAIN;
     if (n > 0)
@@ -300,14 +296,12 @@ static int EvalAllNoCache (/*i/o*/ register req * r,
     XPUSHs(sv_2mortal(newSVpv((char *)sArg, strlen (sArg)))); /* push the base onto the stack  */
     PUTBACK;                        /* make local stack pointer global */
     num = perl_call_pv ("_eval_", G_SCALAR /*| G_EVAL*/) ; /* call the function             */
-    tainted = 0 ;
 #else
     
     pSVArg = sv_2mortal(newSVpv((char *)sArg, strlen (sArg))) ;
 
     /*num = perl_eval_sv (pSVArg, G_SCALAR) ; / * call the function             */ */
     num = perl_eval_sv (pSVArg, G_DISCARD) ; /* call the function             */
-    tainted = 0 ;
     num = 0 ;
 #endif    
     SPAGAIN;                        /* refresh stack pointer         */
@@ -388,8 +382,7 @@ static int Watch (/*i/o*/ register req * r)
     PUSHMARK(sp);                   /* remember the stack pointer    */
 
     perl_call_pv ("HTML::Embperl::watch", G_DISCARD | G_NOARGS) ; /* call the function             */
-    tainted = 0 ;
-
+    
     return ok ;
     }
 
@@ -439,8 +432,7 @@ int CallCV  (/*i/o*/ register req * r,
     PUSHMARK(sp);                   /* remember the stack pointer    */
 
     num = perl_call_sv ((SV *)pSub, flags | G_EVAL | G_NOARGS) ; /* call the function             */
-    tainted = 0 ;
-
+    
     SPAGAIN;                        /* refresh stack pointer         */
     
     if (r -> bDebug & dbgMem)
@@ -723,7 +715,6 @@ int CallStoredCV  (/*i/o*/ register req * r,
     PUTBACK;
 
     num = perl_call_sv ((SV *)pSub, flags | G_EVAL | (numArgs?0:G_NOARGS)) ; /* call the function             */
-    tainted = 0 ;
     
     SPAGAIN;                        /* refresh stack pointer         */
     

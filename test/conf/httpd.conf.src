@@ -17,9 +17,9 @@ User $EPUSER
 Group $EPGROUP
 
 MinSpareServers 1
-MaxSpareServers 30
-StartServers 3
-MaxClients 10
+MaxSpareServers 2
+StartServers 2
+MaxClients 2
 MaxRequestsPerChild 0
 
 
@@ -51,15 +51,13 @@ PerlWarn On
 
 
 SetEnv EMBPERL_DEBUG $EPDEBUG
+PerlSetEnv EMBPERL_DEBUG $EPDEBUG
 SetEnv EMBPERL_VIRTLOG /embperl/log
 PerlSetEnv EMBPERL_LOG \"$EPPATH/test/tmp/test.log\"
 SetEnv EMBPERL_LOG \"$EPPATH/test/tmp/test.log\"
 
 PerlSetEnv EMBPERL_SRC \"$EPPATH\"
 SetEnv EMBPERL_SRC \"$EPPATH\"
-
-PerlSetEnv DMALLOC_OPTIONS \"log=$EPPATH/test/tmp/httpd.dmalloc.log,debug=0x3f03\" 
-SetEnv DMALLOC_OPTIONS \"log=$EPPATH/test/tmp/httpd.dmalloc.log,debug=0x3f03\" 
 
 EOD
 
@@ -70,6 +68,13 @@ if ($^O eq 'MSWin32' && $EPMODPERLVERSION >= 1.24)
         print OFH "SetEnv EMBPERL_ESCMODE 3\n" ;
         }
 
+if ($EPSESSIONXVERSION)
+    {
+    if ($^O eq 'MSWin32' && $EPMODPERLVERSION >= 1.24)
+	    { # ActiveState workarounds...
+            print OFH "SetEnv EMBPERL_SESSION_HANDLER_CLASS Apache::SessionX\n" ;
+            print OFH "PerlSetEnv EMBPERL_SESSION_HANDLER_CLASS Apache::SessionX\n" ;
+            }
 if ($EPSESSIONVERSION)
 	{
 print OFH <<EOD ;
@@ -105,21 +110,21 @@ SetEnv EMBPERL_SESSION_CLASSES "File Null"
 SetEnv EMBPERL_SESSION_ARGS "'Directory=$EPPATH/test/tmp'"
 EOD
 	}
-
-
-if (!$EPSESSIONXVERSION)
-    {
+  }
+else
+	{
 print OFH <<EOD ;
 
-PerlSetEnv EMBPERL_SESSION_HANDLER_CLASS no
-SetEnv EMBPERL_SESSION_HANDLER_CLASS no
+SetEnv EMBPERL_SESSION_HANDLER_CLASS "no"
+PerlSetEnv EMBPERL_SESSION_HANDLER_CLASS "no"
 EOD
-    }
+	}
+
 
 
 print OFH <<EOD ;
 
-SetEnv EMBPERL_ALLOW (asc|\\.xml\$|\\.htm\$)
+SetEnv EMBPERL_ALLOW asc|\\.htm\$
 
 PerlScript \"$EPPATH/test/conf/$EPSTARTUP\"
 
@@ -134,12 +139,10 @@ AddType text/html .html
 AddType text/html .htm
 AddType text/html .xhtm
 
-Alias /embperl/asclibxslt \"$EPPATH/test/html/pod\"
-Alias /embperl/ascxalan \"$EPPATH/test/html/pod\"
-Alias /embperl/libxslt \"$EPPATH/test/html/xml\"
-Alias /embperl/xalan \"$EPPATH/test/html/xml\"
 Alias /embperl/uidurl/ \"$EPPATH/test/html/sidurl/\"
+
 Alias /embperl/suidurl/ \"$EPPATH/test/html/sidurl/\"
+
 Alias /embperl/sub/ \"$EPPATH/test/html/\"
 Alias /embperl/ \"$EPPATH/test/html/\"
 Alias /embperl2/ \"$EPPATH/test/html2/\"
@@ -175,32 +178,6 @@ Options ExecCGI
 PerlSetEnv EMBPERL_OPTIONS 4
 </Location>
 
-
-
-<Location /embperl/libxslt>
-PerlSetEnv EMBPERL_RECIPE EmbperlLibXSLT
-PerlSetEnv EMBPERL_XSLTSTYLESHEET \"$EPPATH/test/html/xml/pod.xsl\"
-</Location>
-
-<Location /embperl/asclibxslt>
-PerlSetEnv EMBPERL_RECIPE EmbperlLibXSLT
-PerlSetEnv EMBPERL_XSLTSTYLESHEET \"$EPPATH/test/html/xml/pod.xsl\"
-PerlSetEnv EMBPERL_SYNTAX POD
-</Location>
-
-<Location /embperl/xalan>
-PerlSetEnv EMBPERL_RECIPE EmbperlXalanXSLT
-PerlSetEnv EMBPERL_XSLTSTYLESHEET \"$EPPATH/test/html/xml/pod.xsl\"
-</Location>
-
-<Location /embperl/ascxalan>
-PerlSetEnv EMBPERL_RECIPE EmbperlXalanXSLT
-PerlSetEnv EMBPERL_XSLTSTYLESHEET \"$EPPATH/test/html/xml/pod.xsl\"
-PerlSetEnv EMBPERL_SYNTAX POD
-</Location>
-
-
-
 <Location /embperl/opmask>
 SetHandler perl-script
 PerlHandler HTML::Embperl
@@ -215,11 +192,6 @@ SetHandler perl-script
 PerlHandler HTML::Embperl
 Options ExecCGI
 PerlSetEnv EMBPERL_OPTIONS 16
-</Location>
-
-<Location /cgi-bin/rawinput>
-PerlSetEnv EMBPERL_OPTIONS 16
-SetEnv EMBPERL_OPTIONS 16
 </Location>
 
 <Location /embperl/nochdir>
@@ -240,7 +212,6 @@ PerlSetEnv EMBPERL_OPTIONS 64
 SetHandler perl-script
 PerlHandler HTML::Embperl
 Options ExecCGI
-#PerlSetEnv EMBPERL_OPTIONS 16384
 PerlSetEnv EMBPERL_OPTIONS 16400
 PerlSetEnv EMBPERL_ESCMODE 0
 PerlSetupEnv Off
@@ -348,18 +319,14 @@ PerlSetEnv EMBPERL_OUTPUT_FUNC \"LogOutput, $EPPATH/test/tmp/log.out\"
 
 
 Alias /cgi-bin/uidurl/ \"$EPPATH/test/html/sidurl/\"
+
 Alias /cgi-bin/suidurl/ \"$EPPATH/test/html/sidurl/\"
+
 Alias /cgi-bin/ \"$EPPATH/test/html/\"
-Alias /cgi-bin2/ \"$EPPATH/test/html2/\"
 Alias /cgi-bin-32/ \"$EPPATH/test/html/\"
 ScriptAlias /cgi/ \"$EPPATH/\"
 
 <Location /cgi-bin>
-Action text/html /cgi/embpcgi.test.pl
-Options ExecCGI
-</Location>
-
-<Location /cgi-bin2>
 Action text/html /cgi/embpcgi.test.pl
 Options ExecCGI
 </Location>
@@ -446,77 +413,11 @@ PerlSetEnv EMBPERL_SYNTAX SSI
 PerlSetEnv EMBPERL_SYNTAX "Embperl SSI"
 </Location>
 
-<Location /embperl/pod/>
-PerlSetEnv EMBPERL_SYNTAX POD
-</Location>
-
-
-
-<Location /cgi-bin/SSI/>
-SetEnv EMBPERL_SYNTAX SSI
-</Location>
-
-<Location /cgi-bin/SSIEP/>
-SetEnv EMBPERL_SYNTAX "Embperl SSI"
-</Location>
-
-<Location /cgi-bin/pod/>
-SetEnv EMBPERL_SYNTAX POD
-</Location>
-
-#
-# Configuration for example access
-#
-
 <Location /eg>
-SetEnv EMBPERL_XSLTPROC libxslt
-</Location>
-
-<Location /eg/x>
 SetHandler perl-script
 PerlHandler HTML::Embperl
 Options ExecCGI
 </Location>
-
-
-<Location /eg/web>
-PerlSetEnv EMBPERL_OBJECT_BASE base.htm
-PerlSetEnv EMBPERL_OBJECT_STOPDIR \"$EPPATH/eg/web\"
-PerlSetEnv EMBPERL_FILESMATCH \"\\.htm.?\$|\\.epl\$|\\.xml\$\"
-SetHandler perl-script
-PerlHandler HTML::EmbperlObject 
-Options ExecCGI
-</Location>
-
-<Location /eg/xml>
-SetHandler perl-script
-PerlHandler HTML::Embperl
-Options ExecCGI
-SetEnv EMBPERL_XSLTSTYLESHEET \"$EPPATH/eg/xml/pod.xsl\"
-SetEnv EMBPERL_XSLTPROC libxslt
-SetEnv EMBPERL_RECIPE XSLT
-</Location>
-
-<Files NEWS.xml>
-SetEnv EMBPERL_XSLTSTYLESHEET \"$EPPATH/eg/xml/NEWS.xsl\"
-</Files>
-
-<LocationMatch \"xalan\$\">
-SetEnv EMBPERL_RECIPE XalanXSLT
-</LocationMatch>
-
-<LocationMatch \"libxslt\$\">
-SetEnv EMBPERL_RECIPE LibXSLT
-</LocationMatch>
-
-<Location /eg/images/aim>
-PerlSetVar AIMParameter \"pointsize=14 font=$EPPATH/../fonts/OCRAEXT.ttf\"
-#PerlSetVar AIMParameter \"pointsize=14 gravity=left font=$EPPATH/../fonts/OCRAEXT.ttf\"
-PerlSetVar AIMCacheDir  \"$EPPATH/eg/images/aim/cache\"
-PerlSetVar AIMDebug 1
-PerlFixupHandler Apache::ImageMagick
-</location>
-
 
 <Location /mp>
 SetHandler perl-script
@@ -532,8 +433,6 @@ TypesConfig conf/null
 #TransferLog $EPNULL
 #ScoreBoardFile $EPNULL
 LockFile tmp/httpd.lock
-LogFormat \"%h %l %u %t \\"%r\\" %s %b %{connection}o pid=%P %Tsec\" std
-CustomLog tmp/httpd.acc.log std
 
 <IfModule apache_ssl.c>
 SSLDisable
@@ -653,7 +552,4 @@ PerlSetVar StatScripts 0
 
 
 EOD
-
-
-
 

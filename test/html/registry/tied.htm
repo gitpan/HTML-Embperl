@@ -73,6 +73,7 @@ $rc = HTML::Embperl::Execute ({inputfile  => 'test_array',
 						 mtime      => 1}) ;
 
 
+
 print "rc = $rc\n" ;
 
 tie $tiedvar1, 'HTML::Embperl::Test::Tie', $tst1 ;
@@ -86,8 +87,6 @@ $rc = HTML::Embperl::Execute ({inputfile  => 'test_tied_string_ref',
 
 
 print "rc = $rc\n" ;
-
-
 
 print "<HTML><TITLE>Test for HTML::Embperl::Execute</TITLE><BODY>\n" ;
 print "<H1> 6.) Include from memory: tied string</H1>\n" ;

@@ -12,13 +12,12 @@ Script  CWD: [+ $script = getcwd +] <BR>
 Embperl CWD: [+ $ep =     $HTML::Embperl::cwd +] <BR>
 $0: [+ $abs = $0 +]
 
-[- $abs = $ep . '/' . $0  if (!($0 =~ /^\//)) ; -]
+[- $abs = $ep . '/' . $0  if (!($0 =~ /^(\w:)?\//)) ; -]
 $0 (absolut): [+ $abs +]
 
 Equal: [+ $script eq $ep?'Yes':'No' +]<BR>
 Diff CWD: [+ do { $script =~ /$ep/ ; ">$'<" } +]<BR>
 Diff $0: [+ do { $abs =~ /$ep/ ; ">$'<" } +]<BR>
-Test/html: [+ $script =~ /test(?:\/|\\)html$/?'yes':'no' +]
 
 [- @ks = sort keys %fdat -]
 

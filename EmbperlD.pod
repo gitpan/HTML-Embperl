@@ -833,7 +833,7 @@ eine Referenz auf einen Skalar, in welchen der Quellentext abgelegt werden soll.
  Beispiel:
 
  open F, "filename" ;
- local $\ = undef ;
+ local $/ = undef ;
  $$in = <F> ;
  close F ;
 
@@ -2555,7 +2555,9 @@ I<Embperl> wurde erfolgreich getestet
 
 =item perl 5.7.1
 
-=item apache_1.3.0 - apache_1.3.19
+=item perl 5.7.2
+
+=item apache_1.3.0 - apache_1.3.22
 
 =item apache_ssl (Ben SSL)
 
@@ -2570,7 +2572,7 @@ I<Embperl> wurde erfolgreich getestet
 Rückmeldungen bestätigen, dass es ebenfalls auf fast allen anderen Unix Varianten
 problemlos läuft.
 
-=head2 unter Windows NT 4.0 mit
+=head2 unter Windows NT/2000 mit
 
 =over 4
 
@@ -2580,7 +2582,9 @@ problemlos läuft.
 
 =item perl 5.6.0
 
-=item apache_1.3.0 - apache_1.3.19
+=item perl 5.6.1
+
+=item apache_1.3.0 - apache_1.3.22
 
 =back
 

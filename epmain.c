@@ -10,7 +10,7 @@
 #   IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 #   WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 #
-#   $Id: epmain.c,v 1.75.4.74 2001/11/23 12:28:20 richter Exp $
+#   $Id: epmain.c,v 1.118 2001/12/04 20:09:20 richter Exp $
 #
 ###################################################################################*/
 
@@ -48,7 +48,6 @@ static char sTokenHashName [] = "HTML::Embperl::Syntax::Default" ;
 #endif
 
 static char sDefaultPackageName [] = "HTML::Embperl::DOC::_%d" ;
-static char sDefaultSubName []     = "_ep_main_%d" ;
 
 static char sUIDName [] = "_ID" ;
 static char sSetCookie [] = "Set-Cookie" ;
@@ -64,9 +63,6 @@ static HV * pCacheHash ;            /* Hash which holds all cached data
 				       (key=> filename or 
 					      filename + packagename, 
 				       value=>cache hash for file) */
-
-static int nRequestCount = 1 ;
-
 
 /* */
 /* print error */
@@ -144,7 +140,7 @@ char * LogError (/*i/o*/ register req * r,
         case rcUnclosedHtml:            msg ="[%d]ERR:  %d: %s Unclosed HTML tag <%s> at end of file %s" ; break ;
         case rcUnclosedCmd:             msg ="[%d]ERR:  %d: %s Unclosed command [$ %s $] at end of file %s" ; break ;
 	case rcNotAllowed:              msg ="[%d]ERR:  %d: %s Forbidden %s: Does not match EMBPERL_ALLOW %s" ; break ;
-        case rcNotHashRef:              msg ="[%d]ERR:  %d: %s %s need hashref in '%s'" ; break ; 
+        case rcNotHashRef:              msg ="[%d]ERR:  %d: %s %s need hashref in %s" ; break ; 
 	case rcTagMismatch:		msg ="[%d]ERR:  %d: %s Endtag '%s' doesn't match starttag '%s'" ; break ; 
 	case rcCleanupErr:		msg ="[%d]ERR:  %d: %s Error in cleanup %s%s" ; break ; 
 	case rcCryptoWrongHeader:	msg ="[%d]ERR:  %d: %s Decrypt-error: Not encrypted (%s)%s" ; break ; 
@@ -152,14 +148,6 @@ char * LogError (/*i/o*/ register req * r,
 	case rcCryptoNotSupported:	msg ="[%d]ERR:  %d: %s Decrypt-error: Not supported (%s)%s" ; break ; 
 	case rcCryptoBufferOverflow:	msg ="[%d]ERR:  %d: %s Decrypt-error: Buffer overflow (%s)%s" ; break ; 
 	case rcCryptoErr:		msg ="[%d]ERR:  %d: %s Decrypt-error: OpenSSL error (%s)%s" ; break ; 
-	case rcUnknownProvider:	        msg ="[%d]ERR:  %d: %s Unknown Provider %s %s" ; break ; 
-	case rcXalanError:	        msg ="[%d]ERR:  %d: %s Xalan Error: %s: %s" ; break ; 
-	case rcLibXSLTError:	        msg ="[%d]ERR:  %d: %s LibXSLT Error: %s: %s" ; break ; 
-        case rcMissingParam:		msg ="[%d]ERR:  %d: %s Missing Parameter %s %s" ; break ; 
-        case rcNotCodeRef:		msg ="[%d]ERR:  %d: %s %s need coderef in '%s'" ; break ; 
-        case rcUnknownRecipe:		msg ="[%d]ERR:  %d: %s Unknown recipe '%s'" ; break ; 
-        case rcTypeMismatch:		msg ="[%d]ERR:  %d: %s Unsupported Outputformat %s of %s" ; break ; 
-        case rcChdirError:		msg ="[%d]ERR:  %d: %s Cannot change to directory %s %s" ; break ; 
 	
 	default:                        msg ="[%d]ERR:  %d: %s Error %s%s" ; break ; 
         }
@@ -185,13 +173,11 @@ char * LogError (/*i/o*/ register req * r,
         if (r -> Buf.nSourceline)
             sprintf (buf, "(%d)", r -> Buf.nSourceline) ;
         pSVLine = newSVpvf ("%s%s:", p, buf) ;
-	newSVpvf2(pSVLine) ;
         }
 
    
     
     pSV = newSVpvf (msg, r -> nPid , rc, pSVLine?SvPV(pSVLine, l):"", r -> errdat1, r -> errdat2) ;
-    newSVpvf2(pSV) ;
 
     if (r -> bOptions & optShowBacktrace)
         {
@@ -258,8 +244,6 @@ char * LogError (/*i/o*/ register req * r,
         r -> nLastErrFill  = AvFILL(r -> pErrArray) ;
         r -> bLastErrState = r -> bError ;
         }
-    else
-	SvREFCNT_dec (pSV) ;
 
     r -> errdat1[0] = '\0' ;
     r -> errdat2[0] = '\0' ;
@@ -357,17 +341,8 @@ void RollbackError (/*i/o*/ register req * r)
     
     }
 
-#if defined (_DEBUG) && defined (WIN32)
 
-static int EmbperlCRTDebugOutput( int reportType, char *userMessage, int *retVal )
-    {   
-    lprintf (pCurrReq, "[%d]CRTDBG: %s\n", pCurrReq -> nPid, userMessage) ;  
-
-    return TRUE ;
-    }
-
-#endif
-
+    
 /* */
 /* Magic */
 /* */
@@ -376,9 +351,7 @@ void NewEscMode (/*i/o*/ register req * r,
 			           SV * pSV)
 
     {
-    if (r -> nEscMode & escXML && !r -> bEscInUrl)
-	r -> pNextEscape = Char2XML ;
-    else if (r -> nEscMode & escHtml && !r -> bEscInUrl)
+    if (r -> nEscMode & escHtml && !r -> bEscInUrl)
 	r -> pNextEscape = Char2Html ;
     else if (r -> nEscMode & escUrl)
         r -> pNextEscape = Char2Url ;
@@ -554,6 +527,7 @@ static int GetFormData (/*i/o*/ register req * r,
                 if (nKey > 0 && (nVal > 0 || (r -> bOptions & optAllFormData)))
                     {
                     char * sid = r -> pConf -> sCookieName ;
+
 		    if (sid)
 			{ /* remove session id  */
 			if (strncmp (pKey, sid, nKey) != 0)
@@ -754,8 +728,6 @@ static int GetInputData_CGIScript (/*i/o*/ register req * r)
             }
         dowarn = savewarn ;
         }
-    /* print out of env set tainted, so reset it now */
-    tainted = 0 ;
 
 #ifdef APACHE
     if (r -> pApacheReq)
@@ -823,8 +795,6 @@ static int GetInputData_CGIScript (/*i/o*/ register req * r)
         _free (r, f) ;
 #endif        
     
-    tainted = 0 ;
-
     return rc ;
     }
 
@@ -1458,10 +1428,6 @@ int Init        (/*in*/ int           _nIOType,
     
     pCurrReq = r ;
 
-#if defined (_DEBUG) && defined (WIN32)
-    _CrtSetReportHook( EmbperlCRTDebugOutput );
-#endif
-
     r -> nIOType = _nIOType ;
 
 #ifdef APACHE
@@ -1706,15 +1672,6 @@ int Init        (/*in*/ int           _nIOType,
    
 #ifdef EP2
     DomInit () ;
-    Cache_Init () ;
-    Provider_Init () ;
-#ifdef XALAN
-    embperl_Xalan_Init () ;
-#endif
-#ifdef LIBXSLT
-    embperl_LibXSLT_Init () ;
-#endif
-
 #endif    
     
     bInitDone = 1 ;
@@ -1818,16 +1775,13 @@ tConf * SetupConfData   (/*in*/ HV *   pReqInfo,
     SV * *   ppCV ;
     int	     rc ;
 #endif
-
     tConf *  pConf = malloc (sizeof (tConf)) ;
     
-    tainted = 0 ;
-
     if (!pConf)
         return NULL ;
 
-    pConf -> bDebug =	    GetHashValueUInt (pReqInfo, "debug", pCurrReq -> pConf?pCurrReq -> pConf -> bDebug:pCurrReq -> bDebug) ;	    /* Debugging options */
-    pConf -> bOptions =	    GetHashValueUInt (pReqInfo, "options",  pCurrReq -> pConf?pCurrReq -> pConf -> bOptions:pCurrReq -> bOptions) ;  /* Options */
+    pConf -> bDebug =	    GetHashValueInt (pReqInfo, "debug", pCurrReq -> pConf?pCurrReq -> pConf -> bDebug:pCurrReq -> bDebug) ;	    /* Debugging options */
+    pConf -> bOptions =	    GetHashValueInt (pReqInfo, "options",  pCurrReq -> pConf?pCurrReq -> pConf -> bOptions:pCurrReq -> bOptions) ;  /* Options */
     pConf -> nEscMode =	    GetHashValueInt (pReqInfo, "escmode",  pCurrReq -> pConf?pCurrReq -> pConf -> nEscMode:escStd) ;  /* EscMode */
     pConf -> sPackage =	    sstrdup (GetHashValueStr (pReqInfo, "package", NULL)) ;         /* Packagename */
     pConf -> sLogFilename = sstrdup (GetHashValueStr (pReqInfo, "log",  NULL)) ;            /* name of logfile */
@@ -1918,9 +1872,6 @@ void FreeConfData       (/*in*/ tConf *   pConf)
 	free (pConf -> sReqFilename) ;
 
 #ifdef EP2
-    if (pConf -> sRecipe)
-	free (pConf -> sRecipe) ;
- 
     if (pConf -> sCacheKey)
 	free (pConf -> sCacheKey) ;
  
@@ -1959,8 +1910,6 @@ tFile * SetupFileData   (/*i/o*/ register req * r,
 
     EPENTRY (SetupFileData) ;
 
-    tainted = 0 ;
-
     /* Have we seen this sourcefile/package already ? */
     cache_key_len = strlen( sSourcefile ) ;
     if ( pConf->sPackage )
@@ -1977,10 +1926,8 @@ tFile * SetupFileData   (/*i/o*/ register req * r,
     if ( olddir[0] )
 	cache_key_len += strlen( olddir );
         
-    cache_key = _malloc( r, cache_key_len + 5 );
-    cache_key_len += 2 ;
-    strcpy( cache_key, "--" );
-    strcat( cache_key, sSourcefile );
+    cache_key = _malloc( r, cache_key_len + 3 );
+    strcpy( cache_key, sSourcefile );
     if ( pConf->sPackage )
 	strcat( cache_key, pConf->sPackage );
 
@@ -2006,11 +1953,11 @@ tFile * SetupFileData   (/*i/o*/ register req * r,
             {
             hv_clear (f -> pCacheHash) ;
 
+#ifdef EP2	
+	    UndefSub (r, EPMAINSUB, f -> sCurrPackage) ;
+#endif
             if (r -> bDebug)
                 lprintf (r, "[%d]MEM: Reload %s in %s\n", r -> nPid,  sSourcefile, f -> sCurrPackage) ;
-#ifdef EP2	
-	    UndefSub (r, f -> sMainSub, f -> sCurrPackage) ;
-#endif
 
             f -> mtime       = mtime ;	 /* last modification time of file */
             f -> nFilesize   = nFilesize ;	 /* size of File */
@@ -2052,12 +1999,9 @@ tFile * SetupFileData   (/*i/o*/ register req * r,
             f -> sCurrPackage = strdup (pConf -> sPackage) ; /* Package of file  */
         else
             {
-            sprintf (txt, sDefaultPackageName, nPackNo ) ;
+            sprintf (txt, sDefaultPackageName, nPackNo++ ) ;
             f -> sCurrPackage = strdup (txt) ; /* Package of file  */
             }
-        sprintf (txt, sDefaultSubName, nPackNo ) ;
-        f -> sMainSub = strdup (txt) ; /* Package of file  */
-        nPackNo++ ;
         f -> nCurrPackage = strlen (f -> sCurrPackage); /* Package of file (length) */
 
         hv_store(pCacheHash, cache_key, cache_key_len, newRV_noinc (newSViv ((IV)f)), 0) ;  
@@ -2112,10 +2056,8 @@ tFile * GetFileData     (/*in*/  char *  sSourcefile,
     if ( olddir[0] )
 	cache_key_len += strlen( olddir );
         
-    cache_key = malloc(cache_key_len + 5 );
-    cache_key_len += 2 ;
-    strcpy( cache_key, "--" );
-    strcat( cache_key, sSourcefile );
+    cache_key = malloc(cache_key_len + 3 );
+    strcpy( cache_key, sSourcefile );
     if ( sPackage && *sPackage)
 	strcat( cache_key, sPackage );
 
@@ -2141,7 +2083,7 @@ tFile * GetFileData     (/*in*/  char *  sSourcefile,
             {
             hv_clear (f -> pCacheHash) ;
 #ifdef EP2	
-	    UndefSub (pCurrReq, f -> sMainSub, f -> sCurrPackage) ;
+	    UndefSub (pCurrReq, f -> sCurrPackage, EPMAINSUB) ;
 #endif
         
             f -> mtime       = -1 ;	 /* reset last modification time of file */
@@ -2176,12 +2118,9 @@ tFile * GetFileData     (/*in*/  char *  sSourcefile,
             f -> sCurrPackage = strdup (sPackage) ; /* Package of file  */
         else
             {
-            sprintf (txt, sDefaultPackageName, nPackNo ) ;
+            sprintf (txt, sDefaultPackageName, nPackNo++ ) ;
             f -> sCurrPackage = strdup (txt) ; /* Package of file  */
             }
-        sprintf (txt, sDefaultSubName, nPackNo ) ;
-        f -> sMainSub = strdup (txt) ; /* Package of file  */
-        nPackNo++ ;
         f -> nCurrPackage = strlen (f -> sCurrPackage); /* Package of file (length) */
 
         hv_store(pCacheHash, cache_key, cache_key_len, newRV_noinc (newSViv ((IV)f)), 0) ;  
@@ -2285,7 +2224,6 @@ static SV * CreateSessionCookie (/*i/o*/ register req * r,
                 pCookie = newSVpvf ("%s%s=; expires=Thu, 1-Jan-1970 00:00:01 GMT%s%s%s%s",  r -> pConf -> sCookieName, type == 's'?"s":"",
 			    r -> pConf -> sCookieDomain[0]?"; domain=":""  , r -> pConf -> sCookieDomain, 
 			    r -> pConf -> sCookiePath[0]?"; path=":""      , r -> pConf -> sCookiePath) ;
-		newSVpvf2(pCookie) ;
                 }
 
 	    if (r -> bDebug & dbgSession)  
@@ -2301,7 +2239,6 @@ static SV * CreateSessionCookie (/*i/o*/ register req * r,
 			    r -> pConf -> sCookieDomain[0]?"; domain=":""  , r -> pConf -> sCookieDomain, 
 			    r -> pConf -> sCookiePath[0]?"; path=":""      , r -> pConf -> sCookiePath, 
 			    r -> pConf -> sCookieExpires[0]?"; expires=":"", r -> pConf -> sCookieExpires) ;
-		newSVpvf2(pCookie) ;
 	        if (r -> bDebug & dbgSession)  
 		    lprintf (r, "[%d]SES:  Send Cookie -> %s\n", r -> nPid, SvPV(pCookie, ldummy)) ; 
                 }
@@ -2383,14 +2320,7 @@ tReq * SetupRequest (/*in*/ SV *    pApacheReqSV,
 
     r -> pLastReq = pCurrReq ;
     pCurrReq = r ;
-
-#if defined (_DEBUG) && defined (WIN32)
-    _CrtMemCheckpoint(&r -> MemCheckpoint);    
-#endif    
-#ifdef DMALLOC
-    r -> MemCheckpoint = dmalloc_mark () ;   
-#endif    
-
+    
 #ifdef APACHE
     if (SvROK (pApacheReqSV))
         r -> pApacheReq = (request_rec *)SvIV((SV*)SvRV(pApacheReqSV));
@@ -2442,10 +2372,6 @@ tReq * SetupRequest (/*in*/ SV *    pApacheReqSV,
     r -> nInsideSub	 = 0 ;
     r -> bExit  	 = 0 ;
     
-    r -> nRequestCount   = nRequestCount++ ;
-    r -> nRequestTime = time(NULL) ;
-    getcwd (r->sCWD, sizeof (r->sCWD)-1) ;
-    r -> sResetDir[0] = '\0' ;
     r -> pOutData        = pOut ;
     r -> pInData         = pIn ;
 
@@ -2453,7 +2379,6 @@ tReq * SetupRequest (/*in*/ SV *    pApacheReqSV,
     if (r -> bSubReq && sSourcefile[0] == '?' && sSubName && sSubName[0] != '\0')
 	{
 	pFile = r -> pLastReq -> Buf.pFile ;
-	r -> bOptions |= optDisableChdir ;
 	}
     else
 	{
@@ -2574,9 +2499,6 @@ tReq * SetupRequest (/*in*/ SV *    pApacheReqSV,
         lprintf (r, " mode = %s (%d)\n", sMode, r -> nIOType) ;
 #endif
 	lprintf (r, "[%d]REQ:  Package = %s\n", r -> nPid, r -> Buf.pFile -> sCurrPackage) ;
-#ifdef DMALLOC
-        dmalloc_message ("[%d]REQ:  Package = %s File = %s\n", r -> nPid, r -> Buf.pFile -> sCurrPackage, r -> Buf.pFile -> sSourcefile) ; 
-#endif        
         }
 
     return r ;
@@ -2636,8 +2558,6 @@ void FreeRequest (/*i/o*/ register req * r)
 	    }
         av_clear (r -> pCleanupAV) ;
 
-        Cache_CleanupRequest (r) ;
-
 #endif
 	if ((pFile = r -> pFiles2Free))
 	    {
@@ -2655,9 +2575,6 @@ void FreeRequest (/*i/o*/ register req * r)
 #endif
 	}
 
-    if (r -> sSessionID)
-	_free (r, r -> sSessionID) ;
-
     SvREFCNT_dec (r -> pReqSV) ;
 
     pCurrReq = r -> pLastReq ;
@@ -2668,21 +2585,10 @@ void FreeRequest (/*i/o*/ register req * r)
 	sv_magic (pReqHV, NULL, '~', (char *)&pCurrReq, sizeof (pCurrReq)) ;
 	}
 
-#if defined (_DEBUG) && defined (WIN32)
-    _CrtMemDumpAllObjectsSince(&r -> MemCheckpoint);    
-#endif    
-#ifdef DMALLOC
-			    /* unsigned long mark, int not_freed_b, int freed_b, int details_b */
-    dmalloc_log_changed (r -> MemCheckpoint, 1, 0, 1) ;
-    dmalloc_message ( "[%d]%sRequest freed. Entry-SVs: %d -OBJs: %d Exit-SVs: %d -OBJs: %d\n", r -> nPid,
-	    (r -> bSubReq?"Sub-":""), r -> stsv_count, r -> stsv_objcount, sv_count, sv_objcount) ;
-#endif    
-    if (r -> bDebug)
-	DomStats () ;
-
+    if (r -> sSessionID)
+	_free (r, r -> sSessionID) ;
     r -> pNext = pReqFree ;
     pReqFree = r ;
-
     }
 
 
@@ -2865,7 +2771,7 @@ static int EndOutput (/*i/o*/ register req * r,
     int  bError = 0 ;
     STRLEN ldummy ;
 
-#ifdef EP2OLDXSLT
+#ifdef EP2
     /* ### tmp ### */
     int bXSLT = 0 ;
 
@@ -3154,7 +3060,7 @@ static int EndOutput (/*i/o*/ register req * r,
 	if (r -> pCurrEscape)
 #endif		
 	    oputs (r, "\r\n") ;
-#ifdef EP2OLDXSLT
+#ifdef EP2
 
         if (bXSLT && !bError && !r -> bEP1Compat)
             {
@@ -3213,31 +3119,22 @@ static int EndOutput (/*i/o*/ register req * r,
             int    l ;
 #ifdef EP2
             		
-	    if (!bError && !r -> bEP1Compat && r -> pOutputSV)
+	    if (!bError && !r -> bEP1Compat)
 		{
-		sv_setsv (pOut, r -> pOutputSV) ;
+		tDomTree * pDomTree = DomTree_self (r -> xCurrDomTree) ;
+		Node_toString (r, pDomTree, pDomTree -> xDocument, 0) ;
 		}
-	    else
-		{
-		if (!bError && !r -> bEP1Compat)
-		    {
-		    tDomTree * pDomTree = DomTree_self (r -> xCurrDomTree) ;
-		    Node_toString (r, pDomTree, pDomTree -> xDocument, 0) ;
-		    }
 
-		if (!r -> bEP1Compat)
-		    oputs (r, "\r\n") ;
+	    if (!r -> bEP1Compat)
+		oputs (r, "\r\n") ;
 #endif		
-		l = GetContentLength (r) + 1 ;
+            l = GetContentLength (r) + 1 ;
             
-		sv_setpv (pOut, "") ;
-		SvGROW (pOut, l) ;
-		pData = SvPVX (pOut) ;
-		oCommitToMem (r, NULL, pData) ;
-		SvCUR_set (pOut, l - 1) ;
-#ifdef EP2
-		}
-#endif		
+            sv_setpv (pOut, "") ;
+            SvGROW (pOut, l) ;
+            pData = SvPVX (pOut) ;
+            oCommitToMem (r, NULL, pData) ;
+            SvCUR_set (pOut, l - 1) ;
             }
         else
             {
@@ -3262,7 +3159,6 @@ static int EndOutput (/*i/o*/ register req * r,
 		    if (!bError && !r -> pImportStash)
 			{
 			tDomTree * pDomTree = DomTree_self (r -> xCurrDomTree) ;
-#ifdef EP2OLDXSLT
                         if (bXSLT)
                             {
                             int len = GetContentLength (r) + 1 ;
@@ -3277,19 +3173,7 @@ static int EndOutput (/*i/o*/ register req * r,
                                                                     pData, len - 1, 0, 0, "XSLT Result") ;
                             }
                         else
-#endif
-                            {
-                            if (r -> pOutputSV)
-			        {
-			        STRLEN len ;
-			        char * p = SvPV (r -> pOutputSV, len) ;
-			        l -> xCurrNode = Node_insertAfter_CDATA (p, len, 0, DomTree_self (l -> xCurrDomTree), l -> xCurrNode, l -> nCurrRepeatLevel) ;
-			        }
-		            else
-                                {
-                                l -> xCurrNode = Node_insertAfter (pDomTree, pDomTree -> xDocument, 0, DomTree_self (l -> xCurrDomTree), l -> xCurrNode, l -> nCurrRepeatLevel) ;
-                                }
-                            }
+                            l -> xCurrNode = Node_insertAfter (pDomTree, pDomTree -> xDocument, 0, DomTree_self (l -> xCurrDomTree), l -> xCurrNode, l -> nCurrRepeatLevel) ;
 			}
 		    }
 #endif
@@ -3298,24 +3182,11 @@ static int EndOutput (/*i/o*/ register req * r,
 		{
                 oCommit (r, NULL) ;
 #ifdef EP2
-		if (!bError && !r -> bEP1Compat && !r -> pImportStash 
-#ifdef EP2OLDXSLT
-		    && !bXSLT
-#endif
-		    )
+		if (!bError && !r -> bEP1Compat && !r -> pImportStash && !bXSLT)
 		    {
-		    if (r -> pOutputSV)
-			{
-			STRLEN l ;
-			char * p = SvPV (r -> pOutputSV, l) ;
-			owrite (r, p, l) ;
-			}
-		    else
-			{
-			tDomTree * pDomTree = DomTree_self (r -> xCurrDomTree) ;
-			Node_toString (r, pDomTree, pDomTree -> xDocument, 0) ;
-			oputs (r, "\r\n") ;
-			}
+		    tDomTree * pDomTree = DomTree_self (r -> xCurrDomTree) ;
+		    Node_toString (r, pDomTree, pDomTree -> xDocument, 0) ;
+		    oputs (r, "\r\n") ;
 		    }
 #endif
 		}
@@ -3377,13 +3248,8 @@ static int ResetRequest (/*i/o*/ register req * r,
         lprintf (r, "\n") ;    
         lprintf (r, "[%d]%sRequest finished. %s. Entry-SVs: %d -OBJs: %d Exit-SVs: %d -OBJs: %d\n", r -> nPid,
 	    (r -> bSubReq?"Sub-":""), asctime(tm), r -> stsv_count, r -> stsv_objcount, sv_count, sv_objcount) ;
-#ifdef DMALLOC
-        dmalloc_message ( "[%d]%sRequest finished. Entry-SVs: %d -OBJs: %d Exit-SVs: %d -OBJs: %d\n", r -> nPid,
-	    (r -> bSubReq?"Sub-":""), r -> stsv_count, r -> stsv_objcount, sv_count, sv_objcount) ;
-#endif        
         }
 
-    
     r -> Buf.pCurrPos = NULL ;
 
 
@@ -3420,14 +3286,12 @@ static int ProcessFile (/*i/o*/ register req * r,
     {
     int rc ;
     
-
     r -> Buf.pSourcelinePos = r -> Buf.pCurrPos = r -> Buf.pBuf ;
     r -> Buf.pEndPos  = r -> Buf.pBuf + nFileSize ;
 
 #ifdef EP2
     if (!r -> bEP1Compat)
 	{
-#ifdef EP2OLD
 	tConf * pConf = r -> pConf ;
 	
 	tProcessor p2 = {2, "Embperl", embperl_CompileProcessor, NULL, embperl_PreExecuteProcessor, embperl_ExecuteProcessor, "", 
@@ -3454,150 +3318,6 @@ static int ProcessFile (/*i/o*/ register req * r,
 
 	if (p2.pOutputExpiresCV)
 	    SvREFCNT_dec (p2.pOutputExpiresCV) ;
-#else
-        HV * pParam ;
-        SV * pParamRV ;
-        SV * pImportParam ;
-        tCacheItem * pCache ;
-        HV * pRP = r -> pConf -> pReqParameter ;
-        int i ;
-        char * s ;
-        SV * c ;
-        SV * pRecipe ;
-        STRLEN l ;
-        int num ;
-
-        dSP ;
-
-	if (GetHashValueSV (pRP, "provider"))
-            pParam = r -> pConf -> pReqParameter ;
-        else 
-            {
-            if (!(pRecipe = GetHashValueSV (pRP, "recipe")))
-                pRecipe = sv_2mortal(newSVpv ("Embperl", 7)) ;
-
-            PUSHMARK(sp);
-	    XPUSHs(r -> pReqSV); 
-	    XPUSHs(sv_2mortal(newRV_inc((SV *)pRP))); 
-	    XPUSHs(pRecipe);                
-	    PUTBACK;                        
-	    num = perl_call_pv ("HTML::Embperl::Recipe::GetRecipe", G_SCALAR /*| G_EVAL*/) ;
-	    tainted = 0 ;
-	    SPAGAIN;                        
-	    if (num == 1)
-		pParamRV = POPs ;
-	    PUTBACK;
-	    if (num != 1 || !SvROK (pParamRV) || !(pParam = (HV *)SvRV(pParamRV)) || SvTYPE((SV *)pParam) != SVt_PVHV)
-		{
-		strncpy (r -> errdat1, SvPV(pRecipe, l), sizeof (r -> errdat1) - 1) ;
-		return rcUnknownRecipe ;
-		}
-	    }
-#if 0
-	if (GetHashValueSV (pRP, "provider"))
-            pParam = r -> pConf -> pReqParameter ;
-        else
-            {
-            char * sFn = NULL ;
-            SV * pSrc ;
-            
-            if (SvROK(r -> pInData))
-                {
-                pSrc = CreateHashRef (
-                                        "type", hashtstr, "memory",
-                                        "name", hashtstr, r -> Buf.pFile -> sSourcefile,
-                                        "source", hashtsv, SvREFCNT_inc(SvRV(r -> pInData)),
-                                        "mtime", hashtint, (int)r -> Buf.pFile -> mtime,
-                                        NULL) ;
-                }
-            else
-                {
-                                        
-               if ((r -> bOptions & optDisableChdir) == 0)
-                    {
-                    sFn = strrchr (r -> Buf.pFile -> sSourcefile, '/') ;
-#ifdef WIN32
-                    if (!sFn)
-                        sFn = strrchr (r -> Buf.pFile -> sSourcefile, '\\') ;
-#endif
-                    }
-                if (sFn)
-                    sFn++ ;
-                else
-                    sFn = r -> Buf.pFile -> sSourcefile ;
-
-                pSrc = CreateHashRef (
-                                        "type", hashtstr, "file",
-                                        "filename", hashtstr, sFn,
-                                        "cache",        hashtint, 0,
-                                        NULL) ;
-                }
-                
-
-            i = GetHashValueInt (pRP, "expires_in", 0) ;
-            c = GetHashValueSVinc  (pRP, "expires_func", NULL) ;
-            s = GetHashValueStrDup  (pRP, "expires_filename", NULL) ;
-
-            pParam = (HV *)SvRV(sv_2mortal (CreateHashRef (
-            "expires_in",       hashtint,   i,
-            "expires_func",     hashtsv,    c,
-            "expires_filename", hashtstr,   s,
-            "cache",            hashtint,   GetHashValueInt   (pRP, "cache", i || c || s?1:0),
-            "provider",         hashtsv,  CreateHashRef (
-                "type",         hashtstr, "eprun",
-                "source",       hashtsv,  pImportParam = CreateHashRef (
-                    "provider", hashtsv, CreateHashRef (
-                        "type", hashtstr, "epcompile",
-                        "source",       hashtsv,  CreateHashRef (
-                            "cache",        hashtint, 0,
-                            "provider", hashtsv, CreateHashRef (
-                                "type", hashtstr, "epparse",
-                                "syntax",       hashtstr,  r -> pTokenTable -> sName,
-                                "source",       hashtsv,  CreateHashRef (
-                                    "cache",        hashtint, 0,
-                                    "provider", hashtsv, pSrc,
-                                    NULL),
-                                NULL),
-                            NULL),
-                        NULL),
-                    NULL),
-                NULL),
-            NULL))) ;
-            }
-
-        if (r -> pImportStash)
-            pParam = (HV *)SvRV(pImportParam) ;
-#endif
-
-
-        if (SvTYPE(pParam) != SVt_PVHV)
-            {
-            strncpy (r -> errdat2, "provider", sizeof(r -> errdat2) - 1) ;
-            return rcNotHashRef ; 
-            }
-
-        if ((rc = Cache_New (r, pParam, &r -> pOutputCache)) != ok)
-            return rc ;
-
-    
-	if (strncmp (r -> pOutputCache -> pProvider -> sOutputType, "text/", 5) == 0)
-	    {
-	    if ((rc = Cache_GetContentSV (r, r -> pOutputCache, &r -> pOutputSV)) != ok)
-		return rc ;
-	    }
-	else if (strcmp (r -> pOutputCache -> pProvider -> sOutputType, "X-Embperl/DomTree") == 0)
-	    {
-	    if ((rc = Cache_GetContentIndex (r, r -> pOutputCache, &r -> xCurrDomTree)) != ok)
-		return rc ;
-	    }
-	else
-	    {
-	    sprintf (r -> errdat1, "'%s' (accpetable are 'text/*', 'X-Embperl/DomTree')", r -> pOutputCache -> pProvider -> sOutputType) ;
-	    strncpy (r -> errdat2, r -> pOutputCache -> sKey, sizeof (r -> errdat2) - 1) ;
-	    return rcTypeMismatch ;
-	    }
-
-#endif
 
 	}
     else
@@ -3916,7 +3636,11 @@ int ExecuteReq (/*i/o*/ register req * r,
 
     {
     int     rc = ok ;
+    char    olddir[PATH_MAX];
     char *  sInputfile = r -> Buf.pFile -> sSourcefile ;
+#ifdef WIN32
+    int		olddrive ;
+#endif
 
     dTHR ;
 
@@ -3944,17 +3668,15 @@ int ExecuteReq (/*i/o*/ register req * r,
         rc = StartOutput (r) ;
 
     /* --- read input file or get input file from memory --- */
-#ifdef EP2
+#ifdef xxxEP2
     if (rc == ok && r -> bEP1Compat)
 #else
     if (rc == ok)
 #endif
-        {
-        rc = ReadInputFile (r) ;
+	rc = ReadInputFile (r) ;
 
-        if (rc == ok && r -> Buf.pBuf == NULL && r -> Buf.pFile -> nFilesize == 0)
-            rc = rcMissingInput ;
-        }
+    if (rc == ok && r -> Buf.pBuf == NULL && r -> Buf.pFile -> nFilesize == 0)
+        rc = rcMissingInput ;
     
     /* --- ok so far? if not exit ---- */
 #ifdef APACHE
@@ -3976,67 +3698,77 @@ int ExecuteReq (/*i/o*/ register req * r,
 
     /* --- change working directory --- */
     
-    if (
-#ifdef EP2
-	 r -> bEP1Compat && 
-#endif	
-	((r -> bOptions & optDisableChdir) == 0 && sInputfile != NULL && sInputfile != '\0' && !SvROK(r -> pInData)))
+    if ((r -> bOptions & optDisableChdir) == 0 && sInputfile != NULL && sInputfile != '\0' && !SvROK(r -> pInData))
 	{
 	char dir[PATH_MAX];
 #ifdef WIN32
-	    char drive[_MAX_DRIVE];
-	    char fname[_MAX_FNAME];
-	    char ext[_MAX_EXT];
-	    char * c = sInputfile ;
+	char drive[_MAX_DRIVE];
+	char fname[_MAX_FNAME];
+	char ext[_MAX_EXT];
+	char * c = sInputfile ;
+	char * p ;
 
-	    while (*c)
-		{ /* convert / to \ */
- 		if (*c == '/')
-		    *c = '\\' ;
-		c++ ;
-		}
-
-	    r -> nResetDrive = _getdrive () ;
-	    getcwd (r -> sResetDir, sizeof (r -> sResetDir) - 1) ;
-
-	    _splitpath(sInputfile, drive, dir, fname, ext );
-   	    _chdrive (drive[0] - 'A' + 1) ;
-#else
-	    Dirname (sInputfile, dir, sizeof (dir) - 1) ;
-	    getcwd (r -> sResetDir, sizeof (r -> sResetDir) - 1) ;
-#endif
-	if (dir[0])
-            {
-            if (chdir (dir) < 0)
-	       lprintf (r, "chdir error\n" ) ;
-            else
-                {
-                if (!(dir[0] == '/'  
-            #ifdef WIN32
-                    ||
-                    dir[0] == '\\' || 
-                        (isalpha(dir[0]) && dir[1] == ':' && 
-	                  (dir[2] == '\\' || dir[2] == '/')) 
-            #endif                  
-                    ))            
-                    {
-                    strcpy (r->sCWD,r -> sResetDir) ;
-                    strcat (r->sCWD,"/") ;
-                    strcat (r->sCWD,dir) ;
-                    }
-                else
-                    strcpy (r->sCWD,dir) ;
-                }
+	while (*c)
+	    { /* convert / to \ */
+ 	    if (*c == '/')
+		*c = '\\' ;
+	    c++ ;
 	    }
-        else
-	    r -> bOptions |= optDisableChdir ;
-        }
+
+	olddrive = _getdrive () ;
+	getcwd (olddir, sizeof (olddir) - 1) ;
+
+	
+	if (sInputfile[1] == ':')
+	    {
+	    drive[0] = toupper (sInputfile[0]) ;
+	    c = sInputfile + 2 ;
+	    }
+	else
+	    {
+	    drive[0] = olddrive + 64 ;
+	    c = sInputfile ;
+	    }
+
+	dir[0] = drive[0] ;
+	dir[1] = ':' ;
+	p = strrchr (sInputfile, '\\') ;
+	if (p && p - c < PATH_MAX - 4)
+	    {
+	    memcpy (dir+2, c, p - c) ;
+	    dir[2 + (p - c)] = '\0' ; 
+	    }
+	else
+	    {
+	    dir[2] = '.' ;
+	    dir[3] = '\0' ;
+	    }
+
+	if (_chdrive (toupper(drive[0]) - 'A' + 1) < 0)
+	   lprintf (r, "Cannot change to drive %c\n", drive[0] ) ;
+	if (chdir (dir) < 0)
+	   lprintf (r, "Cannot change directory to %s on drive %c for file %s\n", dir, drive[0], sInputfile ) ;
+	/*
+	if (r -> bDebug)
+	    {
+	    char    ndir[PATH_MAX];
+	    int	    ndrive ;
+	    
+	    ndrive = _getdrive () ;
+	    getcwd (ndir, sizeof (ndir) - 1) ;
+
+	    lprintf (r, "Change directory to %s on drive %c (is %d:%s, was %d:%s)\n", dir, drive[0], ndrive, ndir, olddrive, olddir) ;
+	    }
+	*/
+#else
+        Dirname (sInputfile, dir, sizeof (dir) - 1) ;
+	getcwd (olddir, sizeof (olddir) - 1) ;
+	if (chdir (dir) < 0)
+	   lprintf (r, "Cannot change directory to %s\n", dir ) ;
+#endif
+	}
     else
-#ifdef EP2
-	if (r -> bEP1Compat) 
-#endif	
-	    r -> bOptions |= optDisableChdir ;
-        
+	r -> bOptions |= optDisableChdir ;
 
     r -> bReqRunning     = 1 ;
 
@@ -4056,29 +3788,18 @@ int ExecuteReq (/*i/o*/ register req * r,
     if ((rc = EndOutput (r, rc, r -> pOutData)) != ok)
         LogError (r, rc) ;
 
-#ifdef EP2
-    if (r -> pOutputCache)
-        Cache_ReleaseContent (r, r -> pOutputCache) ;
-#endif    
-    
     /* --- restore working directory --- */
-    if (r -> sResetDir[0])
+    if ((r -> bOptions & optDisableChdir) == 0)
 	{
 #ifdef WIN32
-   	_chdrive (r -> nResetDrive) ;
+   	_chdrive (olddrive) ;
 #endif
-	chdir (r -> sResetDir) ;
-	strcpy (r->sCWD,r -> sResetDir) ;
-	r -> sResetDir[0] = '\0' ;
-        }
+	chdir (olddir) ;
+	}
 
     /* --- reset variables and log end of request --- */
     if ((rc = ResetRequest (r, sInputfile)) != ok)
         LogError (r, rc) ;
-
-#if defined (_DEBUG) && defined (WIN32)
-    _ASSERTE( _CrtCheckMemory( ) );
-#endif
 
     return ok ;
     }

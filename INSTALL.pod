@@ -4,22 +4,27 @@
 
 =head2 UNIX
 
-- B<Unpack the archive>
+=over 4
 
-- B<perl Makefile.PL>
+=item Unpack the archive
+
+=item perl Makefile.PL
 
 You will be asked if you want to compile in support for Apache mod_perl. If
 you say yes, the source of Apache is searched (for headerfiles). If 
-it can't found, please specify the basepath. Please make sure 
+it can't found, please specify the basepath of your Apache sources or the
+directory where the Apache include files are installed. Please make sure 
 mod_perl is already installed. If you have installed mod_perl-0.96 or
 higher, Makefile.PL automatically suggests the same source path as was 
 used to build mod_perl.
 
-- B<make>
+=item make
 
-- B<make test>
+=item make test
 
-- B<make install>
+=item make install
+
+=back
 
 B<NOTE 1:> For using session handling you need
 Apache::Session 1.53 and Apache::SessionX 2.00b3 or higher. 
@@ -72,7 +77,7 @@ they are mainly nesseccary for debugging I<Embperl> itself.
 
 Starting with Embperl 2.0b4 it has a build in XSLT support. You can either
 use the Apache Xerces-C and Xalan-C and/or Gnome libxml and libxslt.
-Embperl is currently tested with Xalan 1.2 and libxslt 1.0.4.
+Embperl is currently tested with Xalan 1.2 and libxslt 1.0.4+.
 
 To install Xalan, download the Xalan archive for your OS from 
 http://xml.apache.org/dist/xalan-c/
@@ -155,7 +160,7 @@ Now go to the Embperl directory and start
 When get asked for the Apache sources, enter the directory where you
 found C<httpd.h> (e.g. C</usr/include/apache>). For the Apache executable
 enter the path to C<httpd>. If the Apache modules are loaded dynamicly,
-the you will get ask for C<mod_env.so>, enter it's directory. Now you can
+you will get ask for C<mod_env.so>, enter it's directory. Now you can
 continue as normal with
 
  make test
@@ -168,27 +173,32 @@ continue as normal with
 B<NOTE:> You need mod_perl >= 1.12 on win32
 
 
-On Windows 95/NT you have to do the following:
+On Windows 95/98/ME/NT/2000/XP you have to do the following:
 
-B<perl Makefile.PL>
+=over 4
 
-B<nmake> (you must have the c compiler in your path)
+=item perl Makefile.PL
+
+=item nmake (you must have the c compiler in your path)
 
 if you get an error about compiling Embperl.c. Edit Embperl.c and change
 
--#line  "Embperl.xs"
+    #line  "Embperl.xs"
 
 to
 
-+#line  1 "Embperl.xs"
+    #line  1 "Embperl.xs"
 
 now re-run nmake and it should compile.
 
-B<nmake test>
+=item nmake test
 
-B<NOTE:> nmake test needs libwin32, libwww and HTML::Parser installed to work
 
-B<nmake install>
+B<NOTE:> C<nmake test> needs libwin32, libwww and HTML::Parser installed to work
+
+=item nmake install
+
+=back
 
 B<NOTE 1:> For using session handling you need
 Apache::Session 1.53 and Apache::SessionX 2.00b3 or higher. 
@@ -235,28 +245,34 @@ First get and install ActiveState Perl from http://www.activestate.com
 You can skip the installation of Apache and mod_perl, if you only want
 to use Embperl offline or as CGI.
 
-Next get the Apache binary (including the source e.g. apache_1.3.19-win32-src-r2.msi) from        
+Next get the Apache binary (e.g. apache_1.3.22-win32-x86.msi) from        
 http://www.apache.org/dist/httpd/binaries/win32/ . (You may need to install the
-windows MSI installer from the same page too). Now run the installation.
+windows MSI installer from the same page too). Now run the Apache installation.
 
 Then run the ppm program to install mod_perl
 
-  ppm install http://theoryx5.uwinnipeg.ca/ppmpackages/mod_perl-1.25_1.3.19.ppd
+  ppm install http://theoryx5.uwinnipeg.ca/ppmpackages/mod_perl.ppd
 
 If you get asked for the Apache directory, enter the C<modules> subdirectory under the path
 where you have installed your Apache, e.g. 
 
   \Program Files\Apache Group\Apache\modules
 
-As last step you can install the Embperl ppd:
+As last step you need to install Embperl itself:
 
   ppm install http://theoryx5.uwinnipeg.ca/ppmpackages/HTML-Embperl.ppd
+
+If you want to use session management, you have additionaly to install
+Apache::Session and Apache::SessionX
+
+  ppm install http://theoryx5.uwinnipeg.ca/ppmpackages/Apache-Session.ppd
+  ppm install http://theoryx5.uwinnipeg.ca/ppmpackages/Apache-SessionX.ppd
 
 
 =head2 Compile Embperl from the sources on WIN 32 with ActiveState Perl
 
-First install ActiveState Perl, Apache and mod_perl as described above. Make sure
-you have an Apache version which includes the sources. (Of course when you want to use
+First install ActiveState Perl, Apache and mod_perl as described above. 
+(Of course when you want to use
 Embperl only offline or as CGI you don't have to install Apache and mod_perl)
 
 Then extract the Embperl distribution and go to the directory where you have extracted
@@ -266,7 +282,7 @@ Embperl. Start
 
 Enter y or hit enter when you get ask "Build with support for Apache mod_perl?(y/n) [y]"
 When get asked for the Apache source enter the Apache directory you have installed above.
-e.g. \Program Files\Apache Group.
+e.g. \Program Files\Apache Group\Apache.
 
 Now you can continue by running 
 
@@ -281,10 +297,10 @@ causes trouble when Embperl is compiled for use with Apache and mod_perl, but
 is used outside of Apache, because Windows tries to load F<ApacheCore.dll>.
 To solve this problem Embperl 1.3.4+ can install a Apache and a non Apache
 version. To do this first install the Apache version as decribed above 
-(includeing the C<nmake install>) . 
+(including the C<nmake install> !) . 
 Afterwards rerun Makefile.PL, when ask for mod_perl support answer no, now
 Makefile.PL detects that a mod_perl version was already compiled and asks
-if you what a separte non Apache version. Just say yes here and compile
+if you what a separate non Apache version. Just say yes here and compile
 and install this version too. When Embperl is loaded it detects if runs in-
 or outside of Apache and loads the correct library.
 

@@ -9,7 +9,7 @@
 #   IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 #   WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 #
-#   $Id: Mail.pm,v 1.29.4.3 2001/09/13 07:29:44 richter Exp $
+#   $Id: Mail.pm,v 1.33 2001/08/15 03:28:35 richter Exp $
 #
 ###################################################################################
 

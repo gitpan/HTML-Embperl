@@ -10,16 +10,13 @@
 #   IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 #   WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 #
-#   $Id: epdat.h,v 1.20.4.35 2001/11/23 12:28:20 richter Exp $
+#   $Id: epdat.h,v 1.37 2001/11/02 10:03:48 richter Exp $
 #
 ###################################################################################*/
 
 
 
 #ifdef EP2
-
-struct tCacheItem ;
-
 /*-----------------------------------------------------------------*/
 /*								   */
 /*  cache Options						   */
@@ -205,7 +202,6 @@ typedef struct tFile
     
     HV *    pCacheHash ;    /* Hash containing CVs to precompiled subs */
 
-    char *  sMainSub ;      /* Name of sub to call  */
     char *  sCurrPackage ;  /* Package of file  */
     STRLEN  nCurrPackage ;  /* Package of file (length) */
     HV *    pExportHash ;   /* exportable Macros */
@@ -409,13 +405,6 @@ struct tReq
     int	    nInsideSub ;	/* Are we inside of a sub? */
     int	    bExit ;		/* We should exit the page */
     int	    nPathNdx ;		/* gives the index in the path where the current file is found */
-    char    sCWD[PATH_MAX] ;    /**< Current working directory */
-    char    sResetDir[PATH_MAX] ; /**< Reset directory to */
-#ifdef WIN32
-    char    nResetDrive ;       /**< Reset drive to */
-#endif
-    int     nRequestCount ;     /**< increments by one on each request */
-    time_t  nRequestTime ;      /**< time when request starts */
 
     char *  sSessionID ;        /* stores session name and id for status session data */
 #ifdef EP2
@@ -433,9 +422,6 @@ struct tReq
     tIndex      nCurrCheckpoint ; /* next checkpoint that should be passed if execution order is unchanged (i.e. no loop/if) */
     tIndex	xCurrDomTree ;	/* DomTree we are currently working on */
     tIndex	xSourceDomTree ;/* DomTree which contains the source */
-
-    struct tCacheItem * pOutputCache ;  /* Cache which hold the final output */
-    SV *       pOutputSV ;	/* set if output is text and not a tree */
 #endif
     struct tTokenTable *  pTokenTable ; /* holds the current syntax */
 
@@ -579,17 +565,9 @@ struct tReq
     SV *   pCodeSV ;		/* contains currently compiled line */
 #endif
 
-#if defined (_DEBUG) && defined (WIN32)
-    _CrtMemState MemCheckpoint ;             /* memory leak debugging */    
-#endif    
-
-#ifdef DMALLOC
-    unsigned long MemCheckpoint ;             /* memory leak debugging */    
-#endif    
-
     } ;
 
 
+
+
 #define EPMAINSUB   "_ep_main"
-
-

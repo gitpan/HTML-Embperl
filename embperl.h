@@ -10,7 +10,7 @@
 #   IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 #   WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 #
-#   $Id: embperl.h,v 1.19.4.15 2001/11/16 08:08:07 richter Exp $
+#   $Id: embperl.h,v 1.29 2001/11/02 10:03:48 richter Exp $
 #
 ###################################################################################*/
 
@@ -77,15 +77,7 @@ enum tRc
     rcCryptoWrongSyntax,
     rcCryptoNotSupported,
     rcCryptoBufferOverflow,
-    rcCryptoErr,
-    rcUnknownProvider,
-    rcXalanError,
-    rcLibXSLTError,
-    rcMissingParam,
-    rcNotCodeRef,
-    rcUnknownRecipe,
-    rcTypeMismatch,
-    rcChdirError
+    rcCryptoErr
     } ;
 
 
@@ -207,8 +199,7 @@ enum tEscMode
     escHtml = 1,
     escUrl  = 2,
     escStd  = 3,
-    escEscape  = 4,
-    escXML  = 8
+    escEscape  = 4
     } ;
 
 

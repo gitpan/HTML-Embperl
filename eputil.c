@@ -10,7 +10,7 @@
 #   IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 #   WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 #
-#   $Id: eputil.c,v 1.15.4.31 2001/11/23 12:28:20 richter Exp $
+#   $Id: eputil.c,v 1.26 2001/09/01 21:31:10 richter Exp $
 #
 ###################################################################################*/
 
@@ -158,8 +158,6 @@ SV * Escape	  (/*i/o*/ register req * r,
 
     if (nEscMode >= 0)
 	{	    
-	if (nEscMode & escXML && !r -> bEscInUrl)
-	    pEscTab = Char2XML ;
 	if (nEscMode & escHtml && !r -> bEscInUrl)
 	    pEscTab = Char2Html ;
 	else if (nEscMode & escUrl)
@@ -701,24 +699,6 @@ IV    GetHashValueInt (/*in*/  HV *           pHash,
     return nDefault ;
     }
 
-UV    GetHashValueUInt (/*in*/  HV *           pHash,
-                        /*in*/  const char *   sKey,
-                        /*in*/  UV            nDefault)
-
-    {
-    SV **   ppSV ;
-
-    /*EPENTRY (GetHashValueInt) ;*/
-    
-    ppSV = hv_fetch(pHash, (char *)sKey, strlen (sKey), 0) ;  
-    if (ppSV != NULL && *ppSV && SvOK(*ppSV))
-        {
-        return SvUV ((*ppSV)) ;
-        }
-
-    return nDefault ;
-    }
-
 
 char * GetHashValueStr (/*in*/  HV *           pHash,
                         /*in*/  const char *   sKey,
@@ -761,135 +741,6 @@ char * GetHashValueStrDup (/*in*/  HV *           pHash,
     }
 
 
-void GetHashValueStrOrHash (/*in*/  HV *           pHash,
-                              /*in*/  const char *   sKey,
-                              /*out*/ char * *       sValue,
-                              /*out*/ HV * *         pHV)
-
-    {
-    SV **   ppSV ;
-    STRLEN  l ;
-
-    ppSV = hv_fetch(pHash, (char *)sKey, strlen (sKey), 0) ;  
-    if (ppSV != NULL)
-        if (!SvROK(*ppSV) || SvTYPE (SvRV(*ppSV)) != SVt_PVHV)
-            *sValue = SvPV (*ppSV, l), *pHV = NULL ;
-        else
-            *pHV = (HV *)SvRV(*ppSV), *sValue = NULL ;
-    }
-
-
-SV * GetHashValueSVinc    (/*in*/  HV *           pHash,
-                           /*in*/  const char *   sKey,
-                           /*in*/  SV *         sDefault)
-    {
-    SV **   ppSV ;
-    STRLEN  l ;
-    char *  s ;
-
-    ppSV = hv_fetch(pHash, (char *)sKey, strlen (sKey), 0) ;  
-    if (ppSV != NULL)
-        {
-	SvREFCNT_inc (*ppSV) ;
-        return *ppSV ;
-	}
-
-    if (sDefault)
-        return SvREFCNT_inc (sDefault) ;
-    else
-	return NULL ;
-    }
-
-
-SV * GetHashValueSV    (/*in*/  HV *           pHash,
-                           /*in*/  const char *   sKey)
-    {
-    SV **   ppSV ;
-    STRLEN  l ;
-    char *  s ;
-
-    ppSV = hv_fetch(pHash, (char *)sKey, strlen (sKey), 0) ;  
-    if (ppSV != NULL)
-        {
-        return *ppSV ;
-	}
-
-    return NULL ;
-    }
-
-int GetHashValueHREF      (/*in*/  req *          r,
-                           /*in*/  HV *           pHash,
-                           /*in*/  const char *   sKey,
-                           /*out*/ HV * *         ppHV)
-    {
-    SV **   ppSV ;
-    STRLEN  l ;
-    char *  s ;
-    HV *    pHV ;
-
-    ppSV = hv_fetch(pHash, (char *)sKey, strlen (sKey), 0) ;  
-    if (ppSV != NULL)
-        {
-        if (!SvROK(*ppSV))
-            {
-            strncpy (r -> errdat2, sKey, sizeof(r -> errdat1) - 1) ;
-            return rcNotHashRef ; 
-            }
-        pHV = (HV *)SvRV(*ppSV) ;
-        if (SvTYPE(pHV) != SVt_PVHV)
-            {
-            strncpy (r -> errdat2, sKey, sizeof(r -> errdat1) - 1) ;
-            return rcNotHashRef ; 
-            }
-        *ppHV = pHV ;
-        return ok ;
-	}
-
-    strncpy (r -> errdat2, sKey, sizeof(r -> errdat1) - 1) ;
-    return rcNotHashRef ; 
-    }
-
-
-int GetHashValueCREF      (/*in*/  req *          r,
-                           /*in*/  HV *           pHash,
-                           /*in*/  const char *   sKey,
-                           /*out*/ CV * *         ppCV)
-    {
-    int     rc ;
-    SV **   ppSV ;
-    STRLEN  l ;
-    char *  s ;
-    CV *    pCV ;
-
-    ppSV = hv_fetch(pHash, (char *)sKey, strlen (sKey), 0) ;  
-    if (ppSV != NULL)
-        {
-        if (SvPOK(*ppSV))
-            {
-	    if ((rc = EvalConfig (pCurrReq, *ppSV, 0, NULL, ppCV)) != ok)
-	        return rc ;
-            return ok ;
-            }
-        if (!SvROK(*ppSV))
-            {
-            strncpy (r -> errdat2, sKey, sizeof(r -> errdat1) - 1) ;
-            return rcNotCodeRef ; 
-            }
-        pCV = (CV *)SvRV(*ppSV) ;
-        if (SvTYPE(pCV) != SVt_PVCV)
-            {
-            strncpy (r -> errdat2, sKey, sizeof(r -> errdat1) - 1) ;
-            return rcNotCodeRef ; 
-            }
-        *ppCV = (CV *)SvREFCNT_inc ((SV *)pCV) ;
-        return ok ;
-	}
-
-    *ppCV = NULL ;
-    return ok ; 
-    }
-
-
 void SetHashValueStr   (/*in*/  HV *           pHash,
                         /*in*/  const char *   sKey,
                         /*in*/  char *         sValue)
@@ -902,55 +753,7 @@ void SetHashValueStr   (/*in*/  HV *           pHash,
     hv_store(pHash, (char *)sKey, strlen (sKey), pSV, 0) ;  
     }
 
-void SetHashValueInt   (/*in*/  HV *           pHash,
-                        /*in*/  const char *   sKey,
-                        /*in*/  IV             nValue)
 
-    {
-    SV *   pSV  ;
-
-    /*EPENTRY (GetHashValueInt) ;*/
-
-    tainted = 0 ; /* doesn't make sense to taint an integer */
-    pSV = newSViv (nValue) ;
-    hv_store(pHash, (char *)sKey, strlen (sKey), pSV, 0) ;  
-
-    }
-
-
-SV * CreateHashRef   (/*in*/  char *   sKey, ...)
-    
-    {
-    va_list         marker;
-    SV *            pVal ;
-    HV *            pHash = newHV() ;
-    int             nType ;
-
-    va_start (marker, sKey);     
-    while (sKey)
-        {
-        nType = va_arg (marker, int) ;
-        if (nType == hashtstr)
-            {
-            char * p = va_arg(marker, char *) ;
-            if (p)
-                pVal = newSVpv (p, 0) ;
-            else
-                pVal = NULL ;
-            }
-        else if (nType == hashtint)
-            pVal = newSViv (va_arg(marker, int)) ;
-        else
-            pVal = va_arg(marker, SV *) ;
-
-        if (pVal)
-            hv_store (pHash, sKey, strlen(sKey), pVal, 0) ;
-        sKey = va_arg(marker, char *) ;
-        }
-    va_end (marker) ;
-
-    return newRV_noinc ((SV *)pHash) ;
-    }
 
 
 
@@ -967,7 +770,7 @@ SV * CreateHashRef   (/*in*/  char *   sKey, ...)
 
 
 int GetLineNoOf (/*i/o*/ register req * r,
-               /*in*/   char * pPos)
+               /*in*/  char * pPos)
 
     {
 
@@ -1204,7 +1007,7 @@ void ClearSymtab (/*i/o*/ register req * r,
     if ((symtab = gv_stashpv ((char *)sPackage, 0)) == NULL)
 	return ;
 
-    ppSV = hv_fetch (symtab, "_ep_DomTree", sizeof ("_ep_DomTree") - 1, 0) ;
+    ppSV = hv_fetch (symtab, EPMAINSUB, sizeof (EPMAINSUB) - 1, 0) ;
     if (!ppSV || !*ppSV)
 	{
 	if (bDebug)
@@ -1218,7 +1021,6 @@ void ClearSymtab (/*i/o*/ register req * r,
     */
 
     pSV = newSVpvf ("%s::CLEANUP", sPackage) ;
-    newSVpvf2(pSV) ;
     s   = SvPV (pSV, l) ;
     pCV = perl_get_cv (s, 0) ;
     if (pCV)
@@ -1254,10 +1056,9 @@ void ClearSymtab (/*i/o*/ register req * r,
 	{
 	if(SvTYPE(val) != SVt_PVGV || SvANY(val) == NULL)
 	    {
-	    /*
-            if (bDebug)
+	    if (bDebug)
 	        lprintf (r, "[%d]CUP: Ignore %s because it's no gv\n", r -> nPid, key) ;
-	    */
+	    
 	    continue;
 	    }
 
@@ -1268,10 +1069,8 @@ void ClearSymtab (/*i/o*/ register req * r,
 
 	if (ppSV && *ppSV && SvIV (*ppSV) == 0)
 	    {
-	    /*
-            if (bDebug)
+	    if (bDebug)
 	        lprintf (r, "[%d]CUP: Ignore %s because it's in %%CLEANUP\n", r -> nPid, s) ;
-            */
 	    continue ;
 	    }
 
@@ -1280,20 +1079,16 @@ void ClearSymtab (/*i/o*/ register req * r,
 	    {
 	    if(GvIMPORTED((GV*)val))
 		{
-		/*
-                if (bDebug)
+		if (bDebug)
 		    lprintf (r, "[%d]CUP: Ignore %s because it's imported\n", r -> nPid, s) ;
-                */
 		continue ;
 		}
 	    
 	    if (s[0] == ':' && s[1] == ':')
 		{
-		/*
-                if (bDebug)
+		if (bDebug)
 		    lprintf (r, "[%d]CUP: Ignore %s because it's special\n", r -> nPid, s) ;
-		*/
-                continue ;
+		continue ;
 		}
 	    
 	    /*
@@ -1320,7 +1115,6 @@ void ClearSymtab (/*i/o*/ register req * r,
                 if (sObjName && strcmp (sObjName, "DBIx::Recordset") == 0)
                     {
                     SV * pSV = newSVpvf ("DBIx::Recordset::Undef ('%s')", s) ;
-		    newSVpvf2(pSV) ;
 
 	            if (bDebug)
 	                lprintf (r, "[%d]CUP: Recordset *%s\n", r -> nPid, s) ;
@@ -1340,7 +1134,6 @@ void ClearSymtab (/*i/o*/ register req * r,
                 if (sObjName && strcmp (sObjName, "DBIx::Recordset") == 0)
                     {
                     SV * pSV = newSVpvf ("DBIx::Recordset::Undef ('%s')", s) ;
-		    newSVpvf2(pSV) ;
 
 	            if (bDebug)
 	                lprintf (r, "[%d]CUP: Recordset *%s\n", r -> nPid, s) ;
@@ -1356,11 +1149,9 @@ void ClearSymtab (/*i/o*/ register req * r,
 	
 	    if ((sv = GvSV((GV*)val)) && SvREADONLY (sv))
 	        {
-	        /*
-                if (bDebug)
+	        if (bDebug)
 	            lprintf (r, "[%d]CUP: Ignore %s because it's readonly\n", r -> nPid, s) ;
-	        */
-                }
+	        }
             else
                 {
 	        sv_unmagic (sv, 'q') ; /* untie */
@@ -1481,133 +1272,3 @@ char * GetSessionID (/*i/o*/ register req * r,
         }
     return pUID ;
     }
-
-/* ---------------------------------------------------------------------------- */
-/*                                                                              */
-/* Change Dir to sourcefile dir                                                 */
-/*                                                                              */
-/* ---------------------------------------------------------------------------- */
-
-void ChdirToSource (/*i/o*/ register req * r,
-                    /*in*/  char *         sInputfile)
-
-    {
-    if ((r -> bOptions & optDisableChdir) == 0 && sInputfile != NULL && sInputfile != '\0' && 
-	!SvROK(r -> pInData) && !r -> sResetDir[0])
-	{
-	char dir[PATH_MAX];
-#ifdef WIN32
-	char drive[_MAX_DRIVE];
-	char fname[_MAX_FNAME];
-	char ext[_MAX_EXT];
-	char * c = sInputfile ;
-
-	while (*c)
-	    { /* convert / to \ */
- 	    if (*c == '/')
-		*c = '\\' ;
-	    c++ ;
-	    }
-
-	r -> nResetDrive = _getdrive () ;
-	getcwd (r -> sResetDir, sizeof (r -> sResetDir) - 1) ;
-
-	_splitpath(sInputfile, drive, dir, fname, ext );
-   	_chdrive (drive[0] - 'A' + 1) ;
-#else
-	Dirname (sInputfile, dir, sizeof (dir) - 1) ;
-	getcwd (r -> sResetDir, sizeof (r -> sResetDir) - 1) ;
-#endif
-	if (dir[0])
-	    {
-	    if (chdir (dir) < 0)
-		{
-		strncpy (r -> errdat1, dir, sizeof(r -> errdat1) - 1) ;
-		LogError (r, rcChdirError) ;
-		}
-	    else
-		{
-		if (!(dir[0] == '/'  
-	    #ifdef WIN32
-		    ||
-		    dir[0] == '\\' || 
-			(isalpha(dir[0]) && dir[1] == ':' && 
-			  (dir[2] == '\\' || dir[2] == '/')) 
-	    #endif                  
-		    ))            
-		    {
-		    strcpy (r->sCWD,r -> sResetDir) ;
-		    strcat (r->sCWD,"/") ;
-		    strcat (r->sCWD,dir) ;
-		    }
-		else
-		    strcpy (r->sCWD,dir) ;
-		}
-	    }
-	else
-	    r -> bOptions |= optDisableChdir ;
-	}
-    else
-	r -> bOptions |= optDisableChdir ;
-    
-
-
-
-
-    }
-
-
-
-
-/* ---------------------------------------------------------------------------- */
-/*                                                                              */
-/* Memory debugging functions                                                   */
-/*                                                                              */
-/* ---------------------------------------------------------------------------- */
-
-
-#ifdef DMALLOC
-
-static int RemoveDMallocMagic (pTHX_ SV * pSV, MAGIC * mg)
-
-    {
-    char * s = *((char * *)(mg -> mg_ptr)) ;
-    _free_leap(__FILE__, __LINE__, s) ;
-    return ok ;
-    }
-
-static MGVTBL DMalloc_mvtTab = { NULL, NULL, NULL, NULL, RemoveDMallocMagic } ;
-
-SV * AddDMallocMagic (/*in*/ SV *	pSV,
-		      /*in*/ char *     sText,
-		      /*in*/ char *     sFile,
-		      /*in*/ int        nLine) 
-
-    {
-    if (pSV && (!SvMAGICAL(pSV) || !mg_find (pSV, '~')))
-	{
-	char * s = _strdup_leap(sFile, nLine, sText) ;
-	struct magic * pMagic ;
-    
-	if ((!SvMAGICAL(pSV) || !(pMagic = mg_find (pSV, '~'))))
-	    {
-	    sv_magic ((SV *)pSV, NULL, '~', (char *)&s, sizeof (s)) ;
-	    pMagic = mg_find (pSV, '~') ;
-	    }
-
-	if (pMagic)
-	    {
-	    pMagic -> mg_virtual = &DMalloc_mvtTab ;
-	    }
-	else
-	    {
-	    LogError (pCurrReq, rcMagicError) ;
-	    }
-	}
-
-    return pSV ;
-    }
-
-
-#endif
-

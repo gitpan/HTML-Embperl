@@ -11,7 +11,7 @@
 #   IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 #   WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 #
-#   $Id: test.pl,v 1.70.4.101 2001/11/23 12:30:27 richter Exp $
+#   $Id: test.pl,v 1.118 2001/12/04 20:09:20 richter Exp $
 #
 ###################################################################################
 
@@ -47,6 +47,7 @@
      },
     'nooutput.htm' => {
         repeat => 2,
+        version => 2,
         },
     'plain.htm' => {
         repeat => 3,
@@ -58,13 +59,11 @@
         'repeat'     => 3,
         'errors'     => 8,
         'version'    => 1,
-        'noloop'     => 1, # Perl leaks on eval syntax error
         },
     'error.htm' => { 
         'repeat'     => 3,
         'errors'     => 6,
         'version'    => 2,
-        'noloop'     => 1, # Perl leaks on eval syntax error
         },
     'errormismatch.htm' => { 
         'errors'     => '1',
@@ -103,7 +102,6 @@
         'errors'     => 6,
         'version'    => 2,
         'cgi'        => 0,
-        'noloop'     => 1, # Perl leaks on eval syntax error
         },
     'errdoc/epl/errdoc2.htm' => { 
         'option'     => '262144',
@@ -117,7 +115,7 @@
         'errors'     => 6,
         'version'    => 2,
         'cgi'        => 0,
-        'noloop'     => 1, # Perl leaks on eval syntax error
+        'noloop'     => 1,
         },
     'rawinput/rawinput.htm' => { 
         'option'     => '16',
@@ -130,18 +128,20 @@
         'condition'  => '$] < 5.006000', 
         offline      => 1,
         },
-#    'varerr.htm' => { 
-#        'errors'     => 8,
-#        'noloop'     => 1,
-#        'condition'  => '$] < 5.006000', 
-#        cgi          => 1,
-#        },
-#    'varerr.htm' => { 
-#        'errors'     => 8,
-#        'noloop'     => 1,
-#        'condition'  => '$] < 5.006000', 
-#        modperl      => 1,
-#        },
+    'varerr.htm' => { 
+        'errors'     => -1,
+        'noloop'     => 1,
+        'condition'  => '$] < 5.006000', 
+        cgi          => 1,
+        'version'    => 1,
+        },
+    'varerr.htm' => { 
+        'errors'     => -1,
+        'noloop'     => 1,
+        'condition'  => '$] < 5.006000', 
+        modperl      => 1,
+        'version'    => 1,
+        },
     'varerr.htm' => { 
         'errors'     => 7,
         'noloop'     => 1,
@@ -155,7 +155,6 @@
         'condition'  => '$] >= 5.006000', 
         'cmpext'     => '56',
         'version'    => 2,
-        'noloop'     => 1, # Perl leaks on eval syntax error
         },
     'varerr.htm' => { 
         'errors'     => 2,
@@ -254,6 +253,17 @@
         'cgi'        => 0,
         'repeat'     => 2,
         },
+    'chdir.htm' => { 
+        'query_info' => 'a=1&b=2&c=&d=&f=5&g&h=7&=8&=',
+        },
+    'chdir.htm' => { 
+        'query_info' => 'a=1&b=2&c=&d=&f=5&g&h=7&=8&=',
+        },
+    'nochdir/nochdir.htm' => { 
+        'query_info' => 'a=1&b=2',
+        'option'     => '384',
+        'cgi'        => 0,
+        },
     'include.htm' => { 
         'version'    => 1,
         },
@@ -318,8 +328,9 @@
         },
     'importmodule.htm' => { 
         },
-#    'recursexec.htm' => { 
-#        },
+    'recursexec.htm' => { 
+        'version'    => 1,
+        },
     'nph/div.htm' => { 
         'option'     => '64',
         },
@@ -351,12 +362,6 @@
         'version'    => 1,
         'offline'    => 0,
         },
-    'chdir.htm' => { 
-        'query_info' => 'a=1&b=2&c=&d=&f=5&g&h=7&=8&=',
-        },
-    'chdir.htm' => { 
-        'query_info' => 'a=1&b=2&c=&d=&f=5&g&h=7&=8&=',
-        },
     'allform/allform.htm' => { 
         'query_info' => 'a=1&b=2&c=&d=&f=5&g&h=7&=8&=',
         'option'     => '8192',
@@ -365,11 +370,6 @@
     'stdout/stdout.htm' => { 
         'option'     => '16384',
         'version'    => 1,
-        'cgi'        => 0,
-        },
-    'nochdir/nochdir.htm' => { 
-        'query_info' => 'a=1&b=2',
-        'option'     => '384',
         'cgi'        => 0,
         },
     'match/div.htm' => {
@@ -730,7 +730,7 @@
     'pod/pod.asc' => { 
         'version'    => 2,
         'syntax'     => 'POD',
-        'condition'  => '!$EPWIN32', 
+        #'condition'  => '!$EPWIN32', 
         'cgi'        => 0,
         },
     'xml/pod.xml' => { 
@@ -941,7 +941,7 @@ BEGIN
     print "\nloading...                    ";
     
 
-    $defaultdebug = 0xffffdffd ;
+    $defaultdebug = 0x7fffdffd ;
     #$defaultdebug = 1 ;
 
     #### setup paths #####
@@ -955,6 +955,7 @@ BEGIN
     $ENV{EMBPERL_LOG} = $logfile ;
     $ENV{EMBPERL_DEBUG} = $defaultdebug ;
     $ENV{DMALLOC_OPTIONS} = "log=$tmppath/dmalloc.log,debug=0x3f03" ;
+    $ENV{EMBPERL_SESSION_HANDLER_CLASS} = 'no' if (!$EPSESSIONXVERSION) ;
 
     unlink ($logfile) ;
     }

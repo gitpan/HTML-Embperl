@@ -10,7 +10,7 @@
 #   IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 #   WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 #
-#   $Id: epio.c,v 1.16.4.4 2001/11/06 15:37:03 richter Exp $
+#   $Id: epio.c,v 1.23 2001/10/17 05:44:47 richter Exp $
 #
 ###################################################################################*/
 
@@ -563,7 +563,7 @@ int ReadHTML (/*i/o*/ register req * r,
 #endif
     
     if (r -> bDebug)
-        lprintf (r, "[%d]Reading %s as input using %s (%d Bytes)...\n", r -> nPid, sInputfile, FILEIOTYPE, *nFileSize) ;
+        lprintf (r, "[%d]Reading %s as input using %s ...\n", r -> nPid, sInputfile, FILEIOTYPE) ;
 
 #ifdef WIN32
     if ((ifd = PerlIO_open (sInputfile, "rb")) == NULL)
@@ -576,7 +576,7 @@ int ReadHTML (/*i/o*/ register req * r,
         return rcFileOpenErr ;
         }
 
-    if ((long)*nFileSize < 0)
+    if ((long)nFileSize < 0)
 	return rcFileOpenErr ;
 
 

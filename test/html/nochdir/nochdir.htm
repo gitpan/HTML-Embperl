@@ -15,7 +15,6 @@ Embperl CWD: [+ $ep =     $HTML::Embperl::cwd +] <BR>
 
 Equal: [+ $script eq $ep?'Yes':'No' +]<BR>
 Diff CWD: [+ do { $script =~ /$ep/ ; ">$'<" } +]<BR>
-Test/html: [+ $script =~ /test(?:\/|\\)html$/?'yes':'no' +]
 
 [- @ks = sort keys %fdat -]
 

@@ -103,17 +103,6 @@ Now a Url: <A HREF="http://localhost/tests?id=[+%20$id +]&text=[+$text+]">Here i
 
 What is the EscMode? [+ $escmode +]
 
-[+ $escmode = 15 +]
-
-Now lets look what we are getting from this:<BR>
-[+ $a +] [+ $b +] [+ q{'"<>} +]<BR>
-
-What is the EscMode? [+ $escmode +]
-
-Now a Url: <A HREF="http://localhost/tests?id=[+%20$id +]&text=[+$text+] [+ q{'"<>} +]">Here it goes</A>
-
-What is the EscMode? [+ $escmode +]
-
 [!
     sub foo($)
         {

@@ -47,11 +47,16 @@ T_PTROBJ_DOMNODE
 
 T_PTROBJ_SYNTAX
     {
-    MAGIC * mg ;
-    if (SvROK ($arg) && (mg = mg_find (SvRV($arg), '~')))
-        $var = *((tTokenTable **)(mg -> mg_ptr)) ;
-    else
-        croak (\"$var is not of type HTML::Embperl::Syntax\") ;
+#ifdef EP2
+#    MAGIC * mg ;
+#    if (SvROK ($arg) && (mg = mg_find (SvRV($arg), '~')))
+#        $var = *((tTokenTable **)(mg -> mg_ptr)) ;
+#    else
+#        croak (\"$var is not of type HTML::Embperl::Syntax\") ;
+#else
+    STRLEN l ;
+    $var = (tTokenTable *)SvPV($arg,l) ;
+#endif
     }
 
 
