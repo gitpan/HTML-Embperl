@@ -126,7 +126,7 @@ enum tCmdNo
     cnOl,
     cnUl,
     cnDl,
-    cnSelect,
+    cnSelect
     } ;
 
 /* */
@@ -2404,7 +2404,6 @@ static int ScanHtmlTag (/*in*/ char *   p)
             if (pea)
                 *pea = ea ;              /* restore first char after tag arguments */
 
-            //owrite (pCurrTag, 1, pCurrPos - pCurrTag) ;
             oputc (*pCurrTag) ;
             pCurrPos = pCurrTag + 1 ;
             }

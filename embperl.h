@@ -50,7 +50,7 @@ enum tRc
     rcExecCGIMissing,
     rcIsDir,
     rcXNotSet,
-    rcNotFound,
+    rcNotFound
     } ;
 
 #define rcstover rcStackOverflow
@@ -82,7 +82,7 @@ enum dbg
     dbgFunc         = 4096,
     dbgLogLink      = 8192,
     
-    dbgAll  = 0xffff,
+    dbgAll  = 0xffff
     } ;
 
 
