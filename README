@@ -116,7 +116,7 @@ I have tested Embperl successfully
 on Linux 2.x with
 
 perl5.004_04
-perl5.005_01
+perl5.005_01/02/03
 apache_1.2.5
 apache_1.2.6
 apache_1.3.0
@@ -134,7 +134,7 @@ Stronghold 2.4.1
 on Windows NT 4.0 with
 
 perl5.004_04
-perl5.005 (only without threads!)
+perl5.005_xx (only without threads!)
 apache_1.3.0
 apache_1.3.1
 apache_1.3.4

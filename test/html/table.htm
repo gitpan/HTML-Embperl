@@ -103,6 +103,27 @@ Please take a look at the source in your browser to see the difference<BR>
     </tr> 
 </table>
 
+<table>
+    <tr>
+        <TD BGCOLOR="[+ ($row & 1)?(($col&1)?'#7CFC00':'#A4A4B4'):(($col&1)?'#FFFF00':'#F4A460') +]">[+ $a[$row][$col] +] </td>
+    </tr> 
+</table>
+
+
+[-    $a[0][1] = 'a1/2' ; -]
+
+<table>
+    <tr>
+        <TD BGCOLOR="#F4A460">[+ $a[$row*2][$col*2] +] </td>
+        <TD BGCOLOR="#FFFF00">[+ $a[$row*2][$col*2+1] +] </td>
+    </tr> 
+    <tr>
+        <TD BGCOLOR="#A4A4B4">[+ $a[$row*2+1][$col*2] +] </td>
+        <TD BGCOLOR="#7CFC00">[+ $a[$row*2+1][$col*2+1] +] </td>
+    </tr> 
+</table>
+
+[-     $a[0][1] = undef ; -]
 
 [-
 

@@ -1020,7 +1020,7 @@ do
 	    next if (($file =~ /match/) && $loc eq $cgiloc) ;
 	    #next if ($file eq 'http.htm' && $loc eq $cgiloc) ;
 	    next if ($file eq 'chdir.htm' && $EPWIN32) ;
-	    #next if ($file eq 'notfound.htm' && $loc eq $cgiloc && $EPWIN32) ;
+	    next if ($file eq 'notfound.htm' && $loc eq $cgiloc && $EPWIN32) ;
 	    #next if ($file eq 'notallow.xhtm' && $loc eq $cgiloc && $EPWIN32) ;
 	    next if ($file =~ /opmask/ && $EPSTARTUP =~ /_dso/) ;
 	    next if ($file eq 'clearsess.htm' && !$looptest) ;

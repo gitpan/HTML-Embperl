@@ -1,5 +1,10 @@
 =pod
 
+=head1 1.2.0 17 Nov 1999
+
+   - test script had failed in cgi mode on win32. Spotted by 
+     Randy Korbes.
+
 =head1 1.2b11 (BETA)  4 Nov 1999
 
    - Added the "Status:" header and error message to embpcgi.pl to
@@ -12,7 +17,7 @@
      from Jason Holt.
    - Changed access to addtional upload fileinfo. The old syntax
      (${${$fdat{<name_of_field>}}}) isn't available anymore, because
-     it doesn't work with filenames that are not a vaild per
+     it doesn't work with filenames that are not a vaild perl
      variable name. Now there is a second field which start with a
      dash that's holds a hash ref to the file info. Spotted by 
      Huang-Ming Pan.

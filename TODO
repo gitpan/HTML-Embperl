@@ -38,13 +38,15 @@ Features
 
 - remove \n in perl code? when and how?
 
+- url/html escaping [Eugene B. Byrganov 4.11.99]
+
+- accpect unclosed html structs [Eugene B. Byrganov 9.11.99]
+
 Test
 ----
 - test FORBIDDEN
 
 - check permissions of test/html
-
-- not_found cgi test on win32
 
 Bugs
 ----
