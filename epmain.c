@@ -35,20 +35,18 @@ request_rec * pReq = NULL ;
 #endif
 
 
-/* Debugging */
-
-int  bDebug = dbgAll & ~dbgMem & ~dbgEnv;
-
-/* Options */
-
-int  bOptions ;
 
 
-int  bReqRunning = 0 ;
-
+int  bDebug = 0 ;       /* Debugging options */
+int  bOptions ;         /* Options */
+int  bReqRunning = 0 ;  /* we are inside of a request */
 int  bError = 0 ;       /* Error has occured somewhere */
+static I32  nLastErrFill  ;
+static int  bLastErrState ;
 
-int  nIOType   = epIOPerl ;
+static int  bInitDone = 0 ; /* c part is already initialized */
+
+int  nIOType   = epIOPerl ; /* what mode we are run as */
 
 static char sCmdFifo [] = "/local/www/cgi-bin/embperl/cmd.fifo" ;
 static char sRetFifo [1024] ;
@@ -62,6 +60,8 @@ static char sFormHashName  [] = "HTML::Embperl::fdat" ;
 static char sFormArrayName [] = "HTML::Embperl::ffld" ;
 static char sInputHashName [] = "HTML::Embperl::idat" ;
 static char sErrArrayName  [] = "HTML::Embperl::errors" ;
+static char sErrFillName   [] = "HTML::Embperl::errfill" ;
+static char sErrStateName  [] = "HTML::Embperl::errstate" ;
 static char sTabCountName  [] = "HTML::Embperl::cnt" ;
 static char sTabRowName    [] = "HTML::Embperl::row" ;
 static char sTabColName    [] = "HTML::Embperl::col" ;
@@ -69,6 +69,7 @@ static char sTabMaxRowName [] = "HTML::Embperl::maxrow" ;
 static char sTabMaxColName [] = "HTML::Embperl::maxcol" ;
 static char sTabModeName   [] = "HTML::Embperl::tabmode" ;
 static char sEscModeName   [] = "HTML::Embperl::escmode" ;
+
 
        char sLogfileURLName[] = "HTML::Embperl::LogfileURL" ;
 static char sOpcodeMaskName[] = "HTML::Embperl::opcodemask" ;
@@ -80,7 +81,9 @@ HV *    pEnvHash ;   /* environement from CGI Script */
 HV *    pFormHash ;  /* Formular data */
 HV *    pInputHash ; /* Data of input fields */
 AV *    pFormArray ; /* Fieldnames */
-AV *    pErrArray ;  /* Errors to show on Errorrtesponse */
+AV *    pErrArray ;  /* Errors to show on Error response */
+AV *    pErrFill ;   /* AvFILL of pErrArray, index is nMarker */
+AV *    pErrState ;  /* bError, index is nMarker  */
 
 HV *    pCacheHash ; /* Hash containing CVs to precompiled subs */
 
@@ -134,6 +137,9 @@ char * LogError (/*in*/ int   rc)
     const char * msg ;
     char * sText ;
     SV *   pSV ;
+    SV **  ppSV ;
+    int    n ;
+
     
     EPENTRY (LogError) ;
     
@@ -203,14 +209,35 @@ char * LogError (/*in*/ int   rc)
     else
 #endif
         {
-        fprintf (stderr, "%s\n", sText) ;
-        fflush (stderr) ;
+#ifdef WIN32
+        if (nIOType != epIOCGI)
+#endif
+            {
+            fprintf (stderr, "%s\n", sText) ;
+            fflush (stderr) ;
+            }
         }
     
     if (rc == rcPerlWarn)
         strncpy (lastwarn, errdat1, sizeof (lastwarn) - 1) ;
 
+    /*lprintf ("DIS: AvFILL (pErrArray) = %d, nMarker = %d,  nLastErrFill= %d , bLastErrState = %d\n" , AvFILL (pErrArray), nMarker, nLastErrFill, bLastErrState) ;*/
     av_push (pErrArray, pSV) ;
+    
+    av_store (pErrFill, nMarker, newSViv (AvFILL(pErrArray))) ;
+    av_store (pErrState, nMarker, newSViv (bError)) ;
+    n = nMarker ;
+    while (n-- > 0)
+        {
+        ppSV = av_fetch (pErrFill, n, 0) ;
+        if (ppSV && SvOK (*ppSV))
+            break ;
+        av_store (pErrFill, n, newSViv (nLastErrFill)) ;
+        av_store (pErrState, n, newSViv (bLastErrState)) ;
+        }
+
+    nLastErrFill  = AvFILL(pErrArray) ;
+    bLastErrState = bError ;
 
     errdat1[0] = '\0' ;
     errdat2[0] = '\0' ;
@@ -218,6 +245,75 @@ char * LogError (/*in*/ int   rc)
     return sText ;
     }
 
+
+/* */
+/* begin for error rollback */
+/* */
+
+void CommitError ()
+    
+    {
+    int f = AvFILL(pErrArray)  ;
+    
+    if (f == -1)
+        return ; /* no errors -> nothing to do */
+
+    /*lprintf ("DIS: Commit AvFILL (pErrArray) = %d, nMarker = %d,  nLastErrFill= %d , bLastErrState = %d\n" , AvFILL (pErrArray), nMarker, nLastErrFill, bLastErrState) ;*/
+
+    av_store (pErrFill, nMarker, newSViv (f)) ;
+    av_store (pErrState, nMarker, newSViv (bError)) ;
+    }
+
+    
+    
+/* */
+/* rollback error */
+/* */
+
+void RollbackError ()
+
+    {
+    SV *  pFill ;
+    SV *  pState ;
+    SV ** ppSV ;
+    I32   f = AvFILL (pErrFill) ;
+    int   n ;
+    int   i ;
+
+    if (f < nMarker)
+        return ;
+    
+    /*lprintf ("DIS: AvFILL (pErrFill) = %d, nMarker = %d\n" , f, nMarker) ;*/
+    
+    for (i = f; i > nMarker; i--)
+        {
+        pFill  = av_pop(pErrFill) ;
+        pState = av_pop(pErrState) ;
+        SvREFCNT_dec (pFill) ;
+        SvREFCNT_dec (pState) ;
+        }
+    ppSV   = av_fetch(pErrFill, nMarker, 0) ;
+    if (ppSV)
+        n = SvIV (*ppSV) ;
+    else
+        n = 0 ;
+    ppSV = av_fetch(pErrState, nMarker, 0) ;
+    if (ppSV)
+        bError = SvIV (*ppSV) ;
+    else
+        bError = 1 ;
+    f = AvFILL (pErrArray) ;
+    /*lprintf ("DIS: AvFILL (pErrArray) = %d, n = %d\n" , f, n) ;*/
+    if (f > n)
+        lprintf ("[%d]ERR:  Discard the last %d errormessages, because they occured after the end of a table\n", nPid, f - n) ;
+    for (i = f; i > n; i--)
+        {
+        SvREFCNT_dec (av_pop(pErrArray)) ;
+        }
+
+    nLastErrFill  = AvFILL(pErrArray) ;
+    bLastErrState = bError ;
+    }
 
 
     
@@ -236,22 +332,53 @@ static void NewEscMode ()
         pCurrEscape = NULL ;
     }
 
-static void NOP ()
-
-    {
-    }
 
 
 static int notused ;
 
-INTMG (Count, TableState.nCount, TableState.nCountUsed, NOP) 
-INTMG (Row, TableState.nRow, TableState.nRowUsed, NOP) 
-INTMG (Col, TableState.nCol, TableState.nColUsed, NOP) 
-INTMG (MaxRow, nTabMaxRow, notused,  NOP) 
-INTMG (MaxCol, nTabMaxCol, notused, NOP) 
-INTMG (TabMode, nTabMode, notused, NOP) 
-INTMG (EscMode, bEscMode, notused, NewEscMode) 
+INTMG (TabCount, TableState.nCount, TableState.nCountUsed, ;) 
+INTMG (TabRow, TableState.nRow, TableState.nRowUsed, ;) 
+INTMG (TabCol, TableState.nCol, TableState.nColUsed, ;) 
+INTMG (TabMaxRow, nTabMaxRow, notused,  ;) 
+INTMG (TabMaxCol, nTabMaxCol, notused, ;) 
+INTMG (TabMode, nTabMode, notused, ;) 
+INTMG (EscMode, bEscMode, notused, NewEscMode ()) 
 
+OPTMGRD (optDisableVarCleanup      , bOptions) ;
+OPTMG   (optDisableEmbperlErrorPage, bOptions) ;
+OPTMGRD (optSafeNamespace          , bOptions) ;
+OPTMGRD (optOpcodeMask             , bOptions) ;
+OPTMG   (optRawInput               , bOptions) ;
+OPTMG   (optSendHttpHeader         , bOptions) ;
+OPTMGRD (optDisableChdir           , bOptions) ;
+OPTMG   (optDisableHtmlScan        , bOptions) ;
+OPTMGRD (optEarlyHttpHeader        , bOptions) ;
+OPTMGRD (optDisableFormData        , bOptions) ;
+OPTMG   (optDisableInputScan       , bOptions) ;
+OPTMG   (optDisableTableScan       , bOptions) ;
+OPTMG   (optDisableMetaScan        , bOptions) ;
+OPTMGRD (optAllFormData            , bOptions) ;
+OPTMGRD (optRedirectStdout         , bOptions) ;
+
+OPTMG   (dbgStd          , bDebug) ;
+OPTMG   (dbgMem          , bDebug) ;
+OPTMG   (dbgEval         , bDebug) ;
+OPTMG   (dbgCmd          , bDebug) ;
+OPTMG   (dbgEnv          , bDebug) ;
+OPTMG   (dbgForm         , bDebug) ;
+OPTMG   (dbgTab          , bDebug) ;
+OPTMG   (dbgInput        , bDebug) ;
+OPTMG   (dbgFlushOutput  , bDebug) ;
+OPTMG   (dbgFlushLog     , bDebug) ;
+OPTMG   (dbgAllCmds      , bDebug) ;
+OPTMG   (dbgSource       , bDebug) ;
+OPTMG   (dbgFunc         , bDebug) ;
+OPTMG   (dbgLogLink      , bDebug) ;
+OPTMG   (dbgDefEval      , bDebug) ;
+OPTMG   (dbgCacheDisable , bDebug) ;
+OPTMG   (dbgWatchScalar  , bDebug) ;
+OPTMG   (dbgHeadersIn    , bDebug) ;
+OPTMG   (dbgShowCleanup  , bDebug) ;
 
 /* ---------------------------------------------------------------------------- */
 /* read form input from http server... */
@@ -331,7 +458,7 @@ static int GetFormData (/*in*/ char * pQueryString,
                 nVal = p - pVal ;
                 *p++ = '\0' ;
             
-                if (nVal > 0)
+                if (nKey > 0 && (nVal > 0 || (bOptions & optAllFormData)))
                     {
                     if (ppSV = hv_fetch (pFormHash, pKey, nKey, 0))
                         { /* Field exists already -> append separator and field value */
@@ -855,8 +982,8 @@ static int ScanHtmlTag (/*in*/ char *   p)
         char nType = '\0';
         while ((*p != '>' || nType) && *p != '\0')
             {
-            if (*p == '[' && (p[1] == '+' || p[1] == '-'))
-                nType = *++p;
+            if (nType == '\0' && *p == '[' && (p[1] == '+' || p[1] == '-' || p[1] == '$' || p[1] == '!'))
+                nType = *++p ;
             else if (nType && *p == nType && p[1] == ']')
                 {
                 nType = '\0';
@@ -987,7 +1114,7 @@ static int AddMagic (/*in*/ char *     sVarName,
 /* */
 /* ---------------------------------------------------------------------------- */
 
-int iembperl_init (/*in*/ int     _nIOType,
+int iembperl_init (/*in*/ int           _nIOType,
                    /*in*/ const char *  sLogFile) 
 
     {
@@ -1012,18 +1139,14 @@ int iembperl_init (/*in*/ int     _nIOType,
     
     nPid = getpid () ;
 
-#ifndef WIN32
-    nPid &= 0xffff ;
-#endif
-
     sSourcefile = "???" ;
     nSourceline = 1 ;
     pSourcelinePos = NULL ;    
     pLineNoCurrPos = NULL ;    
 
-    if ((rc = OpenLog (sLogFile)) != ok)
+    if ((rc = OpenLog (sLogFile, (bDebug & dbgFunc)?1:0)) != ok)
         { 
-        bDebug = 0 ; /* Turn debbuging of, only errors will go to stderr */
+        bDebug = 0 ; /* Turn debbuging off, only errors will go to stderr */
         LogError (rc) ;
         }
 
@@ -1046,7 +1169,7 @@ int iembperl_init (/*in*/ int     _nIOType,
             default: p = "unknown" ; break ;
             }
         
-        lprintf ("[%d]INIT: Embperl %s starting... mode = %s (%d)\n", nPid, sVersion, p, nIOType) ;
+        /* lprintf ("[%d]INIT: Embperl %s starting... mode = %s (%d)\n", nPid, sVersion, p, nIOType) ; */
         }
 
 
@@ -1058,6 +1181,8 @@ int iembperl_init (/*in*/ int     _nIOType,
         }
 #endif
 
+    if (bInitDone)
+        return ok ; /* the rest was alreay done */
 
     if ((pFormHash = perl_get_hv (sFormHashName, TRUE)) == NULL)
         {
@@ -1073,6 +1198,18 @@ int iembperl_init (/*in*/ int     _nIOType,
         }
 
     if ((pErrArray = perl_get_av (sErrArrayName, TRUE)) == NULL)
+        {
+        LogError (rcArrayError) ;
+        return 1 ;
+        }
+
+    if ((pErrFill = perl_get_av (sErrFillName, TRUE)) == NULL)
+        {
+        LogError (rcArrayError) ;
+        return 1 ;
+        }
+
+    if ((pErrState = perl_get_av (sErrStateName, TRUE)) == NULL)
         {
         LogError (rcArrayError) ;
         return 1 ;
@@ -1108,20 +1245,53 @@ int iembperl_init (/*in*/ int     _nIOType,
         return 1 ;
         }
 
+    rc = 0 ;
+
+    ADDINTMG (TabCount) ;
+    ADDINTMG (TabRow) ;
+    ADDINTMG (TabCol) ;
+    ADDINTMG (TabMaxRow) ;
+    ADDINTMG (TabMaxCol) ;
+    ADDINTMG (TabMode) ;
+    ADDINTMG (EscMode) ;
     
-    rc = AddMagic (sTabCountName, &EMBPERL_mvtTabCount) ;
-    if (rc == 0)
-        rc = AddMagic (sTabRowName, &EMBPERL_mvtTabRow) ;
-    if (rc == 0)
-        rc = AddMagic (sTabColName, &EMBPERL_mvtTabCol) ;
-    if (rc == 0)
-        rc = AddMagic (sTabMaxRowName, &EMBPERL_mvtTabMaxRow) ;
-    if (rc == 0)
-        rc = AddMagic (sTabMaxColName, &EMBPERL_mvtTabMaxCol) ;
-    if (rc == 0)
-        rc = AddMagic (sTabModeName, &EMBPERL_mvtTabTabMode) ;
-    if (rc == 0)
-        rc = AddMagic (sEscModeName, &EMBPERL_mvtTabEscMode) ;
+    ADDOPTMG (optDisableVarCleanup      ) ;
+    ADDOPTMG (optDisableEmbperlErrorPage) ;
+    ADDOPTMG (optSafeNamespace          ) ;
+    ADDOPTMG (optOpcodeMask             ) ;
+    ADDOPTMG (optRawInput               ) ;
+    ADDOPTMG (optSendHttpHeader         ) ;
+    ADDOPTMG (optDisableChdir           ) ;
+    ADDOPTMG (optDisableHtmlScan        ) ;
+    ADDOPTMG (optEarlyHttpHeader        ) ;
+    ADDOPTMG (optDisableFormData        ) ;
+    ADDOPTMG (optDisableInputScan       ) ;
+    ADDOPTMG (optDisableTableScan       ) ;
+    ADDOPTMG (optDisableMetaScan        ) ;
+    ADDOPTMG (optAllFormData            ) ;
+    ADDOPTMG (optRedirectStdout         ) ;
+
+    ADDOPTMG   (dbgStd         ) ;
+    ADDOPTMG   (dbgMem         ) ;
+    ADDOPTMG   (dbgEval        ) ;
+    ADDOPTMG   (dbgCmd         ) ;
+    ADDOPTMG   (dbgEnv         ) ;
+    ADDOPTMG   (dbgForm        ) ;
+    ADDOPTMG   (dbgTab         ) ;
+    ADDOPTMG   (dbgInput       ) ;
+    ADDOPTMG   (dbgFlushOutput ) ;
+    ADDOPTMG   (dbgFlushLog    ) ;
+    ADDOPTMG   (dbgAllCmds     ) ;
+    ADDOPTMG   (dbgSource      ) ;
+    ADDOPTMG   (dbgFunc        ) ;
+    ADDOPTMG   (dbgLogLink     ) ;
+    ADDOPTMG   (dbgDefEval     ) ;
+    ADDOPTMG   (dbgCacheDisable) ;
+    ADDOPTMG   (dbgWatchScalar ) ;
+    ADDOPTMG   (dbgHeadersIn   ) ;
+    ADDOPTMG   (dbgShowCleanup ) ;
+   
+    bInitDone = 1 ;
 
     return rc ;
     }
@@ -1240,6 +1410,7 @@ static int SetupRequest   (/*in*/ char *  sInputfile,
                            /*in*/ SV *    pOutData) 
 
     {
+    int     rc ;
     GV *    gv;
     char *  sMode ;
 
@@ -1283,13 +1454,25 @@ static int SetupRequest   (/*in*/ char *  sInputfile,
     nTabMaxCol      = 10 ;
     pCurrTag        = NULL ;
 
+    av_clear (pErrFill) ;
+    av_clear (pErrState) ;
+    av_clear (pErrArray) ;
+    nLastErrFill  = AvFILL(pErrArray) ;
+    bLastErrState = bError ;
+
+    if ((rc = OpenLog (NULL, 2)) != ok)
+        { 
+        bDebug = 0 ; /* Turn debbuging off, only errors will go to stderr */
+        LogError (rc) ;
+        }
+
     if (bDebug)
         {
         time_t t ;
         struct tm * tm ;
         time (&t) ;        
         tm =localtime (&t) ;
-        lprintf ("[%d]REQ:  starting... %s\n", nPid, asctime(tm)) ;
+        lprintf ("[%d]REQ:  Embperl %s starting... %s\n", nPid,  sVersion, asctime(tm)) ;
         numEvals = 0  ;
         numCacheHits = 0 ;
         }
@@ -1322,7 +1505,11 @@ static int SetupRequest   (/*in*/ char *  sInputfile,
         GvHV(gv) = (HV*)SvREFCNT_inc(defstash);
         }
 
+    /* for backwards compability */
+    if (bDebug & dbgEarlyHttpHeader)
+        bOptions |= optEarlyHttpHeader ;
         
+   
     if (bDebug)
         {
         char * p ;
@@ -1365,19 +1552,19 @@ static int StartOutput (/*in*/ char *  sOutputfile,
 
 #ifdef APACHE
     if (pReq && pReq -> main)
-    	bDebug |= dbgEarlyHttpHeader ; /* do not direct output to memory on internal redirect */
+    	bOptions |= optEarlyHttpHeader ; /* do not direct output to memory on internal redirect */
 #endif
     if (bOutToMem)
-    	bDebug &= ~dbgEarlyHttpHeader ;
+    	bOptions &= ~optEarlyHttpHeader ;
 
 
-    if (bDebug & dbgEarlyHttpHeader)
+    if (bOptions & optEarlyHttpHeader)
         {
 #ifdef APACHE
         if (pReq == NULL)
             {
 #endif
-            if (nIOType != epIOPerl)
+            if (nIOType != epIOPerl && (bOptions & optSendHttpHeader))
                 oputs ("Content-type: text/html\n\n") ;
 
 #ifdef APACHE
@@ -1400,9 +1587,9 @@ static int StartOutput (/*in*/ char *  sOutputfile,
     else
         {
 #ifdef APACHE
-        if (pReq == NULL && nIOType != epIOPerl)
+        if (pReq == NULL && nIOType != epIOPerl && (bOptions & optSendHttpHeader))
 #else
-        if (nIOType != epIOPerl)
+        if (nIOType != epIOPerl && (bOptions & optSendHttpHeader))
 #endif
             oputs ("Content-type: text/html\n\n") ;
 
@@ -1428,11 +1615,11 @@ static int EndOutput (/*in*/ int    rc,
     int  bOutToMem = SvROK (pOutData) ;
 
     
-    if (rc != ok ||  bError)
+    if ((rc != ok ||  bError) && !(bOptions & optDisableEmbperlErrorPage))
         { /* --- generate error page if necessary --- */
         dSP;                            /* initialize stack pointer      */
 
-        oRollback (NULL) ; /* forget everything outputed so far */
+        oRollbackOutput (NULL) ; /* forget everything outputed so far */
         oBegin () ;
 
 #ifdef APACHE
@@ -1442,18 +1629,14 @@ static int EndOutput (/*in*/ int    rc,
         PUSHMARK(sp);                   /* remember the stack pointer    */
         perl_call_pv ("HTML::Embperl::SendErrorDoc", G_DISCARD | G_NOARGS) ; /* call the function             */
         }
-#ifdef APACHE
-    else
-        if (pReq)
-            set_content_length (pReq, GetContentLength () + 2) ;
-#endif
     
 
-    if (!(bDebug & dbgEarlyHttpHeader))
+    if (!(bOptions & optEarlyHttpHeader))
         {  /* --- send http headers if not alreay done --- */
 #ifdef APACHE
         if (pReq && !bOutToMem && (bOptions & optSendHttpHeader))
             {
+            set_content_length (pReq, GetContentLength () + 2) ;
             send_http_header (pReq) ;
 #ifndef WIN32
             mod_perl_sent_header(pReq, 1) ;
@@ -1482,7 +1665,9 @@ static int EndOutput (/*in*/ int    rc,
         pOut = SvRV (pOutData) ;
 
 #ifdef APACHE
-    if ((pReq == NULL || !pReq -> header_only) && !(bDebug & dbgEarlyHttpHeader))
+    if ((pReq == NULL || !pReq -> header_only) && !(bOptions & optEarlyHttpHeader))
+#else
+    if (!(bOptions & optEarlyHttpHeader))
 #endif
         {
         oputs ("\r\n") ;
@@ -1502,14 +1687,12 @@ static int EndOutput (/*in*/ int    rc,
             oCommit (NULL) ;
             }
         }
-#ifdef APACHE
     else
         {
-        oRollback (NULL) ;
+        oRollbackOutput (NULL) ;
         if (bOutToMem)
             sv_setsv (pOut, &sv_undef) ;
         }    
-#endif
 
     CloseOutput () ;
 
@@ -1566,6 +1749,9 @@ static int ResetRequest (/*in*/ char *  sInputfile)
 
     bReqRunning = 0 ;
 
+    av_clear (pErrFill) ;
+    av_clear (pErrState) ;
+
 #ifdef APACHE
     /* This must be the very very very last !!!!! */
     pReq = NULL ;
@@ -1607,7 +1793,7 @@ static int ProcessFile (/*in*/ int     nFileSize)
         /* execute [x ... x] and special html tags and replace them if nessecary */
         /* */
 
-        if (State.bProcessCmds == cmdAll)
+        if (State.bProcessCmds == cmdAll && !(bOptions & optDisableHtmlScan))
             {
             n = strcspn (pCurrPos, "[<") ;
             p = pCurrPos + n ;
@@ -1685,6 +1871,11 @@ int iembperl_req  (/*in*/ char *  sInputfile,
     int     rc ;
     char    op_mask_buf[MAXO + 100]; /* maxo shouldn't differ from MAXO but leave room anyway (see BOOT:)	*/
     SV *    pBufSV = NULL ;
+    char    olddir[PATH_MAX];
+#ifdef WIN32
+    int		olddrive ;
+#endif
+
 
     EPENTRY (iembperl_req) ;
 
@@ -1694,7 +1885,7 @@ int iembperl_req  (/*in*/ char *  sInputfile,
     rc = SetupRequest (sInputfile, bDebugFlags, bOptionFlags, pCache, op_mask_buf, pOutData); 
 
     /* --- read form data from browser if not already read by perl part --- */
-    if (rc == ok && av_len (pFormArray) == -1)
+    if (rc == ok && !(bOptions & optDisableFormData) && av_len (pFormArray) == -1) 
         rc = GetInputData_CGIScript () ;
     
     /* --- open output and send http header if EarlyHttpHeaders --- */
@@ -1720,7 +1911,7 @@ int iembperl_req  (/*in*/ char *  sInputfile,
     
     /* --- ok so far? if not exit ---- */
 #ifdef APACHE
-    if (rc != ok || (pReq && pReq -> header_only && (bDebug & dbgEarlyHttpHeader)))
+    if (rc != ok || (pReq && pReq -> header_only && (bOptions & optEarlyHttpHeader)))
 #else
     if (rc != ok)
 #endif
@@ -1735,9 +1926,39 @@ int iembperl_req  (/*in*/ char *  sInputfile,
         return rc ;
         }
 
-    /* --- Process the file --- */
-    if ((rc = ProcessFile (nFileSize)) != ok)
+	/* --- change working directory --- */
+	if ((bOptions & optDisableChdir) == 0 && sInputfile != NULL && sInputfile[0] != '\0' && !SvROK(pInData))
+	    {
+	    char dir[PATH_MAX];
+#ifdef WIN32
+	    char drive[_MAX_DRIVE];
+	    char fname[_MAX_FNAME];
+	    char ext[_MAX_EXT];
+    
+	    olddrive = _getdrive () ;
+	    _splitpath( sInputfile, drive, dir, fname, ext );
+   	    _chdrive (drive[0] - 'A') ;
+#else
+            Dirname (sInputfile, dir, sizeof (dir) - 1) ;
+#endif
+	    getcwd (olddir, sizeof (olddir) - 1) ;
+	    
+	    chdir (dir) ;
+	    }
+        else
+	    bOptions |= optDisableChdir ;
+	
+	if ((rc = ProcessFile (nFileSize)) != ok)
         LogError (rc) ;
+
+	/* --- restore working directory --- */
+	if ((bOptions & optDisableChdir) == 0)
+	    {
+#ifdef WIN32
+   	    _chdrive (olddrive) ;
+#endif
+	    chdir (olddir) ;
+	    }
 
     /* --- Restore Operatormask and Package, destroy temp perl sv's --- */
     LEAVE;

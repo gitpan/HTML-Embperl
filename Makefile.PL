@@ -19,6 +19,7 @@ sub MY::test_via_harness
 	my ($txt) = shift -> MM::test_via_harness (@_) ;
 	$txt =~ s/PERL_DL_NONLAZY=1/PERL_DL_NONLAZY=0/ ;
 	#$txt =~ s/\$\(FULLPERL\)/\$\(FULLPERL\) \-T / ;
+	$txt =~ s/\$\(FULLPERL\)/SET PATH=\$\(PATH\)\;$EPHTTPDDLL\n\t\$\(FULLPERL\)/ if ($win32) ;
 	return $txt ;
 	}
 
@@ -27,6 +28,7 @@ sub MY::test_via_script
 	my ($txt) = shift -> MM::test_via_script (@_) ;
 	$txt =~ s/PERL_DL_NONLAZY=1/PERL_DL_NONLAZY=0/ ;
 	#$txt =~ s/\$\(FULLPERL\)/\$\(FULLPERL\) \-T / ;
+	$txt =~ s/\$\(FULLPERL\)/SET PATH=\$\(PATH\)\;$EPHTTPDDLL\n\t\$\(FULLPERL\)/ if ($win32) ;
 	return $txt ;
 	}
 	
@@ -75,7 +77,6 @@ sub GetYesNo
 	}
 
 ## ----------------------------------------------------------------------------
-
 #
 # Check if known config
 #
@@ -97,7 +98,7 @@ elsif (defined ($ENV{APACHE_SRC}))
     $apache_src = $ENV{APACHE_SRC} ;
     }
 
-if (!$apache)
+if (!$apache && $apache_src eq '')
     {
     eval 'use Apache::MyConfig' ;
 
@@ -109,6 +110,13 @@ if (!$apache)
         {
         $apache_src = '' ;
         }
+    }
+
+if (!$apache && $apache_src eq '')
+    {
+    eval 'do "test/conf/config.pl"' ;
+
+    $apache_src = $EPAPACHESRC ;
     }
 
 $base = '..' ;
@@ -172,26 +180,49 @@ while ($apache && !$b)
     		{
     		$apache = 0 ;
     		}
-    	
+        else
+            {
+            $base =~ s/\//\\/g if ($win32) ;
+            }    	
     	}
     }
 
-$b = 0 if ($apache_src eq '') ;
-
-if ($b && $apache)
+if ($b && $apache && $apache_src ne '')
     {
     print "Will use $apache_src for Apache Headers\n" ;
+
+    #### look in which subdir the include files resides ####
+    
+    if (-e "$apache_src/httpd.h")
+         {
+         $inc_dir = $apache_src ;
+         }
+    elsif (-e "$apache_src/main/httpd.h")
+         {
+         $inc_dir = "$apache_src/main" ;
+         }
+    elsif (-e "$apache_src/include/httpd.h")
+         {
+         $inc_dir = "$apache_src/include" ;
+         }
+        
+
     if ($win32)
 	{ 
-        $i = "-I. -I$apache_src -I$apache_src/regex -I$apache_src/main -I$apache_src/include -I$apache_src/os/win32" ;
+        $i = "-I. -I$inc_dir -I$apache_src/regex -I$apache_src/os/win32" ;
         $o = " $apache_src/CoreR/ApacheCore.lib" ;
         }
     else
 	{
-        $i = "-I$apache_src -I$apache_src/regex -I$apache_src/main -I$apache_src/include -I$apache_src/os/unix" ; 
+        $i = "-I$inc_dir -I$apache_src/regex -I$apache_src/os/unix" ; 
         $o = '' ;
         }
     $d = "-DAPACHE" ;
+    $EPAPACHE_SSL = -e "$apache_src/apache_ssl.c" ;
+    $EPSTRONGHOLD = -e "$apache_src/mod_ssl.h" ;
+    $i .= " -I$apache_src/../ssl/include"  if ($EPSTRONGHOLD) ;
+    $d .= " -DEPAPACHE_SSL" if ($EPAPACHE_SSL) ;
+    $d .= " -DSTRONGHOLD" if ($EPSTRONGHOLD) ;
     }
 else
     {
@@ -218,48 +249,137 @@ if ($win32 && $apache)
 
 EOF
     close FH;
+
+
+    SEARCH:
+        {
+        for my $drive ('c'..'g') 
+            {
+            for my $p ("program files\\apache\\modules", "apache\\modules")
+                { 
+                last SEARCH if -e ($mpdll = "$drive:\\$p\\apachemoduleperl.dll");
+                }
+            }
+        }
+
+    unless (-e $mpdll)
+        {
+        require ExtUtils::MakeMaker;
+        ExtUtils::MakeMaker->import('prompt');
+        $mpdll = prompt("Where is your ApacheModulePerl.dll located ?", $mpdll);
+        }
+
+    die "Can't find ApacheModulePerl.dll!" unless -e $mpdll;
     }
 
 #
 # Check to see which user to use for httpd tests
 #
 
-$EPPATH  = cwd ;
+$EPPATH    = cwd ;
+$EPMODPERL = '' ;
 
-if ($b && $apache && !$win32)
+if ($b && $apache)
     {
     $EPPORT  = 8529 ;
-    $EPUSER  = getpwuid($>) ||  $> ;
-    $EPGROUP = getgrgid($)) || $) ;
-    $EPHTTPD = "$apache_src/httpd" ;
-    if ($EPUSER eq 'root')
+    if (!$win32)
         {
-        my $nobody = (getpwnam('nobody'))[0] ;
-        $EPUSER = $nobody if $nobody ;
+        $EPUSER  = getpwuid($>) ||  $> ;
+        $EPGROUP = getgrgid($)) || $) ;
+        if ($EPUSER eq 'root')
+            {
+            my $nobody = (getpwnam('nobody'))[0] ;
+            $EPUSER = $nobody if $nobody ;
+            }
+
+        if ($EPUSER eq 'root')
+            {
+            print "Cannot run test httpd as User $EPUSER\n" ;
+            $EPUSER = GetString ("User to run httpd", 'nobody') ;
+            $EPGROUP = GetString ("Group to run httpd", $EPGROUP) ;
+            }
+        
+        $EPHTTPD = "$apache_src/httpd" ;
+        $EPHTTPD = "$apache_src/httpsd" if (!-e $EPHTTPD && -e "$apache_src/httpsd") ;
+        
+        if (!-e $EPHTTPD)
+            {
+            $EPHTTPD = GetString ("Enter path and file to start as httpd", "$EPHTTPD") ;
+            }
+
+        }
+    else
+        {
+        $EPHTTPD = "$apache_src/ApacheR/Apache.exe" ;
+        $EPHTTPDDLL = "$apache_src/CoreR" ;
+        if (!-e $EPHTTPD) 
+            {
+            $EPHTTPD = "$apache_src/ApacheD/Apache.exe" ;
+            $EPHTTPDDLL = "$apache_src/CoreD" ;
+            }
+        $EPMODPERL="LoadModule perl_module $mpdll" ;
+        $EPUSER  = 'www' ; # dummy value
+        $EPGROUP = 'www' ;
+        if (!-e $EPHTTPD)
+            {
+            $EPHTTPD = GetString ("Enter path and file to start as Apache.exe", "$EPHTTPD") ;
+            }
+        }
+    
+    if ($EPSTRONGHOLD)
+        {
+        my $conf = "$apache_src/../conf/httpd.conf";
+        if(-e $conf) 
+            {
+	    open FH, $conf;
+	    while(<FH>)
+                {
+	        if(/^StrongholdKey/)
+                    {
+                    chomp ;
+		    $EPSTRONGHOLDKEY = $_;
+		    last;
+	            }
+	        }
+	    close FH;
+            }
+        }
+    else
+        {
+        $EPSTRONGHOLDKEY = '' ;
         }
 
-    if ($EPUSER eq 'root')
-        {
-        print "Cannot run test httpd as User $EPUSER\n" ;
-        $EPUSER = GetString ("User to run httpd", 'nobody') ;
-        $EPGROUP = GetString ("Group to run httpd", $EPGROUP) ;
-        }
-
-    if (!-e $EPHTTPD)
-        {
-        $EPHTTPD = GetString ("Enter file to start as httpd", "$EPHTTPD") ;
-        }
 
     print "Test start $EPHTTPD\n" ;
-    print "Test httpd will run as user $EPUSER and group $EPGROUP\n" ;
+    print "Test httpd will run as user $EPUSER and group $EPGROUP\n" if (!$win32) ;
     print "Test httpd will listen on port $EPPORT\n" ;
+    print "Test will use $EPSTRONGHOLDKEY\n" if($EPSTRONGHOLDKEY) ;
     open FH, ">$EPPATH/test/conf/config.pl" or die "Cannot open $EPPATH/test/conf/config.pl" ;
     print FH "# This file is automaticly generated by Makefile.PL, do not edit\n" ;
     print FH "\$EPPATH='$EPPATH' ;\n" ;
     print FH "\$EPUSER='$EPUSER' ;\n" ;
     print FH "\$EPGROUP='$EPGROUP' ;\n" ;
-    print FH "\$EPPORT='$EPPORT' ;\n" ;
+    print FH "\$EPPORT=$EPPORT ;\n" ;
     print FH "\$EPHTTPD='$EPHTTPD' ;\n" ;
+    print FH "\$EPHTTPDDLL='$EPHTTPDDLL' ;\n" ;
+    print FH "\$EPWIN32='$win32' ;\n" ;
+    print FH "\$EPAPACHESRC='$apache_src' ;\n" ;
+    print FH "\$EPAPACHE_SSL='$EPAPACHE_SSL' ;\n" ;
+    print FH "\$EPSTRONGHOLD='$EPSTRONGHOLD' ;\n" ;
+    print FH "\$EPSTRONGHOLDKEY='$EPSTRONGHOLDKEY' ;\n" ;
+    if ($win32)
+        {
+        print FH "\$EPMODPERL='$EPMODPERL';\n" ;
+        print FH "\$EPNULL='nul';\n" ;
+        }
+    else
+        {
+        print FH "\$EPMODPERL='';\n" ;
+        print FH "\$EPNULL='/dev/null';\n" ;
+        }
+
+
+
     close FH ;
     }
 else
@@ -268,6 +388,7 @@ else
     print FH "# This file is automaticly generated by Makefile.PL, do not edit\n" ;
     print FH "\$EPPATH='$EPPATH' ; \n" ;
     print FH "\$EPHTTPD='' ;\n" ;
+    print FH "\$EPWIN32='$win32' ;\n" ;
     close FH ;
     }
 
@@ -275,7 +396,7 @@ else
 # Change path to perl binary
 #
 
-@bins = ('embpexec.pl', 'embpexec.test.pl') ;
+@bins = ('embpexec.pl', 'embpexec.test.pl', 'embpexec.bat', 'embpexec.test.bat') ;
 
 foreach $f (@bins)
 	{
@@ -283,9 +404,14 @@ foreach $f (@bins)
 	rename $f, "$f.org" or die "Cannot rename $f to $f.org" ;
 	open IN, "<$f.org" or die "Cannot open $f.org" ;
 	open OUT, ">$f" or die "Cannot open $f" ;
-	while (<IN>)
+	my $l = 1 ;
+        while (<IN>)
 		{
-		s/\#\!\/.*?\/perl.*?\s(.*?)/#!$Config{'perlpath'} $1/ ;
+		if ($l++ < 10)
+                    {
+                    s/^\#\!.*?perl.*?\s(.*?)/#!$Config{'perlpath'} $1/ ;
+		    s/^.*?perl.*?\s-x/$Config{'perlpath'} -x/ ;
+                    }
 		print OUT $_ ;
 		}
 	close IN ;

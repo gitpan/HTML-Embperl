@@ -1,0 +1,103 @@
+<HTML><TITLE>Test for HTML::Embperl::Execute and errors</TITLE><BODY>
+<H1> 1.) The next one produces an error page</H1>
+<H3><HTML><HEAD><TITLE>Embperl Error</TITLE></HEAD><BODY bgcolor="#FFFFFF">
+<H1>Internal Server Error</H1>
+The server encountered an internal error or misconfiguration and was unable to complete your request.<P>
+^Please contact the server administrator\,.*?and inform them of the time the error occurred\, and anything you might have done that may have caused the error\.<P><P>
+^\[.*?\]ERR\:  32\: Line 13\: Warning in Perl code\: Use of uninitialized value at .*? line \d*\.<P>
+^\[.*?\]ERR\:  32\: Line 14\: Warning in Perl code\: Use of uninitialized value at .*? line \d*\.<P>
+^\[.*?\]ERR\:  32\: Line 15\: Warning in Perl code\: Use of uninitialized value at .*? line \d*\.<P>
+^\[.*?\]ERR\:  32\: Line 16\: Warning in Perl code\: Use of uninitialized value at .*? line \d*\.<P>
+^\[.*?\]ERR\:  32\: Line 17\: Warning in Perl code\: Use of uninitialized value at .*? line \d*\.<P>
+^^\[.*?\]ERR\:  32\: Line 21\: Warning in Perl code\: Unquoted string &quot;qqqqqqqqqqqqqq&quot; may clash with future reserved word at .*? line \d*\.<P>
+^\[.*?\]ERR\:  24\: Line 21\: Error in Perl code\: syntax error at .*? line \d*\, at EOF<P>
+^\[.*?\]ERR\:  24\: Line 32\: Error in Perl code\: syntax error at .*? line \d*\, at EOF<P>
+^\[.*?\]ERR\:  24\: Line 32\: Error in Perl code\: Can.*?\<P\>
+^\[.*?\]ERR\:  32\: Line 32\: Warning in Perl code\: Use of uninitialized value at .*? line \d*\.<P>
+^^\[.*?\]ERR\:  32\: Line 46\: Warning in Perl code\: Bareword found where operator expected at .*?
+^^\[.*?\]ERR\:  32\: Line 46\: Warning in Perl code\: 	\(Missing operator before is\?\)<P>
+^\[.*?\]ERR\:  24\: Line 46\: Error in Perl code\: syntax error at .*? line \d*\, near \&quot\;\$error is here \&quot\;
+^Missing right bracket at .*? line \d*\, at end of line
+^syntax error at .*? line \d*\, at EOF<P>
+^\[.*?\]ERR\:  20\: Line 58\: \&lt\;\/tr\&gt\; without \&lt\;tr\&gt\;<P>
+^ HTML\:\:Embperl.*?<P>
+</BODY></HTML>
+
+
+</H3>
+<H1> 2.) The next one produces an errors, but error page is disabled</H1>
+<H3>
+<html>
+<head>
+<title>Some Plain tests for Embperl</title>
+</head>
+
+<body>
+
+Here it starts with some HTML Text<P>
+
+All values should be undefined:
+
+$a = (this is the value in $a) <BR>
+$b = (this is the value in $a) &auml;&ouml;&uuml; <BR>
+$c = 57 <BR>
+$d = 1 <BR>
+$e = 2 <BR>
+
+Here we will see an error:
+
+
+
+First of all assign a value:
+ <BR>
+
+Now we have some 'Umlaute':
+
+
+
+
+Second Error:<BR>
+ <BR>
+
+And now a and b together: (this is the value in $a)(this is the value in $a) &auml;&ouml;&uuml;<P>
+
+Here we have some HTML tags within the perl code, Embperl will delete them!<BR>
+
+57
+
+Embperl will also translate HMTL escapes to the right characters i.e. $a &amp;lt; 6 will get the perl expression $a &lt; 6: <BR>
+
+
+1
+
+Now they should have a value
+
+
+
+Tag missmatch:
+
+<table>
+
+</H3>
+<H1> 3.) Done :-)</H1>
+</body></html>
+^HTTP
+^Date
+^Server
+^Connection
+Content-Type: text/html
+
+<HTML><HEAD>
+<TITLE>500 Internal Server Error</TITLE>
+</HEAD><BODY>
+<H1>Internal Server Error</H1>
+The server encountered an internal error or
+misconfiguration and was unable to complete
+your request.<P>
+Please contact the server administrator,
+^ .*? and inform them of the time the error occurred,
+and anything you might have done that may have
+caused the error.<P>
+<P>Additionally, a 500 Internal Server Error
+error was encountered while trying to use an ErrorDocument to handle the request.
+</BODY></HTML>

@@ -188,7 +188,7 @@ struct tCharTrans Char2Html [] =
         { ' ' ,   ""         },    /* &#157;		Unused  */
         { ' ' ,   ""         },    /* &#158;		Unused  */
         { ' ' ,   ""         },    /* &#159;		Unused  */
-        { ' ' ,   "&nbsp;"   },    /* 	Non-breaking Space  */
+        { ' ' ,   "&nbsp;"   },    /* 	Non-breaking Space  */
         { '¡' ,   "&iexcl;"  },    /* 	Inverted exclamation    */
         { '¢' ,   "&cent;"   },    /* 	Cent sign               */
         { '£' ,   "&pound;"  },    /* 	Pound sterling  */
@@ -630,7 +630,7 @@ struct tCharTrans Html2Char [] =
         { '¯' ,   "&macr"   },    /*  	Macron accent  */
         { 'µ' ,   "&micro"  },    /* 	Micro sign  */
         { '·' ,   "&middot" },    /* 	Middle dot  */
-        { ' ' ,   "&nbsp"   },    /* 	Non-breaking Space  */
+        { ' ' ,   "&nbsp"   },    /* 	Non-breaking Space  */
         { 'ñ' ,   "&ntilde" },    /* 	Small n, tilde  */
         { 'ó' ,   "&oacute" },    /* 	Small o, acute accent  */
         { 'ô' ,   "&ocirc"  },    /* 	Small o, circumflex  */

@@ -208,7 +208,7 @@ void TransHtml (/*i/o*/ char *  sData)
             }
         else
             {
-            if (p[0] == '<' && isalpha (p[1]))
+            if (p[0] == '<' && (isalpha (p[1]) || p[1] == '/'))
                 { /*  count HTML tag length */
                 s = p ;
                 p++ ;
@@ -446,3 +446,34 @@ int GetLineNo ()
 
 
 
+/* ------------------------------------------------------------------------- */
+/*                                                                           */
+/* Dirname								     */
+/*                                                                           */
+/* returns dir name of file                                                  */
+/*                                                                           */
+/* ------------------------------------------------------------------------- */
+
+
+
+void Dirname (/*in*/ const char * filename,
+              /*out*/ char *      dirname,
+              /*in*/  int         size)
+
+    {
+    char * p = strrchr (filename, '/') ;
+
+    if (p == NULL)
+        {
+        strncpy (dirname, ".", size) ;
+        return ;
+        }
+
+    if (size - 1 > p - filename)
+        size = p - filename ;
+
+    strncpy (dirname, filename, size) ;
+    dirname[size] = '\0' ;
+
+    return ;
+    }

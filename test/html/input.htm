@@ -20,11 +20,17 @@ $kats[2]{Id} = 'Veranstaltungen' ;
     <p>&nbsp;</p>
 
     <input>
+    <input  >
     <input name="feld1">
     <input name="feld5">
     <input name="feld1" value="Wert1">
     <input name="feld5" value="Wert15">
     <input type="text">
+    <input type = "text">
+    <input typo="text2">
+    <input typo = "text2" >
+    <input foo>
+    <input foo >
   
     <input type="text" name="feld1" value="Wert1">
     <input type="text" name="feld2">
@@ -53,22 +59,29 @@ $kats[2]{Id} = 'Veranstaltungen' ;
 
 
 
+    <textarea Name=feld1></textarea>
+    <textarea Name=feld5></textarea>
+
+    <textarea Name=feld1>text1</textarea>
+    <textarea Name=feld5>text5</textarea>
+
+
     <table border="0" width="100%">
         <tr>
             <td><table border="0">
                 <tr>
                     <td valign="top"><input type="checkbox"
                     name="Region"
-                    value="[+$regs[$row]{Id}+]"><a
+                    value="[+$regs[$row]{Id}+]"><a 
                     href="inhalt.htm?Region=[+$regs[$row]{Id}+]">[+$regs[$row]{Id}+]</a></td>
                 </tr>
             </table>
             </td>
             <td><table border="0">
                 <tr>
-                    <td valign="top"><p align="left"><input
+                    <td valign="top"><p align="left"><input  
                     type="checkbox" name="Kategorie"
-                    value="[+$kats[$row]{Id}+]"><a
+                    value="[+$kats[$row]{Id}+]"><a 
                     href="inhalt.htm?Kategorie=[+$kats[$row]{Id}+]">[+$kats[$row]{Id}+]</a></p>
                     </td>
                 </tr>
@@ -76,6 +89,107 @@ $kats[2]{Id} = 'Veranstaltungen' ;
             </td>
         </tr>
     </table>
+
+	<select name="foo">
+		<option value="feld1">feld1</option>
+		<option value="feld2">feld2</option>
+		<option value="feld3">feld3</option>
+		<option value="feld4">feld4</option>
+		<option value="feld5">feld5</option>
+		<option value="feld6">feld6</option>
+		<option value="feld7">feld7</option>
+		<option value="feld8">feld8</option>
+	</select>
+
+	<select name="feld5">
+		<option value="Wert1">Wert1</option>
+		<option value="Wert2">Wert2</option>
+		<option value="Wert3">Wert3</option>
+		<option value="Wert4">Wert4</option>
+		<option value="Wert5">Wert5</option>
+		<option value="Wert6">Wert6</option>
+		<option value="Wert7">Wert7</option>
+		<option value="Wert8">Wert8</option>
+	</select>
+
+	<select name="mult" multiple>
+		<option value="Wert1">Wert1</option>
+		<option value="Wert2">Wert2</option>
+		<option value="Wert3">Wert3</option>
+		<option value="Wert4">Wert4</option>
+		<option value="Wert5">Wert5</option>
+		<option value="Wert6">Wert6</option>
+		<option value="Wert7">Wert7</option>
+		<option value="Wert8">Wert8</option>
+	</select>
+
+	<select name="mult" multiple>
+		<option value="Wert1" selected>Wert1</option>
+		<option value="Wert2" selected>Wert2</option>
+		<option value="Wert3" selected>Wert3</option>
+		<option value="Wert4" selected>Wert4</option>
+		<option value="Wert5" selected>Wert5</option>
+		<option value="Wert6" selected>Wert6</option>
+		<option value="Wert7" selected>Wert7</option>
+		<option value="Wert8" selected>Wert8</option>
+	</select>
+
+	
+	[- @ks = sort keys %idat -]
+
+	<table>
+		<tr>
+			<td>[+ $ks[$row] +]</td><td>[+ $idat{$ks[$row] || ''} +]</td>
+		</tr>
+	</table>
+
+optDisableInputScan is now: [+ $optDisableInputScan +] <BR>
+optDisableInputScan is set now to: [+ $optDisableInputScan = 1 +] <BR>
+optDisableInputScan is now: [+ $optDisableInputScan +] <BR>
+
+    <input type="text" name="feld1" value="Wert1">
+    <input type="text" name="feld2">
+    <input type="text" size=10 name="feld3">
+    <input type="text" name="feld4" size=10>
+    
+	<input type="text" name="feld5" value="Wert5">
+    <input type="text" name="feld6">
+    <input type="text" size=10 name="feld7">
+    <input type="text" name="feld8" size=10>
+    
+	<select name="feld5">
+		<option value="Wert1">Wert1</option>
+		<option value="Wert2">Wert2</option>
+		<option value="Wert3">Wert3</option>
+		<option value="Wert4">Wert4</option>
+		<option value="Wert5">Wert5</option>
+		<option value="Wert6">Wert6</option>
+		<option value="Wert7">Wert7</option>
+		<option value="Wert8">Wert8</option>
+	</select>
+
+	<table>
+		<tr>
+			<td>[+ $ks[$row] +]</td><td>[+ $idat{$ks[$row] || ''} +]</td>
+		</tr>
+	</table>
+
+optDisableInputScan is now: [+ $optDisableInputScan +] <BR>
+optDisableInputScan is set now to: [+ $optDisableInputScan = 0 +] <BR>
+optDisableInputScan is now: [+ $optDisableInputScan +] <BR>
+
+	<select name="feld5">
+		<option value="Wert1">Wert1</option>
+		<option value="Wert2">Wert2</option>
+		<option value="Wert3">Wert3</option>
+		<option value="Wert4">Wert4</option>
+		<option value="Wert5">Wert5</option>
+		<option value="Wert6">Wert6</option>
+		<option value="Wert7">Wert7</option>
+		<option value="Wert8">Wert8</option>
+	</select>
+
+
     <p><input type="submit" name="Search" value="Absenden"></p>
 </form>
 

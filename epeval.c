@@ -304,14 +304,22 @@ static int CallCV  (/*in*/  const char *  sArg,
     if (num == 1)   
         {
         *pRet = POPs ;
-        SvREFCNT_inc (*pRet) ;
+        if (SvTYPE (*pRet) == SVt_PVMG)
+            { /* variable is magicaly -> fetch value now */
+            SV * pSV = newSVsv (*pRet) ;
+            *pRet = pSV ;
+            }
+        else        
+            SvREFCNT_inc (*pRet) ;
 
         if (bDebug & dbgEval)
+            {
             if (SvOK (*pRet))
                 lprintf ("[%d]EVAL> %s\n", nPid, SvPV (*pRet, na)) ;
             else
                 lprintf ("[%d]EVAL> <undefined>\n", nPid) ;
-        
+            }                
+            
         if ((nCountUsed != TableState.nCountUsed ||
              nColUsed != TableState.nColUsed ||
              nRowUsed != TableState.nRowUsed) &&
@@ -494,7 +502,7 @@ int Eval (/*in*/  const char *  sArg,
 * 
 * in  sArg      Statement to eval
 * in  nFilepos  position von eval in file (is used to build an unique key)
-* out pRet      pointer to SV contains the eval return
+* out pRet      pointer to SV contains the eval return value
 *
 ------------------------------------------------------------------------------- */
 
@@ -556,7 +564,7 @@ int EvalTrans (/*in*/  char *   sArg,
 * 
 * in  sArg      Statement to eval
 * in  nFilepos  position von eval in file (is used to build an unique key)
-* out pRet      pointer to SV contains the eval return
+* out pRet      pointer to SV contains the eval return value
 *
 ------------------------------------------------------------------------------- */
 
@@ -607,11 +615,10 @@ int EvalTransOnFirstCall (/*in*/  char *   sArg,
 /* -------------------------------------------------------------------------------
 *
 * Eval PERL Statements and execute the evaled code, check if it's already compiled
-* strip off all <HTML> Tags before 
 * 
 * in  sArg      Statement to eval
 * in  nFilepos  position von eval in file (is used to build an unique key)
-* out pNum      pointer to int contains the eval return
+* out pNum      pointer to int, contains the eval return value
 *
 ------------------------------------------------------------------------------- */
 
@@ -636,6 +643,42 @@ int EvalNum (/*in*/  char *        sArg,
         }
     else
         *pNum = 0 ;
+
+    return ok ;
+    }
+    
+
+/* -------------------------------------------------------------------------------
+*
+* EvalBool PERL Statements and execute the evaled code, check if it's already compiled
+* 
+* in  sArg      Statement to eval
+* in  nFilepos  position von eval in file (is used to build an unique key)
+* out pTrue     return 1 if evaled expression is true
+*
+------------------------------------------------------------------------------- */
+
+
+
+int EvalBool (/*in*/  char *        sArg,
+              /*in*/  int           nFilepos,
+              /*out*/ int *         pTrue)             
+    {
+    SV * pRet ;
+    int  n ;
+
+    EPENTRY (EvalNum) ;
+
+
+    n = Eval (sArg, nFilepos, &pRet) ;
+    
+    if (pRet)
+        {
+        *pTrue = SvTRUE (pRet) ;
+        SvREFCNT_dec (pRet) ;
+        }
+    else
+        *pTrue = 0 ;
 
     return ok ;
     }

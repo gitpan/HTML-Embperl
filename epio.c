@@ -41,23 +41,12 @@ static FILE *  lfd = NULL ;  /* log file */
 #endif
 
 
+static char sLogFilename [512] = "" ;
+
 #ifndef PerlIO
 
 /* define same helper macros to let it run with plain perl 5.003 */
 /* where no PerlIO is present */
-
-/*
-#undef PerlIO_close 
-#undef PerlIO_open 
-#undef PerlIO_flush 
-#undef PerlIO_vprintf
-#undef PerlIO_fileno
-
-#undef PerlIO_read
-#undef PerlIO_write
-
-#undef PerlIO_putc
-*/
 
 #define PerlIO_stdinF stdin
 #define PerlIO_stdoutF stdout
@@ -117,7 +106,7 @@ static size_t nMemBufSize ; /* remaining space in pMemBuf */
 */
 
 
-static int     nMarker ;
+int     nMarker ;
 
 
 /* -------------------------------------------------------------------------------------
@@ -132,6 +121,7 @@ struct tBuf *   oBegin ()
     EPENTRY1N (oBegin, nMarker) ;
     
     nMarker++ ;
+    
     return pLastBuf ;
     }
 
@@ -141,7 +131,7 @@ struct tBuf *   oBegin ()
 *
 -------------------------------------------------------------------------------------- */
 
-void oRollback (struct tBuf *   pBuf) 
+void oRollbackOutput (struct tBuf *   pBuf) 
 
     {
     EPENTRY1N (oRollback, nMarker) ;
@@ -175,6 +165,22 @@ void oRollback (struct tBuf *   pBuf)
         }
         
     pLastBuf = pBuf ;
+
+    }
+
+/* -------------------------------------------------------------------------------------
+*
+*  rollback output transaction  and errors(throw away all the output since corresponding
+*  begin)
+*
+-------------------------------------------------------------------------------------- */
+
+void oRollback (struct tBuf *   pBuf) 
+
+    {
+    oRollbackOutput (pBuf) ;
+    
+    RollbackError () ;
     }
 
 /* ---------------------------------------------------------------------------- */
@@ -224,6 +230,8 @@ void oCommitToMem (struct tBuf *   pBuf,
                 }
             }
         }
+
+    CommitError () ;
     }
 
 /* ---------------------------------------------------------------------------- */
@@ -610,7 +618,11 @@ int OpenOutput (/*in*/ const char *  sFilename)
     if (bDebug)
         lprintf ("[%d]Open %s for output...\n", nPid, sFilename) ;
 
+#ifdef WIN32
+    if ((ofd = PerlIO_open (sFilename, "wb")) == NULL)
+#else
     if ((ofd = PerlIO_open (sFilename, "w")) == NULL)
+#endif        
         {
         strncpy (errdat1, sFilename, sizeof (errdat1) - 1) ;
         strncpy (errdat2, Strerror(errno), sizeof (errdat2) - 1) ; 
@@ -789,28 +801,47 @@ void oputc (/*in*/ char c)
 /*                                                                              */
 /* set the name of the log file and open it                                     */
 /*                                                                              */
+/* nMode = 0 open later, save filename only										*/
+/* nMode = 1 open now															*/
+/* nMode = 2 open with saved filename											*/
+/*                                                                              */
 /* ---------------------------------------------------------------------------- */
 
 
-int OpenLog (/*in*/ const char *  sFilename)
+int OpenLog (/*in*/ const char *  sFilename,
+             /*in*/ int           nMode)
 
     {
-    if (lfd && lfd != PerlIO_stdoutF)
-        PerlIO_close (lfd) ;
+    if (sFilename == NULL)
+        sFilename = "" ;
 
+    if (lfd && (nMode == 2 || strcmp (sLogFilename, sFilename) == 0))
+        return ok ; /*already open */
+
+    if (lfd && lfd != PerlIO_stdoutF)
+        PerlIO_close (lfd) ;  /* close old logfile */
+   
     lfd = NULL ;
 
-    if (sFilename == NULL || *sFilename == '\0')
+    if (nMode != 2)
         {
-            {
-            lfd = PerlIO_stdoutF ;
-            return ok ;
-            }
+        strncpy (sLogFilename, sFilename, sizeof (sLogFilename) - 1) ;
+        sLogFilename[sizeof (sLogFilename) - 1] = '\0' ;
         }
 
-    if ((lfd = PerlIO_open (sFilename, "a")) == NULL)
+    if (*sLogFilename == '\0')
         {
-        strncpy (errdat1, sFilename, sizeof (errdat1) - 1) ;
+        sLogFilename[0] = '\0' ;
+        lfd = PerlIO_stdoutF ;
+        return ok ;
+        }
+
+    if (nMode == 0)
+        return ok ;
+    
+    if ((lfd = PerlIO_open (sLogFilename, "a")) == NULL)
+        {
+        strncpy (errdat1, sLogFilename, sizeof (errdat1) - 1) ;
         strncpy (errdat2, Strerror(errno), sizeof (errdat2) - 1) ; 
         return rcLogFileOpenErr ;
         }
@@ -828,7 +859,10 @@ int OpenLog (/*in*/ const char *  sFilename)
 int GetLogHandle ()
 
     {
-    return PerlIO_fileno (lfd) ;
+    if (lfd)
+	return PerlIO_fileno (lfd) ;
+
+    return 0 ;
     }
 
 
@@ -842,7 +876,10 @@ int GetLogHandle ()
 long GetLogFilePos ()
 
     {
-    return PerlIO_tell (lfd) ;
+    if (lfd)
+	return PerlIO_tell (lfd) ;
+
+    return 0 ;
     }
 
 

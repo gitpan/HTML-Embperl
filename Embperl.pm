@@ -25,7 +25,7 @@ use IO::Handle ;
 use CGI;
 use File::Basename ();
 use Cwd ();
-eval { require Apache::Symbol ; } ;
+#eval ' require Apache::Symbol ; ' ;
 
 require Exporter;
 require DynaLoader;
@@ -33,7 +33,7 @@ require DynaLoader;
 @ISA = qw(Exporter DynaLoader);
 
 
-$VERSION = '0.26-beta';
+$VERSION = '0.27-beta';
 
 
 bootstrap HTML::Embperl $VERSION;
@@ -51,45 +51,62 @@ $Outputfile = '' ;  # Default to stdout
 $package  = '' ;    # package name for current document
 $packno   = 1 ;     # for assigning unique packagenames
 @cleanups = () ;    # packages which need a cleanup
+@errfill  = () ;    # predefine -> avoid waring
+@errstate = () ;    # predefine -> avoid waring
+
 
 # setup constans
 
-use constant dbgAll => -1 ;
-use constant dbgAllCmds => 1024 ;
-use constant dbgCacheDisable => 32768 ;
-use constant dbgCmd => 8 ;
-use constant dbgDefEval => 16384 ;
-use constant dbgEarlyHttpHeader => 65536 ;
-use constant dbgEnv => 16 ;
-use constant dbgEval => 4 ;
-use constant dbgFlushLog => 512 ;
-use constant dbgFlushOutput => 256 ;
-use constant dbgForm => 32 ;
-use constant dbgFunc => 4096 ;
-use constant dbgHeadersIn => 262144 ;
-use constant dbgInput => 128 ;
-use constant dbgLogLink => 8192 ;
-use constant dbgMem => 2 ;
-use constant dbgShowCleanup => 524288 ;
-use constant dbgSource => 2048 ;
-use constant dbgStd => 1 ;
-use constant dbgTab => 64 ;
-use constant dbgWatchScalar => 131072 ;
-use constant epIOCGI => 1 ;
-use constant epIOMod_Perl => 3 ;
-use constant epIOPerl => 4 ;
-use constant epIOProcess => 2 ;
-use constant escHtml => 1 ;
-use constant escNone => 0 ;
-use constant escStd => 3 ;
-use constant escUrl => 2 ;
-use constant ok => 0 ;
+use constant dbgAll                 => -1 ;
+use constant dbgAllCmds             => 1024 ;
+use constant dbgCacheDisable        => 32768 ;
+use constant dbgCmd                 => 8 ;
+use constant dbgDefEval             => 16384 ;
+use constant dbgEarlyHttpHeader     => 65536 ;
+use constant dbgEnv                 => 16 ;
+use constant dbgEval                => 4 ;
+use constant dbgFlushLog            => 512 ;
+use constant dbgFlushOutput         => 256 ;
+use constant dbgForm                => 32 ;
+use constant dbgFunc                => 4096 ;
+use constant dbgHeadersIn           => 262144 ;
+use constant dbgInput               => 128 ;
+use constant dbgLogLink             => 8192 ;
+use constant dbgMem                 => 2 ;
+use constant dbgShowCleanup         => 524288 ;
+use constant dbgSource              => 2048 ;
+use constant dbgStd                 => 1 ;
+use constant dbgTab                 => 64 ;
+use constant dbgWatchScalar         => 131072 ;
+
+use constant epIOCGI                => 1 ;
+use constant epIOMod_Perl           => 3 ;
+use constant epIOPerl               => 4 ;
+use constant epIOProcess            => 2 ;
+
+use constant escHtml                => 1 ;
+use constant escNone                => 0 ;
+use constant escStd                 => 3 ;
+use constant escUrl                 => 2 ;
+
+
+use constant optDisableChdir            => 128 ;
 use constant optDisableEmbperlErrorPage => 2 ;
-use constant optDisableVarCleanup => 1 ;
-use constant optOpcodeMask => 8 ;
-use constant optRawInput => 16 ;
-use constant optSafeNamespace => 4 ;
-use constant optSendHttpHeader => 32 ;
+use constant optDisableFormData         => 256 ;
+use constant optDisableHtmlScan         => 512 ;
+use constant optDisableInputScan        => 1024 ;
+use constant optDisableMetaScan         => 4096 ;
+use constant optDisableTableScan        => 2048 ;
+use constant optDisableVarCleanup       => 1 ;
+use constant optEarlyHttpHeader         => 64 ;
+use constant optOpcodeMask              => 8 ;
+use constant optRawInput                => 16 ;
+use constant optSafeNamespace           => 4 ;
+use constant optSendHttpHeader          => 32 ;
+use constant optAllFormData             => 8192 ;
+use constant optRedirectStdout          => 16384 ;
+
+use constant ok                     => 0 ;
 use constant rcArgStackOverflow => 23 ;
 use constant rcArrayError => 11 ;
 use constant rcCannotUsedRecursive => 19 ;
@@ -175,29 +192,68 @@ $DebugDefault = dbgStd ;
 
 
 
+#######################################################################################
+#
+# tie for output
+#
+
+    {
+    package HTML::Embperl::Out ;
+
+
+    sub TIEHANDLE 
+
+        {
+        my $class ;
+        
+        return bless \$class, shift ;
+        }
+
+
+    sub PRINT
+
+        {
+        shift ;
+        HTML::Embperl::embperl_output(join ('', @_)) ;
+        }
+
+    sub PRINTF
+
+        {
+        shift ;
+        my $fmt = shift ;
+        HTML::Embperl::embperl_output(sprintf ($fmt, @_)) ;
+        }
+    }
+
+
 
 
 #######################################################################################
 #
-# init on httpd startup
+# init on startup
 #
 
-if (defined ($INC{'Apache.pm'}))
+$DefaultLog = $ENV{EMBPERL_LOG} || $DefaultLog ;
+if (defined ($ENV{MOD_PERL}))
     { 
-    my $log ;
-    
+    eval 'use Apache' ; # make sure Apache.pm is loaded (is not at server startup in mod_perl < 1.11)
     eval 'use Apache::Constants qw(:common &OPT_EXECCGI)' ;
-
-    $DefaultLog = $ENV{EMBPERL_LOG} || $DefaultLog ;
     embperl_init (epIOMod_Perl, $DefaultLog) ;
-    tie *LOG, 'HTML::Embperl::Log' ;
     }
 else
     {
-    eval 'sub OK { 0 ; }' ;
+    eval 'sub OK        { 0 ;   }' ;
     eval 'sub NOT_FOUND { 404 ; }' ;
     eval 'sub FORBIDDEN { 401 ; }' ;
+    embperl_init (epIOPerl, $DefaultLog) ;
     }
+
+$cwd       = Cwd::fastcwd();
+
+tie *LOG, 'HTML::Embperl::Log' ;
+tie *OUT, 'HTML::Embperl::Out' ;
+
 
 #######################################################################################
 
@@ -455,7 +511,7 @@ sub CheckCache
         #Apache::Symbol::undef_functions ($package) if (defined(&Apache::Symbol::undef_functions)) ;
         # setup one function, so we can check later if it was undef'd by another request
         #eval "sub $package\:\:__info__ { my %info = ('filename' => '$filename', 'mtime' => $mtime) ; } " ;
-        print LOG  "[$$]MEM: Reload $filename in $package\n" ;
+        print LOG  "[$$]MEM: Reload $filename in $package\n" if ($Debugflags);
         }
     
     if (!defined(${"$package\:\:row"}))
@@ -470,11 +526,51 @@ sub CheckCache
         *{"$package\:\:maxcol"}  = \$maxcol ;
         *{"$package\:\:tabmode"} = \$tabmode ;
         *{"$package\:\:escmode"} = \$escmode ;
-        *{"$package\:\:MailFormTo"} = \&MailFormTo ;
-        tie *{"$package\:\:LOG"}, 'HTML::Embperl::Log' ;
     	*{"$package\:\:req_rec"} = \$req_rec if defined ($req_rec) ;
-
         
+        *{"$package\:\:MailFormTo"} = \&MailFormTo ;
+
+        tie *{"$package\:\:LOG"}, 'HTML::Embperl::Log' ;
+        tie *{"$package\:\:OUT"}, 'HTML::Embperl::Out' ;
+
+        *{"$package\:\:optDisableChdir"}                = \$optDisableChdir                   ;
+        *{"$package\:\:optDisableEmbperlErrorPage"}     = \$optDisableEmbperlErrorPage ;
+        *{"$package\:\:optDisableFormData"}             = \$optDisableFormData         ;
+        *{"$package\:\:optDisableHtmlScan"}             = \$optDisableHtmlScan         ;
+        *{"$package\:\:optDisableInputScan"}            = \$optDisableInputScan        ;
+        *{"$package\:\:optDisableMetaScan"}             = \$optDisableMetaScan         ;
+        *{"$package\:\:optDisableTableScan"}            = \$optDisableTableScan        ;
+        *{"$package\:\:optDisableVarCleanup"}           = \$optDisableVarCleanup       ;
+        *{"$package\:\:optEarlyHttpHeader"}             = \$optEarlyHttpHeader         ;
+        *{"$package\:\:optOpcodeMask"}                  = \$optOpcodeMask              ;
+        *{"$package\:\:optRawInput"}                    = \$optRawInput                ;
+        *{"$package\:\:optSafeNamespace"}               = \$optSafeNamespace           ;
+        *{"$package\:\:optSendHttpHeader"}              = \$optSendHttpHeader          ;
+        *{"$package\:\:optAllFormData"}                 = \$optAllFormData ;
+        *{"$package\:\:optRedirectStdout"}              = \$optRedirectStdout ;
+        
+
+        *{"$package\:\:dbgAllCmds"}               = \$dbgAllCmds           ;
+        *{"$package\:\:dbgCacheDisable"}          = \$dbgCacheDisable      ;
+        *{"$package\:\:dbgCmd"}                   = \$dbgCmd               ;
+        *{"$package\:\:dbgDefEval"}               = \$dbgDefEval           ;
+        *{"$package\:\:dbgEarlyHttpHeader"}       = \$dbgEarlyHttpHeader   ;
+        *{"$package\:\:dbgEnv"}                   = \$dbgEnv               ;
+        *{"$package\:\:dbgEval"}                  = \$dbgEval              ;
+        *{"$package\:\:dbgFlushLog"}              = \$dbgFlushLog          ;
+        *{"$package\:\:dbgFlushOutput"}           = \$dbgFlushOutput       ;
+        *{"$package\:\:dbgForm"}                  = \$dbgForm              ;
+        *{"$package\:\:dbgFunc"}                  = \$dbgFunc              ;
+        *{"$package\:\:dbgHeadersIn"}             = \$dbgHeadersIn         ;
+        *{"$package\:\:dbgInput"}                 = \$dbgInput             ;
+        *{"$package\:\:dbgLogLink"}               = \$dbgLogLink           ;
+        *{"$package\:\:dbgMem"}                   = \$dbgMem               ;
+        *{"$package\:\:dbgShowCleanup"}           = \$dbgShowCleanup       ;
+        *{"$package\:\:dbgSource"}                = \$dbgSource            ;
+        *{"$package\:\:dbgStd"}                   = \$dbgStd               ;
+        *{"$package\:\:dbgTab"}                   = \$dbgTab               ;
+        *{"$package\:\:dbgWatchScalar"}           = \$dbgWatchScalar       ;
+
         #print LOG  "[$$]MEM: Created Aliases for $package\n" ;
         }
 
@@ -520,7 +616,7 @@ sub Execute
     my $rc ;
     my $req = shift ;
     
-    $Debugflags   = $$req{'debug'}   || $DebugDefault ;
+    $Debugflags   = defined ($$req{'debug'})?$$req{'debug'}:$DebugDefault ;
     $req_rec      = $$req{'req_rec'} if (defined ($$req{'req_rec'})) ;
     $rc = embperl_setreqrec ($req_rec) if (defined ($req_rec)) ;
         
@@ -555,12 +651,9 @@ sub Execute
     my $filesize ;
     my $mtime ;
     
-    my $cwd       = Cwd::fastcwd();
     
     $Inputfile    = $$req{'inputfile'} ;
-    $Inputfile    = $cwd . '/' . $Inputfile   if ($Inputfile  && !defined ($In)  && !($Inputfile  =~ /^(\/|\\|.\:\\|.\:\/)/)) ;
-    $Outputfile   = $cwd . '/' . $Outputfile  if ($Outputfile && !defined ($Out) && !($Outputfile =~ /^(\/|\\|.\:\\|.\:\/)/)) ;
-        
+    
     if (defined ($In))
         {
         $filesize = -1 ;
@@ -613,6 +706,9 @@ sub Execute
         %fdat = %{$$req{'fdat'}} ;
         }
 
+    # pass parameters via @_
+    *{"$package\:\:_"}       = $$req{'param'} if (exists $$req{'param'}) ;
+    # for compability we let @param here, but this will be removed in 1.00
     *{"$package\:\:param"}   = $$req{'param'} if (exists $$req{'param'}) ;
     
     @errors = () ;
@@ -630,13 +726,12 @@ sub Execute
         {
         local $SIG{__WARN__} = \&Warn ;
         local *0 = \$Inputfile;
+        my $oldfh = select (OUT) if ($Options & optRedirectStdout) ;
 
-	chdir File::Basename::dirname($Inputfile) if (!defined ($In)) ;
-    
         $rc = embperl_req ($Inputfile, $Outputfile, $Debugflags, $Options, $filesize, $pcodecache, $In, $Out) ;
-        local $^W = 0; #shutup Cwd.pm
-        chdir $cwd;
-	}
+        
+        select ($oldfh) if ($Options & optRedirectStdout) ;
+        }
 
     undef *{"$package\:\:param"} ;
 
@@ -791,7 +886,7 @@ sub run (\@)
 sub handler 
     
     {
-    log_svs ("handler entry") ;
+    #log_svs ("handler entry") ;
 
     $req_rec = shift ;
 
@@ -811,7 +906,7 @@ sub handler
 
     my $rc = Execute (\%req) ;
 
-    log_svs ("handler exit") ;
+    #log_svs ("handler exit") ;
     return $rc ;
     }
 
@@ -819,7 +914,7 @@ sub handler
 
 sub cleanup 
     {
-    log_svs ("cleanup entry") ;
+    #log_svs ("cleanup entry") ;
     my $glob ;
     my $val ;
     my $key ;
@@ -877,7 +972,7 @@ sub cleanup
 
     @cleanups = () ;
 
-    log_svs ("cleanup exit") ;
+    #log_svs ("cleanup exit") ;
     return &OK ;
     }
 
@@ -906,12 +1001,14 @@ sub watch
 sub MailFormTo
 
     {
-    my ($to, $subject) = @_ ;
+    my ($to, $subject, $returnfield) = @_ ;
     my $v ;
     my $k ;
     my $ok ;
     my $smtp ;
+    my $ret ;
 
+    $ret = $fdat{$returnfield} ;
 
     eval 'use Net::SMTP' ;
 
@@ -919,6 +1016,8 @@ sub MailFormTo
     $smtp->mail('WWW-Server');
     $smtp->to($to);
     $ok = $smtp->data();
+    $ok and $ok = $smtp->datasend("Return-Path: $ret\n") if ($ret) ;
+    $ok and $ok = $smtp->datasend("To: $to\n");
     $ok and $ok = $smtp->datasend("Subject: $subject\n");
     foreach $k (@ffld)
         { 
@@ -2129,10 +2228,13 @@ Example:
 	$cp->deny(':base_loop');
 
 
-=item B<MailFormTo($MailTo, $Subject)>
+=item B<MailFormTo($MailTo, $Subject, $ReturnField)>
 
 Sends the content of the hash %fdat in the order specified by @ffld to
 the given B<$MailTo> addressee, with a subject of B<$Subject>.
+If you specify $ReturnField the value of that formfield will be used
+as B<Return-Path>. Usualy this should be the field where the user enters his
+e-mail adress in the form.
 
 If you specifiy the following example code as the action in your form
 
@@ -2150,10 +2252,14 @@ Example:
  </HEAD>
  <BODY>
         [- MailFormTo('webmaster@domain.xy',
-                      'Mail from WWW Form') -]
+                      'Mail from WWW Form', 'email') -]
         Your data has been sccesfully sent!
  </BODY>
  </HTML>
+
+This will send a mail with all fields of the form to webmaster@domain.xy, with the
+Subject 'Mail form WWW Form' and will set the Return-Path of the mail to the
+adress which was entered in the field with the name 'email'.
 
 B<NOTE:> You must have Net::SMTP (from the libnet package) installed
 to use this function.

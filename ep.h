@@ -28,6 +28,7 @@
 #include <EXTERN.h>               /* from the Perl distribution     */
 #include <perl.h>                 /* from the Perl distribution     */
 
+#ifdef APACHE
 /* form mod_perl.h ->
  * perl hides it's symbols in libperl when these macros are 
  * expanded to Perl_foo
@@ -47,12 +48,18 @@
 #undef die
 #undef __attribute__
 
+#if defined(EPAPACHE_SSL) || defined(APACHE_SSL) 
+#undef TRUE
+#undef FALSE
+#endif
 
-
-#ifdef APACHE
 #include <httpd.h>
+#include <http_config.h>
 #include <http_protocol.h>
 #include <http_log.h>
+#if MODULE_MAGIC_NUMBER >= 19980413
+#include "compat.h"
+#endif
 #endif
 
 
@@ -60,6 +67,9 @@
 
 #include "embperl.h"
 
+#ifdef WIN32
+#define PATH_MAX _MAX_DIR
+#endif
 
 
 /* ---- from epmain.c ----- */
@@ -83,6 +93,7 @@ extern request_rec * pReq ;
 #endif
 
 
+extern char cMultFieldSep ;  /* Separator if a form filed is multiplie defined */
 
 
 
@@ -111,7 +122,7 @@ extern char * pLineNoCurrPos ; /* save pCurrPos for line no calculation */
 int iembperl_init (int  nIOType,
                    const char * sLogFile) ;
 int iembperl_setreqrec  (/*in*/ SV *   pReqSV) ;
-int iembperl_resetreqrec  () ;
+int iembperl_resetreqrec  (void) ;
 int iembperl_term (void) ;
 int iembperl_req  (/*in*/ char *  sInputfile,
                    /*in*/ char *  sOutputfile,
@@ -126,6 +137,8 @@ int ScanCmdEvalsInString (/*in*/  char *   pIn,
                           /*in*/  size_t   nSize) ;
     
 char * LogError (/*in*/ int   rc) ;
+void CommitError (void) ;
+void RollbackError (void) ;
 
 /* ---- from epio.c ----- */
 
@@ -143,44 +156,48 @@ struct tBuf
     } ;
 
 
+extern int     nMarker ;
+
 
 /* i/o functions */
 
 
 int OpenInput   (/*in*/ const char *  sFilename) ;
-int CloseInput  () ;
+int CloseInput  (void) ;
 int iread       (/*in*/ void * ptr, size_t size, size_t nmemb) ;
 char * igets    (/*in*/ char * s,   int    size) ;
 
 
 int OpenOutput  (/*in*/ const char *  sFilename) ;
-int CloseOutput () ;
+int CloseOutput (void) ;
 int owrite      (/*in*/ const void * ptr, size_t size, size_t nmemb) ;
 void oputc       (/*in*/ char c) ;
 int oputs (/*in*/ const char *  str) ;
 
 void OutputToMemBuf (/*in*/ char *  pBuf,
                      /*in*/ size_t  nBufSize) ;
-void OutputToStd () ;
+void OutputToStd (void) ;
 
 
              
-struct tBuf *   oBegin () ;
+struct tBuf *   oBegin (void) ;
 void oRollback (struct tBuf *   pBuf) ;
+void oRollbackOutput (struct tBuf *   pBuf) ;
 void oCommit (struct tBuf *   pBuf) ;
 void oCommitToMem (struct tBuf *   pBuf,
                    char *          pOut) ;
 
-int GetContentLength () ;
+int GetContentLength (void) ;
 
-int OpenLog     (/*in*/ const char *  sFilename) ;
-int CloseLog    () ;
-int FlushLog    () ;
+int OpenLog     (/*in*/ const char *  sFilename,
+                 /*in*/ int           nMode) ;
+int CloseLog    (void) ;
+int FlushLog    (void) ;
 int lprintf     (/*in*/ const char *  sFormat,
                  /*in*/ ...) ;
 
-long GetLogFilePos () ;
-int GetLogHandle () ;
+long GetLogFilePos (void) ;
+int GetLogHandle (void) ;
 
 
 /* Memory Allocation */
@@ -255,6 +272,7 @@ struct tCmd
     bool            bScanArg ;      /* is it nessesary to scan the command arg */
     bool            bSaveArg ;      /* is it nessesary to save the command arg for later use */
     enum tCmdNo     nCmdNo ;        /* number of command to catch mismatch in start/end */
+    int             bDisableOption ; /* option bit which disables this cmd */
     } ;
 
 
@@ -349,11 +367,15 @@ const char * GetHtmlArg (/*in*/  const char *    pTag,
 void TransHtml (/*i/o*/ char *  sData) ;
 
 
-int GetLineNo () ;
+int GetLineNo (void) ;
 
 #ifndef WIN32
 #define strnicmp strncasecmp
 #endif
+
+void Dirname (/*in*/ const char * filename,
+              /*out*/ char *      dirname,
+              /*in*/  int         size) ;
 
 
 /* ---- from epeval.c ----- */

@@ -21,6 +21,7 @@
 
 #define oBegin                 EMBPERL_oBegin            
 #define oRollback              EMBPERL_oRollback         
+#define oRollbackOutput        EMBPERL_oRollbackOutput
 #define oCommit                EMBPERL_oCommit           
 #define oCommitToMem           EMBPERL_oCommitToMem
 #define OpenInput              EMBPERL_OpenInput         
@@ -56,6 +57,7 @@
 #define OutputToHtml           EMBPERL_OutputToHtml      
 #define Eval                   EMBPERL_Eval              
 #define EvalNum                EMBPERL_EvalNum           
+#define EvalBool               EMBPERL_EvalBool           
 #define stristr                EMBPERL_stristr           
 #define strlower               EMBPERL_strlower          
 #define TransHtml              EMBPERL_TransHtml         
@@ -121,3 +123,10 @@
 #define bError                 EMBPERL_bError
 #define lastwarn               EMBPERL_lastwarn
 #define lastwarn               EMBPERL_lastwarn
+#define Dirname                EMBPERL_Dirname
+#define nMarker                EMBPERL_nMarker
+#define CommitError            EMBPERL_CommitError
+#define RollbackError          EMBPERL_RollbackError
+#define pErrFill	       EMBPERL_pErrFill
+#define pErrState              EMBPERL_pErrState
+

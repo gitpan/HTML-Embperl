@@ -1,5 +1,76 @@
 Revision history for Perl extension HTML::Embperl.
 
+0.27-beta
+   - make test now runs under win32 (You need to install LWP and libwin32)
+     IMPORTANT: You need a mod_perl version > 1.11 or you get a deadlock
+   - Compiles with apache_1.3b6
+   - Added support for Stronghold and Apache_SSL to Makefile.PL and test.pl
+   - Changed dbgEarlyHttpHeader to optEarlyHttpHeader because it's not a
+     debugging option. dbgEarlyHttpHeader still persits, but will be removed
+     in one of the following versions
+   - Embperl does not change the current working directory when optDisableChdir
+     is set, this saves some milliseconds perl request, also the cwd is moved
+     to the c code, so it runs faster then Cwd::fastwd.
+     Thanks to Doug Bagley for the profile which has shown how much time 
+     Cwd::fastcwd consumes
+   - You can set optDisableHtmlScan in EMBPERL_OPTIONS. If set, Embperl only
+     recongizes [+/-/$/! ... !/$/-/+], but will not do anything with html tags,
+     as suggested by Randy Harmon.
+   - optDisableInputScan, optDisableTableScan and optDisableMetaScan can be
+     used to disable only some of the html tag processing
+   - You can set optDisableFormData in EMBPERL_OPTIONS. If set, Embperl
+     will not setup the %fdat and @ffld, as suggested by Doug Bagley
+   - If you use Execute the explicit call to Init/Term isn't needed anymore,
+     because Embperl performs the Init automaticly when it is loaded. The 
+     Init function can still be used to change the path of logfile. Suggested
+     by Honza Jirousek
+   - All options and debugging flags can now be read/set at runtime. For
+     example $optRawInput = 1 sets the optRawInputFlag. Some of the options
+     are readonly, because they must be known before the request.   
+   - Added more tests  
+   - Embperl discards all errors which occurs in an expression after the end
+     of an dynamic table, which are only evaled to detect the table end and
+     never displayed. This allows usage of objects methods in dynamic tables,
+     where the table end is caused by a undefined object. (see
+     test/html/object.htm for an example). Spotted by Jason Bodnar.
+   - Printing to filehandle OUT has the same effect as using [+ .. +] 
+     (including html-escaping)
+   - Setting optRedirectStdout cause Embperl to tie STDOUT to the Embperl
+     output stream (same as print OUT ...), suggested by Jason Bodar
+   - Setting optAllFormData will make empty formfields occur in %fdat and @ffld
+     with an empty string value, suggested by Dan Peterson
+
+   - Embperl now handles SELECT MULTIPLE correct. All OPTIONs which are
+     posted to the document will now be selected by Embperl, spotted by
+     Todd Eigenschink
+   - Fixed a bug that cause a '>' inside a [$/! ... !/$] block to be 
+     interpreted as end of html tag spotted by Todd Eigenschink.
+   - Fixed a bug that causes the SELECT/OPTIONS tag not insert their
+     values in %idat and therefor make [$hidden$] work incorrect, spotted by
+     Dave Paris [aka Spider]
+   - Fixed a bug that causes the INPUT CHECKBOX tag not insert their 
+     values in %idat when value isn't in %fdat and therefor make [$hidden$] 
+     work incorrect.
+   - Fixed a problem that causes magicaly variables to be handled as if they
+     were undefined, which caused a end of dynamic tables
+   - Closing html tags will be correctly removed form perl source again
+     (when optRawInput is not set)
+   - &nbsp; will be translated to space (0x20) instead of 0xf0
+   - When EMBPERL_DEBUG is set 0, only errors and warnings will be written to
+     the logfile
+   - MailFormTo will generate correct TO header and insert a Return-Path
+     from the posted email adress
+   - Changed detection of mod_perl to $ENV{MOD_PERL}. This makes sure that
+     it will correctly work, even if Apache.pm isn't loaded.
+   - Reentered the optDisableEmbperlErrorPage which was lost in one of the last
+     releases, spotted by Doug Bagley.
+   - The content_length of the apache request_rec will only be set when a http
+     header is send.
+   - If, Elsif and While metacommands now use SvTRUE instead of a != 0 to test the
+     evaled expression, so behave like the perl ones do. Spotted by Jason 
+     Bondar
+
+
 0.26-beta 16 Mar 98
    - Adapt include pass to compile with apache_1.3b5
    - Applied patch from Dan Walters to make Embperl compile with 

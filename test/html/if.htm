@@ -286,6 +286,20 @@ a5
 
 
 
+[- $ttrue = 'true'; $tfalse = '' -]
+
+[$if $ttrue $]
+ttrue = true
+[$else$]
+ttrue = false
+[$endif$]
+
+[$if $tfalse $]
+tfalse = true
+[$else$]
+tfalse = false
+[$endif$]
+
 
 </body>
 </html>

@@ -17,6 +17,9 @@ MaxRequestsPerChild 0
 
 DirectoryIndex index.htm  
 
+$EPMODPERL
+
+$EPSTRONGHOLDKEY
 
 #-Tw
 PerlTaintCheck On
@@ -80,11 +83,45 @@ Options ExecCGI
 PerlSetEnv EMBPERL_OPTIONS 16
 </Location>
 
+<Location /embperl/nochdir>
+SetHandler perl-script
+PerlHandler HTML::Embperl
+Options ExecCGI
+PerlSetEnv EMBPERL_OPTIONS 384
+</Location>
+
+<Location /embperl/nph>
+SetHandler perl-script
+PerlHandler HTML::Embperl
+Options ExecCGI
+PerlSetEnv EMBPERL_OPTIONS 64
+</Location>
+
+<Location /embperl/stdout>
+SetHandler perl-script
+PerlHandler HTML::Embperl
+Options ExecCGI
+PerlSetEnv EMBPERL_OPTIONS 16384
+</Location>
+
+<Location /embperl/allform>
+SetHandler perl-script
+PerlHandler HTML::Embperl
+Options ExecCGI
+PerlSetEnv EMBPERL_OPTIONS 8192
+</Location>
+
 Alias /cgi-bin/ $EPPATH/test/html/
+Alias /cgi-bin-32/ $EPPATH/test/html/
 ScriptAlias /cgi/ $EPPATH/
 
 <Location /cgi-bin>
 Action text/html /cgi/embpexec.test.pl
+Options ExecCGI
+</Location>
+
+<Location /cgi-bin-32>
+Action text/html /cgi/embpexec.test.bat
 Options ExecCGI
 </Location>
 
@@ -102,11 +139,11 @@ Options ExecCGI
 
 ErrorLog tmp/httpd.err.log
 PidFile tmp/httpd.pid
-AccessConfig /dev/null
-ResourceConfig /dev/null
-TypesConfig /dev/null
-TransferLog /dev/null
-ScoreBoardFile /dev/null
+AccessConfig $EPNULL
+ResourceConfig $EPNULL
+TypesConfig $EPNULL
+TransferLog $EPNULL
+ScoreBoardFile $EPNULL
 LockFile tmp/httpd.lock
 
 <IfModule apache_ssl.c>

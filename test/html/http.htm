@@ -1,0 +1,25 @@
+<html>
+<head>
+<title>Setup http header</title>
+</head>
+
+
+<body>
+
+
+<meta http-equiv="Formatter" content="Embperl">
+
+[- $req_rec -> header_out('Set-Cookie'=>'Formatter=Embperl') -]
+
+[- %ks = $req_rec -> headers_out; @ks = sort keys %ks -]
+
+<table>
+	<tr>
+		<td>[+ $ks[$row] +]</td><td>[+ $ks{$ks[$row] || ''} +]</td>
+	</tr>
+</table>
+
+
+
+</body>
+</html>

@@ -102,6 +102,15 @@ enum opt
     optOpcodeMask              = 8,
     optRawInput                = 16,
     optSendHttpHeader          = 32,
+    optEarlyHttpHeader         = 64,
+    optDisableChdir            = 128,
+    optDisableFormData         = 256,
+    optDisableHtmlScan         = 512,
+    optDisableInputScan        = 1024,
+    optDisableTableScan        = 2048,
+    optDisableMetaScan         = 4096,
+    optAllFormData             = 8192,
+    optRedirectStdout          = 16384,
     } ;
 
 /*

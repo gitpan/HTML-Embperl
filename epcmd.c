@@ -89,39 +89,39 @@ static int HtmlMeta      (/*in*/ const char *   sArg) ;
 
 struct tCmd CmdTab [] =
     {
-        /* cmdname    function        push pop  type         scan save no */
-        { "/dir",     HtmlEndtable,     0, 1, cmdTable,         0, 0, cnDir } ,
-        { "/dl",      HtmlEndtable,     0, 1, cmdTable,         0, 0, cnDl  } ,
-        { "/menu",    HtmlEndtable,     0, 1, cmdTable,         0, 0, cnMenu  } ,
-        { "/ol",      HtmlEndtable,     0, 1, cmdTable,         0, 0, cnOl  } ,
-        { "/select",  HtmlEndtable,     0, 1, cmdTable,         0, 0, cnSelect  } ,
-        { "/table",   HtmlEndtable,     0, 1, cmdTable,         0, 0, cnTable  } ,
-        { "/textarea", HtmlEndtextarea, 0, 1, cmdTextarea,      0, 0, cnNop  } ,
-        { "/tr",      HtmlEndrow,       0, 1, cmdTablerow,      0, 0, cnTr  } ,
-        { "/ul",      HtmlEndtable,     0, 1, cmdTable,         0, 0, cnUl  } ,
-        { "a",        HtmlA,            0, 0, cmdNorm,          0, 0, cnNop   } ,
-        { "body",     HtmlBody,         0, 0, cmdNorm,          1, 0, cnNop   } ,
-        { "dir",      HtmlTable,        1, 0, cmdTable,         1, 0, cnDir   } ,
-        { "dl",       HtmlTable,        1, 0, cmdTable,         1, 0, cnDl   } ,
-        { "else",     CmdElse,          0, 0, cmdIf,            0, 0, cnNop   } ,
-        { "elsif",    CmdElsif,         0, 0, cmdIf,            0, 0, cnNop   } ,
-        { "endif",    CmdEndif,         0, 1, cmdIf | cmdEndif, 0, 0, cnNop   } ,
-        { "endwhile", CmdEndwhile,      0, 1, cmdWhile,         0, 0, cnNop   } ,
-        { "hidden",   CmdHidden,        0, 0, cmdNorm,          0, 0, cnNop   } ,
-        { "if",       CmdIf,            1, 0, cmdIf | cmdEndif, 0, 0, cnNop   } ,
-        { "input",    HtmlInput,        0, 0, cmdNorm,          1, 0, cnNop   } ,
-        { "menu",     HtmlTable,        1, 0, cmdTable,         1, 0, cnMenu   } ,
-        { "meta",     HtmlMeta,         0, 0, cmdNorm,          1, 0, cnNop   } ,
-        { "ol",       HtmlTable,        1, 0, cmdTable,         1, 0, cnOl   } ,
-        { "option",   HtmlOption,       0, 0, cmdNorm,          1, 0, cnNop   } ,
-        { "select",   HtmlSelect,       1, 0, cmdTable,         1, 0, cnSelect   } ,
-        { "table",    HtmlTable,        1, 0, cmdTable,         1, 0, cnTable   } ,
-        { "textarea", HtmlTextarea,     1, 0, cmdTextarea,      1, 1, cnNop   } ,
-        { "th",       HtmlTableHead,    0, 0, cmdNorm,          1, 0, cnNop   } ,
-        { "tr",       HtmlRow,          1, 0, cmdTablerow,      1, 0, cnTr   } ,
-        { "ul",       HtmlTable,        1, 0, cmdTable,         1, 0, cnUl   } ,
-        { "var",      CmdVar,           0, 0, cmdNorm,          0, 0, cnNop   } ,
-        { "while",    CmdWhile,         1, 0, cmdWhile,         0, 1, cnNop   } ,
+        /* cmdname    function        push pop  type         scan save no      disable */
+        { "/dir",     HtmlEndtable,     0, 1, cmdTable,         0, 0, cnDir    , optDisableTableScan } ,
+        { "/dl",      HtmlEndtable,     0, 1, cmdTable,         0, 0, cnDl     , optDisableTableScan } ,
+        { "/menu",    HtmlEndtable,     0, 1, cmdTable,         0, 0, cnMenu   , optDisableTableScan } ,
+        { "/ol",      HtmlEndtable,     0, 1, cmdTable,         0, 0, cnOl     , optDisableTableScan } ,
+        { "/select",  HtmlEndtable,     0, 1, cmdTable,         0, 0, cnSelect , optDisableTableScan } ,
+        { "/table",   HtmlEndtable,     0, 1, cmdTable,         0, 0, cnTable  , optDisableTableScan } ,
+        { "/textarea", HtmlEndtextarea, 0, 1, cmdTextarea,      0, 0, cnNop    , optDisableInputScan } ,
+        { "/tr",      HtmlEndrow,       0, 1, cmdTablerow,      0, 0, cnTr     , optDisableTableScan } ,
+        { "/ul",      HtmlEndtable,     0, 1, cmdTable,         0, 0, cnUl     , optDisableTableScan } ,
+        { "a",        HtmlA,            0, 0, cmdNorm,          0, 0, cnNop    , 0 } ,
+        { "body",     HtmlBody,         0, 0, cmdNorm,          1, 0, cnNop    , 0 } ,
+        { "dir",      HtmlTable,        1, 0, cmdTable,         1, 0, cnDir    , optDisableTableScan } ,
+        { "dl",       HtmlTable,        1, 0, cmdTable,         1, 0, cnDl     , optDisableTableScan } ,
+        { "else",     CmdElse,          0, 0, cmdIf,            0, 0, cnNop    , 0 } ,
+        { "elsif",    CmdElsif,         0, 0, cmdIf,            0, 0, cnNop    , 0 } ,
+        { "endif",    CmdEndif,         0, 1, cmdIf | cmdEndif, 0, 0, cnNop    , 0 } ,
+        { "endwhile", CmdEndwhile,      0, 1, cmdWhile,         0, 0, cnNop    , 0 } ,
+        { "hidden",   CmdHidden,        0, 0, cmdNorm,          0, 0, cnNop    , 0 } ,
+        { "if",       CmdIf,            1, 0, cmdIf | cmdEndif, 0, 0, cnNop    , 0 } ,
+        { "input",    HtmlInput,        0, 0, cmdNorm,          1, 0, cnNop    , optDisableInputScan } ,
+        { "menu",     HtmlTable,        1, 0, cmdTable,         1, 0, cnMenu   , optDisableTableScan } ,
+        { "meta",     HtmlMeta,         0, 0, cmdNorm,          1, 0, cnNop    , optDisableMetaScan  } ,
+        { "ol",       HtmlTable,        1, 0, cmdTable,         1, 0, cnOl     , optDisableTableScan } ,
+        { "option",   HtmlOption,       0, 0, cmdNorm,          1, 0, cnNop    , optDisableInputScan } ,
+        { "select",   HtmlSelect,       1, 0, cmdTable,         1, 0, cnSelect , optDisableTableScan } ,
+        { "table",    HtmlTable,        1, 0, cmdTable,         1, 0, cnTable  , optDisableTableScan } ,
+        { "textarea", HtmlTextarea,     1, 0, cmdTextarea,      1, 1, cnNop    , optDisableInputScan } ,
+        { "th",       HtmlTableHead,    0, 0, cmdNorm,          1, 0, cnNop    , optDisableTableScan } ,
+        { "tr",       HtmlRow,          1, 0, cmdTablerow,      1, 0, cnTr     , optDisableTableScan } ,
+        { "ul",       HtmlTable,        1, 0, cmdTable,         1, 0, cnUl     , optDisableTableScan } ,
+        { "var",      CmdVar,           0, 0, cmdNorm,          0, 0, cnNop    , 0 } ,
+        { "while",    CmdWhile,         1, 0, cmdWhile,         0, 1, cnNop    , 0 } ,
 
     } ;
 
@@ -170,6 +170,8 @@ int  SearchCmd          (/*in*/  const char *    sCmdName,
     
     p = sCmdLwr ;
     pCmd = (struct tCmd *)bsearch (&p, CmdTab, sizeof (CmdTab) / sizeof (struct tCmd), sizeof (struct tCmd), CmpCmd) ;
+    if (pCmd && (pCmd -> bDisableOption & bOptions))
+        pCmd = NULL ; /* command is disabled */
 
     if (bDebug & dbgAllCmds)
         if (sArg && *sArg != '\0')
@@ -290,7 +292,7 @@ static int CmdIf (/*in*/ const char *   sArg)
     
     if (State.bProcessCmds == cmdAll)
         {
-        rc = EvalNum ((char *)sArg, (sArg - pBuf), &State.nResult) ;
+        rc = EvalBool ((char *)sArg, (sArg - pBuf), &State.nResult) ;
     
         if (State.nResult) 
             {
@@ -329,7 +331,7 @@ static int CmdElsif  (/*in*/ const char *   sArg)
 
     if (State.nResult == 0)
         {    
-        rc = EvalNum ((char *)sArg, (sArg - pBuf), &State.nResult) ;
+        rc = EvalBool ((char *)sArg, (sArg - pBuf), &State.nResult) ;
     
         if (State.nResult) 
             State.bProcessCmds = cmdAll ;
@@ -417,7 +419,7 @@ int CmdWhile (/*in*/ const char *   sArg)
     if (State.bProcessCmds == cmdWhile)
         return ok ;
 
-    rc = EvalNum ((char *)sArg, (State.pStart - pBuf), &State.nResult) ;
+    rc = EvalBool ((char *)sArg, (State.pStart - pBuf), &State.nResult) ;
     
     if (State.nResult) 
         State.bProcessCmds = cmdAll ;
@@ -446,7 +448,7 @@ static int CmdEndwhile (/*in*/ const char *   sArg)
     
     if (State.nResult)
         {
-        rc = EvalNum (State.sArg, (State.pStart - pBuf), &State.nResult) ;
+        rc = EvalBool (State.sArg, (State.pStart - pBuf), &State.nResult) ;
     
         if (State.nResult) 
             {
@@ -739,6 +741,9 @@ static int HtmlA (/*in*/ const char *   sArg)
     
     EPENTRY (HtmlA) ;
 
+    if (pCurrEscape == NULL)
+        return ok ;
+    
     if (*sArg != '\0')
     	{
         struct tCharTrans * pCurrEscapeSave = pCurrEscape ;
@@ -981,29 +986,57 @@ static int HtmlSelect (/*in*/ const char *   sArg)
         }
     else
         {
-	char sName [256] ;
+        if (pArgStack + nlen + 1 >= ArgStack + sizeof (ArgStack))
+           {
+           sprintf (errdat1, "nArgLen=%d, pArgStack=%d",nlen + 1,  pArgStack - ArgStack) ;
+           return rcArgStackOverflow ;
+           }
+        State.sArg   = strncpy (pArgStack, pName, nlen) ;
+        State.sArg[nlen] = '\0' ;
+        pArgStack   += nlen + 1 ;
 
-        if (bDebug & dbgInput)
-            {
-            if (nlen >= sizeof (sName))
-                nlen = sizeof (sName) - 1 ;
-            strncpy (sName, pName, nlen) ;
-            sName [nlen] = '\0' ;        
-	    }
         ppSV = hv_fetch(pFormHash, (char *)pName, nlen, 0) ;  
         if (ppSV == NULL)
             {
             if (bDebug & dbgInput)
-                lprintf ("[%d]INPU: Select %s: no data available in form data\n", nPid, sName) ; 
+                lprintf ("[%d]INPU: Select %s: no data available in form data\n", nPid, State.sArg) ; 
             }
         else
             {
-            State.pSV = *ppSV ;
-            SvREFCNT_inc (State.pSV) ;
-            if (bDebug & dbgInput)
-                lprintf ("[%d]INPU: Select %s = %s\n", nPid, sName, SvPV(State.pSV, na)) ; 
-            }    
+            STRLEN dlen ;
+            char * pData = SvPV (*ppSV, dlen) ;
+            char * s = pData ;
+            char * p ;
+            if (p = strchr (s, cMultFieldSep))
+                { /* Multiple values -> put them into a hash */
+                HV * pHV = newHV () ;
+                SV * pSV ;
+                int l ;
+
+                while (p)
+                    {
+                    hv_store (pHV, pData, p - pData, &sv_undef, 0) ;
+                    s = p + 1 ;
+                    p = strchr (s, cMultFieldSep) ;
+                    }
+
+                l = dlen - (s - pData) ;
+                if (l > 0)
+                    hv_store (pHV, s, l, &sv_undef, 0) ;
+                State.pSV = (SV *)pHV ;
+                if (bDebug & dbgInput)
+                    lprintf ("[%d]INPU: Select %s = <mult values>\n", nPid, State.sArg) ; 
+                }
+            else
+                {
+                State.pSV = *ppSV ;
+                SvREFCNT_inc (State.pSV) ;
+                if (bDebug & dbgInput)
+                    lprintf ("[%d]INPU: Select %s = %s\n", nPid, State.sArg, SvPV(State.pSV, na)) ; 
+                }
+           }    
         }
+
 
     return HtmlTable (sArg) ;
     }
@@ -1024,11 +1057,15 @@ static int HtmlOption (/*in*/ const char *   sArg)
     int           nlen ;
     int           vlen ;
     int           slen ;
+    char *        pName ;
     char *        pData ;
     STRLEN        dlen ;
+    int           bSel ;
 
 
     EPENTRY (HtmlOption) ;
+
+    pName = State.sArg?State.sArg:"" ;
 
     if (State.pSV == NULL)
         {
@@ -1042,15 +1079,31 @@ static int HtmlOption (/*in*/ const char *   sArg)
     if (vlen == 0)    
         {
         if (bDebug & dbgInput)
-            lprintf ("[%d]INPU: <Option> has no value\n", nPid) ; 
+            lprintf ("[%d]INPU: <Option> for Select %s has no value\n", nPid, pName) ; 
         
         return ok ; /* has no value */
         }
 
     pSelected = GetHtmlArg (sArg, "SELECTED", &slen) ;
-    pData = SvPV (State.pSV, dlen) ;
-    if (dlen == vlen && strncmp (pVal, pData, dlen) == 0)
+    bSel = 0 ;
+    if (SvTYPE (State.pSV) == SVt_PVHV)
+        { /* -> Hash -> check if key exists */
+        if (hv_exists ((HV *)State.pSV, (char *)pVal, vlen))
+            bSel = 1 ;
+        }
+    else
+        {
+        pData = SvPV (State.pSV, dlen) ;
+        if (dlen == vlen && strncmp (pVal, pData, dlen) == 0)
+            bSel = 1 ;
+        }
+            
+    if (bSel)
         { /* -> selected */
+        SV * pSV = newSVpv ((char *)pVal, vlen) ;
+        if (hv_store (pInputHash, pName, strlen (pName), pSV, 0) == NULL)
+            return rcHashError ;
+
         if (pSelected)
             return ok ;
         else
@@ -1156,6 +1209,15 @@ static int HtmlInput (/*in*/ const char *   sArg)
         {
         if (bDebug & dbgInput)
             lprintf ("[%d]INPU: %s: no data available in form data\n", nPid, sName) ; 
+
+        if (vlen != 0)    
+            {
+            pSV = newSVpv ((char *)pVal, vlen) ;
+
+            if (hv_store (pInputHash, sName, strlen (sName), pSV, 0) == NULL)
+                return rcHashError ;
+            }
+
         return ok ; /* no data available */
         }
 
