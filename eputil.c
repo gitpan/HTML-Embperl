@@ -69,6 +69,7 @@ void OutputToHtml (/*i/o*/ register req * r,
     }
 
 
+#if 0
 
 /* ---------------------------------------------------------------------------- */
 /* find substring ignore case                                                   */
@@ -127,6 +128,7 @@ static char * strlower (/*in*/ char *   pString)
     return pString ;
     }
 
+#endif
 
 /* ---------------------------------------------------------------------------- */
 /* save strdup                                                                  */
@@ -349,7 +351,6 @@ const char * GetHtmlArg (/*in*/  const char *    pTag,
     {
     const char * pVal ;
     const char * pEnd ;
-    const char * pName ;
     int l ;
 
     /*EPENTRY (GetHtmlArg) ;*/
@@ -486,8 +487,6 @@ int    GetHashValueInt (/*in*/  HV *           pHash,
 
     {
     SV **   ppSV ;
-    char *  p ;
-    STRLEN  len ;        
 
     /*EPENTRY (GetHashValueInt) ;*/
 
@@ -505,8 +504,6 @@ char * GetHashValueStr (/*in*/  HV *           pHash,
 
     {
     SV **   ppSV ;
-    char *  p ;
-    STRLEN  len ;        
 
     /*EPENTRY (GetHashValueInt) ;*/
 

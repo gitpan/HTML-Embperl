@@ -62,6 +62,7 @@ test/html/noerr/noerrpage.htm
 test/html/errdoc/errdoc.htm
 test/html/errmsg.htm
 test/html/escape.htm
+test/html/spaces.htm
 test/html/if.htm
 test/html/ifperl.htm
 test/html/mix.htm
@@ -137,6 +138,7 @@ test/cmp/error.htm
 test/cmp/unclosed.htm
 test/cmp/noerrpage.htm
 test/cmp/escape.htm
+test/cmp/spaces.htm
 test/cmp/if.htm
 test/cmp/ifperl.htm
 test/cmp/table.htm
@@ -197,8 +199,9 @@ test/cmp/clearsess.htm
 test/conf/httpd.conf.src
 test/conf/startup.pl
 test/conf/startup_dso.pl
+test/conf/ssldisable.conf
 test/conf/null
-lib/Apache/Session/epDBI.pm
-lib/HTML/Embperl/Module.pm
+Embperl/Module.pm
+Embperl/Session.pm
 emacs/README
 emacs/embperl.el

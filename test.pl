@@ -25,6 +25,7 @@
     'varerr.htm???-1',
     'varerr.htm???2',
     'escape.htm',
+    'spaces.htm',
     'tagscan.htm',
     'tagscan.htm??1',
     'if.htm',
@@ -410,7 +411,7 @@ sub REQ
         
         $request = POST ("http://$host:$port/$loc$file",
 					Content_Type => 'form-data',
-					Content      => [ upload => [undef, 'upload-filename', 
+					Content      => [ upload => [undef, '12upload-filename', 
 								    'Content-type' => 'test/plain',
 								    Content => $upload],
 							  content => $content,
@@ -801,6 +802,7 @@ do
 		print $txt2 ; 
 
 		my $outdata ;
+                my @errors ;
 		unlink ($outfile) ;
 		$t1 = HTML::Embperl::Clock () ;
 		$err = HTML::Embperl::Execute ({'inputfile'  => $src,
@@ -832,12 +834,19 @@ do
 						'inputfile'  => $src,
 						'mtime'      => 1,
 						'output'     => \$outdata,
+		                                'errors'     => \@errors,
 						'debug'      => $defaultdebug,
 						}) ;
 		$t_exec += HTML::Embperl::Clock () - $t1 ; 
 		    
 		$err = CheckError ($errcnt) if ($err == 0) ;
 	
+                if (@errors != 0)
+                    {
+                    print "\n\n\@errors does not return correct number of errors (is " . scalar(@errors) . ", should 0)\n" ;
+                    $err = 1 ;
+                    }
+
 		open FH, ">$outfile" or die "Cannot open $outfile ($!)" ;
 		print FH $outdata ;
 		close FH ;
@@ -860,17 +869,25 @@ do
 		print $txt2 ; 
 
 		my $outdata ;
+                my @errors ;
 		unlink ($outfile) ;
 		$t1 = HTML::Embperl::Clock () ;
 		$err = HTML::Embperl::Execute ({'inputfile'  => $src,
 						'mtime'      => 1,
 						'output'     => \$outdata,
 						'debug'      => $defaultdebug,
-						}) ;
+		                                'errors'     => \@errors,
+                				}) ;
 		$t_exec += HTML::Embperl::Clock () - $t1 ; 
 		    
-		$err = CheckError (8) if ($err == 0) ;
-	
+                $err = CheckError (8) if ($err == 0) ;
+
+                if (@errors != 12)
+                    {
+                    print "\n\n\@errors does not return correct number of errors (is " . scalar(@errors) . ", should 12)\n" ;
+                    $err = 1 ;
+                    }
+
 		open FH, ">$outfile" or die "Cannot open $outfile ($!)" ;
 		print FH $outdata ;
 		close FH ;
@@ -1003,8 +1020,8 @@ do
 	    next if (($file =~ /match/) && $loc eq $cgiloc) ;
 	    #next if ($file eq 'http.htm' && $loc eq $cgiloc) ;
 	    next if ($file eq 'chdir.htm' && $EPWIN32) ;
-	    next if ($file eq 'notfound.htm' && $loc eq $cgiloc && $EPWIN32) ;
-	    next if ($file eq 'notallow.xhtm' && $loc eq $cgiloc && $EPWIN32) ;
+	    #next if ($file eq 'notfound.htm' && $loc eq $cgiloc && $EPWIN32) ;
+	    #next if ($file eq 'notallow.xhtm' && $loc eq $cgiloc && $EPWIN32) ;
 	    next if ($file =~ /opmask/ && $EPSTARTUP =~ /_dso/) ;
 	    next if ($file eq 'clearsess.htm' && !$looptest) ;
 	    if ($file =~ /sess\.htm/)
@@ -1075,7 +1092,7 @@ do
 		last ;
 		}
 
-	    $errcnt++ if ($loc eq $cgiloc && $file eq 'notallow.xhtm') ;   
+	    #$errcnt++ if ($loc eq $cgiloc && $file eq 'notallow.xhtm') ;   
 	    $err = CheckError ($errcnt) if (($err == 0 || $file eq 'notfound.htm' || $file eq 'notallow.xhtm') && $checkerr ) ;
 	    if ($err == 0 && $file ne 'notfound.htm' && $file ne 'notallow.xhtm')
 		{

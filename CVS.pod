@@ -46,7 +46,7 @@ Here's a config file for the client (cvsup) to sync Embperl sources.
 
  *default host=apache.org
  *default prefix=/path/on/this/machine/to/install/
- # a subdir for modperl will appear here ^^^
+ # an existing subdir under which embperl will appear ^^^
 
  *default base=/path/on/this/machine/where/cvsup/will/keep/status/info
  # you'll never need to look in the 'base' dir.
@@ -62,8 +62,7 @@ Here's a config file for the client (cvsup) to sync Embperl sources.
 
 =head2 anoncvs
 
-See http://dev.apache.org/anoncvs.txt.  The difference
-is that you use "embperl" instead of "apache-x.x".
+You may browse the the I<Embperl> CVS via http://www.apache.org/websrc/cvsweb.cgi/embperl/
 
 =head2 from-cvs
 

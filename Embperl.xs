@@ -57,7 +57,7 @@ OUTPUT:
 
 #if defined (__GNUC__) && defined (__i386__)
 
-int
+void
 embperl_dbgbreak()
 CODE:
     __asm__ ("int   $0x03\n") ;
@@ -144,8 +144,7 @@ OUTPUT:
 
 
 tReq *
-embperl_CurrReq(dummy)
-    int dummy
+embperl_CurrReq()
 CODE:        
     RETVAL = pCurrReq ;
 OUTPUT:
@@ -166,13 +165,24 @@ OUTPUT:
     RETVAL
 
 
-int
-embperl_logerror(code, sText)
+void
+embperl_logerror(code, sText, pApacheReqSV=NULL)
     int    code
     char * sText
-INIT:
+    SV * pApacheReqSV
+PREINIT:
     tReq * r = pCurrReq ;
 CODE:
+#ifdef APACHE
+    if (pApacheReqSV && r -> pApacheReq == NULL)
+        {
+        if (SvROK (pApacheReqSV))
+            r -> pApacheReq = (request_rec *)SvIV((SV*)SvRV(pApacheReqSV));
+        else
+            r -> pApacheReq = NULL ;
+        r -> pApacheReqSV = pApacheReqSV ;
+        }
+#endif
      strncpy (r->errdat1, sText, sizeof (r->errdat1) - 1) ;
      LogError (r,code) ;
 
@@ -196,12 +206,11 @@ CODE:
     OutputToHtml (r,sText) ;
 
 
-int
+void
 embperl_logevalerr(r,sText)
     char * sText
 PREINIT:
     int l ;
-INIT:
     tReq * r = pCurrReq ;
 CODE:
      l = strlen (sText) ;
@@ -291,6 +300,7 @@ SV *
 embperl_ExportHash(r)
     tReq * r
 CODE:
+    RETVAL = RETVAL ; /* avoid warning */
     if (r -> Buf.pFile && r -> Buf.pFile -> pExportHash)
 	{
         ST(0) = newRV_inc((SV *)r -> Buf.pFile -> pExportHash) ;
@@ -316,6 +326,7 @@ SV *
 embperl_ApacheReq(r)
     tReq * r
 CODE:
+    RETVAL = RETVAL ; /* avoid warning */
 #ifdef APACHE
     ST(0) = r -> pApacheReqSV ;
     SvREFCNT_inc(ST(0)) ;
@@ -456,7 +467,7 @@ OUTPUT:
     RETVAL
 
 
-int
+void
 embperl_logevalerr(r,sText)
     tReq * r
     char * sText
@@ -470,12 +481,23 @@ CODE:
      strncpy (r -> errdat1, sText, sizeof (r -> errdat1) - 1) ;
      LogError (r, rcEvalErr) ;
 
-int
-embperl_logerror(r,code, sText)
+void
+embperl_logerror(r,code, sText,pApacheReqSV=NULL)
     tReq * r
     int    code
     char * sText
+    SV * pApacheReqSV
 CODE:
+#ifdef APACHE
+    if (pApacheReqSV && r -> pApacheReq == NULL)
+        {
+        if (SvROK (pApacheReqSV))
+            r -> pApacheReq = (request_rec *)SvIV((SV*)SvRV(pApacheReqSV));
+        else
+            r -> pApacheReq = NULL ;
+        r -> pApacheReqSV = pApacheReqSV ;
+        }
+#endif
      strncpy (r->errdat1, sText, sizeof (r->errdat1) - 1) ;
      LogError (r,code) ;
 
@@ -546,6 +568,7 @@ embperl_ExecuteReq(r, param)
     tReq * r
     AV *   param = NO_INIT 
 CODE:
+    param = param ; /* avoid warning */
     RETVAL = ExecuteReq(r, ST(0)) ; 
 OUTPUT:
     RETVAL

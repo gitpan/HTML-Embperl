@@ -134,6 +134,8 @@ tFile * SetupFileData   (/*i/o*/ register req * r,
 
 tConf * SetupConfData   (/*in*/ HV *   pReqInfo,
                          /*in*/ SV *   pOpcodeMask) ;
+
+void FreeConfData       (/*in*/ tConf *   pConf) ;
                          
 
 int ScanCmdEvalsInString (/*i/o*/ register req * r,
@@ -156,6 +158,9 @@ int ProcessSub		(/*i/o*/ register req * r,
 			 /*in*/  tFile * pFile,
 			 /*in*/  int	 nBlockStart,
                          /*in*/  int     nBlockNo) ;
+
+void NewEscMode (/*i/o*/ register req * r,
+			           SV * pSV) ;
 
 /* ---- from epio.c ----- */
 
@@ -388,6 +393,8 @@ int EvalSub (/*i/o*/ register req * r,
 	    /*in*/  const char *  sArg,
 	    /*in*/  int           nFilepos,
 	    /*in*/  const char *  sName) ;
+
+int EvalMain (/*i/o*/ register req *  r) ;
 
 /* ---- from epdbg.c ----- */
 

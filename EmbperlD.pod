@@ -1,6 +1,12 @@
-
 =pod
 
+=head1 NAME
+
+HTML::Embperl - einbetten von Perlcode in HTML Dokumente
+
+=head1 SYNOPSIS
+
+I<Embperl> ist ein Perlmodul welches es erlaubt beliebigen Perlcode in HTML Dokumente einzufügen.
 
 =head1 Aufrufen/Konfigurieren von Embperl
 
@@ -44,6 +50,8 @@ aussehen:
 
     AddType text/html .epl
 
+B<HINWEIS>: Wenn I<mod_perl> mit C<USE_DSO> übersetzt ist, darf I<Embperl> B<nicht>
+beim Starten des Server geladen werden!
 
 =head2 Andere Arten Embperl zu nutzen
 
@@ -57,9 +65,9 @@ Der Aufruf von der Befehlszeile sieht folgendermaßen aus (erste Zeile Unix, zwei
 
 
 
-embpexec.pl [-o outputfile] [-l logfile] [-d debugflags] htmlfile [query_string]
+C<embpexec.pl [-o outputfile] [-l logfile] [-d debugflags] htmlfile [query_string]>
 
-embpexec.bat [-o outputfile] [-l logfile] [-d debugflags] htmlfile [query_string]
+C<embpexec.bat [-o outputfile] [-l logfile] [-d debugflags] htmlfile [query_string]>
 
 
 =over 4
@@ -107,8 +115,12 @@ Unter Apache kann C<embpcgi.pl> auch als Handler definiert werden:
     Action text/html /cgi-bin/embperl/embpcgi.pl
     </Directory>
 
-B<HINWEIS> Die Datei embpexec.pl darf aus Sicherheitsgründen nicht mehr als
+B<HINWEIS 1> Die Datei embpexec.pl darf aus Sicherheitsgründen nicht mehr als
 CGI Skript genutzt werden!
+
+B<HINWEIS 2>: Um die Sicherheit von CGI Skripten sicher zustellen, empfiehlt es sich
+mittels L<EMBPERL_ALLOW> den Zugriff zu beschränken.
+
 
 =head2 Embperl aus Embperl Dokumenten oder anderen Perl Programmen/Modulen aufrufen
 
@@ -298,6 +310,10 @@ Wie L<"EMBPERL_COOKIE_DOMAIN"> (siehe unten).
 
 Wie L<"EMBPERL_COOKIE_EXPIRES"> (siehe unten).
 
+=item B<errors>
+
+Erwartet eine Referenz auf ein Array. Nach der Rückkehr der Funktion enthält das Array
+alle Fehlermeldungen der aufgerufenen Seite, soweit welche aufgetreten sind.
 
 =back
 
@@ -390,7 +406,7 @@ EMBPERL_FILESMATCH funktioniert nur unter I<mod_perl>. Beispiel:
  # Nur Dateien mit der Endung .htm werden von Embperl bearbeitet
  PerlSetEnv EMBPERL_FILESMATCH \.htm$
 
-=head2 EMBPERL_ALLOW
+=head2 EMBPERL_ALLOW (ab 1.2b10)
 
 Wenn vorhanden, werden von I<Embperl> nur Dateien bearbeitet, die der angegebenen
 B<Perl regular expression> entsprechen. Die Bearbeitung anderer Dateien wird mit 
@@ -1452,15 +1468,18 @@ Wenn I<CGI.pm> 2.46 oder höher installiert ist, ist es weiterhin möglich den
 Dateinamen (den B<lokalen> Dateinamen, wie er auf seiten des Browsers heißt)
 und Informationen, die von der I<CGI.pm> Funktion C<uploadInfo> zur Verfügung 
 gestellt werden, zu erhalten. Der Dateiname ist in dem entsprechenden
-C<%fdat> Element direkt enthalten, die uploadInfos erschließen sich, wenn das Element
-zweimal dereferenziert wird.
+C<%fdat> Element direkt enthalten. Um auf die B<uploadInfos> zuzugreifen, muß man 
+dem Feldnamen einen Bindestrich voranstellen:
 
 Beispiel:
 
+  # ImageName ist der NAME des Feldes. 
+  # Er durch den im HTML Code angegeben ersetzt werden.
   Dateiname:     [+ $fdat{ImageName} +] <br>
-  Content-Type:  [+ ${${$fdat{ImageName}}} -> {'Content-Type'} +] <br>
+  Content-Type:  [+ $fdat{-ImageName} -> {'Content-Type'} +] <br>
 
-
+B<HINWEIS:> Der Zugriff auf die B<Upload-Infos> erfolgte vor 1.2b11 auf andere
+Art und Weise, die nicht mehr unterstützt wird.
 
 =head2 @ffld
 
@@ -1615,7 +1634,7 @@ Wird durch den C<param> Parameter der C<Execute> Funktion gesetzt. Kann genutzt 
 um Parameter an ein I<Embperl> Dokument zuübergeben oder zurückzugegben.
 (siehe L<Execute|"By calling HTML::Embperl::Execut">)
 
-=head2 %http_headers_out
+=head2 %http_headers_out (ab 1.2b10)
 
 Dieser Hash ermöglicht es HTTP Header anzugeben, die I<Embperl> vor dem Dokument senden soll.
 Ist ein "Location" Header angegeben, setzt I<Embperl> den Status automatisch auf 301. Beispiel:
@@ -1689,54 +1708,42 @@ von C<%udat> und C<%mdat> bei entsprechender Konfiguration, auch über Prozeß-
 oder sogar Rechnergrenzen hinweg möglich. I<Embperl> bedient sich dazu
 des Perlmodules I<Apache::Session>.
 
-Um das Session Management zu aktivieren müssen Sie I<Apache::Session::Embperl> vor
-I<Embperl> laden. Außerdem müssen Sie I<Embperl> mitteilen, welcher
+Um das Session Management zu aktivieren muß I<Apache::Session> (Version 1.00
+oder höher) installiert sein. Außerdem müssen Sie I<Embperl>, via 
+C<EMBPERL_SESSION_ARGS>, mitteilen, welcher
 Speicher- und Lockingmechanismus genutzt werden soll, ggf. müssen Sie
 auch weitere Argumente für I<Apache::Session> setzen.
 Eine Beispiel F<startup.pl> Datei, könnte folgendermaßen aussehen:
 
- $ENV{EMBPERL_SESSION_CLASSES} = "DBIStore SysVSemaphoreLocker" ;
- $ENV{EMBPERL_SESSION_ARGS}    = "DataSource=dbi:mysql:session UserName=test" ;
- use Apache::Session::Embperl ;
+ BEGIN
+    {
+    $ENV{EMBPERL_SESSION_CLASSES} = "DBIStore SysVSemaphoreLocker" ;
+    $ENV{EMBPERL_SESSION_ARGS}    = "DataSource=dbi:mysql:session UserName=test" ;
+    } ;
  use HTML::Embperl ;
 
-dass selbe direkt in die F<httpd.conf> eingetragen, sieht so aus:
+Für B<Solaris> ist es bei der Benutzung von SysVSemaphoreLocker nötig
+zusätzlich das C<nsems> Argument zu setzen:
+
+ $Apache::Session::SysVSemaphoreLocker::nsems = 16;
+
+
+Dass selbe kann auch direkt in die F<httpd.conf> eingetragen werden:
 
  PerlSetEnv EMBPERL_SESSION_CLASSES "DBIStore SysVSemaphoreLocker"
  PerlSetEnv EMBPERL_SESSION_ARGS "DataSource=dbi:mysql:session UserName=test"
- PerlModule Apache::Session::Embperl ;
  PerlModule HTML::Embperl ;
 
 C<EMBPERL_SESSION_ARGS> ist eine Leerzeichen separierte Liste von Name/Wert Paaren
 die zusätzlich Parameter für die I<Apache::Session> Klassen angeben können.
 
-Ältere Versionen von I<Embperl> (bis einschließlich 1.2b6) arbeiten nur
-mit Apache::Session B<0.17> zusammen, die Konfiguration dafür sieht
-folgendermaßen aus:
-
-
- $ENV{SESSION_FILE_DIRECTORY}='/tmp/sessions' ;
- $ENV{EMBPERL_SESSION_CLASS}='File' ;
- use Apache::Session::File ;
- use HTML::Embperl ;
-
- 1 ;
-
-oder tragen Sie folgende Zeilen in httpd.conf ein:
-
- PerlSetEnv SESSION_FILE_DIRECTORY /tmp/sessions
- PerlSetEnv EMBPERL_SESSION_CLASS  File
- PerlModule Apache::Session::File 
- PerlModule HTML::Embperl 
-
-
-Verwenden Sie nach Möglichkeit nur noch Apache::Session 1.04 oder höher!
-Müssen Sie noch mit I<Apache::Session> 0.17 arbeiten und wollen I<DBI>
-als Speicher einsetzen, so verwenden Sie I<Apache::Session::epDBI> statt
-I<Apache::Session::DBI>. Bitte beachten Sie das I<Apache::Session>
+B<HINWEIS:> Die obige Konfiguration funktioniert nur mit I<Embperl> 1.2b11 oder
+höher. Ältere Konfigurationen mit I<Apache::Session> werden weiterhin unterstützt,
+die Dokumentation dazu jedoch entferent. Es ist nun nicht mehr nötig 
+I<Apache::Session> vor I<Embperl> zu laden.
+Bitte beachten Sie das I<Apache::Session>
 0.17 und 1.xx nicht kompatibel zueinander sind und eine andere
 Konfiguration erfordern.
-
 
 
 Damit ist das Session Handling eingerichtet und der Benutzung der
@@ -1750,13 +1757,6 @@ Id, wird diese zunächst nur abgespeichert, erst bei einem Zugriff auf C<%udat>,
 werden die Daten tatsächlich von I<Apache::Session> angefordert. Ebenso
 werden die Daten für C<%mdat> erst von I<Apache::Session> angefordert, wenn
 auf diesen Hash zugegriffen wird.
-
-
-
-B<WICHTIGER HINWEIS für DBI und %mdat Gebrauch:> Apache::Session 0.17
-ist nicht in der Lage Zugriffe korrekt zu serialisieren, verwenden Sie
-deshalb I<Apache::Session> 1.01 oder höher (wird erst ab I<Embperl> 1.2b7
-unterstützt.
 
 
 =head1 (Sichere-)Namensräume und Opcode Restriktionen
@@ -2273,6 +2273,8 @@ Vorallem sollten Sie B<niemals> L<dbgFlushOutput>, L<dbgFlushLog> oder
 L<dbgCacheDisable> auf einen Produktionsserver einschalten.
 Während der geringfügige Performanceverlust beim Debuggen nicht auffällt, kann
 er auf einem stark belasteten Server durchaus ins Gewicht fallen.
+Auch die Optionen L<optDisableChdir>, L<optDisableHtmlScan>, L<optDisableCleanup>
+haben Auswirkungen auf die Performance.
 
 Lesen Sie ebenfalls B<mod_perl_tuning.pod> für weitere Ideenen zur
 Performancesteigerung.

@@ -28,7 +28,9 @@ use HTML::Embperl;
 
 $^W = 1;
 
-HTML::Embperl::runcgi ;
+my $rc = HTML::Embperl::runcgi ;
+
+print "Status: $rc\n\n" if ($rc) ;
 
 
 __END__

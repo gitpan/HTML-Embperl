@@ -213,6 +213,31 @@ sub start
 
 
 ## ----------------------------------------------------------------------------
+
+
+sub start_errcode
+
+    {
+    my ($cmd) = @_ ;
+
+
+    $cmd =~ s/\//\\/g if ($win32) ;
+
+    
+    open FH, "$cmd|" or return 1 ;
+
+    my @x = <FH> ;
+
+    #print "@x" ;
+
+    my $code = close FH ;
+    #print "Code = $code ; ? = $?\n" ;
+
+    return $? ;
+    }
+
+
+## ----------------------------------------------------------------------------
 #
 # Check if required modules present
 #
@@ -616,6 +641,7 @@ if ($b && $apache)
         $sslbase = search_config ('SSL_BASE', "$apache_src/Configuration") if (!$sslbase) ;
         $i .= " -I$sslbase/include" ;
         print " + found mod_ssl\n" ;
+        $EPSSLDISABLE = !start_errcode ("$EPHTTPD -t -f $EPPATH/test/conf/ssldisable.conf") ;
         }
 
 
@@ -667,11 +693,11 @@ if ($b && $apache)
 
     $SessVer = CheckModule ("Apache::Session", "-> Disable tests for persistent data storage") || '' ;
 
-    if ($SessVer && !($SessVer >= 1.01) && $SessVer != 1.03)
+    if ($SessVer && !($SessVer >= 1.00))
         {
         if ($SessVer && !($SessVer =~ /0\.17/))
             {
-            print "-> Embperl works only with Apache::Session 0.17.x or 1.03 and higher\n" ;
+            print "-> Embperl works only with Apache::Session 0.17.x or 1.00 and higher\n" ;
             print "-> Disable tests for persistent data storage\n" ;
             $SessVer = '0' ;
             }
@@ -695,6 +721,7 @@ if ($b && $apache)
     print FH "\$EPAPACHESRC='" . cnvpath($apache_src) . "' ;\n" ;
     print FH "\$EPAPACHE_SSL='" . $EPAPACHE_SSL . "' ;\n" ;
     print FH "\$EPSTRONGHOLD='$EPSTRONGHOLD' ;\n" ;
+    print FH "\$EPSSLDISABLE='$EPSSLDISABLE' ;\n" ;
     print FH "\$EPSTRONGHOLDKEY='$EPSTRONGHOLDKEY' ;\n" ;
     print FH "\$EPMODPERL='" . cnvpath($EPMODPERL) . "';\n" ;
     print FH "\$EPSTARTUP='" . cnvpath($EPSTARTUP) . "';\n" ;
@@ -736,6 +763,7 @@ else
     print FH "\$EPHTTPD='' ;\n" ;
     print FH "\$EPWIN32='$win32' ;\n" ;
     print FH "\$EPSESSIONVERSION='$SessVer';\n" ;
+    print FH "\$EPSSLDISABLE='$EPSSLDISABLE' ;\n" ;
     close FH ;
     }
 
@@ -763,8 +791,11 @@ WriteMakefile(
     'LIBS'	   => [''],   			 
     'DEFINE'	   => "$d \$(DEFS)", 			 
     'INC'	   => $i,     			 
-    'MAN3PODS'     => { 'Embperl.pod' => 'Embperl' }, 
-    'clean'        => { FILES => 'dirent.h' },
+    'MAN3PODS'     => { 
+			'Embperl.pod' => 'blib/man3/HTML::Embperl.3',
+			'EmbperlD.pod' => 'blib/man3/HTML::EmbperlD.3'
+			 }, 
+    'clean'        => { FILES => 'dirent.h test/tmp/*' },
     'dist'         => { COMPRESS => 'gzip', SUFFIX => 'gz'},
     'dynamic_lib'  => $dynlib,
 );

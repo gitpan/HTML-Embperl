@@ -1,5 +1,5 @@
 ;; embperl-minor-mode -- Embedded Perl mode for XEmacs.
-;;
+;; 
 ;; Copyright (C) 1998-1999 Erik L. Arneson
 ;;
 ;; This program is free software; you can redistribute it and/or modify

@@ -25,8 +25,24 @@ I'll also make sure to keep you updated if anything changes.
 Thank you very much for including this!  I think it'll make a lot of
 Embperl coders very happy.  :)
 
--- 
-# Erik Arneson       erik@mind.net       Network Engineer #
-# Infostructure   http://www.mind.net/     (541) 488-1962 #
-# "My brain is my second favorite organ."  -- Woody Allen #
+----------------- 
 
+By the way, I've discovered a much better solution for writing Embperl
+files in Emacs/XEmacs. 
+
+Here's the amount of documentation I've got right now.
+
+They need to get mmm.el from this URL:
+             <URL:http://members.tripod.com/gchen2/xemacs/>
+
+Then download my mmm-embperl.el from this one:
+         <URL:http://inanna.starseed.com/~erik/mmm-embperl.el>
+
+The documentation for using these is included in those two elisp files.
+
+This is a lot better in some respects than my embperl.el code, I think.
+
+-- 
+# Erik Arneson      erik@starseed.com    Webring Software Engineer #
+# Yahoo! Inc.      PGP ID: 2048/84413E19        (541) 482-3000x114 #
+# "There's such a fine line between stupid and clever." Spinal Tap #

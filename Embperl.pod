@@ -105,8 +105,12 @@ Example of Apache C<srm.conf>:
     </Directory>
 
 
-B<NOTE> Out of security reasons, embpexec.pl must not be used anymore as
+B<NOTE 1>: Out of security reasons, embpexec.pl must not be used anymore as
 CGI script!
+
+B<NOTE 2>: CGI Scripts are not so secure. You should consider using L<EMBPERL_ALLOW>
+to restrict the access to the rights documents.
+
 
 =head2 From mod_perl (Apache httpd)
 
@@ -157,6 +161,9 @@ does in Apache 1.2.x, you need to use <FilesMatch> instead.
 See the section L<"EMBPERL_DEBUG"> (dbgLogLink and EMBPERL_VIRTLOG) to find
 out how you can configure Embperl so you can view the log file with
 your browser!
+
+B<NOTE>: When mod_perl is compiled as loadable module (i.e. with USE_DSO) you
+B<must not> load Embperl at server startup time! 
 
 
 =head2 By calling HTML::Embperl::Execute (\%param)
@@ -358,6 +365,11 @@ Same as L<"EMBPERL_COOKIE_DOMAIN"> (see below).
 
 Same as L<"EMBPERL_COOKIE_EXPIRES"> (see below).
 
+=item B<errors>
+
+Takes a reference to an array. Upon return the array will contain a copy of
+all errormessages, as long as there are any.
+
 
 =back
 
@@ -453,7 +465,7 @@ under mod_perl.
  # Only files which end with .htm will processed by Embperl
  PerlSetEnv EMBPERL_FILESMATCH \.htm$
 
-=head2 EMBPERL_ALLOW
+=head2 EMBPERL_ALLOW (only 1.2b10 and above)
 
 If specified, only files which match the given B<perl regular expression> will be
 processed by Embperl, all other files will return FORBIDDEN.
@@ -1412,7 +1424,7 @@ example.)
 The C<TEXTAREA> tag is treated exactly like other input fields.
 
 
-=item B<META HTTP-EQUIV= ...>
+=item B<META HTTP-EQUIV=>
 
 <meta http-equiv= ... > will over-ride the corresponding http header.
 This keeps Netscape from asking the user to reload the document
@@ -1551,14 +1563,17 @@ When you have installed CGI.pm 2.46 or above you may also retrieve the
 filename (local filename, as it was on the browser side) and the informations
 provied by the CGI.pm uploadInfo function. To get the filename just print out
 the value of the correspondig %fdat entry, instead of using it as a filehandle.
-To get the uploadInfo you must two times dereference it.
+To get the B<uploadInfo> use the fieldname with a dash in front of it:
 
   Example:
 
+  # ImageName is the NAME of the field, you must replace it with whatever 
+  # name is given in your HTML code
   Filename:      [+ $fdat{ImageName} +] <br>
-  Content-Type:  [+ ${${$fdat{ImageName}}} -> {'Content-Type'} +] <br>
+  Content-Type:  [+ $fdat{-ImageName} -> {'Content-Type'} +] <br>
 
-
+B<NOTE:> The way B<uploadInfos> are accessed before 1.2b11 are not supported
+anymore.
 
 =head2 @ffld
 
@@ -1716,14 +1731,14 @@ to pass parameters to an Embperl document and back. (see
 L<Execute|"By calling HTML::Embperl::Execut">
 for further docs)
 
-=head2 %http_headers_out
+=head2 %http_headers_out (only 1.2b10 and above)
 
 You can put any http headers you want to send into this hash. If you set an location header
 Embperl will automaticly set the status to 301 (Redirect). Example:
 
   [- $http_headers_out{'Location'} = "http://www.ecos.de/embperl/" -]
 
-see also L<META HTTP-EQUIV= ...>
+see also META HTTP-EQUIV=
 
 =head2 $optXXX $dbgXXX
 
@@ -1780,60 +1795,48 @@ up some variables, by adding them to this hash, with a values of zero.
 
 =head1 Session handling
 
-From 1.2b1 and higher Embperl is able to handle per user sessions for you. You can store any data
-in the L<%udat> hash and if the same user request again an Embperl document, you will see the same 
-values in that hash again. (see B<IMPORTANT NOTE:> below for using DBI as storage)
+From 1.2b1 and higher Embperl is able to handle per user sessions for you. You
+can store any data in the L<%udat> hash and if the same user request again an
+Embperl document, you will see the same values in that hash again. 
 
-From 1.2b2 and higher Embperl is able to handle per module/page persitent data for you. You can store any data
-in the L<%mdat> hash and if any request comes to the same Embperl document, you will see the same 
-values in that hash again. (see B<IMPORTANT NOTE:> below for %mdat storage)
+From 1.2b2 and higher Embperl is able to handle per module/page persitent data
+for you. You can store any data in the L<%mdat> hash and if any request comes
+to the same Embperl document, you will see the same values in that hash again. 
 
-To configure Embperl to do session management for you, you must
-have installed Apache::Session (1.04 or higher) and
-loaded Apache::Session::Embperl before you load Embperl and you must tell Embperl which
+To configure I<Embperl> to do session management for you, you must
+have installed I<Apache::Session> (B<1.00 or higher>) and tell Embperl which
 storage and locker classes you would like to use for
-Apache::Session, by setting the environement variable EMBPERL_SESSION_CLASSES.
+I<Apache::Session>. This is done by setting the environement variable 
+C<EMBPERL_SESSION_CLASSES>.
 You may have a B<startup.pl> for your httpd which looks like this:
 
- $ENV{EMBPERL_SESSION_CLASSES} = "DBIStore SysVSemaphoreLocker" ;
- $ENV{EMBPERL_SESSION_ARGS}    = "DataSource=dbi:mysql:session UserName=test" ;
- use Apache::Session::Embperl ;
+ BEGIN
+    {
+    $ENV{EMBPERL_SESSION_CLASSES} = "DBIStore SysVSemaphoreLocker" ;
+    $ENV{EMBPERL_SESSION_ARGS}    = "DataSource=dbi:mysql:session UserName=test" ;
+    } ;
+
  use HTML::Embperl ;
 
-or put it in the httpd/srm.conf like this
+For B<Solaris> it's neccessary to set the C<nsems> Argument if you use SysVSemaphoreLocker
+
+ $Apache::Session::SysVSemaphoreLocker::nsems = 16;
+
+You may also put this in the httpd/srm.conf:
 
  PerlSetEnv EMBPERL_SESSION_CLASSES "DBIStore SysVSemaphoreLocker"
  PerlSetEnv EMBPERL_SESSION_ARGS "DataSource=dbi:mysql:session UserName=test"
- PerlModule Apache::Session::Embperl ;
  PerlModule HTML::Embperl ;
 
 
 C<EMBPERL_SESSION_ARGS> is a space separated list of name/value pairs, which gives
 additional arguments for Apache::Session classes.
 
-Older versions of I<Embperl> need I<Apache::Session> 0.17. You can use it like
-the following, 
-B<but you should as soon as possible upgrade to newer Apache::Session an Embperl version>:
-
-
- $ENV{SESSION_FILE_DIRECTORY}='/tmp/sessions' ;
- $ENV{EMBPERL_SESSION_CLASS}='File' ;
- use Apache::Session::File ;
- use HTML::Embperl ;
-
- 1 ;
-
-or put it in the httpd/srm.conf like this
-
- PerlSetEnv SESSION_FILE_DIRECTORY /tmp/sessions
- PerlSetEnv EMBPERL_SESSION_CLASS  File
- PerlModule Apache::Session::File 
- PerlModule HTML::Embperl 
-
-
-NOTE 1: You can use all the environement variables recognized by Apache::Session to configure it.
-
-NOTE 2: Do not use SetEnv, use PerlSetEnv instead in your httpd/srm.conf
+B<NOTE:> The above configuration works only with I<Embperl> 1.2b11 or above. The way
+I<Apache::Session> was used in earlier versions still works, but I have removed the
+documentation to avoid confusion. Changes are, that you don't need to load
+I<Apache::Session> anymore on your own and that I<Apache::Session 1.00> takes
+totaly different arguments then I<Apache::Session 0.17>.
 
 Now you are able to use the %udat and %mdat hashs for your user/module sessions. As long as you
 don't touch %udat or %mdat
@@ -1843,32 +1846,6 @@ it's id, while the data is stored by Apache::Session. (Further version may also 
 URL rewriting for storing the id).
 When you store data to %mdat Embperl will store the data via Apache::Session and retrieves it
 when the next request comes to the same page.
-
-
-B<IMPORTANT NOTE for DBI and %mdat usage and Apache::Session B<0.17> B<not> valid for 1.01!:> The
-storage of %mdat requires a proper serialization of the access.
-Apache::Session (version 0.17) is not able to provide this. While this is no problem when using the
-Apache::Session::Win32
-as storage class, this will be a problem for all other storage medias. The Embperl distribution comes with
-a patch for that purpose. This works only for Apache::Session::DBI, so if you like to use %mdat, currently
-you can only do so when using Apache::Session::Win32 or Apache::Session::DBI as storage class.
-
-To use B<Apache::Session::DBI> together with Embperl you need to use B<Apache::Session::epDBI> (which comes
-with Embperl) instead. Apache::Session::epDBI has two enhancements over standard Apache::Session::DBI.
-1.) It serialzies all requests. 2.) It corrects a problems which will lead locks to not releases with
-normal Apache::Session::DBI. So your configuration for storing session data via DBI might look like the
-following:
-
-
- PerlSetEnv SESSION_DBI_DATASOURCE dbi:mysql:session
- PerlSetEnv EMBPERL_SESSION_CLASS  epDBI
- PerlModule Apache::Session::epDBI 
- PerlModule HTML::Embperl 
-
-
-While usage of B<Apache::Session::File> works ok for the %udat storage, it does B<not> work for the %mdat
-storage, because of the not working locking and serialization. 
-
 
 =head1 (Safe-)Namespaces and opcode restrictions
 
@@ -2332,6 +2309,8 @@ B<dbgCacheDisable> in a production environment.  More debugging
 options are useful for development where it doesn't matter if the
 request takes a little bit longer, but on a heavily-loaded server they
 should be disabled.
+Addtionaly the options L<optDisableChdir>, L<optDisableHtmlScan>,
+L<optDisableCleanup> have consequences for the performance.
 
 Also take a look at B<mod_perl_tuning.pod> for general ideas about
 performance.

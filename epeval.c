@@ -199,7 +199,7 @@ static int EvalAllNoCache (/*i/o*/ register req * r,
     
     pSVArg = sv_2mortal(newSVpv((char *)sArg, strlen (sArg))) ;
 
-    /*num = perl_eval_sv (pSVArg, G_SCALAR) ; /* call the function             */ */
+    /*num = perl_eval_sv (pSVArg, G_SCALAR) ; / * call the function             */ */
     num = perl_eval_sv (pSVArg, G_DISCARD) ; /* call the function             */
     num = 0 ;
 #endif    
@@ -306,10 +306,8 @@ static int CallCV  (/*i/o*/ register req * r,
     int   nCountUsed = r -> TableStack.State.nCountUsed ;
     int   nRowUsed   = r -> TableStack.State.nRowUsed ;
     int   nColUsed   = r -> TableStack.State.nColUsed ;
-    int   bDynTab    = 0 ;
     SV *  pSVErr ;
 
-    SV *  pSVArg ;
     dSP;                            /* initialize stack pointer      */
 
     EPENTRY (CallCV) ;
@@ -407,7 +405,7 @@ static int CallCV  (/*i/o*/ register req * r,
  	     * When we get this return, we'll just give up and quit this file completely,
  	     * without error. */
              
-	    struct magic * m = SvMAGIC (pSVErr) ;
+	    /*struct magic * m = SvMAGIC (pSVErr) ;*/
 
 	    sv_unmagic(pSVErr,'U');
 	    sv_setpv(pSVErr,"");
@@ -584,7 +582,6 @@ int Eval (/*i/o*/ register req * r,
 
 
     {
-    int     rc ;
     SV **   ppSV ;
     
     
@@ -637,7 +634,6 @@ int EvalTransFlags (/*i/o*/ register req * r,
 
 
     {
-    int     rc ;
     SV **   ppSV ;
     
     EPENTRY (EvalTrans) ;
@@ -711,7 +707,6 @@ int EvalTransOnFirstCall (/*i/o*/ register req * r,
 
 
     {
-    int     rc ;
     SV **   ppSV ;
     
     EPENTRY (EvalTrans) ;
@@ -766,8 +761,6 @@ int EvalSub (/*i/o*/ register req * r,
     {
     int     rc ;
     SV **   ppSV ;
-    GV *    gv ;
-    GV**    gvp ;
     
     
     EPENTRY (EvalSub) ;

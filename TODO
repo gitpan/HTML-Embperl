@@ -14,25 +14,29 @@ Features
 
 - used named subroutines for debugging [Ert Dredge]
 
-- EMBPERL_VERSION [Christian Gilmore]
-
 - use ap_r.. instead of ap_b... ?
 
 - Remove space at the start and end of the line [Dirk Lutzebaeck]
 
 - gzip output [Andreas Koenig]
 
-- Make EMBPERL_FILEMATCH work with CGI [Jason Holt 20.7.99]
- 
-- Make @erros visible from outside [James Elson 21.07.99]
-
 - custom html tags
 
-- url rewrting for session id
+- url rewriting for session id
 
-- disableHTMLSCann inside <script>
+- disableHTMLScan inside <script>
+
+- optKeepSpaces in <pre>
 
 - BEGIN/END Blocks [Jason Bodnar 6.10.99]
+
+- MailFormTo Debug, sender addr
+
+- return value from sub
+
+- build with perl > 5.005_61
+
+- remove \n in perl code? when and how?
 
 Test
 ----
@@ -40,14 +44,10 @@ Test
 
 - check permissions of test/html
 
-- remove SSLDisable for mod_ssl >= 2.1 [Roman Maeder]
-
 - not_found cgi test on win32
 
 Bugs
 ----
-- NOT_FOUND -> Apache::Constants ?
-
 - Embperl version number [Eric CHOLET]
 
 - errorright output
@@ -62,25 +62,21 @@ Bugs
 
 - norm path before chdir on win32
 
-- remove CR's from test files
-
 - requrie in [!  !] Blocks? [Jens Alm 22.9.99]
 
-- warnings [Oyvind Gjerstad 23.9.99]
 
 Docs
 ----
-- spawn -> span
-
 - [- -] [+ +] etc all turns into _perl_code_ in html [S Page 13.9.99]
 
-- $tabmode
-
-- new emacs files [Eric Arneson 20.9.99]
-
-- exit NOTE 1,2
+*- Performance
+*- HTML::Embperl::Session
+*- 'errors' parameter
+*- uploadInfo
 
 1.3
 ---
 
 - restrict number of iterations in search
+
+- make [+ +] configurable [ Christian Gilmore 16.10.99]

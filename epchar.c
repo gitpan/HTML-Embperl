@@ -19,7 +19,7 @@
 
 
 /*
-/* Character Translation
+* Character Translation
 */
 
 
@@ -193,10 +193,10 @@ struct tCharTrans Char2Html [] =
         { '£' ,   "&pound;"  },    /* 	Pound sterling  */
         { '¤' ,   "&curren;" },    /* 	General currency sign  */
         { '¥' ,   "&yen;"    },    /* 	Yen sign  */
-/*        { '¦' ,   "&brvbar;" },    /*  	Broken vertical bar  */
+/*        { '¦' ,   "&brvbar;" },    / *  	Broken vertical bar  */
         { '¦' ,   "&brkbar;" },    /* 	Broken vertical bar  */
         { '§' ,   "&sect;"  },    /* 	Section sign  */
-/*        { '¨' ,   "&&um;"    },    /*  	Diæresis / Umlaut  */
+/*        { '¨' ,   "&&um;"    },    / *  	Diæresis / Umlaut  */
         { '¨' ,   "&die;"   },    /* 	Diæresis / Umlaut  */
         { '©' ,   "&copy;"  },    /* 	Copyright               */
         { 'ª' ,   "&ordf;"  },    /* 	Feminine ordinal  */
@@ -204,7 +204,7 @@ struct tCharTrans Char2Html [] =
         { '¬' ,   "&not;"   },    /*	Not sign  */
         { '­' ,   "&shy;"    },    /* 	Soft hyphen  */
         { '®' ,   "&reg;"    },    /* 	Registered trademark  */
-/*        { '¯' ,   "&macr;"   },    /*  	Macron accent  */
+/*        { '¯' ,   "&macr;"   },    / *  	Macron accent  */
         { '¯' ,   "&hibar;"  },    /* 	Macron accent  */
         { '°' ,   "&deg;"    },    /* 	Degree sign  */
         { '±' ,   "&plusmn;" },    /* 	Plus or minus  */

@@ -76,7 +76,7 @@ use vars qw(
 @ISA = qw(Exporter DynaLoader);
 
 
-$VERSION = '1.2b10';
+$VERSION = '1.2b11';
 
 
 # HTML::Embperl cannot be bootstrapped in nonlazy mode except
@@ -340,69 +340,63 @@ $cwd       = Cwd::fastcwd();
 tie *LOG, 'HTML::Embperl::Log' ;
 tie *OUT, 'HTML::Embperl::Out' ;
 
-#use Apache::Session ;
-#use Apache::Session::Win32 ;
+# ----------------------------------------------------------------------------
+#
+# Setup Sessionhandling
+#
 
 $SessionMgnt = 0 ;
-if (exists $INC{'Apache/Session.pm'})
-    {
-    if (defined (&Apache::Session::Embperl::cleanup) || defined (&Apache::Session::cleanup))
-	{ # Apache::Session > 1.02
-	my ($os, $lm) = split /\s*,\s*|\s+/, $ENV{EMBPERL_SESSION_CLASSES} ;
-        if (!$os || !$lm)
-            {
-            warn "[$$]SES:  EMBPERL_SESSION_CLASSES must be set properly (is $ENV{EMBPERL_SESSION_CLASSES})" ;
-            }
-        else
-            {
-	    my @args  ;
-            if (defined ($ENV{EMBPERL_SESSION_ARGS}))
-                {
-		my @arglist = split /\s+/, $ENV{EMBPERL_SESSION_ARGS} ;
-		foreach (@arglist)
-		    {
-		    /^(.*?)\s*=\s*(.*?)$/ ;
-		    push @args, $1 ;
-		    push @args, $2 ;
-		    }
-                }
-
-            my %sargs = (
-	        @args,
-                lazy	   => 1,
-	        create_unknown => 1,
-	        object_store   => $os,
-	        lock_manager   => $lm
-	        ) ;
-
-            if (defined (&Apache::Session::Embperl::cleanup))
-                {
-	        tie %udat, 'Apache::Session::Embperl', undef, \%sargs ;
-	        tie %mdat, 'Apache::Session::Embperl', undef, \%sargs ;
-                }
-            else
-                {
-	        tie %udat, 'Apache::Session', undef, \%sargs ;
-	        tie %mdat, 'Apache::Session', undef, \%sargs ;
-                }
-	    $SessionMgnt = 2 ;
-	    warn "[$$]SES:  Embperl Session management enabled (1.xx)\n" if ($ENV{MOD_PERL}) ;
-            }
-	}
+if (defined ($ENV{EMBPERL_SESSION_CLASSES}))
+    { # Apache::Session 1.xx
+    my ($os, $lm) = split /\s*,\s*|\s+/, $ENV{EMBPERL_SESSION_CLASSES} ;
+    if (!$os || !$lm)
+        {
+        warn "[$$]SES:  EMBPERL_SESSION_CLASSES must be set properly (is $ENV{EMBPERL_SESSION_CLASSES})" ;
+        }
     else
-	{ 
-        if ($Apache::Session::VERSION =~ /^0\.17/)
+        {
+	my @args  ;
+        if (defined ($ENV{EMBPERL_SESSION_ARGS}))
             {
-            # Apache::Session = 0.17
-	    $SessionMgnt = 1 ;
-	    tie %udat, 'Apache::Session', $ENV{EMBPERL_SESSION_CLASS} || 'Win32',
-		          undef, {not_lazy=>0, autocommit=>0, lifetime=>&Apache::Session::LIFETIME} ;
-	    tie %mdat, 'Apache::Session', $ENV{EMBPERL_SESSION_CLASS} || 'Win32',
-		          undef, {not_lazy=>0, autocommit=>0, lifetime=>&Apache::Session::LIFETIME} ;
-	    warn "[$$]SES:  Embperl Session management enabled (0.17)\n" ;
+	    my @arglist = split /\s+/, $ENV{EMBPERL_SESSION_ARGS} ;
+	    foreach (@arglist)
+		{
+		/^(.*?)\s*=\s*(.*?)$/ ;
+		push @args, $1 ;
+		push @args, $2 ;
+		}
             }
-	}
-   }
+
+        my %sargs = (
+	    @args,
+            lazy	   => 1,
+	    create_unknown => 1,
+	    object_store   => $os,
+	    lock_manager   => $lm
+	    ) ;
+
+        require HTML::Embperl::Session ; 
+
+	tie %udat, 'HTML::Embperl::Session', undef, \%sargs ;
+	tie %mdat, 'HTML::Embperl::Session', undef, \%sargs ;
+	$SessionMgnt = 2 ;
+	warn "[$$]SES:  Embperl Session management enabled (1.xx)\n" if ($ENV{MOD_PERL}) ;
+        }
+    }
+elsif (exists $INC{'Apache/Session.pm'})
+    {
+    if ($Apache::Session::VERSION =~ /^0\.17/)
+        {
+        # Apache::Session = 0.17
+	$SessionMgnt = 1 ;
+	tie %udat, 'Apache::Session', $ENV{EMBPERL_SESSION_CLASS} || 'Win32',
+		      undef, {not_lazy=>0, autocommit=>0, lifetime=>&Apache::Session::LIFETIME} ;
+	tie %mdat, 'Apache::Session', $ENV{EMBPERL_SESSION_CLASS} || 'Win32',
+		      undef, {not_lazy=>0, autocommit=>0, lifetime=>&Apache::Session::LIFETIME} ;
+	warn "[$$]SES:  Embperl Session management enabled (0.17)\n" ;
+        }
+    }
+
 #######################################################################################
 
 #no strict ;
@@ -565,25 +559,25 @@ sub CheckFile
 
     if (-d $filename)
         {
-	#logerror (rcIsDir, $filename);
+	#logerror (rcIsDir, $filename, $req_rec);
 	return &DECLINED ; # let Apache handle directories
 	}                 
 
     if (defined ($allow) && !($filename =~ /$allow/))
         {
-	logerror (rcNotAllowed, $filename);
+	logerror (rcNotAllowed, $filename, $req_rec);
 	return &FORBIDDEN ;
  	}
 	
     unless (-r _ && (-s _ || $AllowZeroFilesize))
         {
-	logerror (rcNotFound, $filename);
+	logerror (rcNotFound, $filename, $req_rec);
 	return &NOT_FOUND ;
         }
 
     if (defined ($req_rec) && !($req_rec->allow_options & &OPT_EXECCGI))
         {
-	logerror (rcExecCGIMissing, $filename);
+	logerror (rcExecCGIMissing, $filename, $req_rec);
 	return &FORBIDDEN ;
  	}
 	
@@ -712,7 +706,7 @@ use strict ;
             if ($@) 
                 {
                 $rc = 500 ;
-                logerror (rcCallInputFuncFailed, $@) ;
+                logerror (rcCallInputFuncFailed, $@, $req_rec) ;
                 }
 
             return $rc ;
@@ -798,9 +792,9 @@ use strict ;
 		print LOG "[$$]FORM: $_=$fdat{$_}\n" if ($dbgForm) ; 
 
 		if (ref($fdat{$_}) eq 'Fh') 
-			{
-			${${$fdat{$_}}} = $cgi -> uploadInfo($fdat{$_}) ;
-			}
+		    {
+		    $fdat{"-$_"} = $cgi -> uploadInfo($fdat{$_}) ;
+		    }
 		}
 
 	    }
@@ -952,6 +946,8 @@ use strict ;
 
 	$rc = $r -> Error?500:0 ;
 	}
+
+    @{$req -> {errors}} = @{$r -> ErrArray()} if (ref ($req -> {errors}) eq 'ARRAY')  ;
 
     $r -> FreeRequest () ;
     
@@ -1577,7 +1573,11 @@ sub CreateAliases
         *{"$package\:\:optUndefToEmptyValue"}           = \$HTML::Embperl::optUndefToEmptyValue ;
         *{"$package\:\:optNoHiddenEmptyValue"}          = \$HTML::Embperl::optNoHiddenEmptyValue ;
         *{"$package\:\:optAllowZeroFilesize"}           = \$HTML::Embperl::optAllowZeroFilesize ;
- 
+        *{"$package\:\:optKeepSrcInMemory"}             = \$HTML::Embperl::optKeepSrcInMemory ;
+        *{"$package\:\:optKeepSpaces"}                  = \$HTML::Embperl::optKeepSpaces ;
+        *{"$package\:\:optOpenLogEarly"}                = \$HTML::Embperl::optOpenLogEarly ;
+        *{"$package\:\:optNoUncloseWarn"}               = \$HTML::Embperl::optNoUncloseWarn ;
+
 
         *{"$package\:\:dbgAllCmds"}               = \$HTML::Embperl::dbgAllCmds           ;
         *{"$package\:\:dbgCacheDisable"}          = \$HTML::Embperl::dbgCacheDisable      ;

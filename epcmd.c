@@ -165,7 +165,6 @@ int SearchCmd (/*i/o*/ register req * r,
 
     {
     struct tCmd *  pCmd ;
-    int            rc ;
     char           sCmdLwr [64] ;
     char *         p ;
     int            i ;
@@ -456,8 +455,8 @@ static int CmdEndif (/*i/o*/ register req * r,
 /*                                                                              */
 /* ---------------------------------------------------------------------------- */
 
-int CmdWhile (/*i/o*/ register req * r,
-			/*in*/ const char *   sArg)
+static int CmdWhile (/*i/o*/ register req * r,
+ 		     /*in*/ const char *   sArg)
     {
     int rc ;
     
@@ -517,7 +516,7 @@ static int CmdEndwhile (/*i/o*/ register req * r,
 /*                                                                              */
 /* ---------------------------------------------------------------------------- */
 
-int CmdDo (/*i/o*/ register req * r,
+static int CmdDo       (/*i/o*/ register req * r,
 			/*in*/ const char *   sArg)
     {
     EPENTRY (CmdDo) ;
@@ -563,8 +562,8 @@ static int CmdUntil (/*i/o*/ register req * r,
 /*                                                                              */
 /* ---------------------------------------------------------------------------- */
 
-int CmdForeach (/*i/o*/ register req * r,
-			/*in*/ const char *   sArg)
+static int CmdForeach (/*i/o*/ register req * r,
+		       /*in*/ const char *   sArg)
     {
     int rc ;
     char *  sArgs ;
@@ -736,7 +735,7 @@ static int CmdHidden (/*i/o*/ register req * r,
         sVar[sizeof(sVar) - 1] = '\0' ;
         nMax = sizeof(sVar) - r -> Buf.nEvalPackage - 3 ;
         
-        if (sVarName = strtok (sArgs, ", \t\n"))
+        if ((sVarName = strtok (sArgs, ", \t\n")))
             {
             if (*sVarName == '%')
                 sVarName++ ;
@@ -750,7 +749,7 @@ static int CmdHidden (/*i/o*/ register req * r,
                 return rcHashError ;
                 }
 
-            if (sVarName = strtok (NULL, ", \t\n"))
+            if ((sVarName = strtok (NULL, ", \t\n")))
                 {
                 if (*sVarName == '%')
                     sVarName++ ;
@@ -764,7 +763,7 @@ static int CmdHidden (/*i/o*/ register req * r,
                     return rcHashError ;
                     }
 
-                if (sVarName = strtok (NULL, ", \t\n"))
+                if ((sVarName = strtok (NULL, ", \t\n")))
                     {
                     if (*sVarName == '@')
                         sVarName++ ;
@@ -812,7 +811,7 @@ static int CmdHidden (/*i/o*/ register req * r,
     else
         {
         hv_iterinit (pAddHash) ;
-        while (pEntry = hv_iternext (pAddHash))
+        while ((pEntry = hv_iternext (pAddHash)))
             {
             pKey = hv_iterkey (pEntry, &l) ;
             if (!hv_exists (pSubHash, pKey, strlen (pKey)))
@@ -849,8 +848,6 @@ static int CmdVar (/*i/o*/ register req * r,
 
     {
     int    rc ;
-    char * pVarName ;
-    void * p ;
     SV **  ppSV ;
     int    nFilepos = (sArg - r -> Buf.pBuf) ;
     SV *   pSV ;
@@ -888,7 +885,7 @@ static int CmdVar (/*i/o*/ register req * r,
 /*                                                                              */
 /* ---------------------------------------------------------------------------- */
 
-int CmdSub           (/*i/o*/ register req * r,
+static int CmdSub    (/*i/o*/ register req * r,
 		      /*in*/ const char *   sArg)
     {
     int	nSubPos = r -> Buf.pCurrPos - r -> Buf.pBuf ;
@@ -954,8 +951,6 @@ static int HtmlMeta (/*i/o*/ register req * r,
     char *  pContent ;
     int     tlen ;
     int     clen ;
-    char    tsav ;
-    char    csav ;
     
     
     EPENTRY (HtmlMeta) ;
@@ -992,9 +987,6 @@ static int HtmlMeta (/*i/o*/ register req * r,
 static int HtmlBody (/*i/o*/ register req * r,
 			/*in*/ const char *   sArg)
     {
-    SV * pSV ;
-
-    
     EPENTRY (HtmlBody) ;
 
     if ((r -> bDebug & dbgLogLink) == 0)
@@ -1022,7 +1014,7 @@ static int HtmlBody (/*i/o*/ register req * r,
             }
         
         sprintf (pid, "%d", r -> nPid) ;
-        sprintf (fp, "%d", r -> nLogFileStartPos) ;
+        sprintf (fp, "%ld", r -> nLogFileStartPos) ;
         
         oputs (r, "<A HREF=\"") ;
         oputs (r, r -> pConf -> sVirtLogURI) ;    
@@ -1380,7 +1372,7 @@ static int HtmlRow (/*i/o*/ register req * r,
 /*                                                                              */
 /* ---------------------------------------------------------------------------- */
 
-int HtmlEndrow (/*i/o*/ register req * r,
+static int HtmlEndrow  (/*i/o*/ register req * r,
 			/*in*/ const char *   sArg)
     {
     EPENTRY (HtmlEndrow) ;
@@ -1479,10 +1471,9 @@ static SV * SplitFdat     (/*i/o*/ register req * r,
     pData = SvPV (*ppSVfdat, dlen) ;
     s = pData ;
 
-    if (p = strchr (s, r -> pConf -> cMultFieldSep))
+    if ((p = strchr (s, r -> pConf -> cMultFieldSep)))
         { /* Multiple values -> put them into a hash */
         HV * pHV = newHV () ;
-        SV * pSV ;
         int l ;
 
         while (p)
@@ -1568,10 +1559,8 @@ static int HtmlSelect (/*i/o*/ register req * r,
 static int HtmlOption (/*i/o*/ register req * r,
 			/*in*/ const char *   sArg)
     {
-    int           rc ;
     const char *  pVal ;
     const char *  pSelected ;
-    int           nlen ;
     STRLEN        vlen ;
     int           slen ;
     char *        pName ;
@@ -1691,9 +1680,7 @@ static int HtmlInput (/*i/o*/ register req * r,
     SV **         ppSV ;
     char          sName [256] ;
     int           bCheck ;
-    int           bEqual ;
-    SV *          pRet ;
-    int           rc ;
+    int           bEqual = 0 ;
 
     EPENTRY (HtmlInput) ;
 
@@ -1888,7 +1875,6 @@ static int HtmlEndtextarea (/*i/o*/ register req * r,
     int           nlen ;
     int           vlen ;
     STRLEN        dlen ;
-    int           clen ;
     SV *          pSV ;
     SV **         ppSV ;
     char          sName [256] ;

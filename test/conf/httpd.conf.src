@@ -6,15 +6,26 @@ print OFH <<EOD ;
 ServerRoot $EPPATH/test
 ServerName localhost
 DocumentRoot $EPPATH/test
+Port $EPPORT
+EOD
+
+if ($^O ne 'MSWin32')
+	{
+print OFH <<EOD ;
+
 User $EPUSER
 Group $EPGROUP
-Port $EPPORT
 
 MinSpareServers 1
 MaxSpareServers 2
 StartServers 2
 MaxClients 2
 MaxRequestsPerChild 0
+
+EOD
+    }
+
+print OFH <<EOD ;
 
 $EPMODPERL
 
@@ -33,14 +44,29 @@ SetEnv EMBPERL_DEBUG $EPDEBUG
 SetEnv EMBPERL_VIRTLOG /embperl/log
 PerlSetEnv EMBPERL_LOG $EPPATH/test/tmp/test.log
 SetEnv EMBPERL_LOG $EPPATH/test/tmp/test.log
+EOD
+if ($EPSESSIONVERSION)
+	{
+print OFH <<EOD ;
+
 PerlSetEnv EMBPERL_SESSION_CLASS $EPSESSIONCLASS
 SetEnv EMBPERL_SESSION_CLASS $EPSESSIONCLASS
 PerlSetEnv SESSION_FILE_DIRECTORY $EPPATH/test/tmp
 PerlSetEnv SESSION_DBI_DATASOURCE $EPSESSIONDS
+EOD
+	}
+
+if ($EPSESSIONVERSION && $EPSESSIONVERSION >= 1)
+	{
+print OFH <<EOD ;
+
 PerlSetEnv EMBPERL_SESSION_CLASSES "FileStore NullLocker"
 PerlSetEnv EMBPERL_SESSION_ARGS "Directory=$EPPATH/test/tmp"
 SetEnv EMBPERL_SESSION_CLASSES "FileStore NullLocker"
 SetEnv EMBPERL_SESSION_ARGS "Directory=$EPPATH/test/tmp"
+EOD
+	}
+print OFH <<EOD ;
 
 SetEnv EMBPERL_ALLOW asc|\\.htm\$
 
@@ -115,7 +141,10 @@ PerlSetEnv EMBPERL_OPTIONS 64
 SetHandler perl-script
 PerlHandler HTML::Embperl
 Options ExecCGI
-PerlSetEnv EMBPERL_OPTIONS 16384
+#PerlSetEnv EMBPERL_OPTIONS 16384
+PerlSetEnv EMBPERL_OPTIONS 16400
+PerlSetEnv EMBPERL_ESCMODE 0
+PerlSetupEnv Off
 </Location>
 
 <Location /embperl/allform>
@@ -258,7 +287,7 @@ SSLDisable
 
 EOD
 
-if (!$EPSTRONGHOLDKEY)
+if (!$EPSTRONGHOLDKEY && $EPSSLDISABLE)
     {
 print OFH <<EOD ;
 <IfModule mod_ssl.c>

@@ -1199,8 +1199,13 @@ browser, which may display a "?" instead, because it is using the wrong
 character set.
 
 If you want to use the escaping features of Embperl in this case, you have
-to adapt the file epchar.c to your character set. This file contains three
-tables:
+to adapt the file C<epchar.c> to your character set.
+
+The distribution contain already an C<epchar.c.iso-latin-2> from Jiri Novak which
+is an replacement for epchar.c for the iso-8859-2 (iso-latin-2) character set.
+If you want to use iso-latin-2, simply renmae C<epchar.c.iso-latin-2> to C<epchar.c>.
+
+This file contains three tables:
 
 Char2Html []   Convert characters to html escape
 

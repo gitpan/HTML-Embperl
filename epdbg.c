@@ -30,14 +30,14 @@ static char sDebugGlobName [] = "main::_<%s" ;
 int SetupDebugger (/*i/o*/ register req * r)
 
     {
-    HV * pDebugHash ;
+    /*HV * pDebugHash ;*/
     AV * pDebugArray ;
     SV * sDebugNameSV = newSVpvf (sDebugGlobName, r -> Buf.pFile -> sSourcefile) ;
     char * p ;
     char * end ;
     int	 i ;
     STRLEN n ;
-    GV * tmpgv ;
+    /*GV * tmpgv ;*/
     /*
     if ((pDebugHash = perl_get_hv (SvPV (sDebugNameSV, n), TRUE)) == NULL)
         {

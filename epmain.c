@@ -34,9 +34,6 @@ static char sModHashName  []  = "HTML::Embperl::mdat" ;
 static char sFormSplitHashName [] = "HTML::Embperl::fsplitdat" ;
 static char sFormArrayName [] = "HTML::Embperl::ffld" ;
 static char sInputHashName [] = "HTML::Embperl::idat" ;
-static char sErrArrayName  [] = "HTML::Embperl::errors" ;
-static char sErrFillName   [] = "HTML::Embperl::errfill" ;
-static char sErrStateName  [] = "HTML::Embperl::errstate" ;
 static char sHeaderHashName  [] = "HTML::Embperl::http_headers_out" ;
 static char sTabCountName  [] = "HTML::Embperl::cnt" ;
 static char sTabRowName    [] = "HTML::Embperl::row" ;
@@ -47,9 +44,6 @@ static char sTabModeName   [] = "HTML::Embperl::tabmode" ;
 static char sEscModeName   [] = "HTML::Embperl::escmode" ;
 
 
-static char sOpcodeMaskName[] = "HTML::Embperl::opcodemask" ;
-static char sPackageName[]    = "HTML::Embperl::package" ;
-static char sEvalPackageName[]= "HTML::Embperl::evalpackage" ;
 static char sDefaultPackageName [] = "HTML::Embperl::DOC::_%d" ;
 
 static char sUIDName [] = "_ID" ;
@@ -63,7 +57,6 @@ tReq     InitialReq ;               /* Initial request - holds default values */
 tReq * pCurrReq ;                   /* Set before every eval (NOT thread safe!!) */ 
 
 static HV * pCacheHash ;            /* Hash which holds all cached data (key=>filename, value=>cache hash for file) */
-static AV * pSubArgsAV ;            /* @_ */
 
 /* */
 /* print error */
@@ -151,9 +144,9 @@ char * LogError (/*i/o*/ register req * r,
     if (r -> pApacheReq)
 #ifdef APLOG_ERR
         if (rc != rcPerlWarn)
-            aplog_error (APLOG_MARK, APLOG_ERR | APLOG_NOERRNO, r -> pApacheReq -> server, sText) ;
+            aplog_error (APLOG_MARK, APLOG_ERR | APLOG_NOERRNO, r -> pApacheReq -> server, "%s", sText) ;
         else
-            aplog_error (APLOG_MARK, APLOG_WARNING | APLOG_NOERRNO, r -> pApacheReq -> server, sText) ;
+            aplog_error (APLOG_MARK, APLOG_WARNING | APLOG_NOERRNO, r -> pApacheReq -> server, "%s", sText) ;
 #else
         log_error (sText, r -> pApacheReq -> server) ;
 #endif
@@ -297,7 +290,7 @@ void RollbackError (/*i/o*/ register req * r)
 /* */
 
 void NewEscMode (/*i/o*/ register req * r,
-			SV * pSV)
+			           SV * pSV)
 
     {
     if (r -> nEscMode & escHtml && !r -> bEscInUrl)
@@ -464,7 +457,7 @@ static int GetFormData (/*i/o*/ register req * r,
                     if (pVal > pKey)
                         pVal[-1] = '\0' ;
                     
-                    if (ppSV = hv_fetch (r -> pFormHash, pKey, nKey, 0))
+                    if ((ppSV = hv_fetch (r -> pFormHash, pKey, nKey, 0)))
                         { /* Field exists already -> append separator and field value */
                         sv_catpvn (*ppSV, &r ->  pConf -> cMultFieldSep, 1) ;
                         sv_catpvn (*ppSV, pVal, nVal) ;
@@ -600,7 +593,7 @@ static int GetInputData_CGIProcess (/*i/o*/ register req * r)
 static int GetInputData_CGIScript (/*i/o*/ register req * r)
 
     {
-    char *  p ;
+    char *  p = NULL ;
     char *  f ;
     int     rc = ok ;
     STRLEN  len   = 0 ;
@@ -634,7 +627,7 @@ static int GetInputData_CGIScript (/*i/o*/ register req * r)
         I32    l ;
         
         hv_iterinit (r -> pEnvHash) ;
-        while (pEntry = hv_iternext (r -> pEnvHash))
+        while ((pEntry = hv_iternext (r -> pEnvHash)))
             {
             pKey = hv_iterkey (pEntry, &l) ;
             psv  = hv_iterval (r -> pEnvHash, pEntry) ;
@@ -701,15 +694,12 @@ static int ScanCmdEvals (/*i/o*/ register req * r,
     
     { 
     int     rc ;
-    int     len ;
-    int     n ;
     char *  c ;
     char *  a ;
     char    nType ;
     SV *    pRet ;
     struct tCmd * pCmd ;
     char *  pAfterWS ;
-    char *  pBlank ;
     int     nFilepos = p - r -> Buf.pBuf ;
     SV **   ppSV ;
     AV *    pAV ;
@@ -1031,7 +1021,7 @@ static int ScanHtmlTag (/*i/o*/ register req * r,
     { 
     int  rc ;
     char ec ;
-    char ea ;
+    char ea = 0 ;
     char * pec ;
     char * pea ;
     char * pCmd ;
@@ -1240,16 +1230,7 @@ int Init        (/*in*/ int           _nIOType,
                  /*in*/ int           nDebugDefault)
 
     {
-    int     len ;
-    char *  p ;
-    int     n ;
-    char *  c ;
-    char *  a ;
-    SV **   ppSV ;
     int     rc ;
-    struct stat st ;
-    char    nType ;
-    SV *    pRet ;
 
     req * r = &InitialReq ;
     
@@ -1760,6 +1741,8 @@ static void FreeFileBuf     (/*i/o*/ register req * r,
         if (r -> bDebug)
             lprintf (r, "[%d]MEM: Free buffer for %s in %s\n", r -> nPid,  f -> sSourcefile, f -> sCurrPackage) ;
 	}
+    else if (r -> bDebug && !f -> pBufSV)
+        lprintf (r, "[%d]MEM: Warning! buffer for %s in %s is NULL\n", r -> nPid,  f -> sSourcefile, f -> sCurrPackage) ;
     }
 
 
@@ -1960,8 +1943,6 @@ tReq * SetupRequest (/*in*/ SV *    pApacheReqSV,
         
     if (r -> bDebug)
         {
-        char * p ;
-
         switch (r -> nIOType)
             {
             case epIOMod_Perl: sMode = "mod_perl"; break ;
@@ -2007,6 +1988,7 @@ void FreeRequest (/*i/o*/ register req * r)
     else
         {
         tFile * pFile ;
+        tFile * pNext ;
 
         hv_clear (r -> pHeaderHash) ;
         av_clear (r -> pFormArray) ;
@@ -2014,12 +1996,20 @@ void FreeRequest (/*i/o*/ register req * r)
         hv_clear (r -> pInputHash) ;
         hv_clear (r -> pFormSplitHash) ;
 
-	if (pFile = r -> pFiles2Free)
+	if ((pFile = r -> pFiles2Free))
 	    {
 	    do
+		{
 		FreeFileBuf (r, pFile) ;
-	    while (pFile = pFile -> pNext2Free) ;
+		pNext = pFile -> pNext2Free ;
+		pFile -> pNext2Free = NULL ;
+		}
+	    while (pFile != pNext && (pFile = pNext)) ;
 	    }
+#ifdef APACHE
+	r -> pApacheReq   = NULL ;
+	r -> pApacheReqSV = &sv_undef ;
+#endif
 	}
 
 
@@ -2137,7 +2127,8 @@ static int StartOutput (/*i/o*/ register req * r)
             if (r -> pApacheReq -> main == NULL && (r -> bOptions & optSendHttpHeader))
             	send_http_header (r -> pApacheReq) ;
 #ifndef WIN32
-            mod_perl_sent_header(r -> pApacheReq, 1) ;
+	    /* shouldn't be neccessary for newer mod_perl versions !? */
+	    /* mod_perl_sent_header(r -> pApacheReq, 1) ; */
 #endif
             if (r -> pApacheReq -> header_only)
             	{
@@ -2174,7 +2165,7 @@ static int EndOutput (/*i/o*/ register req * r,
                       
 
     {
-    SV * pOut ;
+    SV * pOut = NULL ;
     int  bOutToMem = SvROK (pOutData) ;
     SV * pCookie = NULL ;
     
@@ -2237,7 +2228,7 @@ static int EndOutput (/*i/o*/ register req * r,
 		{			
 		if (r -> nSessionMgnt == 2)
 		    {			
-		    if (pMG = mg_find((SV *)r -> pUserHash,'P'))
+		    if ((pMG = mg_find((SV *)r -> pUserHash,'P')))
 			{
 			dSP;                            /* initialize stack pointer      */
 			SV * pUserHashObj = pMG -> mg_obj ;
@@ -2284,7 +2275,7 @@ static int EndOutput (/*i/o*/ register req * r,
 		I32    l ;
         
 		hv_iterinit (r -> pHeaderHash) ;
-		while (pEntry = hv_iternext (r -> pHeaderHash))
+		while ((pEntry = hv_iternext (r -> pHeaderHash)))
 		    {
 		    pKey     = hv_iterkey (pEntry, &l) ;
 		    pHeader  = hv_iterval (r -> pHeaderHash, pEntry) ;
@@ -2308,7 +2299,8 @@ static int EndOutput (/*i/o*/ register req * r,
 		set_content_length (r -> pApacheReq, GetContentLength (r) + 2) ;
 		send_http_header (r -> pApacheReq) ;
 #ifndef WIN32
-                mod_perl_sent_header(r -> pApacheReq, 1) ;
+		/* shouldn't be neccessary for newer mod_perl versions !? */
+                /* mod_perl_sent_header(r -> pApacheReq, 1) ; */
 #endif
                 if (r -> bDebug & dbgHeadersIn)
         	    {
@@ -2342,7 +2334,7 @@ static int EndOutput (/*i/o*/ register req * r,
 		    r -> nMarker = 0 ; /* output directly */
         
 		    hv_iterinit (r -> pHeaderHash) ;
-		    while (pEntry = hv_iternext (r -> pHeaderHash))
+		    while ((pEntry = hv_iternext (r -> pHeaderHash)))
 			{
 			pKey     = hv_iterkey (pEntry, &l) ;
 			pHeader  = hv_iterval (r -> pHeaderHash, pEntry) ;
@@ -2695,14 +2687,17 @@ static int ReadInputFile	(/*i/o*/ register req * r)
 	    r -> Buf.pFile -> pBufSV = pBufSV ;
 	    r -> Buf.pEndPos  = r -> Buf.pBuf + r -> Buf.pFile -> nFilesize ;
 	    
-	    /* --- add to list for freeing --- */
+	    if (r -> Buf.pFile -> pNext2Free == NULL)
+		{
+		/* --- add to list for freeing --- */
 	    
-	    while (pMain && pMain -> pLastReq != &InitialReq)
-		pMain = pMain -> pLastReq ;
+		while (pMain && pMain -> pLastReq != &InitialReq)
+		    pMain = pMain -> pLastReq ;
 
-	    r -> Buf.pFile -> pNext2Free = pMain -> pFiles2Free ;
-	    pMain -> pFiles2Free = r -> Buf.pFile ;
-
+		if ((r -> Buf.pFile -> pNext2Free = pMain -> pFiles2Free) == NULL)
+		    r -> Buf.pFile -> pNext2Free  = r -> Buf.pFile ; /* last one points to itself !! */
+		pMain -> pFiles2Free = r -> Buf.pFile ;
+		}
 	    
 	    /* SetupDebugger (r) ; */
 	    }
