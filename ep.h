@@ -89,12 +89,16 @@ int iembperl_req  (/*in*/ char *  sInputfile,
                    /*in*/ int     nFileSize,
                    /*in*/ HV *    pCache) ;
 
+int ScanCmdEvalsInString (/*in*/  char *   pIn,
+                          /*out*/ char * * pOut,
+                          /*in*/  size_t   nSize) ;
+    
 
 /* ---- from epio.c ----- */
 
 
 /*
-// Datastructure for buffering output
+    Datastructure for buffering output
 */
 
 struct tBuf
@@ -153,7 +157,7 @@ void * _malloc (size_t  size) ;
 
 
 /*
-// Character Translation
+    Character Translation
 */
 
 struct tCharTrans
@@ -164,10 +168,18 @@ struct tCharTrans
 
 
 extern struct tCharTrans Char2Html [] ;
+extern struct tCharTrans Char2Url  [] ; 
 extern struct tCharTrans Html2Char [] ;
 extern int sizeHtml2Char ;
+extern struct tCharTrans * pCurrEscape ;
+extern int bEscMode ;
 
-
+enum tEscMode
+    {
+    escNone = 0,
+    escHtml = 1,
+    escUrl  = 2
+    } ;
 
 /* ---- from epcmd.c ----- */
 

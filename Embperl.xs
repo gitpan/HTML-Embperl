@@ -85,6 +85,9 @@ static int constants()
 	CONST(rcIsDir)
 	CONST(rcXNotSet) 
 	CONST(rcNotFound) 
+
+	CONST(optDisableVarCleanup)
+     
     return ok;
 }
 
@@ -159,6 +162,10 @@ int
 embperl_logevalerr(sText)
     char * sText
 CODE:
+     int l = strlen (sText) ;
+     while (l > 0 && isspace(sText[l-1]))
+        sText[--l] = '\0' ;
+
      strncpy (errdat1, sText, sizeof (errdat1) - 1) ;
      LogError (rcEvalErr) ;
 

@@ -15,7 +15,7 @@
 ###################################################################################*/
 
 /*
-// Avoid namespace conflict with other packages
+    Avoid namespace conflict with other packages
 */
 
 
@@ -91,4 +91,13 @@
 #define sLogfileURLName        EMBPERL_sLogfileURLName
 #define numEvals               EMBPERL_numEvals
 #define numCacheHits           EMBPERL_numCacheHits 
-
+#define Char2Url               EMBPERL_Char2Url            
+#define CmdTab                 EMBPERL_CmdTab              
+#define EvalTrans              EMBPERL_EvalTrans           
+#define GetContentLength       EMBPERL_GetContentLength    
+#define GetLogFilePos          EMBPERL_GetLogFilePos       
+#define ReadHTML               EMBPERL_ReadHTML            
+#define ScanCmdEvalsInString   EMBPERL_ScanCmdEvalsInString
+#define bEscMode               EMBPERL_bEscMode            
+#define nAllocSize             EMBPERL_nAllocSize          
+#define pCurrEscape            EMBPERL_pCurrEscape         

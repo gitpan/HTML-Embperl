@@ -16,7 +16,7 @@
 
 
 /*
-// Errors and Return Codes
+    Errors and Return Codes
 */
 
 enum tRc
@@ -63,7 +63,7 @@ extern char errdat2 [ERRDATLEN]  ;
 
 
 /*
-// Debug Flags
+    Debug Flags
 */
 
 enum dbg
@@ -85,13 +85,23 @@ enum dbg
     dbgDefEval      = 16384,
     dbgCacheDisable     = 0x08000,
     dbgEarlyHttpHeader  = 0x10000,
+    dbgWatchScalar      = 0x20000,
     
     dbgAll  = 0xffff
     } ;
 
+/*
+    Option Flags
+*/
+
+enum opt
+    {
+    optDisableVarCleanup = 1,
+
+    } ;
 
 /*
-// I/O modes
+    I/O modes
 */
 
 enum epIO
@@ -103,7 +113,7 @@ enum epIO
     } ;
     
 /*
-// Table modes
+    Table modes
 */
 
 #define epTabRow        0x0f   /* Row Mask */

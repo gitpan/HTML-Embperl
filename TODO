@@ -3,13 +3,9 @@ TODO for Embperl
 - Tainting does work correct with perl 5.004
 - Kill lf in middel of perl strings
 - Debug namespaces and operation restriction
-- Runtime configuration
 - Add a DBI databaseinterface
-- Automatic URL-Encode the args of the <A> tag
 - igets together with sfio
 - html to in commands i.e. [$endif<br>$]
-- html quoting on/off
-- local vars
 
  
 

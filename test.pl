@@ -2,6 +2,29 @@
 # Before `make install' is performed this script should be runnable with
 # `make test'. After `make install' it should work as `perl test.pl'
 
+@tests = (
+	'ascii',
+	'pure.htm',
+    'plain.htm',
+    'plain.htm',
+    'error.htm???4',
+    'escape.htm',
+    'tagscan.htm',
+	'tagscan.htm??1',
+    'if.htm',
+    'while.htm?erstes=Hallo&zweites=Leer+zeichen&drittes=%21%22%23&erstes=Wert2',
+ 	'table.htm',
+ 	'table.htm??1',
+ 	'table.htm??32769',
+# 	'table.htm??131085',
+	'lists.htm?sel=2&SEL1=B&SEL3=D&SEL4=cc',
+ 	'input.htm?feld5=Wert5&feld6=Wert6&feld7=Wert7&feld8=Wert8&cb5=cbv5&cb6=cbv6&cb7=cbv7&cb8=cbv8&cb9=ncbv9&cb10=ncbv10&cb11=ncbv11',
+	'java.htm',
+	'inputjava.htm',
+    ) ;
+
+# 	  'taint.htm' ) ;
+
 
 $confpath = './test/conf' ;
 
@@ -16,6 +39,8 @@ $tmppath = './test/tmp' ;
 $cmppath = './test/cmp' ;
 $embploc = '/embperl/' ;
 $cgiloc  = '/cgi-bin/' ;
+$httpderr = "$tmppath/httpd.err.log" ;
+$offlineerr = "$tmppath/test.err.log" ;
 
 $port    = $EPPORT ;
 $host    = 'localhost' ;
@@ -47,24 +72,6 @@ $vmmaxsize = 0 ;
 $vminitsize = 0 ;
 $vmhttpdsize = 0 ;
 $vmhttpdinitsize = 0 ;
-
-@tests = (
-	'ascii',
-	'pure.htm',
-	  'plain.htm',
-    	  'tagscan.htm',
-	  'tagscan.htm??1',
-          'if.htm',
-          'while.htm?erstes=Hallo&zweites=Leer+zeichen&drittes=%21%22%23&erstes=Wert2',
- 	      'table.htm',
- 	      'table.htm??1',
- 	      'table.htm??32769',
-	      'lists.htm?sel=2&SEL1=B&SEL3=D&SEL4=cc',
- 	      'input.htm?feld5=Wert5&feld6=Wert6&feld7=Wert7&feld8=Wert8&cb5=cbv5&cb6=cbv6&cb7=cbv7&cb8=cbv8&cb9=ncbv9&cb10=ncbv10&cb11=ncbv11',
-	      'java.htm',
-	      'inputjava.htm',
-         ) ;
-# 	  'taint.htm' ) ;
 
 sub CmpFiles 
     {
@@ -155,6 +162,34 @@ sub GetMem
     return $vmsize ;
     }     	
 
+###########################################################################
+#
+# Get output in error log
+
+sub CheckError
+
+    {
+    my ($cnt) = @_ ;
+    my $err = 0 ;
+
+    
+    while (<ERR>)
+        {
+        if (!($_ =~ /^\s*$/) && $cnt <= 0) 
+            {
+            $cnt-- ;
+            print "\n\n" if ($cnt == -1) ;
+            print $_ ;
+            $err = 1 ;
+            }
+        }
+    
+    print "\n" if $err ;
+
+    return $err ;
+    }
+
+
 
 ######################### We start with some black magic to print on failure.
 
@@ -189,7 +224,8 @@ umask $um ;
 
 unlink ("$tmppath/test.log") ;
 unlink ("$tmppath/out.htm") ;
-unlink ("$tmppath/httpd.err.log") ;
+unlink ("$httpderr") ;
+unlink ("$offlineerr") ;
 
 -w $tmppath or die "***Cannot write to $tmppath" ;
 
@@ -231,9 +267,13 @@ do  {
 if ($testtype =~ /o/)
   {
   print "\nTesting offline mode...\n\n" ;
+
+  open (SAVEERR, ">&STDERR")  || die "Cannot save stderr" ;  
+  open (STDERR, ">$offlineerr") || die "Cannot redirect stderr" ;  
+  open (ERR, "$offlineerr")  || die "Cannot open redirected stderr ($offlineerr)" ;  ;  
   foreach $url (@tests)
     {
-    ($file, $query_info, $debug) = split (/\?/, $url) ;
+    ($file, $query_info, $debug, $errcnt) = split (/\?/, $url) ;
     $debug = 32765 if ($debug eq '') ;	
     $page = "$inpath/$file" ;
     @testargs = ( '-o', "$tmppath/out.htm" ,
@@ -258,7 +298,8 @@ if ($testtype =~ /o/)
     	$vmmaxsize = $vmsize if ($vmsize > $vmmaxsize) ;
     	}
     	
-
+    $err = CheckError ($errcnt) if ($err == 0) ;
+    
     if ($err == 0)
         {
         $page =~ /.*\/(.*)$/ ;
@@ -270,6 +311,8 @@ if ($testtype =~ /o/)
 	print "ok\n" unless ($err) ;
 	last if $err ;
 	}
+  close STDERR ;
+  open (STDERR, ">&SAVEERR") ;
   }
 
 #############
@@ -307,11 +350,18 @@ if ($loc ne '' && $err == 0 && $loopcnt == 0)
     $XX = $multhttpd?'':'-X' ;
     system ("$EPHTTPD $XX -f $EPPATH/$httpdconf &") and die "***Cannot start $EPHTTPD" ;
     sleep (3) ;
-    open FH, "$tmppath/httpd.pid" or die "Cannot open $tmppath/httpd.pid" ;
+    if (!open FH, "$tmppath/httpd.pid")
+        {
+        sleep (7) ;
+        open FH, "$tmppath/httpd.pid" or die "Cannot open $tmppath/httpd.pid" ;
+        }
     $httpdpid = <FH> ;
     chop($httpdpid) ;	
     close FH ;
     print "pid = $httpdpid  ok\n" ;
+    close ERR ;
+    open (ERR, "$httpderr") ;  
+    <ERR> ; # skip first line
     }
 elsif ($err == 0 && $EPHTTPD eq '')
     {
@@ -331,7 +381,7 @@ while ($loc ne '' && $err == 0)
 
   foreach $url (@tests)
     {
-    ($file, $query_info, $debug) = split (/\?/, $url) ;
+    ($file, $query_info, $debug, $errcnt) = split (/\?/, $url) ;
 	
     $debug = 32765 if ($debug eq '') ;	
     $page = "$inpath/$file" ;
@@ -355,6 +405,8 @@ while ($loc ne '' && $err == 0)
     	last ;
     	}
     
+    $err = CheckError ($errcnt) if ($err == 0) ;
+
     if ($err == 0)
         {
         $page =~ /.*\/(.*)$/ ;
@@ -368,6 +420,7 @@ while ($loc ne '' && $err == 0)
     last if $err ;
 
     }
+
   if ($testtype =~ /c/ && $err == 0 && $loc ne $cgiloc && $loopcnt == 0)   
     { $loc = $cgiloc ; }
   else
@@ -376,6 +429,7 @@ while ($loc ne '' && $err == 0)
 $loopcnt++ ;
 }
 until ($looptest == 0 || $err != 0)	;
+
 
 if ($err)
     {
@@ -389,6 +443,19 @@ else
     {
     print "\nAll test have been passed successfully!\n\n" ;
     }
+
+$ok = 1 ;
+if ($line = <ERR>)
+	{
+	print "\nFound unexpected output in httpd errorlog:\n" ;
+	print $line ;
+	}
+while ($line = <ERR>)
+	{ print $line ; }
+close ERR ;
+		
+
+
 
 system "kill `cat $tmppath/httpd.pid`" if ($EPHTTPD ne '' && $killhttpd) ;
 

@@ -195,8 +195,8 @@ static int EvalSafe (/*in*/  const char *  sArg,
 *
 ------------------------------------------------------------------------------- */
 
-int EvalAllNoCache (/*in*/  const char *  sArg,
-                    /*out*/ SV **         pRet)             
+static int EvalAllNoCache (/*in*/  const char *  sArg,
+                           /*out*/ SV **         pRet)             
     {
     int   num ;         
     int   nCountUsed = TableState.nCountUsed ;
@@ -285,6 +285,26 @@ int EvalAllNoCache (/*in*/  const char *  sArg,
     return num ;
     }
 
+/* -------------------------------------------------------------------------------
+*
+* Watch if there are any variables changed
+* 
+------------------------------------------------------------------------------- */
+
+
+static int Watch  ()
+
+    {
+    dSP;                            /* initialize stack pointer      */
+
+    EPENTRY (Watch) ;
+
+    PUSHMARK(sp);                   /* remember the stack pointer    */
+
+    perl_call_pv ("HTML::Embperl::watch", G_DISCARD | G_NOARGS) ; /* call the function             */
+    
+    return ok ;
+    }
 
 /* -------------------------------------------------------------------------------
 *
@@ -376,6 +396,8 @@ static int CallCV  (/*in*/  const char *  sArg,
          LogError (rcEvalErr) ;
          }
 
+     if (bDebug & dbgWatchScalar)
+         Watch () ;
 
     return num ;
     }
@@ -409,11 +431,13 @@ static int EvalAndCall (/*in*/  const char *  sArg,
     else
         return rc ;
 
-    if (SvTYPE (*ppSV) == SVt_PVCV)
+    if (*ppSV && SvTYPE (*ppSV) == SVt_PVCV)
         { /* Call the compiled eval */
         return CallCV (sArg, (CV *)*ppSV, pRet) ;
         }
     
+    *pRet = NULL ;
+
     return rcEvalErr ;
     }
 
@@ -441,6 +465,7 @@ int Eval (/*in*/  const char *  sArg,
     EPENTRY (Eval) ;
 
     numEvals++ ;
+    *pRet = NULL ;
 
     if (bDebug & dbgCacheDisable)
         return EvalAllNoCache (sArg, pRet) ;
@@ -488,6 +513,7 @@ int EvalTrans (/*in*/  char *   sArg,
 
 
     numEvals++ ;
+    *pRet = NULL ;
 
     if (bDebug & dbgCacheDisable)
         return EvalAllNoCache (sArg, pRet) ;

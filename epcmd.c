@@ -56,9 +56,9 @@ int nTabMode    ;    /* mode for next table (only takes affect after next <TABLE
 int nTabMaxRow  ;    /* maximum rows for next table (only takes affect after next <TABLE> */
 int nTabMaxCol  ;    /* maximum columns for next table (only takes affect after next <TABLE> */
 
-/*// ---------------------------------------------------------------------------- */
-/*// Commandtable... */
-/*// */
+/* ---------------------------------------------------------------------------- */
+/* Commandtable...                                                              */
+/* ---------------------------------------------------------------------------- */
 
 
 static int CmdIf (/*in*/ const char *   sArg) ;
@@ -81,6 +81,7 @@ static int HtmlInput    (/*in*/ const char *   sArg) ;
 static int HtmlTextarea   (/*in*/ const char *   sArg) ;
 static int HtmlEndtextarea(/*in*/ const char *   sArg) ;
 static int HtmlBody       (/*in*/ const char *   sArg) ;
+static int HtmlA         (/*in*/ const char *   sArg) ;
 
     
 
@@ -96,6 +97,7 @@ struct tCmd CmdTab [] =
         { "/textarea", HtmlEndtextarea, 0, 1, cmdTextarea,      0, 0, cnNop  } ,
         { "/tr",      HtmlEndrow,       0, 1, cmdTablerow,      0, 0, cnTr  } ,
         { "/ul",      HtmlEndtable,     0, 1, cmdTable,         0, 0, cnUl  } ,
+        { "a",        HtmlA,            0, 0, cmdNorm,          0, 0, cnNop   } ,
         { "body",     HtmlBody,         0, 0, cmdNorm,          1, 0, cnNop   } ,
         { "dir",      HtmlTable,        1, 0, cmdTable,         1, 0, cnDir   } ,
         { "dl",       HtmlTable,        1, 0, cmdTable,         1, 0, cnDl   } ,
@@ -267,9 +269,11 @@ int  ProcessCmd        (/*in*/ struct tCmd *  pCmd,
 
 
 
-/*// ---------------------------------------------------------------------------- */
-/*// if command ... */
-/*// */
+/* ---------------------------------------------------------------------------- */
+/*                                                                              */
+/* if command ...                                                               */
+/*                                                                              */
+/* ---------------------------------------------------------------------------- */
 
 static int CmdIf (/*in*/ const char *   sArg)
     {
@@ -296,9 +300,11 @@ static int CmdIf (/*in*/ const char *   sArg)
     return rc ;
     }
 
-/*// ---------------------------------------------------------------------------- */
-/*// elsif command ... */
-/*// */
+/* ---------------------------------------------------------------------------- */
+/*                                                                              */
+/* elsif command ...                                                            */
+/*                                                                              */
+/* ---------------------------------------------------------------------------- */
 
 static int CmdElsif  (/*in*/ const char *   sArg)
     {
@@ -332,9 +338,11 @@ static int CmdElsif  (/*in*/ const char *   sArg)
     return rc ;
     }
 
-/*// ---------------------------------------------------------------------------- */
-/*// else command ... */
-/*// */
+/* ---------------------------------------------------------------------------- */
+/*                                                                              */
+/* else command ...                                                             */
+/*                                                                              */
+/* ---------------------------------------------------------------------------- */
 
 static int CmdElse  (/*in*/ const char *   sArg)
     {
@@ -365,9 +373,11 @@ static int CmdElse  (/*in*/ const char *   sArg)
     }
                         
 
-/*// ---------------------------------------------------------------------------- */
-/*// endif befehl ... */
-/*// */
+/* ---------------------------------------------------------------------------- */
+/*                                                                              */
+/* endif command ...                                                            */
+/*                                                                              */
+/* ---------------------------------------------------------------------------- */
 
 static int CmdEndif (/*in*/ const char *   sArg)
     {
@@ -385,9 +395,11 @@ static int CmdEndif (/*in*/ const char *   sArg)
                         
 
 
-/*// ---------------------------------------------------------------------------- */
-/*// while command ... */
-/*// */
+/* ---------------------------------------------------------------------------- */
+/*                                                                              */
+/* while command ...                                                            */
+/*                                                                              */
+/* ---------------------------------------------------------------------------- */
 
 int CmdWhile (/*in*/ const char *   sArg)
     {
@@ -405,9 +417,11 @@ int CmdWhile (/*in*/ const char *   sArg)
     return rc ;
     }
 
-/*// ---------------------------------------------------------------------------- */
-/*// endwhile command ... */
-/*// */
+/* ---------------------------------------------------------------------------- */
+/*                                                                              */
+/* endwhile command ...                                                         */
+/*                                                                              */
+/* ---------------------------------------------------------------------------- */
 
 static int CmdEndwhile (/*in*/ const char *   sArg)
     {
@@ -437,9 +451,11 @@ static int CmdEndwhile (/*in*/ const char *   sArg)
     }
 
 
-/*// ---------------------------------------------------------------------------- */
-/*// hidden command ... */
-/*// */
+/* ---------------------------------------------------------------------------- */
+/*                                                                              */
+/* hidden command ...                                                           */
+/*                                                                              */
+/* ---------------------------------------------------------------------------- */
 
 static int CmdHidden (/*in*/ const char *   sArg)
 
@@ -551,6 +567,51 @@ static int HtmlBody (/*in*/ const char *   sArg)
 
 /* ---------------------------------------------------------------------------- */
 /*                                                                              */
+/* A tag ...                                                                    */
+/*                                                                              */
+/* ---------------------------------------------------------------------------- */
+
+
+static int HtmlA (/*in*/ const char *   sArg)
+    {
+    int    rc ;
+    char   ArgBuf [2048] ;
+    char * pArgBuf = ArgBuf ;
+
+    
+    EPENTRY (HtmlA) ;
+
+    if (*sArg != '\0')
+    	{
+        struct tCharTrans * pCurrEscapeSave = pCurrEscape ;
+        if (bEscMode & escUrl)
+            pCurrEscape = Char2Url ;
+        
+        if ((rc = ScanCmdEvalsInString ((char *)sArg, &pArgBuf, sizeof (ArgBuf))) != ok)
+            {
+            pCurrEscape = pCurrEscapeSave ;
+            return rc ;
+            }
+        pCurrEscape = pCurrEscapeSave ;
+    	}
+    else
+    	pArgBuf = (char *)sArg ;
+
+    oputs (pCurrTag) ;
+    if (*pArgBuf != '\0')
+        {
+        oputc (' ') ;
+        oputs (pArgBuf) ;
+        }
+    oputc ('>') ;
+    
+    
+    pCurrPos = NULL ;
+    	
+    return ok ;
+    }
+/* ---------------------------------------------------------------------------- */
+/*                                                                              */
 /* table tag ...                                                                */
 /* and various list tags ... (dir, menu, ol, ul)                                */
 /*                                                                              */
@@ -587,10 +648,12 @@ static int HtmlTable (/*in*/ const char *   sArg)
     return ok ;
     }
 
+/* ---------------------------------------------------------------------------- */
+/*                                                                              */
+/* table tag ... (and end of list)                                              */
+/*                                                                              */
+/* ---------------------------------------------------------------------------- */
 
-/*// ---------------------------------------------------------------------------- */
-/*// /table tag ... (and end of list) */
-/*// */
 
 static int HtmlEndtable (/*in*/ const char *   sArg)
     {
@@ -635,9 +698,11 @@ static int HtmlEndtable (/*in*/ const char *   sArg)
     return ok ;
     }
 
-/*// ---------------------------------------------------------------------------- */
-/*// tr tag ... */
-/*// */
+/* ---------------------------------------------------------------------------- */
+/*                                                                              */
+/* tr tag ...                                                                   */
+/*                                                                              */
+/* ---------------------------------------------------------------------------- */
 
 static int HtmlRow (/*in*/ const char *   sArg)
     {
@@ -671,9 +736,11 @@ static int HtmlRow (/*in*/ const char *   sArg)
     return ok ;
     }
 
-/*// ---------------------------------------------------------------------------- */
-/*// /tr tag ... */
-/*// */
+/* ---------------------------------------------------------------------------- */
+/*                                                                              */
+/* /tr tag ...                                                                  */
+/*                                                                              */
+/* ---------------------------------------------------------------------------- */
 
 int HtmlEndrow (/*in*/ const char *   sArg)
     {

@@ -28,6 +28,8 @@ test.pl
 test/html/ascii
 test/html/pure.htm
 test/html/plain.htm
+test/html/error.htm
+test/html/escape.htm
 test/html/if.htm
 test/html/table.htm
 test/html/lists.htm
@@ -40,6 +42,8 @@ test/html/tagscan.htm
 test/cmp/ascii
 test/cmp/pure.htm
 test/cmp/plain.htm
+test/cmp/error.htm
+test/cmp/escape.htm
 test/cmp/if.htm
 test/cmp/table.htm
 test/cmp/lists.htm

@@ -38,6 +38,8 @@ it can't found, please specify the basepath. Please make sure
 mod_perl is already installed. If you have installed mod_perl-0.96 or
 higher Makefile.PL automaticly suggest the same source path as used to
 build mod_perl.
+NOTE: When you using Embperl-0.20 and higher mod_perl must be build with
+      PERL_CLEANUP=1 and PERL_STACKED_HANDLERS=1
 
 - make
 - make test

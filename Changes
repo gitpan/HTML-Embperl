@@ -1,6 +1,38 @@
 Revision history for Perl extension HTML::Embperl.
 
-0.19-beta 
+0.20-beta 15 Nov 97
+    - Every file is executed in a separate package (don't confuse this 
+      with safe namespace) to reduce of unwanted effects for each other
+    - Added configuration directive EMBPERL_PACKAGE which can be used to override
+      the automatic genrated package name
+    - The namespace (package) used by a request is cleanup afterwards.
+      That means that every scalar, hash or array is undef'ed, after the 
+      request to make sure nothing is lying arround an will the next request
+      (maybe) make misbehave.
+      This reqire mod_perl with PERL_CLEANUP=1 and PERL_STACKED_HANDLER=1!
+      NOTE: To get persitent variables place them in another namespace i.e.
+      write $persitent::x instead of $x 
+    - Added configuration directive EMBPERL_OPTIONS to configure various runtime
+      options. Now only the scalar cleanup can be disabled.
+    - use log_error for writing to apache error log to get timestamp
+    - Escaping inside a <A> tag is change from html escape to url escape
+      i.e. space is translated to + and & is translated to %26 and so on
+    - Escaping can now be turned on and off via $escmode
+    - Concats ENV and cgi_env under mod_perl so the PerlSetEnv can be used
+      instead of SetEnv for configuration. In contrast to SetEnv, PerlSetEnv
+      allows differnet values per directory/virtual host
+    - Added two links to show source-loglines and eval-loglines when dbgLogLink
+      is enabled to have a quick jump to the logfile
+    - Reget pid for every request, so the correct one will be written to the
+      logfile, also when Embperl is loaded at server startup
+    - Check error log in make test, added test for error output
+
+    - Fixed a bug which causes Embperl to cause a SIGSEGV when an perl syntax
+      error occured
+    - Fixed a bug so that a '>' inside of [+/- ... -/+] is not detected as the end
+      of an html tag (Thanks to Todd R. Eigenschink)
+
+0.19-beta 29 Oct 97
     - rewritten the code for the LOG handle. Now the handle LOG is tied so every
       print/printf is written to embperl.log at the right position. Use this to 
       do logging from your embeded code or modules
@@ -78,57 +110,57 @@ Revision history for Perl extension HTML::Embperl.
 	- Changed all // comments to /* */ to be more compatiple with others
 	  than gnu-c compiler
 	- Insert a missing return in oputc caused a SIGSEV on Solaris  (Thanks to Dan Peterson) 
-        - Checked return code of Logfile open, to prevent a SIGSEV when cannot
-          write to logfile and write an errormessage in servers errorlog  (Thanks to Dan Peterson)
-        - Errors will also be logged to the servers error log (written to stderr)
+    - Checked return code of Logfile open, to prevent a SIGSEV when cannot
+      write to logfile and write an errormessage in servers errorlog  (Thanks to Dan Peterson)
+    - Errors will also be logged to the servers error log (written to stderr)
           
 
 0.14-beta 30 Juni 1997  
-        - adding 8192 to EMBPERL_DEBUG and setting EMBPERL_VIRTLOG will add a link
-          to Embperl output, so you can directly view the right part of the logfile
-          with your browser
-        - added the LOG filehandle to print to the embperl logfile
-        - Add the possibility of handling multiple form fields with same name
-        - chars which are result of a perl expression will not be escaped to html if
-          they are prefixed with a backslash
-        - Added support for scanning the parameters of input tag for perl code i.e.
-          [- -] and [+ +] substituions takes place
-        - Replace carridge return in perl expression with space to avoid perl 5.004 error
-          about carridge return
-    	- added $req_rec to access the apache server api when running under mod_perl
+    - adding 8192 to EMBPERL_DEBUG and setting EMBPERL_VIRTLOG will add a link
+      to Embperl output, so you can directly view the right part of the logfile
+      with your browser
+    - added the LOG filehandle to print to the embperl logfile
+    - Add the possibility of handling multiple form fields with same name
+    - chars which are result of a perl expression will not be escaped to html if
+      they are prefixed with a backslash
+    - Added support for scanning the parameters of input tag for perl code i.e.
+      [- -] and [+ +] substituions takes place
+    - Replace carridge return in perl expression with space to avoid perl 5.004 error
+      about carridge return
+    - added $req_rec to access the apache server api when running under mod_perl
 
-        - Fixed a bug in Safe namespace handling causing always ERR: 17 Namespace unknown
-        - Fixed a bug which caused dynamic tables to end, if a if, while etc. is included 
-        - Fixed a bug that caused [$cmd$] executed only in the first iteration of while or table
-        - Fixed some bugs in input tag interpretation
-        - Fixed a bug occured when have a input tag with value="" and %ffld=""
-	    - Fixed a bug in embpexec.pl that caused the options to be ignored when running offline
+    - Fixed a bug in Safe namespace handling causing always ERR: 17 Namespace unknown
+    - Fixed a bug which caused dynamic tables to end, if a if, while etc. is included 
+    - Fixed a bug that caused [$cmd$] executed only in the first iteration of while or table
+    - Fixed some bugs in input tag interpretation
+    - Fixed a bug occured when have a input tag with value="" and %ffld=""
+	- Fixed a bug in embpexec.pl that caused the options to be ignored when running offline
 
 0.13-beta   April 26 1997	
-        - Move EPENTRY (embperl_init) down to avoid crash when compiled with
-          -DEPDEBUGALL
-        - Add #undefs for stdio function to compile with perl > 5.003
-          Note: This is a quick hack, and will be changed to use PerlIO in
-          one of the next releases, so we can tie stdout of Embperl
-        - Add pids (to distinguish between muliplite requests) and time to
-          logfile output
-        - Make many functions static and names of externals more unique to
-          avoid conflicts of symbolnames with other modules
-        - If file not found return status 404 instead of 500
+    - Move EPENTRY (embperl_init) down to avoid crash when compiled with
+      -DEPDEBUGALL
+    - Add #undefs for stdio function to compile with perl > 5.003
+      Note: This is a quick hack, and will be changed to use PerlIO in
+      one of the next releases, so we can tie stdout of Embperl
+    - Add pids (to distinguish between muliplite requests) and time to
+      logfile output
+    - Make many functions static and names of externals more unique to
+      avoid conflicts of symbolnames with other modules
+    - If file not found return status 404 instead of 500
 	- Add Apache::Embperl so the module shows at CPAN also under 
 	  module/by-module/Apache/ as suggested by Doug MacEachern
 
 0.12-beta not publicly released
 	- The mask has been removed from namespace option so it can be used
           with safe.pm > 2
-        - Embperl works with -T / PerlTaintCheck on
-        - Add function MailFormTo to send form contents via email
-        - the dbgSource option displays only one line for better overview
-        - fixed a bug caused perl operator '<' interpreted as html tag
-          in tables or while loop after the first iteration
-        - add ffld array for mod_perl mode to get the order of form fields
-        - removed vsnprintf, since it's not available on all platforms
-    	- Correct handling of empty dynamic tables
+    - Embperl works with -T / PerlTaintCheck on
+    - Add function MailFormTo to send form contents via email
+    - the dbgSource option displays only one line for better overview
+    - fixed a bug caused perl operator '<' interpreted as html tag
+      in tables or while loop after the first iteration
+    - add ffld array for mod_perl mode to get the order of form fields
+    - removed vsnprintf, since it's not available on all platforms
+    - Correct handling of empty dynamic tables
 	- Fix Bug causes a Segmentaion Fault when first table is empty
 	- Add script for make test
 	- Fixed Error with nested if
@@ -142,9 +174,9 @@ Revision history for Perl extension HTML::Embperl.
 	  (e.g. < is send as &lt; )
 	- two dimensional tables
 	- bug whiches causes an endless loop when using a \ fixed
-        - fixed escaping special html chars above ascii code 128
-        - added support for list tags (dir, menu, ol, ul, dl)
-        - added support for textarea tag
+    - fixed escaping special html chars above ascii code 128
+    - added support for list tags (dir, menu, ol, ul, dl)
+    - added support for textarea tag
 	- fixed some errors
 
 0.10b-beta	Jan 23 1997

@@ -1,0 +1,70 @@
+
+<html>
+<head>
+<title>Some tests for Embperl escaping</title>
+</head>
+
+<body>
+
+Here it starts with some HTML Text<P>
+
+First of all assign a value:
+ <BR>
+
+Now we have some 'Umlaute':
+
+
+
+
+
+Now lets look what we are getting from this:<BR>
+(this is the value in $a) (this is the value in $a) &auml;&ouml;&uuml;&auml;&ouml;&uuml;???&lt;&amp;+  <BR>
+
+What is the EscMode? 3
+
+Now a Url: <A HREF="http://localhost/tests?id=abcdefghijklmnopqrstuvwxyz&text=This+is+a+text+%3F+%26+%2B+%2D+">Here it goes</A>
+
+1
+
+Now lets look what we are getting from this:<BR>
+(this is the value in $a) (this is the value in $a) &auml;&ouml;&uuml;&auml;&ouml;&uuml;???&lt;&amp;+  <BR>
+
+What is the EscMode? 1
+
+Now a Url: <A HREF="http://localhost/tests?id=abcdefghijklmnopqrstuvwxyz&text=This is a text ? &amp; + - ">Here it goes</A>
+
+2
+
+Now lets look what we are getting from this:<BR>
+(this+is+the+value+in+%24a) (this+is+the+value+in+%24a)+הצüהצü%3F%3F%3F%3C%26%2B++<BR>
+
+What is the EscMode? 2
+
+Now a Url: <A HREF="http://localhost/tests?id=abcdefghijklmnopqrstuvwxyz&text=This+is+a+text+%3F+%26+%2B+%2D+">Here it goes</A>
+
+0
+
+Now lets look what we are getting from this:<BR>
+(this is the value in $a) (this is the value in $a) הצüהצü???<&+  <BR>
+
+What is the EscMode? 0
+
+Now a Url: <A HREF="http://localhost/tests?id=abcdefghijklmnopqrstuvwxyz&text=This is a text ? & + - ">Here it goes</A>
+
+3
+
+Now lets look what we are getting from this:<BR>
+(this is the value in $a) (this is the value in $a) &auml;&ouml;&uuml;&auml;&ouml;&uuml;???&lt;&amp;+  <BR>
+
+What is the EscMode? 3
+
+Now a Url: <A HREF="http://localhost/tests?id=abcdefghijklmnopqrstuvwxyz&text=This+is+a+text+%3F+%26+%2B+%2D+">Here it goes</A>
+
+What is the EscMode? 3
+
+<P>Ok.<P>
+
+
+</body>
+</html>
+

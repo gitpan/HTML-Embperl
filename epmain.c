@@ -65,6 +65,7 @@ static char sTabColName    [] = "HTML::Embperl::col" ;
 static char sTabMaxRowName [] = "HTML::Embperl::maxrow" ;
 static char sTabMaxColName [] = "HTML::Embperl::maxcol" ;
 static char sTabModeName   [] = "HTML::Embperl::tabmode" ;
+static char sEscModeName   [] = "HTML::Embperl::escmode" ;
 
 static char sNameSpaceHashName [] = "HTML::Embperl::NameSpace" ;
        char sLogfileURLName[] = "HTML::Embperl::LogfileURL" ;
@@ -101,14 +102,6 @@ char errdat2 [ERRDATLEN]  ;
 
 
 /* */
-/* forward definition for function prototypes */
-/* */
-
-static int ScanCmdEvalsInString (/*in*/  char *   pIn,
-                                 /*out*/ char * * pOut,
-                                 /*in*/  size_t   nSize) ;
-
-/* */
 /* print error */
 /* */
 
@@ -124,43 +117,59 @@ void LogError (/*in*/ int   rc)
     
     switch (rc)
         {
-        case ok:                        msg ="[%d]ERR:  %d: ok\n" ; break ;
-        case rcStackOverflow:           msg ="[%d]ERR:  %d: Stack Overflow\n" ; break ;
-        case rcArgStackOverflow:        msg ="[%d]ERR:  %d: Argumnet Stack Overflow (%s)\n" ; break ;
-        case rcStackUnderflow:          msg ="[%d]ERR:  %d: Stack Underflow\n" ; break ;
-        case rcEndifWithoutIf:          msg ="[%d]ERR:  %d: endif without if\n" ; break ;
-        case rcElseWithoutIf:           msg ="[%d]ERR:  %d: else without if\n" ; break ;
-        case rcEndwhileWithoutWhile:    msg ="[%d]ERR:  %d: endwhile without while\n" ; break ;
-        case rcEndtableWithoutTable:    msg ="[%d]ERR:  %d: blockend <%s> does not match blockstart <%s>\n" ; break ;
-        case rcTablerowOutsideOfTable:  msg ="[%d]ERR:  %d: <tr> outside of table\n" ; break ;
-        case rcCmdNotFound:             msg ="[%d]ERR:  %d: Unknown Command %s\n" ; break ;
-        case rcOutOfMemory:             msg ="[%d]ERR:  %d: Out of memory\n" ; break ;
-        case rcPerlVarError:            msg ="[%d]ERR:  %d: Perl variable error %s\n" ; break ;
-        case rcHashError:               msg ="[%d]ERR:  %d: Perl hash error %s\n" ; break ;
-        case rcArrayError:              msg ="[%d]ERR:  %d: Perl array error %s\n" ; break ;
-        case rcFileOpenErr:             msg ="[%d]ERR:  %d: File %s open error: %s\n" ; break ;    
-        case rcLogFileOpenErr:          msg ="[%d]ERR:  %d: Logfile %s open error: %s\n" ; break ;    
-        case rcMissingRight:            msg ="[%d]ERR:  %d: Missing right %s\n" ; break ;
-        case rcNoRetFifo:               msg ="[%d]ERR:  %d: No Return Fifo\n" ; break ;
-        case rcMagicError:              msg ="[%d]ERR:  %d: Perl Magic Error\n" ; break ;
-        case rcWriteErr:                msg ="[%d]ERR:  %d: File write Error\n" ; break ;
-        case rcUnknownNameSpace:        msg ="[%d]ERR:  %d: Namespace %s unknown\n" ; break ;
-        case rcInputNotSupported:       msg ="[%d]ERR:  %d: Input not supported in mod_perl mode\n" ; break ;
-        case rcCannotUsedRecursive:     msg ="[%d]ERR:  %d: Cannot be called recursivly in mod_perl mode\n" ; break ;
-        case rcEndtableWithoutTablerow: msg ="[%d]ERR:  %d: </tr> without <tr>\n" ; break ;
-        case rcEndtextareaWithoutTextarea: msg ="[%d]ERR:  %d: </textarea> without <textarea>\n" ; break ;
-        case rcEvalErr:                 msg ="[%d]ERR:  %d: Error in Perl code %s\n" ; break ;
-        case rcExecCGIMissing:          msg ="[%d]ERR:  %d: Forbidden %s: Options ExecCGI not set in your Apache configs\n" ; break ;
-        case rcIsDir:                   msg ="[%d]ERR:  %d: Forbidden %s is a directory\n" ; break ;
-        case rcXNotSet:                 msg ="[%d]ERR:  %d: Forbidden %s X Bit not set\n" ; break ;
-        case rcNotFound:                msg ="[%d]ERR:  %d: Not found %s\n" ; break ;
-        default:                        msg ="[%d]ERR:  %d: Error %s\n" ; break ; 
+        case ok:                        msg ="[%d]ERR:  %d: ok%s%s%c" ; break ;
+        case rcStackOverflow:           msg ="[%d]ERR:  %d: Stack Overflow%s%s%c" ; break ;
+        case rcArgStackOverflow:        msg ="[%d]ERR:  %d: Argumnet Stack Overflow (%s)%s%c" ; break ;
+        case rcStackUnderflow:          msg ="[%d]ERR:  %d: Stack Underflow%s%s%c" ; break ;
+        case rcEndifWithoutIf:          msg ="[%d]ERR:  %d: endif without if%s%s%c" ; break ;
+        case rcElseWithoutIf:           msg ="[%d]ERR:  %d: else without if%s%s%c" ; break ;
+        case rcEndwhileWithoutWhile:    msg ="[%d]ERR:  %d: endwhile without while%s%s%c" ; break ;
+        case rcEndtableWithoutTable:    msg ="[%d]ERR:  %d: blockend <%s> does not match blockstart <%s>%c" ; break ;
+        case rcTablerowOutsideOfTable:  msg ="[%d]ERR:  %d: <tr> outside of table%s%s%c" ; break ;
+        case rcCmdNotFound:             msg ="[%d]ERR:  %d: Unknown Command %s%s%c" ; break ;
+        case rcOutOfMemory:             msg ="[%d]ERR:  %d: Out of memory%s%s%c" ; break ;
+        case rcPerlVarError:            msg ="[%d]ERR:  %d: Perl variable error %s%s%c" ; break ;
+        case rcHashError:               msg ="[%d]ERR:  %d: Perl hash error %s%s%c" ; break ;
+        case rcArrayError:              msg ="[%d]ERR:  %d: Perl array error %s%s%c" ; break ;
+        case rcFileOpenErr:             msg ="[%d]ERR:  %d: File %s open error: %s%c" ; break ;    
+        case rcLogFileOpenErr:          msg ="[%d]ERR:  %d: Logfile %s open error: %s%c" ; break ;    
+        case rcMissingRight:            msg ="[%d]ERR:  %d: Missing right %s%s%c" ; break ;
+        case rcNoRetFifo:               msg ="[%d]ERR:  %d: No Return Fifo%s%s%c" ; break ;
+        case rcMagicError:              msg ="[%d]ERR:  %d: Perl Magic Error%s%s%c" ; break ;
+        case rcWriteErr:                msg ="[%d]ERR:  %d: File write Error%s%s%c" ; break ;
+        case rcUnknownNameSpace:        msg ="[%d]ERR:  %d: Namespace %s unknown%s%c" ; break ;
+        case rcInputNotSupported:       msg ="[%d]ERR:  %d: Input not supported in mod_perl mode%s%s%c" ; break ;
+        case rcCannotUsedRecursive:     msg ="[%d]ERR:  %d: Cannot be called recursivly in mod_perl mode%s%s%c" ; break ;
+        case rcEndtableWithoutTablerow: msg ="[%d]ERR:  %d: </tr> without <tr>%s%s%c" ; break ;
+        case rcEndtextareaWithoutTextarea: msg ="[%d]ERR:  %d: </textarea> without <textarea>%s%s%c" ; break ;
+        case rcEvalErr:                 msg ="[%d]ERR:  %d: Error in Perl code %s%s%c" ; break ;
+        case rcExecCGIMissing:          msg ="[%d]ERR:  %d: Forbidden %s: Options ExecCGI not set in your Apache configs%s%c" ; break ;
+        case rcIsDir:                   msg ="[%d]ERR:  %d: Forbidden %s is a directory%s%c" ; break ;
+        case rcXNotSet:                 msg ="[%d]ERR:  %d: Forbidden %s X Bit not set%s%c" ; break ;
+        case rcNotFound:                msg ="[%d]ERR:  %d: Not found %s%s%c" ; break ;
+        default:                        msg ="[%d]ERR:  %d: Error %s%s%c" ; break ; 
         }
     
-    if (bDebug)
-        lprintf (msg, nPid , rc, errdat1, errdat2) ;
-    fprintf (stderr, msg, nPid , rc, errdat1, errdat2) ;
+    lprintf (msg, nPid , rc, errdat1, errdat2, '\n') ;
+#ifdef APACHE
+    if (pReq)
+        {
+        char sText [2048] ;
+
+        if (strlen (msg) + strlen (errdat1) + strlen (errdat2) > sizeof (sText) - 64)
+            strcpy (sText, msg) ;
+        else
+            sprintf (sText, msg, nPid , rc, errdat1, errdat2, ' ') ;
         
+        log_error (sText, pReq -> server) ;
+        }
+    else
+#endif
+        {
+        fprintf (stderr, msg, nPid , rc, errdat1, errdat2, '\n') ;
+        fflush (stderr) ;
+        }
+
     errdat1[0] = '\0' ;
     errdat2[0] = '\0' ;
     }
@@ -172,15 +181,32 @@ void LogError (/*in*/ int   rc)
 /* Magic */
 /* */
 
+static void NewEscMode ()
+
+    {
+    if (bEscMode & escHtml)
+        pCurrEscape = Char2Html ;
+    else if (bEscMode & escUrl)
+        pCurrEscape = Char2Url ;
+    else 
+        pCurrEscape = NULL ;
+    }
+
+static void NOP ()
+
+    {
+    }
+
 
 static int notused ;
 
-INTMG (Count, TableState.nCount, TableState.nCountUsed) 
-INTMG (Row, TableState.nRow, TableState.nRowUsed) 
-INTMG (Col, TableState.nCol, TableState.nColUsed) 
-INTMG (MaxRow, nTabMaxRow, notused) 
-INTMG (MaxCol, nTabMaxCol, notused) 
-INTMG (TabMode, nTabMode, notused) 
+INTMG (Count, TableState.nCount, TableState.nCountUsed, NOP) 
+INTMG (Row, TableState.nRow, TableState.nRowUsed, NOP) 
+INTMG (Col, TableState.nCol, TableState.nColUsed, NOP) 
+INTMG (MaxRow, nTabMaxRow, notused,  NOP) 
+INTMG (MaxCol, nTabMaxCol, notused, NOP) 
+INTMG (TabMode, nTabMode, notused, NOP) 
+INTMG (EscMode, bEscMode, notused, NewEscMode) 
 
 
 /* ---------------------------------------------------------------------------- */
@@ -532,8 +558,11 @@ static int ScanCmdEvals (/*in*/ char *   p)
                 {
                 EvalTrans (pCurrPos, (pCurrPos - pBuf), &pRet) ;
         
-                OutputToHtml (SvPV (pRet, na)) ;
-                SvREFCNT_dec (pRet) ;
+                if (pRet)
+                    {
+                    OutputToHtml (SvPV (pRet, na)) ;
+                    SvREFCNT_dec (pRet) ;
+                    }
                 }
 
             p [-2] = nType ;
@@ -545,7 +574,8 @@ static int ScanCmdEvals (/*in*/ char *   p)
             if (State.bProcessCmds == cmdAll)
                 {
                 EvalTrans (pCurrPos, (pCurrPos - pBuf), &pRet) ;
-                SvREFCNT_dec (pRet) ;
+                if (pRet)
+                    SvREFCNT_dec (pRet) ;
                 }
 
             p [-2] = nType ;
@@ -599,9 +629,9 @@ static int ScanCmdEvals (/*in*/ char *   p)
 
 
     
-static int ScanCmdEvalsInString (/*in*/  char *   pIn,
-                                 /*out*/ char * * pOut,
-                                 /*in*/  size_t   nSize)
+int ScanCmdEvalsInString (/*in*/  char *   pIn,
+                          /*out*/ char * * pOut,
+                          /*in*/  size_t   nSize)
     
     
     { 
@@ -684,10 +714,12 @@ static int ScanCmdEvalsInString (/*in*/  char *   pIn,
     }
             
 /* ---------------------------------------------------------------------------- */
-/* scan html tag ... */
-/* */
-/* p points to '<' */
-/* */
+/*                                                                              */
+/* scan html tag ...                                                            */
+/*                                                                              */
+/* p points to '<'                                                              */
+/*                                                                              */
+/* ---------------------------------------------------------------------------- */
 
 static int ScanHtmlTag (/*in*/ char *   p)
 
@@ -744,9 +776,23 @@ static int ScanHtmlTag (/*in*/ char *   p)
         }
     else
         {
-        p = strchr (p, '>') ; /* get end of tag */
+        /* get end of tag, skip everything inside [+/- ... -/+] */
 
-        if (p)
+        char nType = '\0';
+        while ((*p != '>' || nType) && *p != '\0')
+            {
+            if (*p == '[' && (p[1] == '+' || p[1] == '-'))
+                nType = *++p;
+            else if (nType && *p == nType && p[1] == ']')
+                {
+                nType = '\0';
+                p++ ;
+                }
+
+            p++;
+            }
+
+        if (*p == '>')
             {
             ea = *p ;
             pea = p ;
@@ -974,6 +1020,8 @@ int iembperl_init (/*in*/ int     _nIOType,
         rc = AddMagic (sTabMaxColName, &EMBPERL_mvtTabMaxCol) ;
     if (rc == 0)
         rc = AddMagic (sTabModeName, &EMBPERL_mvtTabTabMode) ;
+    if (rc == 0)
+        rc = AddMagic (sEscModeName, &EMBPERL_mvtTabEscMode) ;
 
     return rc ;
     }
@@ -1061,6 +1109,7 @@ int iembperl_req  (/*in*/ char *  sInputfile,
     I32     lstsv_count = sv_count ;
     I32     lstsv_objcount = sv_objcount ;
 
+    nPid = getpid () ; /* reget pid, because it could be chaned when loaded with PerlModule */
 
     EPENTRY (iembperl_req) ;
 
@@ -1134,7 +1183,8 @@ int iembperl_req  (/*in*/ char *  sInputfile,
     nTabMaxRow  = 100 ;
     nTabMaxCol  = 10 ;
     pCurrTag    = NULL ;
-
+    bEscMode    = escHtml | escUrl ;
+    NewEscMode () ;
 
     /* */
     /* read data from cgi script */
@@ -1142,7 +1192,7 @@ int iembperl_req  (/*in*/ char *  sInputfile,
 
     rc = ok ;
     if (av_len (pFormArray) == -1)
-        { // Not already read by perl part
+        { /* Not already read by perl part */
         switch (nIOType)
             {
             case epIOPerl:
@@ -1218,7 +1268,11 @@ int iembperl_req  (/*in*/ char *  sInputfile,
         }
     else
         {
+#ifdef APACHE
         if (pReq == NULL && nIOType != epIOPerl)
+#else
+        if (nIOType != epIOPerl)
+#endif
             oputs ("Content-type: text/html\n\n") ;
 
         oBegin () ;

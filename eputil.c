@@ -35,6 +35,13 @@ void OutputToHtml (/*i/o*/ const char *  sData)
     
     EPENTRY (OutputToHtml) ;
 
+    if (pCurrEscape == NULL)
+        {
+        oputs (sData) ;
+        return ;
+        }
+
+    
     while (*sData)
         {
         if (*sData == '\\')
@@ -46,7 +53,7 @@ void OutputToHtml (/*i/o*/ const char *  sData)
             }
         else
             {
-            pHtml = Char2Html[(unsigned char)(*sData)].sHtml ;
+            pHtml = pCurrEscape[(unsigned char)(*sData)].sHtml ;
             if (*pHtml)
                 {
                 if (p != sData)
@@ -315,10 +322,11 @@ const char * GetHtmlArg (/*in*/  const char *    pTag,
 
     
     
-/*//////////////////////////////////////////////////////////////////////////////////////// */
-/*  */
-/* Get a Value out of a perl hash */
-/* */
+/* ---------------------------------------------------------------------------- */
+/*                                                                              */
+/* Get a Value out of a perl hash                                               */
+/*                                                                              */
+/* ---------------------------------------------------------------------------- */
 
 
 char * GetHashValueLen (/*in*/  HV *           pHash,

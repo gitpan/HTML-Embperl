@@ -37,12 +37,21 @@ Options ExecCGI
 AddType text/html .html
 AddType text/html .htm
 
+Alias /embperl/sub/ $EPPATH/test/html/
 Alias /embperl/ $EPPATH/test/html/
+
+<Location /embperl/sub>
+SetHandler perl-script
+PerlHandler HTML::Embperl
+Options ExecCGI
+PerlSetEnv LOC embperl_sub
+</Location>
 
 <Location /embperl>
 SetHandler perl-script
 PerlHandler HTML::Embperl
 Options ExecCGI
+PerlSetEnv LOC embperl
 </Location>
 
 Alias /cgi-bin/ $EPPATH/test/html/

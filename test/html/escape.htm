@@ -1,0 +1,69 @@
+
+<html>
+<head>
+<title>Some tests for Embperl escaping</title>
+</head>
+
+<body>
+
+Here it starts with some HTML Text<P>
+
+First of all assign a value:
+[- $a = '(this is the value in $a)' -] <BR>
+
+Now we have some 'Umlaute':
+
+
+[- $b = "$a &auml;&ouml;&uuml;הצü???&lt;\&+  " -]
+[- $id = "abcdefghijklmnopqrstuvwxyz" ; $text = "This is a text ? \& + - " -]
+
+Now lets look what we are getting from this:<BR>
+[+ $a +] [+ $b +]<BR>
+
+What is the EscMode? [+ $escmode +]
+
+Now a Url: <A HREF="http://localhost/tests?id=[+$id+]&text=[+$text+]">Here it goes</A>
+
+[+ $escmode = 1 +]
+
+Now lets look what we are getting from this:<BR>
+[+ $a +] [+ $b +]<BR>
+
+What is the EscMode? [+ $escmode +]
+
+Now a Url: <A HREF="http://localhost/tests?id=[+$id+]&text=[+$text+]">Here it goes</A>
+
+[+ $escmode = 2 +]
+
+Now lets look what we are getting from this:<BR>
+[+ $a +] [+ $b +]<BR>
+
+What is the EscMode? [+ $escmode +]
+
+Now a Url: <A HREF="http://localhost/tests?id=[+$id+]&text=[+$text+]">Here it goes</A>
+
+[+ $escmode = 0 +]
+
+Now lets look what we are getting from this:<BR>
+[+ $a +] [+ $b +]<BR>
+
+What is the EscMode? [+ $escmode +]
+
+Now a Url: <A HREF="http://localhost/tests?id=[+$id+]&text=[+$text+]">Here it goes</A>
+
+[+ $escmode = 3 +]
+
+Now lets look what we are getting from this:<BR>
+[+ $a +] [+ $b +]<BR>
+
+What is the EscMode? [+ $escmode +]
+
+Now a Url: <A HREF="http://localhost/tests?id=[+$id+]&text=[+$text+]">Here it goes</A>
+
+What is the EscMode? [+ $escmode +]
+
+<P>Ok.<P>
+
+
+</body>
+</html>

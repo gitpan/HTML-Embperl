@@ -15,7 +15,7 @@
 ###################################################################################*/
 
 
-#define INTMG(name,var,used) \
+#define INTMG(name,var,used,sub) \
     \
 int EMBPERL_mgGet##name (SV * pSV, MAGIC * mg) \
 \
@@ -33,6 +33,7 @@ int EMBPERL_mgGet##name (SV * pSV, MAGIC * mg) \
     var = SvIV (pSV) ; \
     if (bDebug & dbgTab) \
         lprintf ("[%d]TAB:  set %s = %d, Used = %d\n", nPid, #name, var, used) ; \
+    sub () ; \
     return 0 ; \
     } \
     \
