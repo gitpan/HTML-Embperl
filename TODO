@@ -66,9 +66,12 @@ Features
 
 - discard output [ Roman Maeder 28.11.00]
 
+
 Test
 ----
 - test FORBIDDEN
+
+- test Embperl_debug 0
 
 Bugs
 ----
@@ -88,6 +91,8 @@ Bugs
 Docs
 ----
 - [- -] [+ +] etc all turns into _perl_code_ in html [S Page 13.9.99]
+
+- Execute -> object, isa
 
 1.3
 ---

@@ -46,6 +46,8 @@ SetEnv EMBPERL_DEBUG $EPDEBUG
 SetEnv EMBPERL_VIRTLOG /embperl/log
 PerlSetEnv EMBPERL_LOG $EPPATH/test/tmp/test.log
 SetEnv EMBPERL_LOG $EPPATH/test/tmp/test.log
+
+
 EOD
 
 
@@ -148,6 +150,7 @@ PerlHandler HTML::Embperl
 Options ExecCGI
 PerlSetEnv EMBPERL_OPTIONS 12
 PerlSetEnv EMBPERL_COMPARTMENT TEST
+PerlSetEnv EMBPERL_PACKAGE TEST
 </Location>
 
 <Location /embperl/rawinput>
@@ -235,7 +238,7 @@ Options +Includes
 
 AddType text/html .ehtml
 
-#<FilesMatch \".*\.ehtml$\">
+#<FilesMatch \".*\.ehtml\$\">
 #SetHandler perl-script
 #PerlHandler HTML::Embperl
 #Options ExecCGI
@@ -388,3 +391,32 @@ ApJServSecretKey DISABLED
 ApJServLogFile /dev/null
 </IfModule>
 EOD
+
+print OFH <<EOD ;
+
+<Location /embperl/hw>
+SetHandler perl-script
+PerlHandler HTML::Embperl
+Options ExecCGI
+#PerlSetEnv EMBPERL_OPTIONS 8083
+#PerlSetEnv EMBPERL_OPTIONS 8147
+PerlSetEnv EMBPERL_OPTIONS 209
+PerlSetEnv EMBPERL_DEBUG 0
+</Location>
+
+<Location /embperl/asp>
+SetHandler perl-script
+PerlHandler Apache::ASP
+PerlSetVar Global  $EPPATH/test/tmp
+PerlSetVar Debug  0
+PerlSetVar CookiePath  /
+PerlSetVar NoState 1
+PerlSetVar StatScripts 0
+#PerlSetVar DynamicIncludes 1
+#PerlSetVar SessionTimeout  .5
+#PerlSetVar AllowSessionState  1 
+</Location>
+
+
+EOD
+

@@ -3,6 +3,23 @@
 
 =over 4
 
+=item * 22. Dec 2000 
+
+After long time of talking, designing, developing, codeing and testing I am
+now happy to announce the first beta of Embperl 2.0. It has a totaly
+rewritten core and makes the way free for a lot of new possibilities...
+
+At the moment it's mainly a speed improvement and introduces caching of the
+(component) output. In the next releases I successively make the
+possibilities of this new architecture available. (see the readme below for
+some ideas what will happen).
+
+Since it's not yet ready for production use, it's only available from my ftp
+server at
+
+ftp://ftp.dev.ecos.de/pub/perl/embperl/HTML-Embperl-2.0b1.tar.gz
+
+
 =item * 4. Dec 2000 
 
 After nearly a year of beta test, the final 1.3.0 release is out. 
@@ -42,8 +59,8 @@ Slides are available at
 
 http://www.ecos.de/embperl/index.htm/ep/pod/oscon2000/index.html
 
- 
-=item * 26. May 2000 
+
+=item * 26. May 2000
 
 Embperl RPMs available  
 

@@ -1,5 +1,38 @@
 =pod
 
+
+
+=head1 1.3.1 (RELEASE)   13 Feb. 2001
+
+   - Added new Introduction to EmbperlObject written by
+     Neil Gunton. See perldoc IntroEmbperlObject
+   - Added new Tips and Tricks pod written by
+     Neil Gunton. See perldoc TipsAndTricks. Anybody is invited
+     to send me their own Tips and Tricks!
+   - Added object and isa parameters to Execute, which allows to get an
+     object reference for a certain file and set the Perl inherence
+     hierachive. Ideas from Neil Gunton and Angus Lees.
+   - Corrected a problem that leads to very strange errors when an
+     Embperl sub is called from an in memory source (that is passed
+     via the Execute input parameter). Spotted by Neil Gunton.
+   - Make EmbperlObject work better with relative paths and drive letters
+     on Windows. Based on a patch from Freddy Vulto.
+   - Fixed a problem with the cache key, which could cause that the same
+     file is compiled within different packages.
+   - Fixed a problem that Embperl are in a wired state after an file upload
+     has been interrupted. Spotted by Dirk Lutzebaeck.
+   - Fixed a problem set @ISA is not correctly setup in case a file is
+     compiled in the same package as the base file of EmbperlObject.
+     Spotted by Neil Gunton.
+   - Fixed problem with including ../foo.html in EmbperlObject. Spotted
+     by Neil Gunton.
+   - Added warning if @ISA is not correctly setup/corrupted.
+   - Fixed a SIGSEGV that occurs when an reference to undef is returned
+     from a [+ +] inside a URL.
+   - Added warning to Makefile.PL, if File::Spec 0.82 isn't installed, which is
+     required by EmbperlObject.
+   - Fixed "use of undefined value" warning in make test      
+
 =head1 1.3.0 (RELEASE)   4 Dec. 2000
 
    - Corrected a wrong test, that let make test fail. Spotted by Eddie Lau.

@@ -332,6 +332,39 @@ Wie L<"EMBPERL_COOKIE_EXPIRES"> (siehe unten).
 Erwartet eine Referenz auf ein Array. Nach der Rückkehr der Funktion enthält das Array
 alle Fehlermeldungen der aufgerufenen Seite, soweit welche aufgetreten sind.
 
+=item B<object> (ab 1.3.1b1)
+
+Erwartet einen Dateinamen und liefert eine Hashreferenz zurück, die in das 
+Package der Datei "geblessed" ist, d.h. die Hashreferenze kann dazu genutzt
+werden, um Funktionen die in der Datei definiert sind, also Methoden
+aufzurufen. Zusätzlich kann durch den C<isa> Parameter (siehe unten) eine
+Vererbungshierachie zwischen Embperlseiten aufgebaut werden. Außerdem ist
+es möglich in dem Hash Objektdaten zu speichern.
+
+  Beispiel:
+
+  [# Die Datei eposubs.htm definiert zwei Funktionen: txt1 und txt2 #]
+  [# Als erstes erstellen wir ein neues Objekt #]
+  [- $subs = Execute ({'object' => 'eposubs.htm'}) -]
+
+  [# Nun kann man Methoden aufrufen #]
+  txt1: [+ $subs -> txt1 +] <br>
+
+  txt2: [+ $subs -> txt2 +] <br>
+
+
+=item B<isa>  (ab 1.3.1b1)
+
+Erwarten den Namen einer Datei und schiebt den Packagename der Datei
+auf das @ISA Array der aktuellen Seite. Dadurch wird es möglich eine
+Vererbung zwischen Embperlseiten aufzubauen. Dies ist auch innerhalb
+von I<EmbperlObject> hilfreich.
+
+  Beispiel:
+
+    [! Execute ({'isa' => '../eposubs.htm'}) !]
+
+
 =back
 
 
@@ -2471,27 +2504,7 @@ I<Embperl> wurde erfolgreich getestet
 
 =item perl 5.6.0
 
-=item apache_1.2.5
-
-=item apache_1.2.6
-
-=item apache_1.3.0
-
-=item apache_1.3.1
-
-=item apache_1.3.2
-
-=item apache_1.3.3
-
-=item apache_1.3.4
-
-=item apache_1.3.5
-
-=item apache_1.3.6
-
-=item Apache_1.3.9
-
-=item Apache_1.3.12
+=item apache_1.3.0 - apache_1.3.17
 
 =item apache_ssl (Ben SSL)
 
@@ -2499,10 +2512,7 @@ I<Embperl> wurde erfolgreich getestet
 
 =item Stronghold 2.4.1
 
-=item Apache_1.3.3 with mod_ssl 2.0.13
-
-=item Apache_1.3.6 with mod_ssl 2.3.5
-
+=item Apache_1.3.x with mod_ssl 2.x.x
 
 =back
 
@@ -2519,13 +2529,7 @@ problemlos läuft.
 
 =item perl 5.6.0
 
-=item apache_1.3.1
-
-=item apache_1.3.6
-
-=item Apache_1.3.9
-
-=item Apache_1.3.12
+=item apache_1.3.0 - apache_1.3.17
 
 =back
 
@@ -2645,6 +2649,8 @@ mehr Zeit und Resourcen dafür aufzubringen.
     binary redhat 6.0   ftp://ftp.akopia.com/pub/support/6.0/
     binary redhat 6.1   ftp://ftp.akopia.com/pub/support/6.1/
 
+ Debian packages        http://www.cse.unsw.edu.au/~gusl/embperl
+ 
  PPM für ActiveState    http://theoryx5.uwinnipeg.ca/ppmpackages/
 
 =head2 CVS

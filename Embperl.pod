@@ -382,6 +382,37 @@ Takes a reference to an array. Upon return, the array will contain a copy of
 all errormessages, if any.
 
 
+=item B<object> (1.3.1b1 and above)
+
+Takes a filename and returns an hashref that is blessed into the package of 
+the given file. That's usefull, if you want to call the subs inside the 
+given file, as methods. By using the C<isa> parameter (see below) you
+are able to provide an inherence tree. Additionaly you can use the returned
+hashref to store data for that obeject.
+
+  Example:
+
+  [# the file eposubs.htm defines two subs: txt1 and txt2 #]
+  [# first we create a new object #]
+  [- $subs = Execute ({'object' => 'eposubs.htm'}) -]
+
+  [# then we call methods inside the object #]
+  txt1: [+ $subs -> txt1 +] <br>
+
+  txt2: [+ $subs -> txt2 +] <br>
+
+
+=item B<isa>  (1.3.1b1 and above)
+
+Takes a name of a file and pushes the package of that file into the @ISA
+array of the current file. By using this you can setup an inherence tree
+between Embperl documents. Is is also usefull within I<EmbperlObject>.
+
+  Example:
+
+    [! Execute ({'isa' => '../eposubs.htm'}) !]
+
+
 =back
 
 
@@ -2505,29 +2536,7 @@ I have tested Embperl successfully
 
 =item perl5.6.0
 
-=item apache_1.2.5
-
-=item apache_1.2.6
-
-=item apache_1.3.0
-
-=item apache_1.3.1
-
-=item apache_1.3.2
-
-=item apache_1.3.3
-
-=item apache_1.3.4
-
-=item apache_1.3.5
-
-=item apache_1.3.6
-
-=item apache_1.3.9
-
-=item apache_1.3.12
-
-=item apache_1.3.14
+=item apache_1.3.0 - apache_1.3.17
 
 =item apache_ssl (Ben SSL)
 
@@ -2535,9 +2544,7 @@ I have tested Embperl successfully
 
 =item Stronghold 2.4.1
 
-=item Apache_1.3.3 with mod_ssl 2.0.13
-
-=item Apache_1.3.6 with mod_ssl 2.3.5
+=item Apache_1.3.x with mod_ssl 2.x.x
 
 =back
 
@@ -2553,13 +2560,7 @@ I know from other people that it works on many other UNIX systems
 
 =item perl5.6.0
 
-=item apache_1.3.1
-
-=item apache_1.3.6
-
-=item apache_1.3.9
-
-=item apache_1.3.12
+=item apache_1.3.0 - apache_1.3.17
 
 =back
 
@@ -2675,8 +2676,10 @@ developement of Embperl.
     binary redhat 6.0   ftp://ftp.akopia.com/pub/support/6.0/
     binary redhat 6.1   ftp://ftp.akopia.com/pub/support/6.1/
 
+ Debian packages        http://www.cse.unsw.edu.au/~gusl/embperl
+ 
  PPM for ActiveState    http://theoryx5.uwinnipeg.ca/ppmpackages/
-    
+     
 
 
 =head2 CVS

@@ -52,7 +52,7 @@ B<NOTE 3:> I<EmbperlObject> needs the following modules to work:
 
 =over 4
 
-=item * File::Spec
+=item * File::Spec 0.82 or higher
 
 =back
 
@@ -68,6 +68,40 @@ parameter:
 
 will show you a list of available option. Most of them you will never need,
 they are mainly nesseccary for debugging I<Embperl> itself.
+
+
+=head2 Debian packages
+
+The Debian packages are maintained by Angus Lees. Here are his
+installation hints:
+
+i've also setup an apt repository for those using stable (potato). to
+use it, just add these lines to /etc/apt/sources.list (deb-src line is
+only necessary if you want to download the source at some point):
+
+  deb http://www.cse.unsw.edu.au/~gusl/embperl stable/binary-$(ARCH)/
+  deb-src http://www.cse.unsw.edu.au/~gusl/embperl stable/source/
+
+then run "apt-get update" followed by either
+"apt-get install libhtml-embperl-perl" or just "apt-get upgrade" if
+you already have embperl installed.
+
+if you don't like apt, and want to do it the old fashioned way, i'm
+sure you can work out how to download the .deb manually.
+
+
+notes:
+
+currently i only have i386 packages built for stable. if anyone wants
+to build other archs and let me know, i can add them in (else, i can
+probably get a sparc and alpha version compiled)
+
+
+the package for unstable is compiled against perl5.6, so it has to
+conflict with earlier mod_perl packages that are compiled against
+perl5.5. unfortunately, there is no perl5.6 apache-perl package yet
+(drow assures me he's uploading one soon), so you have to make do with
+a DSO mod-perl (ie: apache + libapache-mod-perl) for now.
 
 
 =head2 WIN 32
@@ -138,7 +172,7 @@ B<NOTE 3:> I<EmbperlObject> needs the following modules to work:
 
 =over 4
 
-=item * File::Spec
+=item * File::Spec 0.82 or higher
 
 =back
 
@@ -154,11 +188,17 @@ See L<"perldoc Features"|"Features.pod"> for list of Embperls features
 See L<"perldoc Intro"|"Intro.pod"> for an step by step 
 introduction to Embperl.
 
+See L<"perldoc IntroEmbperlObject"|"IntroEmbperlObject.pod"> for an step by step 
+introduction to the OO features of Embperl.
+
 See L<"perldoc Embperl"|"Embperl.pod"> for complete documentation.
 
 See the L<"eg/"|"Examples.pod"> directory for examples.
 
 See L<"perldoc Faq"|"Faq.pod"> for Frequently Asked Questions.
+
+See L<"perldoc TipsAndTricks"|"TipsAndTricks.pod"> for Tips and Tricks 
+around Embperl.
 
 or you can view it online on http://perl.apache.org/embperl/
 

@@ -103,6 +103,10 @@ Try:
 =head2 Running 'make test' fails with an error message at loading of Embperl 
 (even though mod_perl compiled and tested cleanly!)
 
+see "I get symbol ap_* undefined/cannot resolve ap_*"
+
+=head2 I get symbol ap_* undefined/cannot resolve ap_*
+
 This can happen when symbols in the Apache binary can not be found or
 are not being resolved correctly.
 
@@ -128,6 +132,10 @@ but is having problems resolving symbols with Apache.
 
 Try rebuilding Apache and mod_perl from scratch, and make sure
 you do not strip symbols out of either.
+
+On some systems/linker you need to tell the linker explicitly to
+export such symbols. For example FreeBSD linker needs the 
+C<-export-dynamic> option.
 
 If you don't succeed with this approach, try statically linking
 Embperl to Apache/mod_perl (please see the next question for
@@ -322,7 +330,9 @@ libraries
 =head2 Embperl and mod_perl on AIX 
 
 You need at least mod_perl 1.22. For mod_perl 1.22 and higher Embperl
-should compile out of the box on AIX.
+should compile out of the box on AIX. If you run into problems with
+undefined symbols (like C<ap_*>) make sure you have the newest 
+mod_perl version (as of this writing this is mod_perl 1.24_01).
 
 
 =head2 Embperl does not write to the logfile, because of missing permissions

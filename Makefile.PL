@@ -352,7 +352,7 @@ if ($ARGV[0] eq 'debug')
         }
     else
         {
-        $ccdebug = '-g' ;
+        $ccdebug = '-ggdb' ;
         $lddebug = '-g' ;
         }
     }
@@ -775,6 +775,13 @@ if ($b && $apache)
             }
         }
 
+    if (($FSVer = CheckModule ("File::Spec", "-> Required for EmbperlObject, make test will fail whithout File::Spec")) < 0.82)
+        {
+        print "-> EmbperlObject requires File::Spec 0.82 or higher, found $FSVer, please upgrade!\n" ;
+        }
+        
+
+
     $SessVer ||= 0 ;
 
     CheckModule ("CGI", "-> File Upload will not work without CGI.pm installed") ;
@@ -901,7 +908,7 @@ WriteMakefile(
     'realclean'    => { FILES => 'embpexec.pl embpexec.bat embpcgi.pl embpcgi.test.pl embpcgi.bat test/conf/config.pl' },
     'dist'         => { COMPRESS => 'gzip', SUFFIX => 'gz'},
     'dynamic_lib'  => $dynlib,
-    'PREREQ_PM'    => { 'File::Spec' => 0 },
+    'PREREQ_PM'    => { 'File::Spec' => '0.82' },
     'ABSTRACT'     => 'Embed Perl code in HTML documents',
     'AUTHOR'       => 'Gerald Richter <richter@dev.ecos.de>',
 

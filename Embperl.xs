@@ -389,6 +389,17 @@ CODE:
 OUTPUT:
     RETVAL
 
+int
+embperl_PathNdx(r,nNdx=-1)
+    tReq * r
+    int    nNdx
+CODE:
+    if (nNdx >= 0)
+        r -> nPathNdx = nNdx ;
+    RETVAL = r -> nPathNdx ;
+OUTPUT:
+    RETVAL
+
 char *
 embperl_ReqFilename(r)
     tReq * r

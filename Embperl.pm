@@ -1,7 +1,7 @@
 
 ###################################################################################
 #
-#   Embperl - Copyright (c) 1997-2000 Gerald Richter / ECOS
+#   Embperl - Copyright (c) 1997-2001 Gerald Richter / ECOS
 #
 #   You may distribute under the terms of either the GNU General Public
 #   License or the Artistic License, as specified in the Perl README file.
@@ -10,7 +10,7 @@
 #   IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 #   WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 #
-#   $Id: Embperl.pm,v 1.136 2000/12/04 07:41:00 richter Exp $
+#   $Id: Embperl.pm,v 1.142 2001/02/13 05:39:09 richter Exp $
 #
 ###################################################################################
 
@@ -81,7 +81,7 @@ use vars qw(
 @ISA = qw(Exporter DynaLoader);
 
 
-$VERSION = '1.3.0';
+$VERSION = '1.3.1';
 
 # HTML::Embperl cannot be bootstrapped in nonlazy mode except
 # under mod_perl, because its dependencies import symbols like ap_palloc
@@ -460,8 +460,6 @@ sub AddCompartment ($)
     
     $NameSpace{$sName} = $cp ;
 
-    $cp -> share ('&_evalsub_', '&_eval_') ;
-
     return $cp ;
     }
 
@@ -559,9 +557,10 @@ sub SendLogFile ($$$)
 sub CheckFile
 
     {
-    my ($filename, $req_rec, $AllowZeroFilesize, $allow, $pathref, $debug) = @_ ;
+    my ($filename, $req_rec, $AllowZeroFilesize, $allow, $pathref, $pathndxref, $debug) = @_ ;
 
     my $path = $$pathref ;
+    my $pathndx = $$pathndxref ;
 
     if (-d $filename)
         {
@@ -587,14 +586,16 @@ sub CheckFile
         if ($filename =~ m{^(\.\./|\.\.\\)+?.*?(/|\\)*?(.*?)$}) 
             {
             $filename = $3 ;
-            $skip = length ($1) / 3 ;
+            $skip = length ($1) / 3  ;
             }
+        my $pathskip = $skip ;
+        $skip += $pathndx if ($skip) ;
         my @path = split /$pathsplit/o, $path ;
         shift @path while (!$path[0]) ;
         shift @path while ($skip--) ;
         my $fn = '' ;
         print LOG "[$$]Embperl path search Path: " . join (';',@path) . " Filename: $filename\n" if ($debug);
-        $$pathref = join (';', @path) ;
+        #$$pathref = join (';', @path) ;
 
         foreach (@path)
             {
@@ -603,6 +604,7 @@ sub CheckFile
             print LOG "[$$]Embperl path search Check: $fn\n" if ($debug);
             if (-r $fn && (-s _ || $AllowZeroFilesize))
                 {
+                $$pathndxref = $pathndx + $pathskip ;
                 if (defined ($allow) && !($fn =~ /$allow/))
                     {
 	            logerror (rcNotAllowed, $fn, $req_rec);
@@ -611,6 +613,7 @@ sub CheckFile
                 $_[0] = $fn ;
                 return ok ;
                 }
+            $pathndx++  ;
             }
 
         -r $filename ;
@@ -731,16 +734,18 @@ sub Execute
         $req -> {'cookie_expires'} = CGI::expires($req -> {'cookie_expires'}, 'cookie') ;
         }
 
+
     my $conf = SetupConfData ($req, $opcodemask) ;
 
     
     my $Outputfile = $$req{'outputfile'} ;
-    my $In         = $$req{'input'}   ;
+    my $In         = $$req{'input'} ;
     my $Out        = $$req{'output'}  ;
     my $filesize ;
     my $mtime ;
     my $OutData ;
     my $InData ;
+    my $import     = exists ($req -> {'import'})?$req -> {'import'}:($$req{'isa'} || $$req{'object'})?0:undef ;
 
     if (exists $$req{'input_func'})  
         {
@@ -785,10 +790,11 @@ use strict ;
 
     $Out = \$OutData if (exists $$req{'output_func'}) ;
 
-    my $Inputfile    = $$req{'inputfile'} || '?' ;
+    my $Inputfile    = $$req{'inputfile'} || $$req{'isa'} || $$req{'object'} || '?' ;
     my $Sub          = $$req{'sub'} || '' ;
     my $lastreq      = CurrReq () ;
-    
+    my $pathndx      = 0 ;
+
     if ($lastreq)
         {
         if ($Inputfile eq '*') 
@@ -803,6 +809,7 @@ use strict ;
             }
         $$req{'path'} ||= $lastreq -> Path  ;
         $$req{'debug'} ||= $lastreq -> Debug  ;
+        $pathndx = $lastreq -> PathNdx ;
         }
     
     if (defined ($In))
@@ -815,7 +822,7 @@ use strict ;
         #my ($k, $v) ;
         #while (($k, $v) = each (%$req))
         #    { warn "$k = $v" ; }
-        if ($rc = CheckFile ($Inputfile, $req_rec, (($$req{options} || 0) & optAllowZeroFilesize), $$req{'allow'}, \$req -> {path}, (($$req{debug} || 0) & dbgObjectSearch))) 
+        if ($rc = CheckFile ($Inputfile, $req_rec, (($$req{options} || 0) & optAllowZeroFilesize), $$req{'allow'}, \$req -> {path}, \$pathndx, (($$req{debug} || 0) & dbgObjectSearch))) 
             {
 	    FreeConfData ($conf) ;
             return $rc ;
@@ -833,11 +840,16 @@ use strict ;
     my $ar  ;
     $ar = Apache->request if (defined ($req_rec)) ; # workaround that Apache::Request has another C Interface, than Apache
     my $r = SetupRequest ($ar, $Inputfile, $mtime, $filesize, ($$req{firstline} || 1), $Outputfile, $conf,
-                          &epIOMod_Perl, $In, $Out, $Sub, exists ($$req{import})?scalar(caller ($$req{import} > 0?$$req{import} - 1:0)):'',$SessionMgnt) ;
+                          &epIOMod_Perl, $In, $Out, $Sub, defined ($import)?scalar(caller ($import > 0?$import - 1:0)):'',$SessionMgnt) ;
     
-    bless $r, $$req{'bless'} if (exists ($$req{'bless'})) ;
+    if (exists ($$req{'bless'})) 
+        {
+        bless $r, $$req{'bless'} ;
+        warn "\@ISA corrupted HTML::Embperl::Req must be a base class of $$req{'bless'}" if (!$r -> isa ('HTML::Embperl::Req')) ; 
+        }
 
     $r -> Path ($req->{path}) if ($req->{path}) ;
+    $r -> PathNdx ($pathndx) ;
 
     my $package = $r -> CurrPackage ;
     $evalpackage = $package ;   
@@ -845,9 +857,9 @@ use strict ;
 
     $r -> CreateAliases () ;
 
-    if (exists ($$req{import}) && ($exports = $r -> ExportHash))
+    if (defined ($import) && ($exports = $r -> ExportHash))
     	{
-        $r -> Export ($exports, caller ($$req{import} - 1)) if ($$req{import}) ;
+        $r -> Export ($exports, caller ($import - 1)) if ($import) ;
 	$rc = 0 ;
 	}
     else
@@ -869,36 +881,41 @@ use strict ;
 	    require CGI ;
 
 	    my $cgi ;
-	    $cgi = new CGI  ;
-	    #eval { $cgi = new CGI } ;
-	    #$r -> logerror (rcCGIError, $@) if ($@) ;
-		
-	    @ffld = $cgi->param;
+	    #$cgi = new CGI  ;
+	    eval { $cgi = new CGI } ;
+	    if ($@ || !$cgi)
+                {
+                $r -> logerror (rcCGIError, $@)  ;
+                $@ = '' ;
+                }
+            else
+                {
+	        @ffld = $cgi->param;
     
-	    my $params ;
-    	    foreach ( @ffld )
-		{
-    		# the param_fetch needs CGI.pm 2.43
-		#$params = $cgi->param_fetch( $_ ) ;
-    		$params = $cgi->{$_} ;
-		if ($#$params > 0)
+	        my $params ;
+    	        foreach ( @ffld )
 		    {
-		    $fdat{ $_ } = join ("\t", @$params) ;
-		    }
-		else
-		    {
-		    $fdat{ $_ } = $params -> [0] ;
-		    }
-		
-		##print LOG "[$$]FORM: $_=" . (ref ($fdat{$_})?ref ($fdat{$_}):$fdat{$_}) . "\n" if ($dbgForm) ; 
-		print LOG "[$$]FORM: $_=$fdat{$_}\n" if ($dbgForm) ; 
+    		    # the param_fetch needs CGI.pm 2.43
+		    #$params = $cgi->param_fetch( $_ ) ;
+    		    $params = $cgi->{$_} ;
+		    if ($#$params > 0)
+		        {
+		        $fdat{ $_ } = join ("\t", @$params) ;
+		        }
+		    else
+		        {
+		        $fdat{ $_ } = $params -> [0] ;
+		        }
+		    
+		    ##print LOG "[$$]FORM: $_=" . (ref ($fdat{$_})?ref ($fdat{$_}):$fdat{$_}) . "\n" if ($dbgForm) ; 
+		    print LOG "[$$]FORM: $_=$fdat{$_}\n" if ($dbgForm) ; 
 
-		if (ref($fdat{$_}) eq 'Fh') 
-		    {
-		    $fdat{"-$_"} = $cgi -> uploadInfo($fdat{$_}) ;
-		    }
-		}
-
+		    if (ref($fdat{$_}) eq 'Fh') 
+		        {
+		        $fdat{"-$_"} = $cgi -> uploadInfo($fdat{$_}) ;
+		        }
+            	    }
+                }
 	    }
 
 	my $saved_param = undef;
@@ -958,7 +975,7 @@ use strict ;
 
         $r -> CleanupSession ;
 
-        $r -> Export ($exports, caller ($$req{import} - 1)) if ($$req{import} && ($exports = $r -> ExportHash)) ;
+        $r -> Export ($exports, caller ($import - 1)) if ($import && ($exports = $r -> ExportHash)) ;
 
 	my $cleanup    = $$req{'cleanup'}    || ($optDisableVarCleanup?-1:0) ;
 
@@ -985,10 +1002,26 @@ use strict ;
 	$rc = $r -> Error?500:0 ;
 	}
 
+    if ($req -> {'isa'})
+        {
+        no strict ;
+        my $callerisa = \@{caller () . '::ISA'} ;
+        push @$callerisa, $package  if (!grep ($_ eq $package, @$callerisa)) ;
+        use strict ;
+        }
+
     @{$req -> {errors}} = @{$r -> ErrArray()} if (ref ($req -> {errors}) eq 'ARRAY')  ;
 
     $r -> FreeRequest () ;
     
+    if ($rc == 0 && $req -> {'object'})
+        {
+        my $object = {} ;
+        bless $object, $package ;
+        return $object ;
+        }
+
+
     return $rc ;
     }
 

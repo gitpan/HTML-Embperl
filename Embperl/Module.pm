@@ -1,6 +1,6 @@
 ###################################################################################
 #
-#   Embperl - Copyright (c) 1997-2000 Gerald Richter / ECOS
+#   Embperl - Copyright (c) 1997-2001 Gerald Richter / ECOS
 #
 #   You may distribute under the terms of either the GNU General Public
 #   License or the Artistic License, as specified in the Perl README file.
@@ -9,25 +9,10 @@
 #   IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 #   WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 #
-#   $Id: Module.pm,v 1.28 2000/05/02 06:43:27 richter Exp $
+#   $Id: Module.pm,v 1.29 2001/02/13 05:39:41 richter Exp $
 #
 ###################################################################################
 
-
-###################################################################################
-#
-#   Embperl - Copyright (c) 1997-2000 Gerald Richter / ECOS
-#
-#   You may distribute under the terms of either the GNU General Public
-#   License or the Artistic License, as specified in the Perl README file.
-#
-#   THIS PACKAGE IS PROVIDED "AS IS" AND WITHOUT ANY EXPRESS OR
-#   IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
-#   WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
-#
-#   $Id: Module.pm,v 1.28 2000/05/02 06:43:27 richter Exp $
-#
-###################################################################################
 
 
 package HTML::Embperl::Module ;

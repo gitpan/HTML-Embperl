@@ -1,6 +1,6 @@
 /*###################################################################################
 #
-#   Embperl - Copyright (c) 1997-1999 Gerald Richter / ECOS
+#   Embperl - Copyright (c) 1997-2001 Gerald Richter / ECOS
 #
 #   You may distribute under the terms of either the GNU General Public
 #   License or the Artistic License, as specified in the Perl README file.
@@ -9,6 +9,8 @@
 #   THIS PACKAGE IS PROVIDED "AS IS" AND WITHOUT ANY EXPRESS OR
 #   IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 #   WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+#
+#   $Id: epdat.h,v 1.28 2001/02/13 05:39:20 richter Exp $
 #
 ###################################################################################*/
 
@@ -351,6 +353,7 @@ struct tReq
     int	    nSessionMgnt ;	/* how to retrieve the session id */
     int	    nInsideSub ;	/* Are we inside of a sub? */
     int	    bExit ;		/* We should exit the page */
+    int	    nPathNdx ;		/* gives the index in the path where the current file is found */
 #ifdef EP2
     bool    bEP1Compat ;	/* run in Embperl 1.x compatible mode */    
     tPhase  nPhase ;		/* which phase of the request we are in */

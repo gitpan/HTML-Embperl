@@ -1,7 +1,7 @@
 
 ###################################################################################
 #
-#   Embperl - Copyright (c) 1997-2000 Gerald Richter / ECOS
+#   Embperl - Copyright (c) 1997-2001 Gerald Richter / ECOS
 #
 #   You may distribute under the terms of either the GNU General Public
 #   License or the Artistic License, as specified in the Perl README file.
@@ -10,7 +10,7 @@
 #   IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 #   WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 #
-#   $Id: EmbperlObject.pm,v 1.39 2000/11/07 11:28:18 richter Exp $
+#   $Id: EmbperlObject.pm,v 1.42 2001/02/13 05:39:10 richter Exp $
 #
 ###################################################################################
 
@@ -46,14 +46,21 @@ use strict ;
 use vars qw(
     @ISA
     $VERSION
+    $volume
+    $fsignorecase
     ) ;
 
 
 @ISA = qw(Exporter DynaLoader);
 
 
-$VERSION = '1.3b4';
+$VERSION = '1.3.1';
 
+
+$volume = (File::Spec -> splitpath ($HTML::Embperl::cwd))[0] ;
+$fsignorecase = File::Spec->case_tolerant ;
+
+1 ;
 
 #############################################################################
 #
@@ -67,12 +74,29 @@ $VERSION = '1.3b4';
 sub norm_path
 
     {
-    return '' if (!$_[0]) ;
+    my $path = shift ;
+    return '' if (!$path) ;
 
-    my $path = File::Spec -> canonpath (shift) ;
-    $path =~ s/\\/\//g ;
+    # remove spaces
     $path = $1 if ($path =~ /^\s*(.*?)\s*$/) ;
     
+    if (File::Spec->file_name_is_absolute ($path))
+        {
+        $path = File::Spec -> canonpath ($path) ;
+        }
+    else
+        {            
+        $_[0] ||= Cwd::fastcwd ;
+        # make absolute path
+        $path = File::Spec -> rel2abs ($path, $_[0]) ;
+        }
+    # Use always forward slashes
+    $path =~ s/\\/\//g ;
+    # Add volume (i.e. drive on Windows) if not exists
+    $path = $volume . $path if ($path =~ /^\//) ;
+    # Make lower case if filesystem doesn't cares about case 
+    $path = lc ($path) if ($fsignorecase) ;
+
     return $path ;
     }
 
@@ -102,13 +126,12 @@ sub handler
     my $mod ;
     if ($filename =~ /^(.*)__(.*?)$/)
 	{
-        $filename  = norm_path ($1) ;
+        $filename  = $1 ;
 	$mod	   = $2 ;
 	$mod 	   =~ s/[^a-zA-Z0-9]/_/g ;
 	}
     else
 	{	
-        $filename  = norm_path ($filename) ;
 	$mod = '' ;
 	}
 
@@ -136,7 +159,8 @@ sub Execute
     {
     my $req = shift ;
     
-    my $filename = $req -> {inputfile} ;
+    my $cwd ;
+    my $filename = norm_path ($req -> {inputfile}, $cwd) ;
     my $r        ;
     $r = $req -> {req_rec} if ($req -> {req_rec}) ;
 
@@ -156,10 +180,10 @@ sub Execute
     my $basename  = $req -> {object_base} ;
     $basename     =~ s/%modifier%/$req->{object_base_modifier}/ ;
     my $addpath   =  $req -> {object_addpath}  ;
-    my @addpath   = $addpath?split (/:/, $addpath):() ;
+    my @addpath   = $addpath?split (/$HTML::Embperl::pathsplit:/, $addpath):() ;
     my $directory ;
-    my $rootdir   = $r?norm_path ($r -> document_root):'/' ;
-    my $stopdir   = norm_path ($req -> {object_stopdir}) ;
+    my $rootdir   = $r?norm_path ($r -> document_root, $cwd):"$volume/" ;
+    my $stopdir   = norm_path ($req -> {object_stopdir}, $cwd) ;
     my $debug     = $req -> {debug} & HTML::Embperl::dbgObjectSearch ;
     
     if (-d $filename)
@@ -192,7 +216,6 @@ sub Execute
         if (-e $fn)
             {
             $r -> filename ($fn) if ($r) ;
-            $r -> notes ('EMBPERL_searchpath',  $searchpath) if ($r) ;
             $found = 1 ;
             }
         else
@@ -221,7 +244,6 @@ sub Execute
             if (-e $fn)
                 {
                 $r -> filename ($fn) if ($r) ;
-                $r -> notes ('EMBPERL_searchpath',  $searchpath) if ($r) ;
                 $found = 1 ;
                 last ;
                 }
@@ -272,7 +294,7 @@ sub Execute
                 }
 
             no strict ;
-            @{"$package\:\:ISA"} = ($basepackage) ;
+            @{"$package\:\:ISA"} = ($basepackage) if ($package ne $basepackage) ;
             use strict ;
             }
 
@@ -311,6 +333,19 @@ HTML::EmbperlObject - Extents HTML::Embperl for building whole website with reus
 
 
 =head1 DESCRIPTION
+
+I<HTML::EmbperlObject> allows you to build object-oriented (OO) websites using
+HTML components which implement inheritance via subdirectories. This
+enables elegant architectures and encourages code reuse. The use of
+inheritance also enables a website-wide "look and feel" to be specified
+in a single HTML file, which is then used as a template for every other
+page on the site. This template can include other modules which can be
+overridden in subdirectories; even the template itself can be
+overridden. In a nutshell, I<EmbperlObject> makes
+the design of large websites much more intuitive, allowing
+object-oriented concepts to be utilised to the fullest while staying
+within the "rapid application development" model of Perl and HTML.
+
 
 I<HTML::EmbperlObject> is basicly a I<mod_perl> handler or could be invoked
 offline and helps you to
@@ -422,6 +457,8 @@ same as $ENV{EMBPERL_OBJECT_HANDLER_CLASS}
 
 =back
 
+See also the C<object> and C<isa> parameters in Embperl's Execute function, on how
+to setup additional inherence and how to create Perl objects out of Embperl pages.
 
 =head1 Basic Example
 

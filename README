@@ -1,6 +1,6 @@
 HTML::Embperl - Embed Perl in Your HTML Documents
 
-Copyright (c) 1997-2000 Gerald Richter / ECOS
+Copyright (c) 1997-2001 Gerald Richter / ECOS
 
 You may distribute under the terms of either the GNU General Public 
 License or the Artistic License, as specified in the Perl README file.
@@ -9,19 +9,21 @@ THIS PACKAGE IS PROVIDED "AS IS" AND WITHOUT ANY EXPRESS OR IMPLIED
 WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF 
 MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 
+$Id: README,v 1.25 2001/02/13 05:48:54 richter Exp $
+
 
 OVERVIEW
 ========
 
-Embperl gives you the power to embed Perl code in your HTML documents 
-and the ability to build your Web site out of small reusable objects 
-in a OO-style. You can also take advantage all available Perl modules, 
-(including DBI for database access) use their functionality and easily 
-include their output into your web pages.
+Embperl gives you the power to embed Perl code in your HTML documents
+and the ability to build your Web site out of small reusable objects in
+an object-oriented style. You can also take advantage of all the
+usual Perl modules, (including DBI for database access) use their
+functionality and easily include their output in your web pages.
 
-Embperl has several features especially useful for creating HTML, 
-including dynamic tables, formfield-processing, escaping/unescaping, 
-session handling, and more. 
+Embperl has several features which are especially useful for creating
+HTML, including dynamic tables, form field processing, URL
+escaping/unescaping, session handling, and more.
 
 Embperl is a server-side tool, which means that it's browser-independent. 
 It can run in various ways: under mod_perl, as a CGI script, or offline.
@@ -36,15 +38,17 @@ DOCUMENTATION
 
 The following documentation is available within the distribution
 
-Features of Embperl:        perldoc Features.pod
-Introduction to Embperl:    perldoc Intro.pod
-Installation of Embperl:    perldoc INSTALL.pod
-Full documentation:         perldoc Embperl.pod
-                            perldoc EmbperlObject.pm
-                            perldoc Embperl/Mail.pm
-Frequent Asked Questions:   perldoc Faq.pod
-Changes:                    perldoc Changes.pod
-Examples:		    eg/x/README
+Features of Embperl:            perldoc Features.pod
+Introduction to Embperl:        perldoc Intro.pod
+Introduction to EmbperlObject:  perldoc IntroEmbperlObject.pod
+Installation of Embperl:        perldoc INSTALL.pod
+Full documentation:             perldoc Embperl.pod
+                                perldoc EmbperlObject.pm
+                                perldoc Embperl/Mail.pm
+Frequent Asked Questions:       perldoc Faq.pod
+Tips and Tricks:                perldoc TipsAndTricks.pod
+Changes:                        perldoc Changes.pod
+Examples:		        eg/x/README
 
 All the above and further information can be found at the Embperl website 
 
@@ -132,7 +136,7 @@ on Linux 2.x with
 perl5.004_04
 perl5.005_01/02/03
 perl5.6.0
-apache_1.2.5 - apache_1.3.14
+apache_1.3.0 - apache_1.3.17
 apache + mod_ssl
 apache_ssl (Ben SSL)
 Stronghold 2.2
@@ -143,7 +147,7 @@ on Windows NT 4.0 with
 perl5.004_04
 perl5.005_xx 
 perl5.6.0
-apache_1.3.0 - apache_1.3.12
+apache_1.3.0 - apache_1.3.17
 
 on Windows 95/98 with
 

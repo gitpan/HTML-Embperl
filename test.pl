@@ -300,6 +300,7 @@
         'option'     => '12',
         'errors'     => '-1',
         'compartment'=> 'TEST',
+        'package'    => 'TEST',
         'version'    => 1,
         'cgi'        => 0,
         },
@@ -425,9 +426,28 @@
         'cgi'        => 0,
         'cmpext'     => '3',      
         },
+    'EmbperlObject/sub/subsub/subsubsub/eposubsub2.htm' => { 
+        'offline'    => 0,
+        'cgi'        => 0,
+        },
     'EmbperlObject/sub/eponotfound.htm' => { 
         'offline'    => 0,
         'cgi'        => 0,
+        },
+    'EmbperlObject/sub/epobless.htm' => { 
+        'offline'    => 0,
+        'cgi'        => 0,
+        'repeat'     => 2,
+        },
+    'EmbperlObject/sub/epobless2.htm' => { 
+        'offline'    => 0,
+        'cgi'        => 0,
+        'repeat'     => 2,
+        },
+    'EmbperlObject/sub/epobless3.htm' => { 
+        'offline'    => 0,
+        'cgi'        => 0,
+        'repeat'     => 2,
         },
     'EmbperlObject/obj/epoobj1.htm' => { 
         'offline'    => 0,
@@ -468,9 +488,10 @@ for ($i = 0 ; $i < @testdata; $i += 2)
 
 use vars qw ($httpconfsrc $httpconf $EPPORT $EPPORT2 *SAVEERR *ERR $EPHTTPDDLL $EPSTARTUP $EPDEBUG
              $EPSESSIONDS $EPSESSIONCLASS $EPSESSIONVERSION $EP1COMPAT
+            $testshare
             $opt_offline $opt_ep1 $opt_cgi $opt_modperl $opt_execute $opt_nokill $opt_loop
             $opt_multchild $opt_memcheck $opt_exitonmem $opt_exitonsv $opt_config $opt_nostart $opt_uniquefn
-            $opt_quite $opt_ignoreerror $opt_tests $opt_blib $opt_help $opt_dbgbreak $opt_finderr
+            $opt_quite $opt_qq $opt_ignoreerror $opt_tests $opt_blib $opt_help $opt_dbgbreak $opt_finderr
             $opt_ddd $opt_gdb $opt_ab $opt_abpre $opt_abverbose $opt_start $opt_kill $opt_showcookie $opt_cache) ;
 
     {
@@ -545,7 +566,7 @@ eval { Getopt::Long::Configure ('bundling') } ;
 $@ = "" ;
 $ret = GetOptions ("offline|o", "ep1|1", "cgi|c", "cache|a", "modperl|httpd|h", "execute|e", "nokill|r", "loop|l:i",
             "multchild|m", "memcheck|v", "exitonmem|g", "exitonsv", "config|f=s", "nostart|x", "uniquefn|u",
-            "quite|q", "ignoreerror|i", "tests|t", "blib|b", "help", "dbgbreak", "finderr",
+            "quite|q", "qq", "ignoreerror|i", "tests|t", "blib|b", "help", "dbgbreak", "finderr",
 	    "ddd", "gdb", "ab:s", "abverbose", "abpre", "start", "kill", "showcookie") ;
 
 $opt_help = 1 if ($ret == 0) ;
@@ -1038,6 +1059,7 @@ $looptest  = defined ($opt_loop)?1:0 ; # endless loop tests
 
 $outfile .= ".$$" if ($opt_uniquefn) ;
 $defaultdebug = 1 if ($opt_quite) ;
+$defaultdebug = 0 if ($opt_qq) ;
 $opt_ep1 = 0 if (!$EP2) ;
 $EP1COMPAT = 1 if ($opt_ep1) ;
 
@@ -1108,9 +1130,13 @@ $max_sv = 0 ;
 $version = $EP2?2:1 ;
 $frommem = 0 ;
 	
+$testshare = "Shared Data" ; 
+
 $cp = HTML::Embperl::AddCompartment ('TEST') ;
 
 $cp -> deny (':base_loop') ;
+
+$cp -> share ('$testshare') ;
 
 $ENV{EMBPERL_ALLOW} = 'asc|\\.htm$|\\.htm-1$' ;
 
@@ -1163,7 +1189,8 @@ do
                 $errcnt = 7 if ($file eq 'varerr.htm' && $^V && $^V ge v5.6.0) ;
 
                 $debug = $test -> {debug} || $defaultdebug ;  
-	        $page = "$inpath/$file" ;
+	        $debug = 0 if ($opt_qq) ;
+		$page = "$inpath/$file" ;
 	        $page = "$inpath$testversion/$file" if (-e "$inpath$testversion/$file") ;
                 #$page .= '-1' if ($ep1compat && -e "$page-1") ;
     
@@ -1171,8 +1198,11 @@ do
 	        $seen{"o:$page"} = 1 ;
     
 	        delete $ENV{EMBPERL_OPTIONS} if (defined ($ENV{EMBPERL_OPTIONS})) ;
-	        $ENV{EMBPERL_OPTIONS} = $test -> {option} if (defined ($test -> {option})) ;
+	        $ENV{EMBPERL_OPTIONS}     = $test -> {option} if (defined ($test -> {option})) ;
+	        delete $ENV{EMBPERL_COMPARTMENT} if (defined ($ENV{EMBPERL_COMPARTMENT})) ;
 	        $ENV{EMBPERL_COMPARTMENT} = $test -> {compartment} if (defined ($test -> {compartment})) ;
+	        delete $ENV{EMBPERL_PACKAGE}  if (defined (delete $ENV{EMBPERL_PACKAGE})) ;
+	        $ENV{EMBPERL_PACKAGE}     = $test -> {'package'} if (defined ($test -> {'package'})) ;
 	        @testargs = ( '-o', $outfile ,
 			      '-l', $logfile,
 			      '-d', $debug,

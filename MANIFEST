@@ -18,6 +18,8 @@ Features.pod
 EmbperlD.pod
 IntroD.pod
 FeaturesD.pod
+IntroEmbperlObject.pod
+TipsAndTricks.pod
 typemap
 eg/README
 eg/images/jazzbkgd.gif
@@ -155,10 +157,19 @@ test/html/EmbperlObject/epopage1.htm
 test/html/EmbperlObject/epodiv.htm
 test/html/EmbperlObject/sub/subsub/eposubsub.htm
 test/html/EmbperlObject/sub/subsub/subsubsub/eposubsub.htm
+test/html/EmbperlObject/eposubsub2.htm
+test/html/EmbperlObject/sub/eposubsub2.htm
+test/html/EmbperlObject/sub/subsub/subsubsub/eposubsub2.htm
 test/html/EmbperlObject/eposubsub.htm
 test/html/EmbperlObject/sub/epohead.htm
 test/html/EmbperlObject/sub/epopage2.htm
 test/html/EmbperlObject/epofallback.htm
+test/html/EmbperlObject/eposubs.htm
+test/html/EmbperlObject/sub/eposubs.htm
+test/html/EmbperlObject/sub/epobless.htm
+test/html/EmbperlObject/sub/eposubs2.htm
+test/html/EmbperlObject/sub/epobless2.htm
+test/html/EmbperlObject/sub/epobless3.htm
 test/html/EmbperlObject/obj/epobase.htm
 test/html/EmbperlObject/obj/epohead.htm
 test/html/EmbperlObject/obj/epofoot.htm
@@ -252,6 +263,7 @@ test/cmp/epopage1.htm
 test/cmp/epodiv.htm
 test/cmp/epopage2.htm
 test/cmp/eposubsub.htm
+test/cmp/eposubsub2.htm
 test/cmp/eposubsub.htm3
 test/cmp/epoobj1.htm
 test/cmp/epoobj2.htm
@@ -260,6 +272,9 @@ test/cmp/epoobj4.htm
 test/cmp/eponotfound.htm
 test/cmp/epostopdir.htm
 test/cmp/epobaselib.htm
+test/cmp/epobless.htm
+test/cmp/epobless2.htm
+test/cmp/epobless3.htm
 test/cmp/getbsess.htm
 test/cmp/delrdsess.htm     
 test/cmp/delwrsess.htm

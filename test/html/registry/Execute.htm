@@ -9,7 +9,7 @@ use HTML::Embperl ;
 
 my($r) = @_;
 
-$HTML::Embperl::DebugDefault = 811005 ;
+$HTML::Embperl::DebugDefault = $ENV{EMBPERL_DEBUG} ;
 
 
 $tst1 = '<P>Here is some text</P>' ;

@@ -1,6 +1,6 @@
 /*###################################################################################
 #
-#   Embperl - Copyright (c) 1997-1999 Gerald Richter / ECOS
+#   Embperl - Copyright (c) 1997-2001 Gerald Richter / ECOS
 #
 #   You may distribute under the terms of either the GNU General Public
 #   License or the Artistic License, as specified in the Perl README file.
@@ -9,6 +9,8 @@
 #   THIS PACKAGE IS PROVIDED "AS IS" AND WITHOUT ANY EXPRESS OR
 #   IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 #   WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+#
+#   $Id: epmain.c,v 1.94 2001/02/13 05:39:23 richter Exp $
 #
 ###################################################################################*/
 
@@ -822,46 +824,50 @@ static int ScanCmdEvals (/*i/o*/ register req * r,
 
                 if (pRet)
                     {
-                    if (r -> bEscInUrl && SvTYPE(pRet) == SVt_RV && SvTYPE((pAV = (AV *)SvRV(pRet))) == SVt_PVAV)
-			{ /* Array reference inside URL */
-			SV ** ppSV ;
-			int i ;
-			int f = AvFILL(pAV)  ;
-			for (i = 0; i <= f; i++)
-			    {
-			    ppSV = av_fetch (pAV, i, 0) ;
-			    if (ppSV && *ppSV)
+		    if (r -> bEscInUrl && SvTYPE(pRet) == SVt_RV && (pAV = (AV *)SvRV(pRet)))
+			{			    
+			if (SvTYPE(pAV) == SVt_PVAV)
+			    { /* Array reference inside URL */
+			    SV ** ppSV ;
+			    int i ;
+			    int f = AvFILL(pAV)  ;
+			    for (i = 0; i <= f; i++)
 				{
-				OutputToHtml (r, SvPV (*ppSV, l)) ;
+				ppSV = av_fetch (pAV, i, 0) ;
+				if (ppSV && *ppSV)
+				    {
+				    OutputToHtml (r, SvPV (*ppSV, l)) ;
+				    }
+				if ((i & 1) == 0)
+				    oputc (r, '=' ) ;
+				else if (i < f)
+				    oputs (r, "&amp;") ;
 				}
-			    if ((i & 1) == 0)
+			
+			    }
+			else if (SvTYPE(pAV) == SVt_PVHV)
+			    { /* Hash reference inside URL */
+			    int         i = 0 ;
+			    HE *	    pEntry ;
+			    char *	    pKey ;
+			    SV * 	    pSVValue ;
+			    pHV = (HV *)pAV ;
+
+			    hv_iterinit (pHV) ;
+			    while (pEntry = hv_iternext (pHV))
+				{
+				if (i++ > 0)
+				    oputs (r, "&amp;") ;
+				pKey     = hv_iterkey (pEntry, &li) ;
+				OutputToHtml (r, pKey) ;
 				oputc (r, '=' ) ;
-			    else if (i < f)
-				oputs (r, "&amp;") ;
+
+				pSVValue = hv_iterval (pHV , pEntry) ;
+				if (pSVValue)
+				    OutputToHtml (r, SvPV (pSVValue, l)) ;
+				}
 			    }
-		    
 			}
-		    else if (r -> bEscInUrl && SvTYPE(pRet) == SVt_RV && SvTYPE((pHV = (HV *)SvRV(pRet))) == SVt_PVHV)
-			{ /* Hash reference inside URL */
-		        int         i = 0 ;
-			HE *	    pEntry ;
-			char *	    pKey ;
-			SV * 	    pSVValue ;
-
-			hv_iterinit (pHV) ;
-			while (pEntry = hv_iternext (pHV))
-			    {
-			    if (i++ > 0)
-				oputs (r, "&amp;") ;
-			    pKey     = hv_iterkey (pEntry, &li) ;
-			    OutputToHtml (r, pKey) ;
-			    oputc (r, '=' ) ;
-
-			    pSVValue = hv_iterval (pHV , pEntry) ;
-			    if (pSVValue)
-				OutputToHtml (r, SvPV (pSVValue, l)) ;
-			    }
-			}	
 		    else
 			{
 			if (r -> pCurrEscape == NULL)
@@ -1822,8 +1828,9 @@ tFile * SetupFileData   (/*i/o*/ register req * r,
     char	txt [sizeof (sDefaultPackageName) + 50] ;
     char *	cache_key;
     int		cache_key_len;
-    char olddir[PATH_MAX] = "" ;
-    
+    char	olddir[PATH_MAX] = "" ;
+    char *      pNew ;
+
     EPENTRY (SetupFileData) ;
 
     /* Have we seen this sourcefile/package already ? */
@@ -1832,10 +1839,11 @@ tFile * SetupFileData   (/*i/o*/ register req * r,
 	cache_key_len += strlen( pConf->sPackage );
     
     /* is it a relativ filename? -> append path */
-    if (sSourcefile[0] == '/' || 
-        sSourcefile[0] == '\\' || 
-        (isalpha(sSourcefile[0]) && sSourcefile[1] == ':' && 
-            (sSourcefile[2] == '\\' || sSourcefile[2] == '/')))
+    if (!(sSourcefile[0] == '/' || 
+          sSourcefile[0] == '\\' || 
+          (isalpha(sSourcefile[0]) && sSourcefile[1] == ':' && 
+	          (sSourcefile[2] == '\\' || sSourcefile[2] == '/')) ||
+	    (r -> pInData && SvROK(r -> pInData))))
         getcwd (olddir, sizeof (olddir) - 1) ;
 
     if ( olddir[0] )
@@ -1881,6 +1889,7 @@ tFile * SetupFileData   (/*i/o*/ register req * r,
 		f -> pExportHash = NULL ;
 		}
 	    }
+        pNew = "Found" ;
         }
     else
         { /* create new file structure */
@@ -1914,7 +1923,12 @@ tFile * SetupFileData   (/*i/o*/ register req * r,
     
         if (r -> bDebug)
             lprintf (r, "[%d]MEM: Load %s in %s\n", r -> nPid,  sSourcefile, f -> sCurrPackage) ;
+        pNew = "New" ;
         }
+
+    if (r -> bDebug)
+        lprintf (r, "[%d]CACHE: %s File for '%s' (%x) in '%s' hash cache-key '%s'\n", r -> nPid,  pNew, f -> sSourcefile, f, f -> sCurrPackage, cache_key) ;
+    
     _free(r,cache_key);
 
     return f ;
@@ -1938,6 +1952,7 @@ tFile * GetFileData     (/*in*/  char *  sSourcefile,
     char *	cache_key;
     int		cache_key_len;
     char olddir[PATH_MAX] = "" ;
+    char *      pNew ;
     
     EPENTRY (GetFileData) ;
 
@@ -1947,10 +1962,10 @@ tFile * GetFileData     (/*in*/  char *  sSourcefile,
 	cache_key_len += strlen( sPackage );
     
     /* is it a relativ filename? -> append path */
-    if (sSourcefile[0] == '/' || 
+    if (!(sSourcefile[0] == '/' || 
         sSourcefile[0] == '\\' || 
         (isalpha(sSourcefile[0]) && sSourcefile[1] == ':' && 
-            (sSourcefile[2] == '\\' || sSourcefile[2] == '/')))
+            (sSourcefile[2] == '\\' || sSourcefile[2] == '/'))))
         getcwd (olddir, sizeof (olddir) - 1) ;
 
     if ( olddir[0] )
@@ -1990,7 +2005,9 @@ tFile * GetFileData     (/*in*/  char *  sSourcefile,
 		f -> pExportHash = NULL ;
 		}
 	    }
-        }
+
+        pNew = "Found " ;
+	}
     else
         { /* create new file structure */
         if ((f = malloc (sizeof (*f))) == NULL)
@@ -2021,7 +2038,13 @@ tFile * GetFileData     (/*in*/  char *  sSourcefile,
 
         hv_store(pCacheHash, cache_key, cache_key_len, newRV_noinc (newSViv ((IV)f)), 0) ;  
     
-        }
+        pNew = "New " ;
+	}
+
+    if (pCurrReq -> bDebug)
+        lprintf (pCurrReq, "[%d]CACHE: %s File for %s (%x) in %s hash cache-key %s\n", pCurrReq -> nPid,  pNew, f -> sSourcefile, f, f -> sCurrPackage, cache_key) ;
+    
+
     free(cache_key);
 
     return f ;
@@ -2167,6 +2190,9 @@ tReq * SetupRequest (/*in*/ SV *    pApacheReqSV,
     r -> nInsideSub	 = 0 ;
     r -> bExit  	 = 0 ;
     
+    r -> pOutData        = pOut ;
+    r -> pInData         = pIn ;
+
     r -> pFiles2Free	 = NULL ;
     if (r -> bSubReq && sSourcefile[0] == '?' && sSubName && sSubName[0] != '\0')
 	{
@@ -2195,9 +2221,6 @@ tReq * SetupRequest (/*in*/ SV *    pApacheReqSV,
     r -> bReqRunning     = 1 ;
 
     r -> Buf.pFile = pFile ;
-
-    r -> pOutData        = pOut ;
-    r -> pInData         = pIn ;
 
     
     r -> CmdStack.State.nCmdType      = cmdNorm ;
@@ -2943,6 +2966,9 @@ static int ProcessFile (/*i/o*/ register req * r,
     r -> Buf.pSourcelinePos = r -> Buf.pCurrPos = r -> Buf.pBuf ;
     r -> Buf.pEndPos  = r -> Buf.pBuf + nFileSize ;
 
+    /*xxx lprintf (r, "ProcessFile  r -> Buf.pFile=%x\n", r -> Buf.pFile) ; */
+
+
 #ifdef EP2
     if (!r -> bEP1Compat)
 	{
@@ -3025,6 +3051,7 @@ int ProcessBlock	(/*i/o*/ register req * r,
     char *  p ;
     int     n ;
 
+    /*xxx lprintf (r, "ProcessBlock nBlockStart=%d nBlockNo=%d  r -> Buf.pFile=%x\n", nBlockStart, nBlockNo, r -> Buf.pFile) ; */
 
     r -> Buf.pCurrPos = r -> Buf.pBuf + nBlockStart ;
     r -> Buf.pEndPos  = r -> Buf.pCurrPos + nBlockSize ;
@@ -3161,6 +3188,8 @@ int ReadInputFile	(/*i/o*/ register req * r)
 
     if ((pBufSV = r -> Buf.pFile -> pBufSV) == NULL || !SvPOK (pBufSV))
 	{
+	/*xxx lprintf (r, "ReadInputFile r -> pInData=%x rok=%d\n", r -> pInData, SvROK(r -> pInData)) ; */
+
 	if (SvROK(r -> pInData))
 	    { /* --- get input from memory --- */
 	    STRLEN n ;
@@ -3224,6 +3253,7 @@ int ProcessSub		(/*i/o*/ register req * r,
     tSrcBuf Buf ;
     char *  sEvalPackage = r -> Buf.sEvalPackage ; 
     STRLEN  nEvalPackage = r -> Buf.nEvalPackage ;  
+    SV *    pInData      = r -> pInData  ;  
 
 
     /*av_unshift (GvAV (PL_defgv), 1) ;
@@ -3231,11 +3261,14 @@ int ProcessSub		(/*i/o*/ register req * r,
     
     memcpy (&Buf, &r -> Buf, sizeof (Buf)) ;
 
+    /*xxx lprintf (r, "ProcessSub pFile=%x nBlockStart=%d nBlockNo=%d  r -> Buf.pFile=%x\n", pFile, nBlockStart, nBlockNo, r -> Buf.pFile) ; */
     
     if (pFile != r -> Buf.pFile)
 	{ /* get other file */
 	r -> Buf.pFile = pFile ;
+	r -> pInData = &sv_undef ;
 
+	/*xxx lprintf (r, "ProcessSub call ReadInputFile\n") ; */
 	if ((rc = ReadInputFile (r)) != ok)
 	    {
 	    LogError (r, rc) ;
@@ -3256,7 +3289,8 @@ int ProcessSub		(/*i/o*/ register req * r,
     memcpy (&r -> Buf, &Buf, sizeof (Buf)) ;
     r -> Buf.sEvalPackage = sEvalPackage ; 
     r -> Buf.nEvalPackage = nEvalPackage ; 
-
+    r -> pInData          = pInData ;  
+    
     if (rc != ok)
 	LogError (r, rc) ;
 

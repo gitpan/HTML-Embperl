@@ -10,13 +10,20 @@ BEGIN {
         }
     } ;
 
+sub main::trans { return -1 } ;
 
 use Apache ;
 use Apache::Registry ;
 use HTML::Embperl ;
 
+$testshare = "Shared Data" ; 
+
 $cp = HTML::Embperl::AddCompartment ('TEST') ;
 
 $cp -> deny (':base_loop') ;
+
+$cp -> share ('$testshare') ;
+
+
 
 1 ;
