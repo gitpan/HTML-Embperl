@@ -22,7 +22,8 @@ used to build mod_perl.
 - B<make install>
 
 B<NOTE 1:> (only Embperl-1.2b1 or higher) For using session handling you need
-Apache::Session-0.17 or higher. If possible use Apache::Session 1.52 or higher.
+Apache::Session-1.00 or higher. If possible use Apache::Session 1.52 or higher.
+Starting with Embperl 1.3b7 Apache::Session 0.17 is B<NOT> supported anymore.
 
 B<NOTE 2:> I<Embperl> runs without additional Perl modules, but the C<make test>
 needs the following modules to work:
@@ -107,7 +108,8 @@ B<NOTE:> nmake test needs libwin32, libwww and HTML::Parser installed to work
 B<nmake install>
 
 B<NOTE 1:> (only Embperl-1.2b1 or higher) For using session handling you need
-Apache::Session-0.17 or higher. If possible use Apache::Session 1.52 or higher.
+Apache::Session-1.00 or higher. If possible use Apache::Session 1.52 or higher.
+Starting with Embperl 1.3b7 Apache::Session 0.17 is B<NOT> supported anymore.
 
 B<NOTE 2:> I<Embperl> runs without additional Perl modules, but the C<make test>
 needs the following modules to work:

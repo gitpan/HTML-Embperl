@@ -25,6 +25,8 @@ MaxRequestsPerChild 0
 EOD
     }
 
+
+
 print OFH <<EOD ;
 
 $EPMODPERL
@@ -45,6 +47,15 @@ SetEnv EMBPERL_VIRTLOG /embperl/log
 PerlSetEnv EMBPERL_LOG $EPPATH/test/tmp/test.log
 SetEnv EMBPERL_LOG $EPPATH/test/tmp/test.log
 EOD
+
+
+if ($^O eq 'MSWin32' && $EPMODPERLVERSION >= 1.24)
+	{ # ActiveState workarounds...
+        print OFH "SetEnv EMBPERL_OPTIONS 0\n" ;
+        print OFH "SetEnv EMBPERL_ESCMODE 3\n" ;
+        }
+
+
 if ($EPSESSIONVERSION)
 	{
 print OFH <<EOD ;
@@ -101,6 +112,7 @@ AddType text/html .xhtm
 
 Alias /embperl/sub/ $EPPATH/test/html/
 Alias /embperl/ $EPPATH/test/html/
+Alias /embperl2/ $EPPATH/test/html2/
 Alias /eg/ $EPPATH/eg/
 
 <Location /embperl/sub>
@@ -111,6 +123,13 @@ PerlSetEnv LOC embperl_sub
 </Location>
 
 <Location /embperl>
+SetHandler perl-script
+PerlHandler HTML::Embperl
+Options ExecCGI
+PerlSetEnv LOC embperl
+</Location>
+
+<Location /embperl2>
 SetHandler perl-script
 PerlHandler HTML::Embperl
 Options ExecCGI
@@ -338,6 +357,8 @@ LockFile tmp/httpd.lock
 
 <IfModule apache_ssl.c>
 SSLDisable
+SSLCacheServerPort gcache_port
+SSLCacheServerPath $EPAPACHESRC/modules/ssl/gcache
 </IfModule>
 
 

@@ -464,6 +464,17 @@ int GetSubTextPos (/*i/o*/ register req * r,
 
 /* ---- from epeval.c ----- */
 
+int CallCV  (/*i/o*/ register req * r,
+		    /*in*/  const char *  sArg,
+                    /*in*/  CV *          pSub,
+                    /*in*/  int           flags,
+                    /*out*/ SV **         pRet) ;
+
+int EvalOnly           (/*i/o*/ register req * r,
+			/*in*/  const char *  sArg,
+                        /*in*/  SV **         ppSV,
+                        /*in*/  int           flags,
+  		        /*in*/  const char *  sName) ;
 
 int EvalDirect (/*i/o*/ register req *	r,
 		/*in*/  SV *		pArg,

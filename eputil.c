@@ -257,14 +257,19 @@ int   TransHtml (/*i/o*/ register req * r,
     EPENTRY (TransHtml) ;
 	
     if (r -> bOptions & optRawInput)
-	{ /* Just remove CR for raw input */
-	while (*p != '\0')
+	{ 
+#if PERL_VERSION < 5
+	/* Just remove CR for raw input for perl 5.004 */
+	if (nLen == 0)
+	    nLen = strlen (sData) ;
+	e = sData + nLen ;
+	while (p < e)
 	    {
 	    if (*p == '\r')
 	    	*p = ' ' ;
 	    p++ ;
 	    }	
-
+#endif
 	return nLen ; 	
         }
         
@@ -273,7 +278,7 @@ int   TransHtml (/*i/o*/ register req * r,
         nLen = strlen (sData) ;
     e = sData + nLen ;
 
-    while (*p && p < e)
+    while (p < e)
 	{
 	if (*p == '\\')
 	    {
@@ -283,7 +288,7 @@ int   TransHtml (/*i/o*/ register req * r,
 		memmove (p, p + 1, e - p - 1) ;
 		e[-1] = ' ' ;
 		p++ ;
-		while (*p && *p != '>')
+		while (p < e && *p != '>')
 		    p++ ;
 		}
 	    else if (p[1] == '&')
@@ -291,7 +296,7 @@ int   TransHtml (/*i/o*/ register req * r,
 		memmove (p, p + 1, e - p - 1) ;
 		e[-1] = ' ' ;
 		p++ ;
-		while (*p && *p != ';')
+		while (p < e && *p != ';')
 		    p++ ;
 		}
 	    else if (bInUrl && p[1] == '%')
@@ -303,19 +308,22 @@ int   TransHtml (/*i/o*/ register req * r,
 	    else
 		p++ ; /* Nothing to quote */
 	    }
+#if PERL_VERSION < 5
+	/* remove CR for perl 5.004 */
 	else if (*p == '\r')
 	    {
 	    *p++ = ' ' ;
 	    }
+#endif
 	else
 	    {
 	    if (p[0] == '<' && (isalpha (p[1]) || p[1] == '/'))
 		{ /*  count HTML tag length */
 		s = p ;
 		p++ ;
-		while (*p && *p != '>')
+		while (p < e && *p != '>')
 		    p++ ;
-		if (*p)
+		if (p < e)
 		    p++ ;
 		else
 		    { /* missing left '>' -> no html tag  */
@@ -327,10 +335,10 @@ int   TransHtml (/*i/o*/ register req * r,
 		{ /*  count HTML char length */
 		s = p ;
 		p++ ;
-		while (*p && *p != ';')
+		while (p < e && *p != ';')
 		    p++ ;
 
-		if (*p)
+		if (p < e)
 		    {
 		    *p = '\0' ;
 		    p++ ;
@@ -367,7 +375,7 @@ int   TransHtml (/*i/o*/ register req * r,
 		s = NULL ;
 		}
 	    else
-		if (*p)
+		if (p < e)
 		    p++ ;
 	    }
 	}

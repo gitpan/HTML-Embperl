@@ -6,7 +6,7 @@
 
 <body>
 
-[$ var $a $b $c $d $e $i $ii $v $k $fv @a @b %h @c @ii %hash $]
+[$ var $a $b $c $d $e $i $j $ii $v $k $fv @a %a @b %h @c @ii %hash $wv $wk $]
 
 Here it starts with some HTML Text<P>
 
@@ -164,7 +164,7 @@ Please take a look at the source in your browser to see the difference<BR>
 
 <P>$tabmode = default <P>
 
-<table border="2" width="100%">
+<table border="1" width="100%">
     <tr>
         <td>[+ $a[$row][$col] +] </td>
     </tr> 
@@ -172,28 +172,20 @@ Please take a look at the source in your browser to see the difference<BR>
 
 <table border="2" width="100%">
     <tr>
-        <th>1</th>
-        <th>2</th>
-        <th>3</th>
+        <td>[+ $a[$row][$col] +] </td>
     </tr> 
+</table>
+
+<table border="3" width="100%">
     <tr>
         <td>[+ $a[$row][$col] +] </td>
     </tr> 
 </table>
 
-<table border="2" width="100%">
-    <tr>
-        <th>[+ $b[2][$col] +]</th>
-    </tr> 
-    <tr>
-        <td>[+ $a[$row][$col] +] </td>
-    </tr> 
-</table>
-
-<table>
+<table  border="4" >
     <tr>
         <td>
-            <table>
+            <table  border="5" >
     		<tr>
                     <td>[+ $b[$row][$col] +] </td>
     		</tr> 
@@ -249,7 +241,7 @@ Please take a look at the source in your browser to see the difference<BR>
 	[- $i++ -]
 [$ until $i > $#a $]
 
-[$ foreach $v @a $]
+[$ foreach $v (@a) $]
 	[+ $v +] <br>
 [$ endforeach $]
 
@@ -278,7 +270,7 @@ Please take a look at the source in your browser to see the difference<BR>
 		[$ foreach $fv (1, 3, 5, 7, 9) $]
 			[+ $fv +] <br>
 		[$ endforeach $]
-		[$ foreach $fv () $]
+		[$ foreach $fv (()) $]
 			[+ $fv +] <br>
 			[$ while ($wv, $wk) = each (%h) $]
 				[+ "$wv = $wk" +]<br>

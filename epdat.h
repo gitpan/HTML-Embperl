@@ -24,7 +24,30 @@
 
 typedef struct tProcessor
     {
-    int     (* pCompiler)(tReq *, tDomTree *, tNode) ;
+    int nProcessorNo ;
+    const char *    sName ;
+    int (* pPreCompiler)            (/*in*/  tReq *	  r,
+				     /*in*/  struct tProcessor * pProcessor,
+				     /*in*/  tDomTree **  ppDomTree,
+				     /*in*/  SV **        ppPreCompResult,
+				     /*out*/ SV **        ppCompResult) ;
+    int (* pCompiler)               (/*in*/  tReq *	  r,
+				     /*in*/  struct tProcessor * pProcessor,
+				     /*in*/  tDomTree **  ppDomTree,
+				     /*in*/  SV **        ppPreCompResult,
+				     /*out*/ SV **        ppCompResult) ;
+    int (* pExecuter)               (/*in*/  tReq *	  r,
+				     /*in*/  struct tProcessor * pProcessor,
+				     /*in*/  tDomTree **  pDomTree,
+				     /*in*/  SV **        ppPreCompResult,
+				     /*in*/  SV **        ppCompResult,
+				     /*out*/ SV **        ppExecResult) ;
+
+    const char *    sCacheKey ;
+    double          nOutputExpiresIn ;
+    CV *            pOutputExpiresCV ;
+
+    struct tProcessor * pNext ;
     } tProcessor ;
 
 /*-----------------------------------------------------------------*/
@@ -309,6 +332,7 @@ struct tReq
 
     /* --- DomTree ---*/
 
+    tNode	xDocument ;
     tNode	xCurrNode ;
     tIndex	xCurrDomTree ;
     struct tTokenTable *  pTokenTable ;
@@ -421,6 +445,7 @@ struct tReq
     HV *    pHeaderHash ;/* http headers */
 #ifdef EP2
     AV *    pDomTreeAV ; /* holds all DomTrees alocated during the request */
+    AV *    pCleanupAV ; /* set all sv's that are conatined in that array to undef after the whole request */
 #endif
 
     /* --- for statistics --- */
@@ -440,6 +465,15 @@ struct tReq
     char op_mask_buf[MAXO + 100]; /* save buffer for opcode mask - maxo shouldn't differ from MAXO but leave room anyway (see BOOT:)	*/
 
     HV *  pImportStash ;	/* stash for package, where new macros should be imported */
+
+#ifdef EP2
+    
+    char * * pProg ;            /* pointer into currently compiled code */
+    char * pProgRun ;           /* pointer into currently compiled run code */
+    char * pProgDef ;           /* pointer into currently compiled define code */
+
+#endif
+
     } ;
 
 

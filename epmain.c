@@ -371,7 +371,6 @@ OPTMG   (dbgSource       , pCurrReq -> bDebug) ;
 OPTMG   (dbgFunc         , pCurrReq -> bDebug) ;
 OPTMG   (dbgLogLink      , pCurrReq -> bDebug) ;
 OPTMG   (dbgDefEval      , pCurrReq -> bDebug) ;
-OPTMG   (dbgCacheDisable , pCurrReq -> bDebug) ;
 OPTMG   (dbgWatchScalar  , pCurrReq -> bDebug) ;
 OPTMG   (dbgHeadersIn    , pCurrReq -> bDebug) ;
 OPTMG   (dbgShowCleanup  , pCurrReq -> bDebug) ;
@@ -404,6 +403,15 @@ static int GetFormData (/*i/o*/ register req * r,
     hv_clear (r -> pFormHash) ;
     hv_clear (r -> pFormSplitHash) ;
     
+#ifdef HASHTEST
+	pHash = perl_get_hv (sFormHashName, FALSE) ;
+	if (pHash != r -> pFormHash)
+	    {
+	    strcpy (r -> errdat1, sFormHashName) ;
+	    strcpy (r -> errdat2, " !!C-Adress differs from Perl-Adress!! in GetFormData" ) ;
+	    LogError (r, rcHashError) ;
+	    }
+#endif
 
     if (nLen == 0)
         return ok ;
@@ -556,7 +564,7 @@ static int GetInputData_CGIProcess (/*i/o*/ register req * r)
         
 
         if (strcmp (sLine, "----") == 0)
-            { state = 1 ; if (r -> bDebug) lprintf (r, "[%d]Environement...\n", r -> nPid) ;}
+            { state = 1 ; if (r -> bDebug) lprintf (r, "[%d]Environment...\n", r -> nPid) ;}
         else if (strcmp (sLine, "****") == 0)
             { state = 2 ;  if (r -> bDebug) lprintf (r,  "[%d]Formdata...\n", r -> nPid) ;}
         else if (state == 1)
@@ -1482,6 +1490,13 @@ int Init        (/*in*/ int           _nIOType,
         LogError (r, rcArrayError) ;
         return 1 ;
         }
+
+    if (!(r -> pCleanupAV = newAV ()))
+        {
+        LogError (r, rcArrayError) ;
+        return 1 ;
+        }
+
 #endif    
     
     rc = 0 ;
@@ -1536,7 +1551,6 @@ int Init        (/*in*/ int           _nIOType,
     ADDOPTMG   (dbgFunc        ) ;
     ADDOPTMG   (dbgLogLink     ) ;
     ADDOPTMG   (dbgDefEval     ) ;
-    ADDOPTMG   (dbgCacheDisable) ;
     ADDOPTMG   (dbgWatchScalar ) ;
     ADDOPTMG   (dbgHeadersIn   ) ;
     ADDOPTMG   (dbgShowCleanup ) ;
@@ -2279,6 +2293,17 @@ void FreeRequest (/*i/o*/ register req * r)
         {
         tFile * pFile ;
         tFile * pNext ;
+	int     i ;
+
+#ifdef HASHTEST
+	pHash = perl_get_hv (sFormHashName, FALSE) ;
+	if (pHash != r -> pFormHash)
+	    {
+	    strcpy (r -> errdat1, sFormHashName) ;
+	    strcpy (r -> errdat2, " !!C-Adress differs from Perl-Adress!! in FreeRequest") ;
+	    LogError (r, rcHashError) ;
+	    }
+#endif
 
         hv_clear (r -> pHeaderHash) ;
         av_clear (r -> pFormArray) ;
@@ -2287,6 +2312,12 @@ void FreeRequest (/*i/o*/ register req * r)
         hv_clear (r -> pFormSplitHash) ;
 #ifdef EP2 
         av_clear (r -> pDomTreeAV) ;
+	for (i = 0 ; i < AvFILL (r -> pCleanupAV); i++)
+	    {
+	    sv_setsv (SvRV(*av_fetch (r -> pCleanupAV, i, 0)), &sv_undef) ;
+	    }
+        av_clear (r -> pCleanupAV) ;
+
 #endif
 	if ((pFile = r -> pFiles2Free))
 	    {
@@ -2526,11 +2557,40 @@ static int EndOutput (/*i/o*/ register req * r,
 	    SV *    pSVID = NULL ;
             MAGIC * pMG ;
 	    char *  pUID = NULL ;
+	    char *  pInitialUID = NULL ;
 	    STRLEN  ulen = 0 ;
+	    STRLEN  ilen = 0 ;
+	    IV	    bModified ;
 
 	    if (r -> nSessionMgnt)
 		{			
-		if (r -> nSessionMgnt == -1)
+		SV * pUserHashObj = NULL ;
+		if ((pMG = mg_find((SV *)r -> pUserHash,'P')))
+		    {
+		    dSP;                            /* initialize stack pointer      */
+		    int n ;
+		    pUserHashObj = pMG -> mg_obj ;
+
+		    PUSHMARK(sp);                   /* remember the stack pointer    */
+		    XPUSHs(pUserHashObj) ;            /* push pointer to obeject */
+		    PUTBACK;
+		    n = perl_call_method ("getids", G_ARRAY) ; /* call the function             */
+		    SPAGAIN;
+		    if (n > 2)
+			{
+			bModified = POPi ;
+			pSVID = POPs;
+			pUID = SvPV (pSVID, ulen) ;
+			pSVID = POPs;
+			pInitialUID = SvPV (pSVID, ilen) ;
+			}
+		    PUTBACK;
+		    }
+		
+	        if (r -> bDebug & dbgSession)  
+		    lprintf (r, "[%d]SES:  Received Cookie ID: %s  New Cookie ID: %s  Session data is%s modified\n", r -> nPid, pInitialUID, pUID, bModified?"":" NOT") ; 
+
+		if (ilen > 0 && (ulen == 0 || (!bModified && strcmp ("!DELETE", pInitialUID) == 0)))
 		    { /* delete cookie */
 		    pCookie = newSVpvf ("%s=; expires=Thu, 1-Jan-1970 00:00:01 GMT%s%s%s%s",  r -> pConf -> sCookieName, 
 				r -> pConf -> sCookieDomain[0]?"; domain=":""  , r -> pConf -> sCookieDomain, 
@@ -2539,36 +2599,9 @@ static int EndOutput (/*i/o*/ register req * r,
 		    if (r -> bDebug & dbgSession)  
 		        lprintf (r, "[%d]SES:  Delete Cookie -> %s\n", r -> nPid, SvPV(pCookie, ldummy)) ;
 		    }
-		else if (r -> nSessionMgnt == 2)
-		    {			
-		    if ((pMG = mg_find((SV *)r -> pUserHash,'P')))
-			{
-			dSP;                            /* initialize stack pointer      */
-			SV * pUserHashObj = pMG -> mg_obj ;
-			int n ;
-
-
-			PUSHMARK(sp);                   /* remember the stack pointer    */
-			XPUSHs(pUserHashObj) ;            /* push pointer to obeject */
-			PUTBACK;
-			n = perl_call_method ("getid", 0) ; /* call the function             */
-			SPAGAIN;
-			if (n > 0)
-			    {
-			    pSVID = POPs;
-			    pUID = SvPV (pSVID, ulen) ;
-			    }
-			PUTBACK;
-			}
-		    }
-		else
-		    {
-		    ppSVID = hv_fetch (r -> pUserHash, sUIDName, sizeof (sUIDName) - 1, 0) ;
-		    if (ppSVID && *ppSVID)
-			pUID = SvPV (*ppSVID, ulen) ;
-		    }
-	    
-		if (ulen > 0)
+		else if (ulen > 0 && 
+		            ((bModified && (ilen == 0 || strcmp (pInitialUID, pUID) !=0)) ||
+			     (r -> nSessionMgnt & 4)))
 		    {
 		    pCookie = newSVpvf ("%s=%s%s%s%s%s%s%s",  r -> pConf -> sCookieName, pUID,
 				r -> pConf -> sCookieDomain[0]?"; domain=":""  , r -> pConf -> sCookieDomain, 
@@ -2611,7 +2644,7 @@ static int EndOutput (/*i/o*/ register req * r,
 		    table_add(r -> pApacheReq->headers_out, sSetCookie, pstrdup(r -> pApacheReq->pool, SvPV(pCookie, ldummy))) ;
 		    SvREFCNT_dec (pCookie) ;
 		    }
-		set_content_length (r -> pApacheReq, GetContentLength (r) + 2) ;
+		set_content_length (r -> pApacheReq, GetContentLength (r) + (r -> pCurrEscape?2:0)) ;
 		send_http_header (r -> pApacheReq) ;
 #ifndef WIN32
 		/* shouldn't be neccessary for newer mod_perl versions !? */
@@ -2719,7 +2752,11 @@ static int EndOutput (/*i/o*/ register req * r,
 #ifdef EP2
             		
 	    if (!bError && !r -> bEP1Compat)
-		Node_toString (DomTree_self (r -> xCurrDomTree), r, r -> xDocument) ;
+		{
+		tDomTree * pDomTree = DomTree_self (r -> xCurrDomTree) ;
+		Node_toString (pDomTree, r, pDomTree -> xDocument) ;
+		}
+
 	    if (!r -> bEP1Compat)
 		oputs (r, "\r\n") ;
 #endif		
@@ -2746,12 +2783,16 @@ static int EndOutput (/*i/o*/ register req * r,
 		    l -> pLastBuf    = r -> pLastBuf   ;
 		    l -> pFreeBuf    = r -> pFreeBuf   ;
 		    l -> pLastFreeBuf= r -> pLastFreeBuf ;
+		    l -> nSessionMgnt= r -> nSessionMgnt ;
 #ifdef EP2
 		    }
 		else
 		    {
-		    if (!bError)
-    			Node_replaceChildWithNode (DomTree_self (r -> xCurrDomTree), r -> xDocument, DomTree_self (l -> xCurrDomTree), l -> xCurrNode) ;
+		    if (!bError && !r -> pImportStash)
+			{
+			tDomTree * pDomTree = DomTree_self (r -> xCurrDomTree) ;
+    			Node_replaceChildWithNode (pDomTree, pDomTree -> xDocument, DomTree_self (l -> xCurrDomTree), l -> xCurrNode) ;
+			}
 		    }
 #endif
 		}
@@ -2759,9 +2800,10 @@ static int EndOutput (/*i/o*/ register req * r,
 		{
                 oCommit (r, NULL) ;
 #ifdef EP2
-		if (!bError && !r -> bEP1Compat)
+		if (!bError && !r -> bEP1Compat && !r -> pImportStash)
 		    {
-		    Node_toString (DomTree_self (r -> xCurrDomTree), r, r -> xDocument) ;
+		    tDomTree * pDomTree = DomTree_self (r -> xCurrDomTree) ;
+		    Node_toString (pDomTree, r, pDomTree -> xDocument) ;
 		    oputs (r, "\r\n") ;
 		    }
 #endif
@@ -2775,7 +2817,10 @@ static int EndOutput (/*i/o*/ register req * r,
             sv_setsv (pOut, &sv_undef) ;
 #ifdef EP2
 	else if (!r -> bEP1Compat)
-            Node_toString (DomTree_self (r -> xCurrDomTree), r, r -> xDocument) ;
+	    {
+	    tDomTree * pDomTree = DomTree_self (r -> xCurrDomTree) ;
+	    Node_toString (pDomTree, r, pDomTree -> xDocument) ;
+	    }
 #endif
         }    
 
@@ -2813,13 +2858,10 @@ static int ResetRequest (/*i/o*/ register req * r,
         lprintf (r, "[%d]PERF: ", r -> nPid) ;
 #endif        
         lprintf (r, "Evals: %d ", r -> numEvals) ;
-        if (r -> bDebug & dbgCacheDisable)
-            lprintf (r, "Cache disabled") ;
+        if (r -> numEvals == 0)
+            lprintf (r, "No Evals to cache") ;
         else
-            if (r -> numEvals == 0)
-                lprintf (r, "No Evals to cache") ;
-            else
-                lprintf (r, "Cache Hits: %d (%d%%)", r -> numCacheHits, r -> numCacheHits * 100 / r -> numEvals) ;
+            lprintf (r, "Cache Hits: %d (%d%%)", r -> numCacheHits, r -> numCacheHits * 100 / r -> numEvals) ;
 
         lprintf (r, "\n") ;    
         lprintf (r, "[%d]%sRequest finished. %s. Entry-SVs: %d -OBJs: %d Exit-SVs: %d -OBJs: %d\n", r -> nPid,
@@ -2867,7 +2909,12 @@ static int ProcessFile (/*i/o*/ register req * r,
 
 #ifdef EP2
     if (!r -> bEP1Compat)
-	rc = embperl_CompileDocument (r) ;
+	{
+	tProcessor p2 = {2, "Embperl", embperl_CompileProcessor, NULL, embperl_ExecuteProcessor, "", 0, NULL, NULL } ; 
+	tProcessor p1 = {1, "Parser",  embperl_ParseProcessor,   NULL, NULL,                     "", 0, NULL, &p2  } ; 
+
+	rc = embperl_CompileDocument (r, &p1) ;
+	}
     else
         {
         clock_t cl1 = clock () ;

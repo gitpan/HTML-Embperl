@@ -683,7 +683,34 @@ charset specified. If you turn optEarlyHttpHeader off, Embperl will
 automatically set the http header to be the same as the META HTTP-EQUIV.
 
 
+=head2 I get "Stack underflow"
 
+The problem often occurs, when you have a <table> tag in one file and a </table>
+tag in another file and you both include them in a main page (e.g. as header
+and footer). There are two workarounds for this problem:
+
+=over 4
+
+=item 1. Set optDisableTableScan
+
+This will avoid that Embperl takes any action on tables. You can disable/enable 
+this (also multiple times) inside the page with
+
+  [- $optDisableTableScan = 1 -]
+
+If you put this at the top of your header/footer which you include with Execute,
+then the main page will still process dynamic tables.
+
+=item 2. Add a <table> as comment
+
+Add the following to the top of 
+the footer document:
+
+  <!-- <table><tr><td> -->
+
+This will work also, because Embperl (1.x) will not scan for html comments
+
+=back
 
 
 =head1 Common Questions

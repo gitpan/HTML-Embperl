@@ -69,6 +69,8 @@
 #define EvalTransFlags         EMBPERL_EvalTransFlags
 #define EvalTransOnFirstCall   EMBPERL_EvalTransOnFirstCall           
 #define EvalSub                EMBPERL_EvalSub
+#define EvalOnly               EMBPERL_EvalOnly
+#define CallCV                 EMBPERL_CallCV
 #define GetContentLength       EMBPERL_GetContentLength    
 #define GetLogFilePos          EMBPERL_GetLogFilePos       
 #define ReadHTML               EMBPERL_ReadHTML            

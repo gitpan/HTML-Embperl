@@ -32,7 +32,13 @@ exist or creates a new one.
 =item create_unknown
 
 Setting this to one causes Apache::Session to create a new session
+with the given id (or a new id, depending on C<recreate_id>)
 when the specified session id does not exists. Otherwise it will die.
+
+=item recreate_id
+
+Setting this to one causes Apache::Session to create a new session id
+when the specified session id does not exists. 
 
 =item object_store
 
@@ -149,6 +155,7 @@ sub TIEHASH {
         {
         args         => $args,
         data         => { _session_id => $session_id },
+        initial_session_id => $session_id,
         lock         => 0,
         lock_manager => undef,
         object_store => undef,
@@ -232,34 +239,45 @@ sub init
 
     my $session_id = $self->{data}->{_session_id} ;
 
+    $self->{initial_session_id} ||= $session_id ;
+
     $self->populate;
 
     if (defined $session_id  && $session_id) 
         {
-        if (exists $self -> {'args'}->{Transaction} && $self -> {'args'}->{Transaction}) 
-            {
-            $self->acquire_write_lock;
+        #check the session ID for remote exploitation attempts
+        #this will die() on suspicious session IDs.        
+
+        eval { &{$self->{validate}}($self); } ;
+        if (!$@)
+            { # session id is ok        
+            if (exists $self -> {'args'}->{Transaction} && $self -> {'args'}->{Transaction}) 
+                {
+                $self->acquire_write_lock;
+                }
+
+            $self->{status} &= ($self->{status} ^ NEW);
+
+	    if ($self -> {'args'}{'create_unknown'})
+	        {
+                eval { $self -> restore } ;
+	        #warn "Try to load session: $@" if ($@) ;
+	        $@ = "" ;
+	        $session_id = $self->{data}->{_session_id} ;
+	        }
+	    else
+	        {
+	        $self->restore;
+	        }
             }
-
-        $self->{status} &= ($self->{status} ^ NEW);
-
-	if ($self -> {'args'}{'create_unknown'})
-	    {
-            eval { $self -> restore } ;
-	    #warn "Try to load session: $@" if ($@) ;
-	    $@ = "" ;
-	    $session_id = $self->{data}->{_session_id} ;
-	    }
-	else
-	    {
-	    $self->restore;
-	    }
         }
+
+    $@ = '' ;
 
     if (!($self->{status} & SYNCED))
         {
         $self->{status} |= NEW();
-        if (!$self->{data}->{_session_id})
+        if (!$self->{data}->{_session_id} || $self -> {'args'}{'recreate_id'})
             {
             if (exists ($self->{generate}))
                 { # Apache::Session >= 1.50
@@ -267,12 +285,14 @@ sub init
                 }
             else
                 {
-	        $self->{data}->{_session_id} = $self -> generate_id() if (!$self->{data}->{_session_id}) ;
+	        $self->{data}->{_session_id} = $self -> generate_id() ;
                 }
             }
         $self->save;
         }
     
+    #warn "Session INIT $self->{initial_session_id};$self->{data}->{_session_id};" ;
+
     return $self;
     }
 
@@ -359,6 +379,7 @@ sub cleanup
     {
     my $self = shift;
     
+    $self->{initial_session_id} = undef ;
     if (!$self -> {'status'})
 	{
 	$self->{data} = {} ;
@@ -367,8 +388,12 @@ sub cleanup
 	}
 
     $self->save;
+    {
+    local $SIG{__WARN__} = 'IGNORE' ;
+    local $SIG{__DIE__}  = 'IGNORE' ; 
     eval { $self -> {object_store} -> close } ; # Try to close file storage 
     $@ = "" ;
+    }
     $self->release_all_locks;
 
     $self->{'status'} = 0 ;
@@ -381,13 +406,20 @@ sub setid {
     my $self = shift;
 
     $self->{'status'} = 0 ;
-    $self->{data}->{_session_id} = shift ;
+    $self->{data}->{_session_id} = $self->{initial_session_id} = shift ;
+
 }
 
 sub getid {
     my $self = shift;
 
-    return $self->{data}->{_session_id} ;
+    return $self->{data}->{_session_id} || $self->{'ID'} ;
+}
+
+sub getids {
+    my $self = shift;
+
+    return ($self->{initial_session_id}, $self->{data}->{_session_id} || $self->{'ID'},  $self->{status} & MODIFIED) ;
 }
 
 sub delete {
@@ -395,10 +427,13 @@ sub delete {
     
     return if ($self->{status} & NEW);
     
+    $self->{initial_session_id} = "!DELETE" ;
+
     $self -> init if (!$self -> {'status'}) ;
 
     $self->{status} |= DELETED;
     $self->save;
+    $self->{data} = {} ; # Throw away the data
 }    
 
 
@@ -418,6 +453,21 @@ sub get_lock_manager {
     return new {$self -> {'args'}{'lock_manager'}} $self;
 }
 
+#
+# Default validate for Apache::Session < 1.53
+#
+
+sub validate {
+    #This routine checks to ensure that the session ID is in the form
+    #we expect.  This must be called before we start diddling around
+    #in the database or the disk.
+
+    my $session = shift;
+    
+    if ($session->{data}->{_session_id} !~ /^[a-fA-F0-9]+$/) {
+        die;
+    }
+}
 
 #
 # For Apache::Session >= 1.50
@@ -436,8 +486,14 @@ sub populate
     $self->{object_store} = new $store $self if ($store) ;
     $self->{lock_manager} = new $lock $self if ($lock);
     $self->{generate}     = \&{$gen . '::generate'} if ($gen);
+    $self->{'validate'}     = \&{$gen . '::validate'} if ($gen && defined (&{$gen . '::validate'}));
     $self->{serialize}    = \&{$ser . '::serialize'} if ($ser);
     $self->{unserialize}  = \&{$ser . '::unserialize'} if ($ser) ;
+
+    if (!defined ($self->{'validate'}))
+        {
+        $self->{'validate'} = \&validate ;
+        }
 
     return $self;
     }

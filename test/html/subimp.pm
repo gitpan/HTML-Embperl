@@ -68,6 +68,16 @@ params in sub.pm  = [+ "@_" +]
 [$endsub$]
 
 
+
+[###### table cell #####]
+[$sub tabcell $]
+
+
+<td>[+ $_[0] -> [$row][$col] +]<td>
+
+[$endsub$]
+
+
 [###### table header #####]
 [$sub tabheader $]
 
@@ -78,13 +88,6 @@ params in sub.pm  = [+ "@_" +]
 [$endsub$]
 
 
-[###### table cell #####]
-[$sub tabcell $]
-
-
-<td>[+ $_[0] -> [$row][$col] +]<td>
-
-[$endsub$]
 [###### table footer #####]
 [$sub tabfooter $]
 

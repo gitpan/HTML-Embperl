@@ -1,6 +1,46 @@
 =pod
 
-=head1 1.3b6 (BETA)  18. Sept 2000
+=head1 1.3b7 (BETA)   15. Nov 2000
+
+   - Fixed problem that call to close triggers error in Session.pm when using Store::File.
+     Spotted by Alvar Freude.
+   - Fixed problem that GetSession doesn't return a value for new session.
+     Spotted by Angus Lees.
+   - Added new function SetSessionCookie, which can be used to set the session cookie
+     header in case you use Embperl session management, but don't use a 
+     Embperl page in that request. Suggested by Alex Schmelkin.
+   - Fixed problem that DeleteSession does not work outside the base template, when
+     used with EmbperlObject. Spotted by Angus Lees.
+   - Fixed problem when use multiple nested ../foo.htm inside EmbperlObject.
+     Spotted by Neil Gunton.
+   - Included patch from Angus Lees to ease building on debian.
+   - make test now works again with BEN-SSL httpsd. With help from Neil Gunton.
+   - Included grammaticaly updated Embperl.pod. Many thanks to Ilia Lobsanov
+     for doing the proof reading. 
+   - removed dbgDisableCache to avoid problems with this "feature" that isn't working
+     anymore for a long time.
+   - Added validaten for session cookie. If Apache::Session 1.53+ is installed
+     it uses the validate method from Apache::Session::Generate::xxx. If a invalid
+     session id is found a new one is generated. Spotted by Angus Lees.
+   - If a not existing session id is received, Embperl generates now a new one.
+   - Enhancements of Cookie resending logic. To make sure cookies are send when
+     neccessary, but not more often. (Handles now write to session data, after
+     a delete in the same request correctly).
+   - Added more tests for Sessionhandling.
+   - Fixed a bug that Content-Lenght was 2 to much, when escmode was set to zero.
+     Spotted by Michael Smith.
+   - Added patches from Randy Korbes for ActiveState Support. Most tests with
+     Embperl under mod_perl nows passes. The few remaining ones that doesn't pass
+     seems to be due to problems of mod_perl's enironment handling.
+   - Droped support for Apache::Session 0.17. Embperl now support only
+     Apache::Session 1.00 and higher.
+   - Added new option: optDisableSelectScan, to allow processing of SELECT tags,
+     while processing of TABLE tags is disabled. Suggested by Robert.
+   - Carridge Returns are only removed for Perl 5.004. This makes using of 
+     HERE documents possible on Perl 5.005+, even if the documents has CRLF
+     as lineendings.
+
+=head1 1.3b6 (BETA)  18. Oct 2000
 
    - Embperl now runs on ActiveState Perl. (At least in offline mode,
      mod_perl mode seems to still have some problems). With a lot of help

@@ -119,7 +119,9 @@
         'query_info' => 'sel=2&SEL1=B&SEL3=D&SEL4=cc',
         },
     'mix.htm' => { },
-    'binary.htm' => { },
+    'binary.htm' => { 
+        'version'    => 1,  # needs print OUT
+        },
     'nesting.htm' => { 
         'version'    => 1,
         },
@@ -142,6 +144,7 @@
         },
     'java.htm' => { },
     'inputjava.htm' => { },
+    'heredoc.htm' => { },
     'post.htm' => {
         'offline'    => 0,
         },
@@ -191,18 +194,18 @@
     'callsub.htm' => { 
         'repeat'     => 2,
         },
+    'executesub.htm' => { 
+        'version'    => 2,
+        'repeat'     => 2,
+        },
     'importsub.htm' => { 
-        'version'    => 1,
         'repeat'     => 2,
         },
     'importsub2.htm' => { 
-        'version'    => 1,
         },
     'importmodule.htm' => { 
-        'version'    => 1,
         },
     'recursexec.htm' => { 
-        'version'    => 1,
         },
     'nph/div.htm' => { 
         'option'     => '64',
@@ -305,93 +308,133 @@
     'mdatsess.htm' => { 
         'offline'    => 0,
         'query_info' => 'cnt=0',
+        'cookie'     => 'expectno',
         },
     'setsess.htm' => { 
         'offline'    => 0,
         'query_info' => 'a=1',
+        'cookie'     => 'expectnew',
         },
     'mdatsess.htm' => { 
         'offline'    => 0,
         'query_info' => 'cnt=1',
+        'cookie'     => 'expectno',
         },
     'getnosess.htm' => { 
         'offline'    => 0,
         'query_info' => 'nocookie=2',
+        'cookie'     => 'expectnew,nocookie,nosave',
         },
     'mdatsess.htm' => { 
         'offline'    => 0,
         'query_info' => 'cnt=2',
+        'cookie'     => 'expectno',
         },
     'getsess.htm' => {
         'offline'    => 0,
+        'cookie'     => 'expectno',
         },
     'mdatsess.htm' => { 
         'offline'    => 0,
         'query_info' => 'cnt=3',
+        'cookie'     => 'expectno',
         },
     'execgetsess.htm' => {
         'offline'    => 0,
+        'cookie'     => 'expectno',
         },
     'registry/reggetsess.htm' => { 
         'modperl'    => 1,
         'cgi'        => 0,
+        'cookie'     => 'expectno',
         },
     'getsess.htm' => {
         'offline'    => 0,
+        'cookie'     => 'expectno',
+        },
+    'delwrsess.htm' => { 
+        'offline'    => 0,
+        'cookie'     => 'expectnew',
+        },
+    'getbsess.htm' => {
+        'offline'    => 0,
+        'cookie'     => 'expectno',
+        },
+    'delrdsess.htm' => { 
+        'offline'    => 0,
+        'cookie'     => 'expectexpire',
+        },
+    'getdelsess.htm' => {
+        'offline'    => 0,
+        'cookie'     => 'expectno',
+        },
+    'setsess.htm' => { 
+        'offline'    => 0,
+        'query_info' => 'a=1',
+        'cookie'     => 'expectnew',
         },
     'delsess.htm' => { 
         'offline'    => 0,
+        'cookie'     => 'expectexpire',
         },
     'getdelsess.htm' => { 
         'offline'    => 0,
+        'cookie'     => 'expectno',
         },
     'clearsess.htm' => {
         'offline'    => 0,
+        'cookie'     => 'expectno',
+        },
+    'setbadsess.htm' => { 
+        'offline'    => 0,
+        'query_info' => 'val=2',
+        'cookie'     => 'expectnew,cookie=/etc/passwd',
+        },
+    'setunknownsess.htm' => { 
+        'offline'    => 0,
+        'query_info' => 'val=3',
+        'cookie'     => 'expectnew,cookie=1234567890abcdefABCDEF',
         },
     'EmbperlObject/epopage1.htm' => {
         'offline'    => 0,
         'cgi'        => 0,
-	'version'    => 1,
         },
     'EmbperlObject/epodiv.htm' => { 
         'offline'    => 0,
         'cgi'        => 0,
-        'version'    => 1,
         },
     'EmbperlObject/sub/epopage2.htm' => { 
         'offline'    => 0,
         'cgi'        => 0,
-        'version'    => 1,
         },
     'EmbperlObject/sub/epopage2.htm' => { 
         'offline'    => 0,
         'cgi'        => 0,
-        'version'    => 1,
         },
     'EmbperlObject/sub/subsub/eposubsub.htm' => { 
         'offline'    => 0,
         'cgi'        => 0,
-        'version'    => 1,
+        },
+    'EmbperlObject/sub/subsub/subsubsub/eposubsub.htm' => { 
+        'offline'    => 0,
+        'cgi'        => 0,
+        'cmpext'     => '3',      
         },
     'EmbperlObject/sub/eponotfound.htm' => { 
         'offline'    => 0,
         'cgi'        => 0,
-        'version'    => 1,
         },
     'EmbperlObject/obj/epoobj1.htm' => { 
         'offline'    => 0,
         'cgi'        => 0,
-        'version'    => 1,
         },
     'EmbperlObject/obj/epoobj2.htm' => { 
         'offline'    => 0,
         'cgi'        => 0,
-        'version'    => 1,
         },
     'EmbperlObject/obj/epoobj3.htm' => { 
         'offline'    => 0,
         'cgi'        => 0,
-        'version'    => 1,
         },
     'EmbperlObject/obj/epoobj4.htm' => { 
         'offline'    => 0,
@@ -401,12 +444,10 @@
     'EmbperlObject/base2/epostopdir.htm' => { 
         'offline'    => 0,
         'cgi'        => 0,
-        'version'    => 1,
         },
     'EmbperlObject/base3/epobaselib.htm' => { 
         'offline'    => 0,
         'cgi'        => 0,
-        'version'    => 1,
         },
 ) ;
 
@@ -417,223 +458,6 @@ for ($i = 0 ; $i < @testdata; $i += 2)
     }
 
 
-=pod
-@tests = (
-    'ascii',
-    'pure.htm',
-    'plain.htm',
-    'plain.htm',
-    'plain.htm',
-    'plainblock.htm',
-    'plainblock.htm',
-    'error.htm???8',
-    'error.htm???8',
-    'error.htm???8',
-    'unclosed.htm???1',
-#    'errorright.htm???1',
-    'notfound.htm???1',
-    'notallow.xhtm???1',
-    'noerr/noerrpage.htm???8?2',
-    'errdoc/errdoc.htm???8?262144',
-    'errdoc/epl/errdoc2.htm???8?262144',
-    'rawinput/rawinput.htm????16',
-    'var.htm',
-    'varerr.htm???-1',
-    'varerr.htm???2',
-    'escape.htm',
-    'escape.htm',
-    'spaces.htm',
-    'tagscan.htm',
-    'tagscan.htm??1',
-    'if.htm',
-    'ifperl.htm',
-    'loop.htm?erstes=Hallo&zweites=Leer+zeichen&drittes=%21%22%23%2a%2B&erstes=Wert2',
-    'loopperl.htm?erstes=Hallo&zweites=Leer+zeichen&drittes=%21%22%23&erstes=Wert2',
-    'table.htm',
-    'table.htm??1',
-    'lists.htm?sel=2&SEL1=B&SEL3=D&SEL4=cc',
-    'mix.htm',
-    'nesting.htm',
-    'object.htm???2',
-    'discard.htm???12',
-    'input.htm?feld5=Wert5&feld6=Wert6&feld7=Wert7&feld8=Wert8&cb5=cbv5&cb6=cbv6&cb7=cbv7&cb8=cbv8&cb9=ncbv9&cb10=ncbv10&cb11=ncbv11&mult=Wert3&mult=Wert6&esc=a<b&escmult=a>b&escmult=Wert3',
-    'hidden.htm?feld1=Wert1&feld2=Wert2&feld3=Wert3&feld4=Wert4',
-    'java.htm',
-    'inputjava.htm',
-    'post.htm',
-    'upload.htm?multval=A&multval=B&multval=C&single=S',
-    'reqrec.htm',
-    'reqrec.htm',
-    'include.htm',
-    'includeerr1.htm???1',
-    'includeerr2.htm???4',
-    'registry/Execute.htm',
-    'registry/errpage.htm???16',
-    'registry/tied.htm???3',
-    'registry/tied.htm???3',
-#    'registry/subreq2.htm',
-    'callsub.htm',
-    'callsub.htm',
-    'importsub.htm',
-    'importsub.htm',
-    'importsub2.htm',
-    'importmodule.htm',
-    'recursexec.htm',
-    'nph/div.htm????64',
-    'nph/npherr.htm???8?64',
-    'nph/nphinc.htm????64',
-    'sub.htm',
-    'sub.htm',
-    'exit.htm',
-    'exit2.htm',
-    'exit3.htm',
-    'chdir.htm?a=1&b=2&c=&d=&f=5&g&h=7&=8&=',
-    'chdir.htm?a=1&b=2&c=&d=&f=5&g&h=7&=8&=',
-    'allform/allform.htm?a=1&b=2&c=&d=&f=5&g&h=7&=8&=???8192',
-    'stdout/stdout.htm????16384',
-    'nochdir/nochdir.htm?a=1&b=2???384',
-    'match/div.htm',
-    'match/div.asc',
-    'http.htm',
-    'div.htm',
-    'taint.htm???1',
-    'ofunc/div.htm',
-    'safe/safe.htm???-1?4',
-    'safe/safe.htm???-1?4',
-    'safe/safe.htm???-1?4',
-    'opmask/opmask.htm???-1?12?TEST',
-    'opmask/opmasktrap.htm???2?12?TEST',
-    'mdatsess.htm?cnt=0',
-    'setsess.htm?a=1',
-    'mdatsess.htm?cnt=1',
-    'getnosess.htm?nocookie=2',
-    'mdatsess.htm?cnt=2',
-    'getsess.htm',
-    'mdatsess.htm?cnt=3',
-    'execgetsess.htm',
-    'registry/reggetsess.htm',
-    'getsess.htm',
-    'delsess.htm',
-    'getdelsess.htm',
-    'clearsess.htm',
-    'EmbperlObject/epopage1.htm',
-    'EmbperlObject/epodiv.htm',
-    'EmbperlObject/sub/epopage2.htm',
-    'EmbperlObject/sub/epopage2.htm',
-    'EmbperlObject/sub/eponotfound.htm',
-    'EmbperlObject/obj/epoobj1.htm',
-    'EmbperlObject/obj/epoobj2.htm',
-    'EmbperlObject/obj/epoobj3.htm',
-    'EmbperlObject/obj/epoobj4.htm',
-    'EmbperlObject/base2/epostopdir.htm',
-    'EmbperlObject/base3/epobaselib.htm',
-    ) ;
-
-@tests2 = (
-    'ascii',
-#    'tmp/header.htm',
-    'pure.htm',
-##    'plainlong.htm',
-##    'plainlong.htm',
-##    'plainlong.htm',
-##    'plainlong.htm',
-    'plain.htm',
-    'plain.htm',
-    'plain.htm',
-    'plainblock.htm',
-    'plainblock.htm',
-    'error.htm???7',
-    'error.htm???7',
-    'error.htm???7',
-    'errormismatch.htm???1',
-    'errormismatchcmd.htm???1',
-    'unclosed.htm???1',
-#    'errorright.htm???1',
-    'notfound.htm???1',
-    'notallow.xhtm???1',
-##    'noerr/noerrpage.htm???6?2',
-##    'errdoc/errdoc.htm???8?262144',
-##    'rawinput/rawinput.htm????16',
-    'var.htm',
-    'varerr.htm???-1',
-##    'varerr.htm???2',
-    'escape.htm',
-    'escape.htm',
-##    'spaces.htm',
-    'tagscan.htm',
-    'tagscan.htm??1',
-    'if.htm',
-    'ifperl.htm',
-    'loop.htm?erstes=Hallo&zweites=Leer+zeichen&drittes=%21%22%23%2a%2B&erstes=Wert2',
-    'loop.htm?erstes=Hallo&zweites=Leer+zeichen&drittes=%21%22%23%2a%2B&erstes=Wert2',
-    'loopperl.htm?erstes=Hallo&zweites=Leer+zeichen&drittes=%21%22%23&erstes=Wert2',
-    'table.htm',
-    'table.htm??1',
-    'lists.htm?sel=2&SEL1=B&SEL3=D&SEL4=cc',
-    'lists.htm?sel=2&SEL1=B&SEL3=D&SEL4=cc',
-    'mix.htm',
-##    'nesting.htm',
-    'object.htm',
-##    'discard.htm???12',
-    'input.htm?feld5=Wert5&feld6=Wert6&feld7=Wert7&feld8=Wert8&cb5=cbv5&cb6=cbv6&cb7=cbv7&cb8=cbv8&cb9=ncbv9&cb10=ncbv10&cb11=ncbv11&mult=Wert3&mult=Wert6&esc=a<b&escmult=a>b&escmult=Wert3',
-    'hidden.htm?feld1=Wert1&feld2=Wert2&feld3=Wert3&feld4=Wert4',
-    'java.htm',
-    'inputjava.htm',
-    'post.htm',
-    'upload.htm?multval=A&multval=B&multval=C&single=S',
-    'reqrec.htm',
-    'reqrec.htm',
-    'rawinput/include.htm????16',
-    'includeerr1.htm???1',
-    'includeerr2.htm???1',
-    'registry/Execute.htm',
-##    'registry/errpage.htm???16',
-    'registry/tied.htm???3',
-    'registry/tied.htm???3',
-##    'callsub.htm',
-##    'callsub.htm',
-##    'importsub.htm',
-##    'importsub.htm',
-##    'importsub2.htm',
-##    'importmodule.htm',
-##    'recursexec.htm',
-    'nph/div.htm????64',
-##    'nph/npherr.htm???8?64',
-    'nph/nphinc.htm????64',
-    'sub.htm',
-    'sub.htm',
-##    'exit.htm',
-##    'exit2.htm',
-##    'exit3.htm',
-    'chdir.htm?a=1&b=2&c=&d=&f=5&g&h=7&=8&=',
-    'chdir.htm?a=1&b=2&c=&d=&f=5&g&h=7&=8&=',
-    'allform/allform.htm?a=1&b=2&c=&d=&f=5&g&h=7&=8&=???8192',
-##    'stdout/stdout.htm????16384',
-    'nochdir/nochdir.htm?a=1&b=2???384',
-    'match/div.htm',
-    'match/div.asc',
-##    'http.htm',
-    'div.htm',
-    'taint.htm???1',
-    'ofunc/div.htm',
-##    'safe/safe.htm???-1?4',
-##    'safe/safe.htm???-1?4',
-##    'safe/safe.htm???-1?4',
-##    'opmask/opmask.htm???-1?12?TEST',
-##    'opmask/opmasktrap.htm???2?12?TEST',
-    'mdatsess.htm?cnt=0',
-    'setsess.htm?a=1',
-    'mdatsess.htm?cnt=1',
-    'getnosess.htm?nocookie=2',
-    'mdatsess.htm?cnt=2',
-    'getsess.htm',
-    'mdatsess.htm?cnt=3',
-    'execgetsess.htm',
-    'clearsess.htm',
-    'EmbperlObject/epopage1.htm',
-##    'EmbperlObject/sub/epopage2.htm',
-    ) ;
-=cut
 
 # avoid some warnings:
 
@@ -642,7 +466,7 @@ use vars qw ($httpconfsrc $httpconf $EPPORT $EPPORT2 *SAVEERR *ERR $EPHTTPDDLL $
             $opt_offline $opt_ep1 $opt_cgi $opt_modperl $opt_execute $opt_nokill $opt_loop
             $opt_multchild $opt_memcheck $opt_exitonmem $opt_exitonsv $opt_config $opt_nostart $opt_uniquefn
             $opt_quite $opt_ignoreerror $opt_tests $opt_blib $opt_help $opt_dbgbreak $opt_finderr
-            $opt_ddd $opt_gdb $opt_ab $opt_start $opt_kill) ;
+            $opt_ddd $opt_gdb $opt_ab $opt_start $opt_kill $opt_showcookie $opt_cache) ;
 
     {
     local $^W = 0 ;
@@ -683,7 +507,7 @@ BEGIN
     print "\nloading...                    ";
     
 
-    $defaultdebug = 0x3f85ffd ;
+    $defaultdebug = 0x7f85ffd ;
     #$defaultdebug = 1 ;
 
     #### setup paths #####
@@ -714,10 +538,10 @@ use Getopt::Long ;
 
 eval { Getopt::Long::Configure ('bundling') } ;
 $@ = "" ;
-$ret = GetOptions ("offline|o", "ep1|1", "cgi|c", "modperl|httpd|h", "execute|e", "nokill|r", "loop|l:i",
+$ret = GetOptions ("offline|o", "ep1|1", "cgi|c", "cache|a", "modperl|httpd|h", "execute|e", "nokill|r", "loop|l:i",
             "multchild|m", "memcheck|v", "exitonmem|g", "exitonsv", "config|f=s", "nostart|x", "uniquefn|u",
             "quite|q", "ignoreerror|i", "tests|t", "blib|b", "help", "dbgbreak", "finderr",
-	    "ddd", "gdb", "ab:s", "start", "kill") ;
+	    "ddd", "gdb", "ab:s", "start", "kill", "showcookie") ;
 
 $opt_help = 1 if ($ret == 0) ;
 
@@ -750,8 +574,8 @@ $outfile    = "$tmppath/out.htm" ;
 
 #### setup path in URL ####
 
-$embploc = 'embperl/' ;
-$cgiloc  = 'cgi-bin/' ; 
+$embploc = 'embperl' ;
+$cgiloc  = 'cgi-bin' ; 
 
 $port    = $EPPORT ;
 $host    = 'localhost' ;
@@ -768,6 +592,7 @@ if ($opt_help)
     print "-c       test cgi\n" ;
     print "-h       test mod_perl\n" ;
     print "-e       test execute\n" ;
+    print "-a       test output cache\n" ;
     print "-r       don't kill httpd at end of test\n" ;
     print "-l       loop forever\n" ;
     print "-m       start httpd with mulitple childs\n" ;
@@ -776,7 +601,6 @@ if ($opt_help)
     print "-f       file to use for config.pl\n" ;
     print "-x       do not start httpd\n" ;
     print "-u       use unique filenames\n" ;
-    print "-n       do not check httpd errorlog\n" ;
     print "-q       set debug to 0\n" ;
     print "-i       ignore errors\n" ;
     print "-t       list tests\n" ;
@@ -786,6 +610,7 @@ if ($opt_help)
     print "--ab <numreq>  run test thru ApacheBench\n" ;
     print "--start  start apache only\n" ;
     print "--kill   kill apache only\n" ;
+    print "--showcookie  shows sent and received cookies\n" ;
     print "\n\n" ;
     print "path\t$EPPATH\n" ;
     print "httpd\t" . ($EPHTTPD || '') . "\n" ;
@@ -820,6 +645,10 @@ $vminitsize = 0 ;
 $vmhttpdsize = 0 ;
 $vmhttpdinitsize = 0 ;
 
+#####################################################
+
+sub s1 { 1 } ;
+sub s0 { 0 } ;
 
 #####################################################
 
@@ -840,6 +669,30 @@ sub chompcr
     $_[0] =~ s/\s+/ /g ;
     $_[0] =~ s/\s+>/>/g ;
     }
+
+#####################################################
+
+sub CmpInMem
+
+    {
+
+    my ($out, $cmp, $parm) = @_ ;
+
+    local $p = $parm ;
+
+    $out =~ s/\r//g ;
+    chomp ($out) ;
+
+    if ($out ne eval ($cmp))
+	{
+	print "\nError\nIs:\t>$out<\nShould:\t>" . eval ($cmp) . "<\n" ;
+	return 1 ;
+	}
+
+    return 0 ;
+    }
+
+
 
 #####################################################
 
@@ -943,10 +796,11 @@ sub CmpFiles
 sub REQ
 
     {
-    my ($loc, $file, $query, $ofile, $content, $upload) = @_ ;
+    my ($loc, $file, $query, $ofile, $content, $upload, $cookieaction) = @_ ;
 	
     eval 'require LWP::UserAgent' ;
     
+    $cookieaction |= '' ;
 
     if ($@)
 	{
@@ -965,14 +819,23 @@ sub REQ
     my $ua = new LWP::UserAgent;    # create a useragent to test
 
     my($request,$response,$url);
-
+    my $sendcookie = '' ;
 
     if (!$upload)
 	{
-	$url = new URI::URL("http://$host:$port/$loc$file?$query");
+	$url = new URI::URL("http://$host:$port/$loc/$file?$query");
 
 	$request = new HTTP::Request($content?'POST':'GET', $url);
-        $request -> header ('Cookie' => $cookie) if ($cookie && !($query =~ /nocookie/)) ;
+        if ($cookieaction =~ /cookie=(.*?)$/)
+            {
+            $request -> header ('Cookie' => $1) ;
+            $sendcookie = $1 ;
+            }
+        elsif ($cookie && !($cookieaction =~ /nocookie/)) 
+            {             
+            $request -> header ('Cookie' => $cookie) ;
+            $sendcookie = $cookie ;
+            }
         
 	$request -> content ($content) if ($content) ;
 	}
@@ -980,7 +843,7 @@ sub REQ
 	{
 	my @q = split (/\&|=/, $query) ;
         
-        $request = POST ("http://$host:$port/$loc$file",
+        $request = POST ("http://$host:$port/$loc/$file",
 					Content_Type => 'form-data',
 					Content      => [ upload => [undef, '12upload-filename', 
 								    'Content-type' => 'test/plain',
@@ -999,15 +862,23 @@ sub REQ
     close FH ;
 
     my $c = $response -> header ('Set-Cookie') || '' ;
-    $cookie = $c if (!$cookie && ($c =~ /EMBPERL_UID/)) ;  
-    $cookie = undef if (($c =~ /EMBPERL_UID=;/)) ;  
-    #print "Got Cookie $cookie\n" ;
+    $cookie = $c if (($c =~ /EMBPERL_UID/) && !($cookieaction =~ /nosave/)) ;  
+    $cookie = undef if (($c =~ /EMBPERL_UID=;/) && !($cookieaction =~ /nosave/)) ;  
 
+    $sendcookie ||= '' ;
+    print "\nSent: $sendcookie, Got: " , ($c||''), "\n" if ($opt_showcookie) ;
+    
     #print $response -> headers -> as_string () ;
 
     return $response -> message if (!$response->is_success) ;
+
+    my $m = 'ok' ;
+    print "\nExpected new cookie:  Sent: $sendcookie, Got: " , ($c||''), "\n", $m = '' if (($cookieaction =~ /expectnew/) && ($sendcookie eq $c || !$c)) ;
+    print "\nExpected same cookie: Sent: $sendcookie, Got: " , ($c||''), "\n", $m = ''  if (($cookieaction =~ /expectsame/) && ($sendcookie ne $c || !$c)) ;
+    print "\nExpected no cookie:   Sent: $sendcookie, Got: " , ($c||''), "\n", $m = ''  if (($cookieaction =~ /expectno/) && $c) ;
+    print "\nExpected expire cookie: Sent: $sendcookie, Got: " , ($c||''), "\n", $m = ''  if (($cookieaction =~ /expectexpire/) && !($c =~ /^EMBPERL_UID=; expires=/)) ;
     
-    return "ok" ;
+    return $m ;
     }
 
 ###########################################################################
@@ -1057,7 +928,8 @@ sub CheckError
 	    !($_ =~ /Warning/) &&
 	    !($_ =~ /mod_ssl\:/) &&
 	    !($_ =~ /SES\:/) &&
-	    $_ ne 'Use of uninitialized value.')
+	    !($_ =~ /gcache started/) &&
+            $_ ne 'Use of uninitialized value.')
 	    {
 	    $cnt-- ;
 	    if ($cnt < 0)
@@ -1138,16 +1010,17 @@ print "ok\n";
 
 #### check commandline options #####
 
-if (!$opt_modperl && !$opt_cgi && !$opt_offline && !$opt_execute)
+if (!$opt_modperl && !$opt_cgi && !$opt_offline && !$opt_execute && !$opt_cache)
     {
     if (defined ($opt_ab))
 	{
 	$opt_modperl = 1 ;	
 	}
     elsif ($EPHTTPD ne '')
-        { $opt_modperl = $opt_cgi = $opt_offline = $opt_execute = 1 }
+        { $opt_cache = $opt_modperl = $opt_cgi = $opt_offline = $opt_execute = 1 }
     else
-        { $opt_offline = $opt_execute = 1 }
+        { $opt_cache = $opt_offline = $opt_execute = 1 }
+    $opt_ep1 = 1 ;
     }
 
 
@@ -1223,6 +1096,7 @@ $notseen = 1 ;
 %seen = () ;
 $max_sv = 0 ;
 $version = $EP2?2:1 ;
+$frommem = 0 ;
 	
 $cp = HTML::Embperl::AddCompartment ('TEST') ;
 
@@ -1232,6 +1106,13 @@ $ENV{EMBPERL_ALLOW} = 'asc|\\.htm$|\\.htm-1$' ;
 
 do  
     {
+    if ($opt_offline || $opt_execute || $opt_cache)
+        {   
+        open (SAVEERR, ">&STDERR")  || die "Cannot save stderr" ;  
+        open (STDERR, ">$offlineerr") || die "Cannot redirect stderr" ;  
+        open (ERR, "$offlineerr")  || die "Cannot open redirected stderr ($offlineerr)" ;  ;  
+        }
+
     #############
     #
     #  OFFLINE
@@ -1241,13 +1122,6 @@ do
     if ($opt_offline) # || $opt_ep1)
 	{
 	print "\nTesting offline mode...\n\n" ;
-
-	if ($loopcnt == 0)
-	    {   
-	    open (SAVEERR, ">&STDERR")  || die "Cannot save stderr" ;  
-	    open (STDERR, ">$offlineerr") || die "Cannot redirect stderr" ;  
-	    open (ERR, "$offlineerr")  || die "Cannot open redirected stderr ($offlineerr)" ;  ;  
-	    }
 
 	$n = 0 ;
 	$t_offline = 0 ;
@@ -1389,7 +1263,7 @@ do
 	    $err = CmpFiles ($outfile, $org)  if ($err == 0) ;
 	    print "ok\n" unless ($err) ;
 
-	    if ($err == 0)
+	    if ($err == 0 || $opt_ignoreerror)
 		{
 		$txt2 = "$txt from memory...";
 		$txt2 .= ' ' x (30 - length ($txt2)) ;
@@ -1410,7 +1284,7 @@ do
 		print "ok\n" unless ($err) ;
 		}
 
-	    if ($err == 0)
+	    if ($err == 0 || $opt_ignoreerror)
 		{
 		$txt2 = "$txt to memory...";
 		$txt2 .= ' ' x (30 - length ($txt2)) ;
@@ -1436,7 +1310,7 @@ do
 		print "ok\n" unless ($err) ;
 		}
 
-	    if ($err == 0)
+	    if ($err == 0 || $opt_ignoreerror)
 		{
 		$txt2 = "$txt from/to memory...";
 		$txt2 .= ' ' x (30 - length ($txt2)) ;
@@ -1480,7 +1354,7 @@ do
 	    $seen{"o:$src"} = 1 ;
 
 
-	    if ($err == 0)
+	    if ($err == 0 || $opt_ignoreerror)
 		{
 		$txt2 = "$txt to memory...";
 		$txt2 .= ' ' x (30 - length ($txt2)) ;
@@ -1515,7 +1389,7 @@ do
 
             foreach $src ('EmbperlObject/epopage1.htm', 'EmbperlObject/sub/epopage2.htm', 'EmbperlObject/obj/epoobj3.htm')
                 {
-	        if ($err == 0 && $version == 1)
+	        if ($err == 0 || $opt_ignoreerror) # && $version == 1)
 		    {
                     $src =~ m#^.*/(.*?)$# ;
 		    $org = "$cmppath/$1" ;
@@ -1548,11 +1422,222 @@ do
 	    }
 	}
 
-    if ((($opt_execute) || ($opt_offline)) && $looptest == 0)
+    if ($EP2)
+	{
+	#############
+	#
+	#  Cache tests
+	#
+	#############
+
+        $frommem = 1 ;
+	if ($err == 0)
+	    {
+	    print "\nTesting Ouput Caching...\n\n" ;
+    
+	    HTML::Embperl::Init ($logfile, $defaultdebug) ;
+    
+            my $src = '* [+ $param[0] +] *' ;
+            my $cmp = '"* $p *"' ;
+            my $out ;
+
+            @cachetests = (
+                    { 
+                    text  => 'No cache 1',
+                    param => { param => [1], },
+                    'cmp'   => 1,
+                    },
+                    { 
+                    text  => 'No cache 2',
+                    param => { param => [2], },
+                    'cmp'   => 2,
+                    },
+                    { 
+                    text  => 'Expires in 1 sec',
+                    param => { param => [3], expires_in => 1, },
+                    'cmp'   => 3,
+                    },
+                    { 
+                    text  => 'Expires in 1 sec (cached)',
+                    param => { param => ['not cached'], expires_in => 1, },
+                    'cmp'   => 3,
+                    },
+                    { 
+                    text  => 'Wait for expire',
+                    'sleep' => 2,
+                    },
+                    { 
+                    text  => 'Expires in 1 sec (reexec)',
+                    param => { param => ['reexec'], expires_in => 1, },
+                    'cmp'   => 'reexec',
+                    },
+                    { 
+                    text  => 'Expires function',
+                    param => { param => [4], expires_func => sub { 1 } },
+                    'cmp'   => 4,
+                    },
+                    { 
+                    text  => 'Expires function (cached)',
+                    param => { param => ['not cached func'], expires_func => sub { 0 } },
+                    'cmp'   => 4,
+                    },
+                    { 
+                    text  => 'Expires function (reexec)',
+                    param => { param => ['reexec func'], expires_func => sub { 1 }, },
+                    'cmp'   => 'reexec func',
+                    },
+                    { 
+                    text  => 'Expires string function (cached)',
+                    param => { param => ['not cached string func'], expires_func => 'sub { 0 }' },
+                    'cmp'   => 'reexec func',
+                    },
+                    { 
+                    text  => 'Expires string function (reexec)',
+                    param => { param => ['reexec string func'], expires_func => 'sub { 1 }', },
+                    'cmp'   => 'reexec string func',
+                    },
+                    { 
+                    text  => 'Expires named function (cached)',
+                    param => { param => ['not cached named func'], expires_func => 'main::s0' },
+                    'cmp'   => 'reexec string func',
+                    },
+                    { 
+                    text  => 'Expires named function (reexec)',
+                    param => { param => ['reexec named func'], expires_func => 'main::s1', },
+                    'cmp'   => 'reexec named func',
+                    },
+                    { 
+                    text  => 'Change query_info',
+                    param => { param => ['query_info'], expires_func => 'main::s0' },
+                    query_info => 'qi',
+                    'cmp'   => 'query_info',
+                    },
+                    { 
+                    text  => 'Change query_info (cached)',
+                    param => { param => ['not cached query_info'], expires_func => 'main::s0' },
+                    query_info => 'qi',
+                    'cmp'   => 'query_info',
+                    },
+                    { 
+                    text  => 'Expires named function (cached)',
+                    param => { param => ['not cached named func query_info'], expires_func => 'main::s0' },
+                    'cmp'   => 'reexec named func',
+                    },
+                    { 
+                    text  => 'Change query_info (reexec)',
+                    param => { param => ['reexec query_info'], expires_func => 'main::s1' },
+                    query_info => 'qi',
+                    'cmp'   => 'reexec query_info',
+                    },
+                    { 
+                    text  => 'Expires named function (cached)',
+                    param => { param => ['not cached named func query_info'], expires_func => 'main::s0' },
+                    'cmp'   => 'reexec named func',
+                    },
+                    { 
+                    text  => 'Change query_info (cached)',
+                    param => { param => ['not cached reexec query_info 2'], expires_func => 'main::s0' },
+                    query_info => 'qi',
+                    'cmp'   => 'reexec query_info',
+                    },
+                    { 
+                    text  => 'Modify source',
+                    param => { param => ['mod'], expires_func => 'main::s0' },
+                    mtime => 2,
+                    'cmp'   => 'mod',
+                    },
+
+                    { 
+                    text  => 'Modify source query_info',
+                    param => { param => ['mod query_info'], expires_func => 'main::s0' },
+                    query_info => 'qi',
+                    mtime => 2,
+                    'cmp'   => 'mod query_info',
+                    },
+
+                    { 
+                    text  => '$EXPIRES in source',
+                    name  => 'c2',
+                    src   => \('[! $EXPIRES = 1 !]' . $src),
+                    param => { param => ['expires in src'] },
+                    'cmp'   => 'expires in src',
+                    },
+                    { 
+                    text  => '$EXPIRES in source (cached)',
+                    name  => 'c2',
+                    src   => \('[! $EXPIRES = 1 !]' . $src),
+                    param => { param => ['not cached expires in src'] },
+                    'cmp'   => 'expires in src',
+                    },
+                    { 
+                    text  => 'Wait for expire',
+                    'sleep' => 2,
+                    },
+                    { 
+                    text  => '$EXPIRES in source (reexc)',
+                    name  => 'c2',
+                    src   => \('[! $EXPIRES = 1 !]' . $src),
+                    param => { param => ['reexec expires in src'] },
+                    'cmp'   => 'reexec expires in src',
+                    },
+                    { 
+                    text  => 'sub EXPIRES in source',
+                    name  => 'c3',
+                    src   => \('[! sub EXPIRES { 0 } !]' . $src),
+                    param => { param => ['expires_func in src'] },
+                    'cmp'   => 'expires_func in src',
+                    },
+                    { 
+                    text  => 'sub EXPIRES in source (cached)',
+                    name  => 'c3',
+                    src   => \('[! sub EXPIRES { 0 } !]' . $src),
+                    param => { param => ['not cached expires_func in src'] },
+                    'cmp'   => 'expires_func in src',
+                    },
+                ) ;
+
+            foreach $cachetest (@cachetests)
+                {
+                if ($err == 0)
+                    {
+                    printf ("%-30s", "$cachetest->{text}...") ;
+                    if ($cachetest->{'sleep'})
+                        {
+                        sleep $cachetest->{'sleep'} ;
+                        }
+                    else
+                        {
+                        $ENV{QUERY_STRING} = $cachetest->{'query_info'} if ($cachetest->{'query_info'}) ;
+                        delete $ENV{QUERY_STRING}  if (!$cachetest->{'query_info'}) ;
+
+                        $err = HTML::Embperl::Execute ({inputfile => $cachetest->{'name'} || 'c1', 
+                                                        input => $cachetest->{'src'} || \$src, 
+                                                        output => \$out, 
+                                                        mtime => $cachetest->{'mtime'} || 1,
+                                                        %{$cachetest->{param}}}) ;
+                        $err = CheckError (0) if ($err == 0) ;
+                        $err = CmpInMem ($out, $cmp, $cachetest->{'cmp'}) if ($err == 0) ;
+                        }
+                    print "ok\n" if ($err == 0) ;
+                    }
+                }
+                
+
+
+            }
+        $frommem = 0 if ($err == 0) ;
+        }
+
+
+
+
+    if ((($opt_execute) || ($opt_offline)  || ($opt_cache)) && $looptest == 0)
 	{
 	close STDERR ;
 	open (STDERR, ">&SAVEERR") ;
 	}
+    
+    $err = 0 if ($opt_ignoreerror) ;
 
     #############
     #
@@ -1725,7 +1810,12 @@ do
 
 	    $debug = $test -> {debug} || $defaultdebug ;  
 	    $page = "$inpath/$file" ;
-            $page = "$inpath$testversion/$file" if (-e "$inpath$testversion/$file") ;
+	    $locver = '' ;
+	    if (-e "$inpath$testversion/$file") 
+		{
+		$locver = $testversion ;
+            	$page = "$inpath$testversion/$file" ;
+		}
 	    if ($opt_nostart)
 		{
 		$notseen = 0 ;
@@ -1764,18 +1854,17 @@ do
 
 	    $n_req++ ;
 	    $t1 = HTML::Embperl::Clock () ;
-	    $page = "$inpath/$file" ;
             $file .= '-1' if ($opt_ep1 && -e "$page-1") ;
             if (defined ($opt_ab))
 		{
 		$opt_ab = 10 if (!$opt_ab) ;
-		my $cmd = "ab -n $opt_ab 'http://$host:$port/$loc$file?$test->{query_info}'";
+		my $cmd = "ab -n $opt_ab 'http://$host:$port/$loc$locver/$file?$test->{query_info}'";
 		print "$cmd\n" ;
 		system ($cmd) and die "Cannot start ab ($!)" ;
 		}
 	    else
 		{				
-	        $m = REQ ($loc, $file, $test -> {query_info}, $outfile, $content, $upload) ;
+	        $m = REQ ("$loc$locver", $file, $test -> {query_info}, $outfile, $content, $upload, $test -> {cookie}) ;
 		}
 	    $t_req += HTML::Embperl::Clock () - $t1 ; 
 
@@ -1805,6 +1894,7 @@ do
 		$org = "$cmppath/$1" ;
 	        $org = "$cmppath$testversion/$1" if (-e "$cmppath$testversion/$1") ;
                 $org .= '56' if ($file eq 'varerr.htm' && $^V && $^V ge v5.6.0) ;
+                $org .= $test -> {cmpext} if ($test -> {cmpext}) ;
                 #$org .= '-1' if ($opt_ep1 && -e "$org-1") ;
 
 		#print "Compare $page with $org\n" ;
@@ -1853,13 +1943,16 @@ until ($looptest == 0 || $err != 0 || ($loopcnt >= $opt_loop && $opt_loop > 0)) 
 
 if ($err)
     {
-    $page ||= '???' ;
-    print "Input:\t\t$page\n" ;
-    print "Output:\t\t$outfile\n" ;
-    print "Compared to:\t$org\n" if ($org) ;
-    print "Log:\t\t$logfile\n" ;
-    @p = map { " $_ = $test->{$_}\n" } keys %$test if (ref ($test) eq 'HASH') ;
-    print "Testparameter:\n @p" if (@p) ;
+    if (!$frommem)
+        {
+        $page ||= '???' ;
+        print "Input:\t\t$page\n" ;
+        print "Output:\t\t$outfile\n" ;
+        print "Compared to:\t$org\n" if ($org) ;
+        print "Log:\t\t$logfile\n" ;
+        @p = map { " $_ = $test->{$_}\n" } keys %$test if (ref ($test) eq 'HASH') ;
+        print "Testparameter:\n @p" if (@p) ;
+        }
     print "\n ERRORS detected! NOT all test have been passed successfully\n\n" ;
     }
 else

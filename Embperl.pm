@@ -10,7 +10,7 @@
 #   IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 #   WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 #
-#   $Id: Embperl.pm,v 1.121 2000/10/18 06:53:14 richter Exp $
+#   $Id: Embperl.pm,v 1.133 2000/11/15 08:48:21 richter Exp $
 #
 ###################################################################################
 
@@ -83,7 +83,7 @@ use vars qw(
 @ISA = qw(Exporter DynaLoader);
 
 
-$VERSION = '1.3b6';
+$VERSION = '1.3b7';
 ##ep2## $VERSION = '2.0a7';
 
 # HTML::Embperl cannot be bootstrapped in nonlazy mode except
@@ -126,7 +126,6 @@ $pathsplit = $^O eq 'MSWin32'?';':';|:' ;   # separators for path
 
 use constant dbgAll                 => -1 ;
 use constant dbgAllCmds             => 1024 ;
-use constant dbgCacheDisable        => 32768 ;
 use constant dbgCmd                 => 8 ;
 use constant dbgDefEval             => 16384 ;
 use constant dbgEarlyHttpHeader     => 65536 ;
@@ -171,6 +170,7 @@ use constant optDisableHtmlScan         => 512 ;
 use constant optDisableInputScan        => 1024 ;
 use constant optDisableMetaScan         => 4096 ;
 use constant optDisableTableScan        => 2048 ;
+use constant optDisableSelectScan       => 0x800000 ;
 use constant optDisableVarCleanup       => 1 ;
 use constant optEarlyHttpHeader         => 64 ;
 use constant optOpcodeMask              => 8 ;
@@ -338,7 +338,7 @@ else
     eval 'sub OK        { 0 ;   }' ;
     eval 'sub NOT_FOUND { 404 ; }' ;
     eval 'sub FORBIDDEN { 403 ; }' ;
-    eval 'sub DECLINED  { 403 ; }' ; # in non mod_perl environement, same as FORBIDDEN
+    eval 'sub DECLINED  { 403 ; }' ; # in non mod_perl environment, same as FORBIDDEN
 no strict ;
     XS_Init (epIOPerl, $DefaultLog, $DebugDefault) ;
 use strict ;
@@ -406,8 +406,8 @@ if (defined ($ENV{EMBPERL_SESSION_CLASSES}))
         eval "require $session_handler" ; 
         die $@ if ($@)  ;
 
-	tie %udat, $session_handler, undef, \%sargs ;
 	tie %mdat, $session_handler, undef, \%sargs ;
+	tie %udat, $session_handler, undef, {%sargs, recreate_id => 1} ;
 	$SessionMgnt = 2 ;
 	warn "[$$]SES:  Embperl Session management enabled ($ver)\n" if ($ENV{MOD_PERL}) ;
         }
@@ -417,38 +417,16 @@ elsif (exists $INC{'Apache/Session.pm'})
     if ($Apache::Session::VERSION =~ /^0\.17/)
         {
         # Apache::Session = 0.17
-	$SessionMgnt = 1 ;
-	tie %udat, 'Apache::Session', $ENV{EMBPERL_SESSION_CLASS} || 'Win32',
-		      undef, {not_lazy=>0, autocommit=>0, lifetime=>&Apache::Session::LIFETIME} ;
-	tie %mdat, 'Apache::Session', $ENV{EMBPERL_SESSION_CLASS} || 'Win32',
-		      undef, {not_lazy=>0, autocommit=>0, lifetime=>&Apache::Session::LIFETIME} ;
-	warn "[$$]SES:  Embperl Session management enabled (0.17)\n" ;
+	##$SessionMgnt = 1 ;
+	##tie %udat, 'Apache::Session', $ENV{EMBPERL_SESSION_CLASS} || 'Win32',
+	##	      undef, {not_lazy=>0, autocommit=>0, lifetime=>&Apache::Session::LIFETIME} ;
+	##tie %mdat, 'Apache::Session', $ENV{EMBPERL_SESSION_CLASS} || 'Win32',
+	##	      undef, {not_lazy=>0, autocommit=>0, lifetime=>&Apache::Session::LIFETIME} ;
+	warn "[$$]SES:  Apache::Session 0.17 not supported by Embperl Session management anymore\n" ;
+	$SessionMgnt = 0 ;
         }
     }
 
-#######################################################################################
-
-#no strict ;
-
-sub _eval_ ($)
-    {
-    my $result = eval "package $evalpackage ; $_[0] " ;
-    if ($@ ne '')
-        { logevalerr ($@) ; }
-    return $result ;
-    }
-
-#use strict ;
-
-#######################################################################################
-
-sub _evalsub_ ($)
-    {
-    my $result = eval "package $evalpackage ; sub { $_[0] } " ;
-    if ($@ ne '')
-        { logevalerr ($@) ; }
-    return $result ;
-    }
 
 #######################################################################################
 
@@ -584,7 +562,9 @@ sub SendLogFile ($$$)
 sub CheckFile
 
     {
-    my ($filename, $req_rec, $AllowZeroFilesize, $allow, $path, $debug) = @_ ;
+    my ($filename, $req_rec, $AllowZeroFilesize, $allow, $pathref, $debug) = @_ ;
+
+    my $path = $$pathref ;
 
     if (-d $filename)
         {
@@ -617,6 +597,7 @@ sub CheckFile
         shift @path while ($skip--) ;
         my $fn = '' ;
         print LOG "[$$]Embperl path search Path: " . join (';',@path) . " Filename: $filename\n" if ($debug);
+        $$pathref = join (';', @path) ;
 
         foreach (@path)
             {
@@ -841,7 +822,7 @@ use strict ;
         #my ($k, $v) ;
         #while (($k, $v) = each (%$req))
         #    { warn "$k = $v" ; }
-        if ($rc = CheckFile ($Inputfile, $req_rec, (($$req{options} || 0) & optAllowZeroFilesize), $$req{'allow'}, $$req{path}, (($$req{debug} || 0) & dbgObjectSearch))) 
+        if ($rc = CheckFile ($Inputfile, $req_rec, (($$req{options} || 0) & optAllowZeroFilesize), $$req{'allow'}, \$req -> {path}, (($$req{debug} || 0) & dbgObjectSearch))) 
             {
 	    FreeConfData ($conf) ;
             return $rc ;
@@ -862,6 +843,8 @@ use strict ;
                           &epIOMod_Perl, $In, $Out, $Sub, exists ($$req{import})?scalar(caller ($$req{import} > 0?$$req{import} - 1:0)):'',$SessionMgnt) ;
     
     bless $r, $$req{'bless'} if (exists ($$req{'bless'})) ;
+
+    $r -> Path ($req->{path}) if ($req->{path}) ;
 
     my $package = $r -> CurrPackage ;
     $evalpackage = $package ;   
@@ -1058,7 +1041,7 @@ sub run (\@)
     my $ioType ;
     my %req ;
 
-    ScanEnvironement (\%req) ;
+    ScanEnvironment (\%req) ;
     
 
     if (defined ($$args[0]) && $$args[0] eq 'dbgbreak') 
@@ -1152,7 +1135,7 @@ sub runcgi ()
     my $ioType ;
     my %req ;
 
-    ScanEnvironement (\%req) ;
+    ScanEnvironment (\%req) ;
     
     $req{'inputfile'} = $ENV{PATH_TRANSLATED} ;
     $ioType = epIOCGI ;
@@ -1189,7 +1172,7 @@ sub handler
 
     my %req ;
 
-    ScanEnvironement (\%req, $req_rec) ;
+    ScanEnvironment (\%req, $req_rec) ;
     
     $req{'uri'}       = $req_rec -> Apache::uri ;
 
@@ -1276,7 +1259,7 @@ sub cleanup
 	    #eval "\&$1\:\:CLEANUP;" ;
 	    eval "\&$package\:\:CLEANUP;" ;
 	    print LOG "[$$]CUP:  Call \&$package\:\:CLEANUP;\n" if ($Debugflags & dbgShowCleanup);
-	    embperl_logevalerr ($@) if ($@) ;
+	    logevalerr ($@) if ($@) ;
 	    }
 
 
@@ -1643,8 +1626,6 @@ sub SetupSession
 	    {
 	    $sessid = $1 ;
 	    print HTML::Embperl::LOG "[$$]SES:  Received session cookie $1\n" if ($HTML::Embperl::dbgSession) ;
-            
-            $r -> SessionMgnt (0) if ($r) ; # do not resend cookie
             }
 
 	if ($HTML::Embperl::SessionMgnt == 1)
@@ -1686,11 +1667,11 @@ sub GetSession
 
 	if ($HTML::Embperl::SessionMgnt == 1)
 	    {
-            return wantarray?(\%HTML::Embperl::udat, \%HTML::Embperl::mdat):\%HTML::Embperl::udat if ($udat -> {ID}) ;
+            return wantarray?(\%HTML::Embperl::udat, \%HTML::Embperl::mdat):\%HTML::Embperl::udat ;
 	    }
 	else
 	    {
-	    return wantarray?(\%HTML::Embperl::udat, \%HTML::Embperl::mdat):\%HTML::Embperl::udat if ($udat -> getid) ;
+	    return wantarray?(\%HTML::Embperl::udat, \%HTML::Embperl::mdat):\%HTML::Embperl::udat  ;
 	    }
 	}
     else
@@ -1707,8 +1688,17 @@ sub DeleteSession
     my $r = shift || HTML::Embperl::CurrReq () ;
     my $disabledelete = shift ;
 
-    tied(%HTML::Embperl::udat) -> delete if (!$disabledelete) ; # Delete session data
-    $r -> SessionMgnt (-1) ; # resend cookie without value
+    my $udat = tied (%HTML::Embperl::udat) ;
+    if (!$disabledelete)  # Delete session data
+        {
+        $udat -> delete  ;
+        }
+    else
+        {
+        $udat-> {data} = {} ; # for make test only
+        $udat->{initial_session_id} = "!DELETE" ;
+        }
+    $udat->{status} = 0;
     }
 
 
@@ -1719,7 +1709,7 @@ sub RefreshSession
     {
     my $r = shift || HTML::Embperl::CurrReq () ;
 
-    $r -> SessionMgnt ($HTML::Embperl::SessionMgnt) ; # resend cookie 
+    $r -> SessionMgnt ($HTML::Embperl::SessionMgnt | 4) ; # resend cookie 
     }
 
 #######################################################################################
@@ -1727,14 +1717,15 @@ sub RefreshSession
 sub CleanupSession
 
     {
-    my $r = shift || HTML::Embperl::CurrReq () ;
+    my $r = shift ;
+    $r = HTML::Embperl::CurrReq () if (!(ref ($r) =~ /^HTML::Embperl/));
 
     if ($HTML::Embperl::SessionMgnt && (!defined ($r) || !$r -> SubReq))
 	{
 	my $udat = tied(%HTML::Embperl::udat) ;
 	my $mdat = tied(%HTML::Embperl::mdat) ;
 
-	if ($HTML::Embperl::SessionMgnt == 1)
+	if ($HTML::Embperl::SessionMgnt & 1)
 	    {
 	    if ($udat->{'DIRTY'})
 		{
@@ -1763,6 +1754,34 @@ sub CleanupSession
 	    $mdat -> cleanup ;
 	    }
 	}
+    }
+
+
+#######################################################################################
+
+sub SetSessionCookie
+
+    {
+    my $r = shift ;
+    $r = undef if (!(ref ($r) =~ /^HTML::Embperl/));
+
+    if ($HTML::Embperl::SessionMgnt)
+        {
+        my $udat   = tied (%HTML::Embperl::udat) ;
+        my $id     = $udat -> getid ;
+        my $initialid     = $udat -> getinitialid ;
+        
+        my $name   = $ENV{EMBPERL_COOKIE_NAME} || 'EMBPERL_UID' ;
+        my $domain = "; domain=$ENV{EMBPERL_COOKIE_DOMAIN}" if (exists ($ENV{EMBPERL_COOKIE_DOMAIN})) ;
+        my $path   = "; path=$ENV{EMBPERL_COOKIE_PATH}" if (exists ($ENV{EMBPERL_COOKIE_PATH})) ;
+        my $expires = "; expires=$ENV{EMBPERL_COOKIE_EXPIRES}" if (exists ($ENV{EMBPERL_COOKIE_EXPIRES})) ;
+        $expires = "; expires=Thu, 1-Jan-1970 00:00:01 GMT" if ($id && !$initialid) ;
+                        
+        if ($id || $initialid)
+            {    
+            Apache -> request -> header_out ("Set-Cookie" => "$name=$id$domain$path$expires") ;
+            }
+        }
     }
 
 
@@ -1840,7 +1859,6 @@ sub CreateAliases
 
 
         *{"$package\:\:dbgAllCmds"}               = \$HTML::Embperl::dbgAllCmds           ;
-        *{"$package\:\:dbgCacheDisable"}          = \$HTML::Embperl::dbgCacheDisable      ;
         *{"$package\:\:dbgCmd"}                   = \$HTML::Embperl::dbgCmd               ;
         *{"$package\:\:dbgDefEval"}               = \$HTML::Embperl::dbgDefEval           ;
         *{"$package\:\:dbgEarlyHttpHeader"}       = \$HTML::Embperl::dbgEarlyHttpHeader   ;
@@ -1884,12 +1902,9 @@ sub Export
     print HTML::Embperl::LOG  "[$$]IMP:  Create Imports for $caller from $package ($exports)\n" ;
     no strict ;
 
-    my $v ;
-    my $k ;
-
-    while (($k, $v) = each (%$exports))
+    foreach $k (keys %$exports)
 	{
-        *{"$caller\:\:$k"}    = $v ; #\&{"$package\:\:$k"} ;
+        *{"$caller\:\:$k"}    = $exports -> {$k} ; #\&{"$package\:\:$k"} ;
         print HTML::Embperl::LOG  "[$$]IMP:  Created Import for $package\:\:$k -> $caller\n" ;
         }
 
@@ -2014,7 +2029,7 @@ sub MailErrorsTo ()
         $ok and $ok = $smtp->datasend("$k\t= \"$v\" \n" );
         }
     $ok and $ok = $smtp->datasend("-------------\r\n");
-    $ok and $ok = $smtp->datasend("Environement:\r\n");
+    $ok and $ok = $smtp->datasend("Environment:\r\n");
     $ok and $ok = $smtp->datasend("-------------\r\n");
 
     my $env = $self -> EnvHash() ;

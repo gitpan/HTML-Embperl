@@ -577,7 +577,11 @@ Verhindert die Bearbeitung aller Eingabe Tags. (<INPUT><TEXTAREA><OPTION>)
 
 =item optDisableTableScan = 2048
 
-Verhindert die Bearbeitung aller Tabellen Tags. (<TABLE><TH><TR><TD><MENU><OL><SELECT><UL>)
+Verhindert die Bearbeitung aller Tabellen Tags. (<TABLE><TH><TR><TD><MENU><OL><UL>)
+
+=item optDisableSelectScan = 8388608 (0x800000) (ab 1.3b7)
+
+Verhindert die Bearbeitung aller SELECT Tags. (<SELECT>)
 
 =item optDisableMetaScan = 4096
 
@@ -1897,7 +1901,7 @@ Dieses wird als erster Parameter in @_ an jede Seite übergeben.
 
 =head2 HTML::Embperl::Req::CleanupSession / $r -> CleanupSession [1.3b6+]
 
-Muß am Ende B<jedes> Skripts aufgerufen werden , welches C<SetupSession> benutzt, danach aber nicht
+Muß am Ende B<jedes> Skripts aufgerufen werden, welches C<SetupSession> benutzt, danach aber nicht
 L<HTML::Embperl::Execute|Execute> aufruft.
 Wenn es als eine Methode aufgerufen wird muß C<$r> ein C<HTML::Embperl::Req> Objekt sein.
 Dieses wird als erster Parameter in @_ an jede Seite übergeben.
@@ -1908,10 +1912,18 @@ Löscht die Sessiondaten und entfernt den Cookie vom Browser.
 Wenn es als eine Methode aufgerufen wird muß C<$r> ein C<HTML::Embperl::Req> Objekt sein.
 Dieses wird als erster Parameter in @_ an jede Seite übergeben.
 
-=head2 HTML::Embperl::Req::DeleteSession / $r -> DeleteSession [1.3b6+]
+=head2 HTML::Embperl::Req::RefreshSession / $r -> RefreshSession [1.3b6+]
 
 Stößt das nochmalige senden des Cookies an. Normalerweise wird der Cookie nur beim ersten
 Mal gesendet.
+Wenn es als eine Methode aufgerufen wird muß C<$r> ein C<HTML::Embperl::Req> Objekt sein.
+Dieses wird als erster Parameter in @_ an jede Seite übergeben.
+
+=head2 HTML::Embperl::Req::SetSessionCookie / $r -> SetSessionCookie [1.3b7+]
+
+Muß von Skripts aufgerufen werden, welches C<SetupSession> benutzen, danach aber nicht
+L<HTML::Embperl::Execute|Execute> aufrufen, um den Cookie für sie Session-Id zu setzen.
+Dies wird normalerweise durch L<HTML::Embperl::Execute|Execute> erledigt.
 Wenn es als eine Methode aufgerufen wird muß C<$r> ein C<HTML::Embperl::Req> Objekt sein.
 Dieses wird als erster Parameter in @_ an jede Seite übergeben.
 
@@ -2426,8 +2438,8 @@ Inhalt eine Fehlerseite zum Browser gesandt.
 Um die beste Performance von I<Embperl> zu erzielen, ist es notwendig, das Logging auf ein Minimum
 zu beschränken. Sie können Embperl drastisch verlangsamen, wenn Sie alle
 Logging Option einschalten.
-Vorallem sollten Sie B<niemals> L<dbgFlushOutput>, L<dbgFlushLog> oder
-L<dbgCacheDisable> auf einen Produktionsserver einschalten.
+Vorallem sollten Sie B<niemals> L<dbgFlushOutput> oder L<dbgFlushLog>
+auf einen Produktionsserver einschalten.
 Während der geringfügige Performanceverlust beim Debuggen nicht auffällt, kann
 er auf einem stark belasteten Server durchaus ins Gewicht fallen.
 Auch die Optionen L<optDisableChdir>, L<optDisableHtmlScan>, L<optDisableCleanup>
@@ -2607,6 +2619,7 @@ Sie erreichen uns via http://www.ecos.de oder info@ecos.de
     binary redhat 6.0   ftp://ftp.akopia.com/pub/support/6.0/
     binary redhat 6.1   ftp://ftp.akopia.com/pub/support/6.1/
 
+ PPM für ActiveState    http://theoryx5.uwinnipeg.ca/ppmpackages/
 
 =head2 CVS
 

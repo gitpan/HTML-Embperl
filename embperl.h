@@ -106,6 +106,7 @@ enum dbg
     dbgBuildToken       = 0x800000,
     dbgParse            = 0x1000000,
     dbgObjectSearch     = 0x2000000,
+    dbgCache            = 0x4000000,
     
     dbgAll  = -1
     } ;
@@ -138,7 +139,8 @@ enum opt
     optKeepSrcInMemory         = 0x80000,
     optKeepSpaces	       = 0x100000,
     optOpenLogEarly            = 0x200000,
-    optNoUncloseWarn	       = 0x400000
+    optNoUncloseWarn	       = 0x400000,
+    optDisableSelectScan       = 0x800000
     } ;
 
 /*

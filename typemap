@@ -3,8 +3,16 @@ tConf * T_PTROBJ_CONF
 tReq *  T_PTROBJ_REQ
 tFile * T_PTROBJ_FILE
 tDomNode * T_PTROBJ_DOMNODE
+AV *    T_MYAVREF
+HV *    T_MYHVREF
 
 INPUT
+T_MYAVREF
+    $var = (AV *)SvRV($arg);
+
+T_MYHVREF
+    $var = (HV *)SvRV($arg);
+
 T_PTROBJ_CONF
     if (sv_derived_from ($arg, \"HTML::Embperl::Conf\"))
         $var = (tConf *)(SvIV((SV *)SvRV($arg))) ;

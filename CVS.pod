@@ -64,11 +64,11 @@ Here's a config file for the client (cvsup) to sync Embperl sources.
 
 To checkout a fresh copy from anoncvs use
 
-cvs -d "pserver:anoncvs@perl.apache.org:/home/cvspublic" login
+cvs -d ":pserver:anoncvs@perl.apache.org:/home/cvspublic" login
 
 with the password "anoncvs". 
 
-cvs -d "pserver:anoncvs@perl.apache.org:/home/cvspublic" co embperl
+cvs -d ":pserver:anoncvs@perl.apache.org:/home/cvspublic" co embperl
 
 
 =head2 web-access

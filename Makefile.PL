@@ -26,48 +26,48 @@ $EP2 = -f "epcmd2.c" ;
 %neededmodules =
     ( 
       'mod_perl.c' => { name	    => 'perl_module', 
-			path	    => ['$apache_src/modules/perl/libperl.so', '$EPBINDIR/modules/libperl.so'],
+			path	    => ['$apache_src/modules/perl/libperl.so', '$EPBINDIR/modules/libperl.so', '$apache_src/mod_perl.so'],
 			win32path   => ['$mpdll', '$mpdll/apachemoduleperl.dll', '$EPBINDIR/modules/apachemoduleperl.dll'],
 			file	    => 'libperl.so',
 			win32file   => 'apachemoduleperl.dll',
 		      },
       'mod_dir.c'  => { name	    => 'dir_module', 
-			path	    => ['$apache_src/modules/standard/mod_dir.so', '$EPBINDIR/modules/mod_dir.so'],
+			path	    => ['$apache_src/modules/standard/mod_dir.so', '$EPBINDIR/modules/mod_dir.so', '$apache_src/mod_dir.so'],
 			win32path   => ['$apache_src/modules/standard/apachemoduledir.dll', '$EPBINDIR/modules/apachemoduledir.dll'],
 			file	    => 'mod_dir.so',
 			win32file   => 'apachemoduledir.dll',
 		      },
 
       'mod_env.c'  => { name	    => 'env_module', 
-			path	    => ['$apache_src/modules/standard/mod_env.so', '$EPBINDIR/modules/mod_env.so'],
+			path	    => ['$apache_src/modules/standard/mod_env.so', '$EPBINDIR/modules/mod_env.so', '$apache_src/mod_env.so'],
 			win32path   => ['$apache_src/modules/standard/apachemoduleenv.dll', '$EPBINDIR/modules/apachemoduleenv.dll'],
 			file	    => 'mod_env.so',
 			win32file   => 'apachemoduleenv.dll',
 		      },
 
       'mod_mime.c'  => { name	    => 'mime_module', 
-			path	    => ['$apache_src/modules/standard/mod_mime.so', '$EPBINDIR/modules/mod_mime.so'],
+			path	    => ['$apache_src/modules/standard/mod_mime.so', '$EPBINDIR/modules/mod_mime.so', '$apache_src/mod_mime.so'],
 			win32path   => ['$apache_src/modules/standard/apachemodulemime.dll', '$EPBINDIR/modules/apachemodulemime.dll'],
 			file	    => 'mod_mime.so',
 			win32file   => 'apachemodulemime.dll',
 		      },
 
       'mod_alias.c'  => { name	    => 'alias_module', 
-			path	    => ['$apache_src/modules/standard/mod_alias.so', '$EPBINDIR/modules/mod_alias.so'],
+			path	    => ['$apache_src/modules/standard/mod_alias.so', '$EPBINDIR/modules/mod_alias.so', '$apache_src/mod_alias.so'],
 			win32path   => ['$apache_src/modules/standard/apachemodulealias.dll', '$EPBINDIR/modules/apachemodulealias.dll'],
 			file	    => 'mod_alias.so',
 			win32file   => 'apachemodulealias.dll',
 		      },
 
       'mod_cgi.c'  => { name	    => 'cgi_module', 
-			path	    => ['$apache_src/modules/standard/mod_cgi.so', '$EPBINDIR/modules/mod_cgi.so'],
+			path	    => ['$apache_src/modules/standard/mod_cgi.so', '$EPBINDIR/modules/mod_cgi.so', '$apache_src/mod_cgi.so'],
 			win32path   => ['$apache_src/modules/standard/apachemodulecgi.dll', '$EPBINDIR/modules/apachemodulecgi.dll'],
 			file	    => 'mod_cgi.so',
 			win32file   => 'apachemodulecgi.dll',
 		      },
 
       'mod_actions.c'  => { name	    => 'action_module', 
-			path	    => ['$apache_src/modules/standard/mod_actions.so', '$EPBINDIR/modules/mod_actions.so'],
+			path	    => ['$apache_src/modules/standard/mod_actions.so', '$EPBINDIR/modules/mod_actions.so', '$apache_src/mod_actions.so'],
 			win32path   => ['$apache_src/modules/standard/apachemoduleactions.dll', '$EPBINDIR/modules/apachemoduleactions.dll'],
 			file	    => 'mod_actions.so',
 			win32file   => 'apachemoduleactions.dll',
@@ -240,6 +240,19 @@ sub cnvpath
     my $path = shift ;
     
     $path =~ s/\//\\/g if ($win32) ;
+
+    return $path ;
+    }
+
+## ----------------------------------------------------------------------------
+
+
+sub cnvpath2unix
+
+    {
+    my $path = shift ;
+    
+    $path =~ s#\\#/#g if ($win32) ;
 
     return $path ;
     }
@@ -467,6 +480,10 @@ if ($b && $apache && $apache_src ne '')
          {
          $inc_dir = "$apache_src/include" ;
          }
+    elsif (-e "$ENV{APACHE_HDR}/httpd.h")
+         {
+         $inc_dir = "$ENV{APACHE_HDR}" ;
+         }
         
 
     if ($win32)
@@ -524,41 +541,6 @@ EOF
 	{
 	$mpdll = $1 ;
 	}
-=pod
-    else
-	{
-	SEARCH:
-	    {
-	    for my $drive ('c'..'g') 
-		{
-		for my $p ("program files\\apache\\modules", "apache\\modules")
-		    { 
-		    last SEARCH if -e ($mpdll = "$drive:\\$p\\apachemoduleperl.dll");
-		    }
-		}
-	    }
-	}
-
-    $mpdll .= "\\apachemoduleperl.dll" if (!($mpdll =~ /apachemoduleperl\.dll/i)) ;
-    if (!(-f $mpdll))
-        {
-        require ExtUtils::MakeMaker;
-        ExtUtils::MakeMaker->import('prompt');
-        $mpdll = prompt("Where is your ApacheModulePerl.dll located ?", $mpdll);
-        $mpdll .= "\\apachemoduleperl.dll" if (!($mpdll =~ /apachemoduleperl\.dll/i)) ;
-	if (!(-f $mpdll))
-	    {
-	    print "$mpdll not found, please make sure Apache and mod_perl are installed before installing Embperl\n" ;
-	    exit (1) ;
-	    }
-	}
-
-    $mpdll = cnvpath ($mpdll) ;
-    $mpdll =~ s/\\\\/\\/g ;
-
-    die "Can't find ApacheModulePerl.dll at $mpdll!" if (!(-e $mpdll));
-=cut
-
     }
 
 #
@@ -590,6 +572,7 @@ if ($b && $apache)
             }
         
         $EPHTTPD = "$apache_src/httpd" ;
+        $EPHTTPD = $ENV{EPHTTPD} if (defined ($ENV{EPHTTPD})) ;
         $EPHTTPD = "$apache_src/httpsd" if (!-e $EPHTTPD && -e "$apache_src/httpsd") ;
         
         if (!-e $EPHTTPD)
@@ -626,7 +609,8 @@ if ($b && $apache)
     @EPAPACHEVERSION = start ("$EPHTTPD -v") ;
     @modules         = start ("$EPHTTPD -l") ;
 
-    print "Apache Version $EPAPACHEVERSION[0]" ;
+    chomp ($EPAPACHEVERSION[0]) ;
+    print "Apache Version $EPAPACHEVERSION[0]\n" ;
 
     $EPSTRONGHOLD = ($EPAPACHEVERSION[0] =~ /stronghold/i) ;
     $EPAPACHE_SSL = grep (/apache_ssl.c/, @modules) ;
@@ -685,13 +669,9 @@ if ($b && $apache)
 		    
 
     $use_dso = 0 ;
-    #if (!$win32 && -e "$apache_src/modules/perl/libperl.so" && !grep (/mod_perl.c/, @modules)) 
     if (!$win32 && ($EPMODPERL =~ /perl_module/))
 	{
-	#$EPMODPERL="LoadModule perl_module $apache_src/modules/perl/libperl.so" ;
-        #$EPSTARTUP ='startup_dso.pl' ;
         print " + mod_perl was build with USE_DSO\n" ;
-	#aixold# $dynlib->{'OTHERLDFLAGS'} = "-bI:mod_perl.exp -bI:$apache_src/support/httpd.exp" if ($aix);
 	$use_dso = 1 ;
         }
 
@@ -782,8 +762,15 @@ if ($b && $apache)
         {
         if ($SessVer && !($SessVer =~ /0\.17/))
             {
-            print "-> Embperl works only with Apache::Session 0.17.x or 1.00 and higher\n" ;
+            print "-> Embperl works only with Apache::Session 1.00 and higher\n" ;
             print "-> Disable tests for persistent data storage\n" ;
+            $SessVer = '0' ;
+            }
+        else
+            {
+            print "-> Embperl does not support Apache::Session 0.17.x anymore.\n" ;
+            print "-> Please upgrade to 1.50 or higher.\n" ;
+            print "-> Disable tests for persistent data storage.\n" ;
             $SessVer = '0' ;
             }
         }
@@ -808,11 +795,12 @@ if ($b && $apache)
     print FH "\$EPSTRONGHOLD='$EPSTRONGHOLD' ;\n" ;
     print FH "\$EPSSLDISABLE='$EPSSLDISABLE' ;\n" ;
     print FH "\$EPSTRONGHOLDKEY='$EPSTRONGHOLDKEY' ;\n" ;
-    print FH "\$EPMODPERL='" . cnvpath($EPMODPERL) . "';\n" ;
+    print FH "\$EPMODPERL='" . cnvpath2unix($EPMODPERL) . "';\n" ;
     print FH "\$EPSTARTUP='" . cnvpath($EPSTARTUP) . "';\n" ;
     print FH "\$EPAPACHEVERSION='$EPAPACHEVERSION[0]';\n" ;
     print FH "\$EPSESSIONVERSION='$SessVer';\n" ;
     print FH "\$EP2='$EP2';\n" ;
+    print FH "\$EPMODPERLVERSION='$MPVer';\n" ;
     if ($win32)
         {
         print FH "\$EPNULL='nul';\n" ;
@@ -857,8 +845,14 @@ else
 # $d .= ' -DPERL_IS_5_6 ' if $] >= 5.006;
 
 if ($win32)
-    { # Check for winsock2api
+    { 
+    # check for inclusion of malloc.h and signal.h
+    if ($Config{usemultiplicity})
+        {
+        $d .= ' -D_INC_MALLOC -D_INC_SIGNAL ';
+        }
 
+    # Check for winsock2api
     if (open FH, "$inc_dir/../os/win32/os.h")
         {
         my @conf = <FH> ;
@@ -895,15 +889,16 @@ WriteMakefile(
     'VERSION_FROM' => 'Embperl.pm', 		# finds $VERSION
     'OBJECT'       => 'Embperl$(OBJ_EXT) epmain$(OBJ_EXT) epio$(OBJ_EXT) epchar$(OBJ_EXT) epcmd$(OBJ_EXT) eputil$(OBJ_EXT) epeval$(OBJ_EXT) epdbg$(OBJ_EXT) ' . 
                        ($EP2?'epcmd2$(OBJ_EXT) epparse$(OBJ_EXT) epdom$(OBJ_EXT) epcomp$(OBJ_EXT)':'') . $o,
-#    'XS'           => { 'Embperl.xs' => 'Embperl.c', ($EP2?('Cmd.xs' => 'Cmd.c', 'DOM.xs' => 'DOM.c'):())}, 
     'LIBS'	   => [''],   			 
     'DEFINE'	   => "$d \$(DEFS)", 			 
     'INC'	   => $i,     			 
     'MAN3PODS'     => { 
 			'Embperl.pod' => 'blib/man3/HTML::Embperl.3',
-			'EmbperlD.pod' => 'blib/man3/HTML::EmbperlD.3'
+			'EmbperlD.pod' => 'blib/man3/HTML::EmbperlD.3',
+			'EmbperlObject.pm' => 'blib/man3/HTML::EmbperlObject.3',
 			 }, 
-    'clean'        => { FILES => 'dirent.h test/tmp/*' },
+    'clean'        => { FILES => 'dirent.h test/conf/httpd.conf test/tmp/* Embperl.c' },
+    'realclean'    => { FILES => 'embpexec.pl embpexec.bat embpcgi.pl embpcgi.test.pl embpcgi.bat test/conf/config.pl' },
     'dist'         => { COMPRESS => 'gzip', SUFFIX => 'gz'},
     'dynamic_lib'  => $dynlib,
     'PREREQ_PM'    => { 'File::Spec' => 0 },
@@ -950,4 +945,6 @@ foreach $f (@bins)
 	close OUT ;
 	chmod 0755, $f or die "Cannot set executable $f" ;
 	}
+
+unlink ('Embperl.c') ;
 

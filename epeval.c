@@ -104,7 +104,7 @@ static int EvalAll (/*i/o*/ register req * r,
     GetLineNo (r) ;
 
     if (r -> bDebug & dbgDefEval)
-        lprintf (r, "[%d]DEF:  Line %d: %s\n", r -> nPid, r -> Buf.nSourceline, sArg) ;
+        lprintf (r, "[%d]DEF:  Line %d: %s\n", r -> nPid, r -> Buf.nSourceline, sArg?sArg:"<unknown>") ;
 
     tainted = 0 ;
     pCurrReq = r ;
@@ -192,7 +192,7 @@ static int EvalAllNoCache (/*i/o*/ register req * r,
     EPENTRY (EvalAll) ;
 
     if (r -> bDebug & dbgEval)
-        lprintf (r, "[%d]EVAL< %s\n", r -> nPid, sArg) ;
+        lprintf (r, "[%d]EVAL< %s\n", r -> nPid, sArg?sArg:"<unknown>") ;
 
     tainted = 0 ;
     pCurrReq = r ;
@@ -306,7 +306,7 @@ static int Watch (/*i/o*/ register req * r)
 ------------------------------------------------------------------------------- */
 
 
-static int CallCV  (/*i/o*/ register req * r,
+int CallCV  (/*i/o*/ register req * r,
 		    /*in*/  const char *  sArg,
                     /*in*/  CV *          pSub,
                     /*in*/  int           flags,
@@ -331,7 +331,7 @@ static int CallCV  (/*i/o*/ register req * r,
     EPENTRY (CallCV) ;
 
     if (r -> bDebug & dbgEval)
-        lprintf (r, "[%d]EVAL< %s\n", r -> nPid, sArg) ;
+        lprintf (r, "[%d]EVAL< %s\n", r -> nPid, sArg?sArg:"<unknown>") ;
 
     tainted = 0 ;
     pCurrReq = r ;
@@ -466,7 +466,7 @@ static int CallCV  (/*i/o*/ register req * r,
 ------------------------------------------------------------------------------- */
 
 
-static int EvalOnly (/*i/o*/ register req * r,
+int EvalOnly           (/*i/o*/ register req * r,
 			/*in*/  const char *  sArg,
                         /*in*/  SV **         ppSV,
                         /*in*/  int           flags,
@@ -613,7 +613,7 @@ int CallStoredCV  (/*i/o*/ register req * r,
     EPENTRY (CallCV) ;
 
     if (r -> bDebug & dbgEval)
-        lprintf (r, "[%d]EVAL< %s\n", r -> nPid, sArg) ;
+        lprintf (r, "[%d]EVAL< %s\n", r -> nPid, sArg?sArg:"<unknown>") ;
 
     tainted = 0 ;
     pCurrReq = r ;
@@ -745,9 +745,9 @@ int EvalStore (/*i/o*/ register req * r,
     r -> numEvals++ ;
     *pRet = NULL ;
 
-    if (r -> bDebug & dbgCacheDisable)
+    /*if (r -> bDebug & dbgCacheDisable)
         return EvalAllNoCache (r, sArg, pRet) ;
-
+    */
     /* Already compiled ? */
 
     ppSV = hv_fetch(r -> Buf.pFile -> pCacheHash, (char *)&nFilepos, sizeof (nFilepos), 1) ;  
@@ -807,9 +807,9 @@ int Eval (/*i/o*/ register req * r,
     r -> numEvals++ ;
     *pRet = NULL ;
 
-    if (r -> bDebug & dbgCacheDisable)
+    /*if (r -> bDebug & dbgCacheDisable)
         return EvalAllNoCache (r, sArg, pRet) ;
-
+    */
     /* Already compiled ? */
 
     ppSV = hv_fetch(r -> Buf.pFile -> pCacheHash, (char *)&nFilepos, sizeof (nFilepos), 1) ;  
@@ -859,14 +859,15 @@ int EvalTransFlags (/*i/o*/ register req * r,
     r -> numEvals++ ;
     *pRet = NULL ;
 
+    /*
     if (r -> bDebug & dbgCacheDisable)
         {
-        /* strip off all <HTML> Tags */
+        /  * strip off all <HTML> Tags *  /
         TransHtml (r, sArg, 0) ;
         
         return EvalAllNoCache (r, sArg, pRet) ;
         }
-
+    */
     /* Already compiled ? */
 
     ppSV = hv_fetch(r -> Buf.pFile -> pCacheHash, (char *)&nFilepos, sizeof (nFilepos), 1) ;  

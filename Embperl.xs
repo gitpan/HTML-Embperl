@@ -20,6 +20,7 @@
 
 MODULE = HTML::Embperl      PACKAGE = HTML::Embperl     PREFIX = embperl_
 
+PROTOTYPES: ENABLE
 
 
 int
@@ -246,7 +247,7 @@ CODE:
 
 
 void
-embperl_logevalerr(r,sText)
+embperl_logevalerr(sText)
     char * sText
 PREINIT:
     int l ;
@@ -361,13 +362,22 @@ OUTPUT:
     RETVAL
 
 char *
-embperl_Path(r)
+embperl_Path(r,sPath=NULL)
     tReq * r
+    char * sPath
 CODE:
-    if (r -> pConf && r -> pConf -> sPath)
-        RETVAL = r -> pConf -> sPath ;
-    else
-        RETVAL = NULL;
+    RETVAL = NULL;
+    if (r -> pConf)
+        {
+        if (sPath)
+            {
+            if (r -> pConf -> sPath)
+                free (r -> pConf -> sPath) ;
+            r -> pConf -> sPath = sstrdup (sPath) ;
+            }
+        if (r -> pConf -> sPath)
+            RETVAL = r -> pConf -> sPath ;
+        }
 OUTPUT:
     RETVAL
 

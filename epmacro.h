@@ -104,3 +104,8 @@ int EMBPERL_mgSet##name (pTHX_ SV * pSV, MAGIC * mg) \
 #define EPENTRY1N(func,arg1)
 #define EPENTRY1S(func,arg1)
 #endif
+
+
+
+#define AssignSVPtr(ppDst,pSrc) { if (*ppDst) SvREFCNT_dec (*ppDst) ; *ppDst = pSrc ; }
+

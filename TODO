@@ -60,9 +60,9 @@ Features
 - accpect \0 as separator for multiple with same name in %fdat (as CGI->Vars)
   [Ilia Lobsanov 8.4.00]
 
-- optDisableSelectScan [ Robert 14.5.00]
-
 - Execute backtrace [Jon Brisbin 12.8.00]
+
+- pre header function [Alvar Freude 25.10.00]
 
 
 Test

@@ -84,6 +84,7 @@ test/html/varerr.htm
 test/html/hidden.htm
 test/html/java.htm
 test/html/inputjava.htm
+test/html/heredoc.htm
 test/html/tagscan.htm
 test/html/tagscandisable.htm
 test/html/inc.htm
@@ -139,6 +140,11 @@ test/html/execgetsess.htm
 test/html/clearsess.htm
 test/html/delsess.htm
 test/html/getdelsess.htm
+test/html/getbsess.htm
+test/html/delrdsess.htm
+test/html/delwrsess.htm
+test/html/setbadsess.htm
+test/html/setunknownsess.htm
 test/html/registry/reggetsess.htm
 test/html/EmbperlObject/epobase.htm
 test/html/EmbperlObject/epohead.htm
@@ -146,6 +152,7 @@ test/html/EmbperlObject/epofoot.htm
 test/html/EmbperlObject/epopage1.htm
 test/html/EmbperlObject/epodiv.htm
 test/html/EmbperlObject/sub/subsub/eposubsub.htm
+test/html/EmbperlObject/sub/subsub/subsubsub/eposubsub.htm
 test/html/EmbperlObject/eposubsub.htm
 test/html/EmbperlObject/sub/epohead.htm
 test/html/EmbperlObject/sub/epopage2.htm
@@ -221,6 +228,7 @@ test/cmp/http.htm
 test/cmp/exit.htm
 test/cmp/exit2.htm
 test/cmp/exit3.htm
+test/cmp/heredoc.htm
 test/cmp/post.htm
 test/cmp/upload.htm
 test/cmp/npherr.htm
@@ -241,6 +249,7 @@ test/cmp/epopage1.htm
 test/cmp/epodiv.htm
 test/cmp/epopage2.htm
 test/cmp/eposubsub.htm
+test/cmp/eposubsub.htm3
 test/cmp/epoobj1.htm
 test/cmp/epoobj2.htm
 test/cmp/epoobj3.htm
@@ -248,6 +257,11 @@ test/cmp/epoobj4.htm
 test/cmp/eponotfound.htm
 test/cmp/epostopdir.htm
 test/cmp/epobaselib.htm
+test/cmp/getbsess.htm
+test/cmp/delrdsess.htm     
+test/cmp/delwrsess.htm
+test/cmp/setbadsess.htm
+test/cmp/setunknownsess.htm
 test/conf/httpd.conf.src
 test/conf/startup.pl
 test/conf/startup_dso.pl
