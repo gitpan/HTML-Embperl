@@ -400,6 +400,8 @@ static int CallCV  (/*i/o*/ register req * r,
             sv_unmagic(pSVErr,'U');
 	    sv_setpv(pSVErr,"");
 
+	    r -> bOptions |= optNoUncloseWarn ;
+
             return rcExit ;
             }
 
@@ -611,7 +613,7 @@ int EvalTransFlags (/*i/o*/ register req * r,
     if (r -> bDebug & dbgCacheDisable)
         {
         /* strip off all <HTML> Tags */
-        TransHtml (r, sArg) ;
+        TransHtml (r, sArg, 0) ;
         
         return EvalAllNoCache (r, sArg, pRet) ;
         }
@@ -632,7 +634,7 @@ int EvalTransFlags (/*i/o*/ register req * r,
     if (*ppSV == NULL || SvTYPE (*ppSV) != SVt_PVCV)
         {
         /* strip off all <HTML> Tags */
-        TransHtml (r, sArg) ;
+        TransHtml (r, sArg, 0) ;
 
         return EvalAndCall (r, sArg, ppSV, flags, pRet) ;
         }
@@ -698,7 +700,7 @@ int EvalTransOnFirstCall (/*i/o*/ register req * r,
     if (*ppSV == NULL || SvTYPE (*ppSV) != SVt_PVCV)
         {
         /* strip off all <HTML> Tags */
-        TransHtml (r, sArg) ;
+        TransHtml (r, sArg, 0) ;
 
         return EvalAndCall (r, sArg, ppSV, G_SCALAR, pRet) ;
         }
@@ -994,7 +996,7 @@ int EvalMain (/*i/o*/ register req *  r)
 	    return rcOutOfMemory ;
 
         /* strip off all <HTML> Tags */
-	TransHtml (r, sProg) ;
+	TransHtml (r, sProg, 0) ;
 
         if ((rc = EvalAndCall (r, sProg, ppSV, flags, &pRet)) != ok)
             return rc ;

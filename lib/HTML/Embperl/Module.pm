@@ -14,12 +14,12 @@ sub init
 
     # compile page
 
-    HTML::Embperl::Execute ({inputfile => __FILE__, 
-			    input => \$data,
-			    mtime => -M __FILE__ ,
-			    import => 0,
-			    options => HTML::Embperl::optKeepSrcInMemory,
-			    package => __PACKAGE__}) ;
+    HTML::Embperl::Execute ({'inputfile' => __FILE__, 
+			    'input' => \$data,
+			    'mtime' => -M __FILE__ ,
+			    'import' => 0,
+			    'options' => HTML::Embperl::optKeepSrcInMemory,
+			    'package' => __PACKAGE__}) ;
 
 
     }
@@ -29,9 +29,9 @@ sub init
 sub import
 
     {
-    HTML::Embperl::Execute ({inputfile => __FILE__, 
-			    import => 2,
-			    package => __PACKAGE__}) ;
+    HTML::Embperl::Execute ({'inputfile' => __FILE__, 
+			    'import' => 2,
+			    'package' => __PACKAGE__}) ;
 
 
     1 ;

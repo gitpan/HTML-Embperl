@@ -178,17 +178,20 @@ static int CmpCharTrans (/*in*/ const void *  pKey,
 /* 								             */
 /* i/o sData     = input:  html string                                       */
 /*                 output: perl string                                       */
+/* in  nLen      = length of sData on input (or 0 for null terminated)       */
 /*                                                                           */
 /* ------------------------------------------------------------------------- */
 
-void TransHtml (/*i/o*/ register req * r,
-			/*i/o*/ char *  sData)
+int   TransHtml (/*i/o*/ register req * r,
+		/*i/o*/ char *         sData,
+		/*in*/   int           nLen)
 
     {
     char * p = sData ;
     char * s ;
     char * e ;
     struct tCharTrans * pChar ;
+    int  bInUrl = r -> bEscInUrl ;
 
     EPENTRY (TransHtml) ;
 	
@@ -205,94 +208,129 @@ void TransHtml (/*i/o*/ register req * r,
         }
         
     s = NULL ;
-    e = sData + strlen (sData) ;
+    if (nLen == 0)
+        nLen = strlen (sData) ;
+    e = sData + nLen ;
 
-    while (*p)
-        {
-        if (*p == '\\')
-            {
-            
-            if (p[1] == '<')
-                { /*  Quote next HTML tag */
-                memmove (p, p + 1, e - p - 1) ;
-                e[-1] = ' ' ;
-                p++ ;
-                while (*p && *p != '>')
-                    p++ ;
-                }
-            else if (p[1] == '&')
-                { /*  Quote next HTML char */
-                memmove (p, p + 1, e - p - 1) ;
-                e[-1] = ' ' ;
-                p++ ;
-                while (*p && *p != ';')
-                    p++ ;
-                }
-            else
-                p++ ; /* Nothing to quote */
-            }
-        else if (*p == '\r')
-            {
-            *p++ = ' ' ;
-            }
-        else
-            {
-            if (p[0] == '<' && (isalpha (p[1]) || p[1] == '/'))
-                { /*  count HTML tag length */
-                s = p ;
-                p++ ;
-                while (*p && *p != '>')
-                    p++ ;
-                if (*p)
-                    p++ ;
-                else
-                    { /* missing left '>' -> no html tag  */
-                    p = s ;
-                    s = NULL ;
-                    }
-                }
-            else if (p[0] == '&')
-                { /*  count HTML char length */
-                s = p ;
-                p++ ;
-                while (*p && *p != ';')
-                    p++ ;
+    while (*p && p < e)
+	{
+	if (*p == '\\')
+	    {
+        
+	    if (p[1] == '<')
+		{ /*  Quote next HTML tag */
+		memmove (p, p + 1, e - p - 1) ;
+		e[-1] = ' ' ;
+		p++ ;
+		while (*p && *p != '>')
+		    p++ ;
+		}
+	    else if (p[1] == '&')
+		{ /*  Quote next HTML char */
+		memmove (p, p + 1, e - p - 1) ;
+		e[-1] = ' ' ;
+		p++ ;
+		while (*p && *p != ';')
+		    p++ ;
+		}
+	    else if (bInUrl && p[1] == '%')
+		{ /*  Quote next URL escape */
+		memmove (p, p + 1, e - p - 1) ;
+		e[-1] = ' ' ;
+		p += 3 ;
+		}
+	    else
+		p++ ; /* Nothing to quote */
+	    }
+	else if (*p == '\r')
+	    {
+	    *p++ = ' ' ;
+	    }
+	else
+	    {
+	    if (p[0] == '<' && (isalpha (p[1]) || p[1] == '/'))
+		{ /*  count HTML tag length */
+		s = p ;
+		p++ ;
+		while (*p && *p != '>')
+		    p++ ;
+		if (*p)
+		    p++ ;
+		else
+		    { /* missing left '>' -> no html tag  */
+		    p = s ;
+		    s = NULL ;
+		    }
+		}
+	    else if (p[0] == '&')
+		{ /*  count HTML char length */
+		s = p ;
+		p++ ;
+		while (*p && *p != ';')
+		    p++ ;
 
-                if (*p)
-                    {
-                    *p = '\0' ;
-                    p++ ;
-                    pChar = (struct tCharTrans *)bsearch (s, Html2Char, sizeHtml2Char, sizeof (struct tCharTrans), CmpCharTrans) ;
-                    if (pChar)
-                        *s++ = pChar -> c ;
-                    else
-                        {
+		if (*p)
+		    {
+		    *p = '\0' ;
+		    p++ ;
+		    pChar = (struct tCharTrans *)bsearch (s, Html2Char, sizeHtml2Char, sizeof (struct tCharTrans), CmpCharTrans) ;
+		    if (pChar)
+			*s++ = pChar -> c ;
+		    else
+			{
 			*(p-1)=';' ;
-                        p = s ;
-                        s = NULL ;
-                        }
-                    }
-                else
-                    {
-                    p = s ;
-                    s = NULL ;
-                    }
-                }
-            if (s && (p - s) > 0)
-                { /* copy rest of string, pad with spaces */
-                memmove (s, p, e - p + 1) ;
-                memset (e - (p - s), ' ', (p - s)) ;
-                p = s ;
-                s = NULL ;
-                }
-            else
-                if (*p)
-                    p++ ;
-            }
-        }
+			p = s ;
+			s = NULL ;
+			}
+		    }
+		else
+		    {
+		    p = s ;
+		    s = NULL ;
+		    }
+		}
+	    else if (bInUrl && p[0] == '%' && isdigit (p[1]) && isxdigit (p[2]))
+		{ 
+
+		s = p ;
+		p += 3 ;
+                *s++ = ((toupper (p[-2]) - (isdigit (p[-2])?'0':('A' + 10))) << 4) 
+                      + (toupper (p[-1]) - (isdigit (p[-1])?'0':('A' + 10)))  ;
+		}
+	    if (s && (p - s) > 0)
+		{ /* copy rest of string, pad with spaces */
+		memmove (s, p, e - p + 1) ;
+		memset (e - (p - s), ' ', (p - s)) ;
+		nLen -= p - s ;
+		p = s ;
+		s = NULL ;
+		}
+	    else
+		if (*p)
+		    p++ ;
+	    }
+	}
+
+    return nLen ;
     }
 
-                        
+
+
+void TransHtmlSV (/*i/o*/ register req * r,
+		  /*i/o*/ SV *           pSV) 
+
+    {
+    STRLEN vlen ;
+    STRLEN nlen ;
+    char * pVal = SvPV (pSV, vlen) ;
+
+    nlen = TransHtml (r, pVal, vlen) ;
+
+    pVal[nlen] = '\0' ;
+    SvCUR_set(pSV, nlen) ;
+    }		  
+
+
 /* ---------------------------------------------------------------------------- */
 /* get argument from html tag  */
 /* */
@@ -340,15 +378,36 @@ const char * GetHtmlArg (/*in*/  const char *    pTag,
             pEnd = pVal ;
             if (*pVal == '"' || *pVal == '\'')
                 {
+		char nType = '\0';
                 char q = *pVal++ ;
                 pEnd++ ;
-                while (*pEnd && *pEnd != q)
+
+		while ((*pEnd != q || nType) && *pEnd != '\0')
+		    {
+		    if (nType == '\0' && *pEnd == '[' && (pEnd[1] == '+' || pEnd[1] == '-' || pEnd[1] == '$' || pEnd[1] == '!' || pEnd[1] == '#'))
+			nType = *++pEnd ;
+		    else if (nType && *pEnd == nType && pEnd[1] == ']')
+			{
+			nType = '\0';
+			pEnd++ ;
+			}
                     pEnd++ ;
-                }
+		    }
+		}
             else
                 {
-                while (*pEnd && !isspace (*pEnd) && *pEnd != '>')
+		char nType = '\0';
+		while ((!isspace (*pEnd) || nType) && *pEnd != '\0'  && *pEnd != '>')
+		    {
+		    if (nType == '\0' && *pEnd == '[' && (pEnd[1] == '+' || pEnd[1] == '-' || pEnd[1] == '$' || pEnd[1] == '!' || pEnd[1] == '#'))
+			nType = *++pEnd ;
+		    else if (nType && *pEnd == nType && pEnd[1] == ']')
+			{
+			nType = '\0';
+			pEnd++ ;
+			}
                     pEnd++ ;
+		    }
                 }
 
             *pLen = pEnd - pVal ;
@@ -477,7 +536,10 @@ int GetLineNo (/*i/o*/ register req * r)
     char * pPos = r -> Buf.pCurrPos ;
     
     if (r -> Buf.pSourcelinePos == NULL)
-        return r -> Buf.nSourceline = 1 ;
+	if (r -> Buf.pFile == NULL)
+	    return 0 ;
+	else
+	    return r -> Buf.nSourceline = r -> Buf.pFile -> nFirstLine ;
 
     if (r -> Buf.pLineNoCurrPos)
         pPos = r -> Buf.pLineNoCurrPos ;

@@ -719,7 +719,7 @@ You need Embperl 1.2b4 or above. Then you can say inside of y.html:
 
  [- Execute ('x.html') -]
 
-=Head2 EmbPerl iteration without indexing
+=head2 EmbPerl iteration without indexing
 
 I have a rather large table in a database which I'd like to display using
 EmbPerl.  All of the examples show a process of fetching all the data

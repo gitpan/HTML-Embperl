@@ -46,6 +46,7 @@
 #define stristr                EMBPERL_stristr           
 #define strlower               EMBPERL_strlower          
 #define TransHtml              EMBPERL_TransHtml         
+#define TransHtmlSV            EMBPERL_TransHtmlSV
 #define GetHtmlArg             EMBPERL_GetHtmlArg        
 #define GetHashValueLen        EMBPERL_GetHashValueLen   
 #define GetHashValue           EMBPERL_GetHashValue      
@@ -94,6 +95,7 @@
 #define NewEscMode             EMBPERL_NewEscMode
 #define GetSubTextPos          EMBPERL_GetSubTextPos
 #define SetSubTextPos          EMBPERL_SetSubTextPos
+#define SetupDebugger          EMBPERL_SetupDebugger
 
 
 #define InitialReq             EMBPERL_InitialReq

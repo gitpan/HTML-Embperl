@@ -118,11 +118,12 @@ OUTPUT:
 # /* ----- Request data ----- */
 
 tReq *
-embperl_SetupRequest(req_rec,sInputfile,mtime,filesize,sOutputfile,pConf,nIOtype,pIn,pOut,sSubName,sImport) 
+embperl_SetupRequest(req_rec,sInputfile,mtime,filesize,nFirstLine,sOutputfile,pConf,nIOtype,pIn,pOut,sSubName,sImport) 
     SV *    req_rec
     char *  sInputfile
     double  mtime
     long    filesize
+    int     nFirstLine
     char *  sOutputfile = NO_INIT
     tConf * pConf
     int     nIOtype
@@ -131,12 +132,12 @@ embperl_SetupRequest(req_rec,sInputfile,mtime,filesize,sOutputfile,pConf,nIOtype
     char *  sSubName 
     char *  sImport
 INIT:
-    if (SvOK(ST(4)))
-        sOutputfile = SvPV(ST(4), na);
+    if (SvOK(ST(5)))
+        sOutputfile = SvPV(ST(5), na);
     else
         sOutputfile = "\1" ; 
 CODE:        
-    RETVAL = SetupRequest(req_rec,sInputfile,mtime,filesize,sOutputfile,pConf,nIOtype,pIn,pOut,sSubName,sImport) ;
+    RETVAL = SetupRequest(req_rec,sInputfile,mtime,filesize,nFirstLine,sOutputfile,pConf,nIOtype,pIn,pOut,sSubName,sImport) ;
 OUTPUT:
     RETVAL
 
@@ -317,6 +318,36 @@ CODE:
     RETVAL = newRV_inc((SV *)r -> pErrArray) ;
 OUTPUT:
     RETVAL
+
+
+
+SV *
+embperl_FormArray(r)
+    tReq * r
+CODE:
+    RETVAL = newRV_inc((SV *)r -> pFormArray) ;
+OUTPUT:
+    RETVAL
+
+
+SV *
+embperl_FormHash(r)
+    tReq * r
+CODE:
+    RETVAL = newRV_inc((SV *)r -> pFormHash) ;
+OUTPUT:
+    RETVAL
+
+
+
+SV *
+embperl_EnvHash(r)
+    tReq * r
+CODE:
+    RETVAL = newRV_inc((SV *)r -> pEnvHash) ;
+OUTPUT:
+    RETVAL
+
 
 
 

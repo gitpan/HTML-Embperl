@@ -78,6 +78,8 @@ static int HtmlBody (/*i/o*/ register req * r,
 			/*in*/ const char *   sArg) ;
 static int HtmlA (/*i/o*/ register req * r,
 			/*in*/ const char *   sArg) ;
+static int HtmlIMG (/*i/o*/ register req * r,
+			/*in*/ const char *   sArg) ;
 static int HtmlMeta (/*i/o*/ register req * r,
 			/*in*/ const char *   sArg) ;
 
@@ -102,14 +104,19 @@ struct tCmd CmdTab [] =
         { "do",       CmdDo,            1, 0, cmdDo,            0, 0, cnNop    , 0                  , 0 } ,
         { "else",     CmdElse,          0, 0, cmdIf,            0, 0, cnNop    , 0                  , 0 } ,
         { "elsif",    CmdElsif,         0, 0, cmdIf,            0, 0, cnNop    , 0                  , 0 } ,
+        { "embed",    HtmlIMG,          0, 0, cmdNorm,          0, 0, cnNop    , 0                  , 1 } ,
         { "endforeach", CmdEndforeach,  0, 1, cmdForeach,       0, 0, cnNop    , 0                  , 0 } ,
         { "endif",    CmdEndif,         0, 1, (enum tCmdType)(cmdIf | cmdEndif), 0, 0, cnNop    , 0,  0 } ,
         { "endsub",   CmdEndsub,        0, 1, cmdSub,           0, 0, cnNop    , 0                  , 0 } ,
         { "endwhile", CmdEndwhile,      0, 1, cmdWhile,         0, 0, cnNop    , 0                  , 0 } ,
         { "foreach",  CmdForeach,       1, 0, cmdForeach,       0, 1, cnNop    , 0                  , 0 } ,
+        { "frame",    HtmlIMG,          0, 0, cmdNorm,          0, 0, cnNop    , 0                  , 1 } ,
         { "hidden",   CmdHidden,        0, 0, cmdNorm,          0, 0, cnNop    , 0                  , 0 } ,
         { "if",       CmdIf,            1, 0, (enum tCmdType)(cmdIf | cmdEndif), 0, 0, cnNop    , 0,  0 } ,
+        { "iframe",   HtmlIMG,          0, 0, cmdNorm,          0, 0, cnNop    , 0                  , 1 } ,
+        { "img",      HtmlIMG,          0, 0, cmdNorm,          0, 0, cnNop    , 0                  , 1 } ,
         { "input",    HtmlInput,        0, 0, cmdNorm,          1, 0, cnNop    , optDisableInputScan, 1 } ,
+        { "layer",    HtmlIMG,          0, 0, cmdNorm,          0, 0, cnNop    , 0                  , 1 } ,
         { "menu",     HtmlTable,        1, 0, cmdTable,         1, 0, cnMenu   , optDisableTableScan, 1 } ,
         { "meta",     HtmlMeta,         0, 0, cmdNorm,          1, 0, cnNop    , optDisableMetaScan , 1 } ,
         { "ol",       HtmlTable,        1, 0, cmdTable,         1, 0, cnOl     , optDisableTableScan, 1 } ,
@@ -124,7 +131,7 @@ struct tCmd CmdTab [] =
         { "until",    CmdUntil,         0, 1, cmdDo,            0, 0, cnNop    , 0                  , 0 } ,
         { "var",      CmdVar,           0, 0, cmdNorm,          0, 0, cnNop    , 0                  , 0 } ,
         { "while",    CmdWhile,         1, 0, cmdWhile,         0, 1, cnNop    , 0                  , 0 } ,
-
+    
     } ;
 
 
@@ -559,6 +566,8 @@ int CmdForeach (/*i/o*/ register req * r,
     SV * *  ppSV ;
     SV *    pRV ;
     int     nMax ;
+    int	    n ;
+    int	    c ;
 
     EPENTRY (CmdForeach) ;
 
@@ -566,34 +575,46 @@ int CmdForeach (/*i/o*/ register req * r,
         return ok ;
 
     sArgs = r -> CmdStack.State.sArg ;
+    while (isspace (*sArgs))
+	sArgs++ ;
     if (*sArgs != '\0')
         {            
-        if (sVarName = strtok (sArgs, ", \t\n"))
-            {
-            if (*sVarName == '$')
-                sVarName++ ;
         
-            if (!strstr (sVarName, "::"))
+	n = strcspn (sArgs, ", \t\n(") ;
+        sVarName = sArgs + n ;
+	if (*sVarName != '\0')
+            {
+            if (*sArgs == '$')
+                sArgs++ ;
+        
+	    c = *sVarName ;
+	    *sVarName = '\0' ;
+
+            if (!strstr (sArgs, "::"))
                 {            
                 strncpy (sVar, r -> Buf.sEvalPackage, sizeof (sVar) - 5) ;
                 sVar[r -> Buf.nEvalPackage] = ':' ;
                 sVar[r -> Buf.nEvalPackage+1] = ':' ;
                 sVar[sizeof(sVar) - 1] = '\0' ;
                 nMax = sizeof(sVar) - r -> Buf.nEvalPackage - 3 ;
-                strncpy (sVar + r -> Buf.nEvalPackage + 2, sVarName, nMax) ;
+                strncpy (sVar + r -> Buf.nEvalPackage + 2, sArgs, nMax) ;
                 if ((r -> CmdStack.State.pSV = perl_get_sv (sVar, TRUE)) == NULL)
                     return rcPerlVarError ;
                 }
             else
-                if ((r -> CmdStack.State.pSV = perl_get_sv (sVarName, TRUE)) == NULL)
+                if ((r -> CmdStack.State.pSV = perl_get_sv (sArgs, TRUE)) == NULL)
                     return rcPerlVarError ;
  
+	    *sVarName = c ;
             
             SvREFCNT_inc (r -> CmdStack.State.pSV) ;
 
-            if (sVarName = strtok (NULL, ""))
-                if ((rc = EvalTransFlags (r, sVarName, (r -> CmdStack.State.pStart - r -> Buf.pBuf), G_ARRAY, &pRV)) != ok)
-                    return rc ;
+            if (*sVarName != '(')
+		sVarName++ ;
+	    
+                
+	    if ((rc = EvalTransFlags (r, sVarName, (r -> CmdStack.State.pStart - r -> Buf.pBuf), G_ARRAY, &pRV)) != ok)
+                return rc ;
 
             if (pRV == NULL)
                 return rcMissingArgs ;
@@ -1032,6 +1053,129 @@ static int HtmlBody (/*i/o*/ register req * r,
 
 /* ---------------------------------------------------------------------------- */
 /*                                                                              */
+/* URLEscape ...                                                                */
+/*                                                                              */
+/* ---------------------------------------------------------------------------- */
+
+
+static int URLEscape   (/*i/o*/ register req * r,
+			/*in*/  const char *   sArg,
+			/*in*/  const char *   sAttrName)
+    {
+    int    rc ;
+    char * pArgBuf  = NULL ;
+    char * pFreeBuf = NULL ;
+    char * pAttr ;
+    int          alen ;
+
+    
+    EPENTRY (URLEscape) ;
+
+    oputs (r, r -> Buf.pCurrTag) ;
+    oputc (r, ' ') ;
+
+    if (*sArg != '\0')
+    	{
+	pAttr = (char *)GetHtmlArg (sArg, sAttrName, &alen) ;
+
+	if (alen > 0)
+	    {
+	    char c = *pAttr ;
+	
+	    /* check part before ATTR */
+
+	    *pAttr = '\0' ;
+
+	    if ((rc = ScanCmdEvalsInString (r, (char *)sArg, &pArgBuf, nInitialScanOutputSize, &pFreeBuf)) != ok)
+		{
+		*pAttr = c ;
+		if (pFreeBuf)
+		    _free (r, pFreeBuf) ;
+            
+		return rc ;
+		}
+	    
+	    oputs (r, pArgBuf) ;
+	    *pAttr = c ;
+
+	    if (pFreeBuf)
+		_free (r, pFreeBuf) ;
+	    pFreeBuf = NULL ;
+
+	    /* check ATTR part which should be URL escaped */
+
+	    c = pAttr[alen] ;
+	    pAttr[alen] = '\0' ;
+		
+	    if (r -> nEscMode & escUrl)
+		r -> pCurrEscape = Char2Url ;
+	    r -> bEscInUrl = TRUE ;
+
+	    if ((rc = ScanCmdEvalsInString (r, (char *)pAttr, &pArgBuf, nInitialScanOutputSize, &pFreeBuf)) != ok)
+		{
+		pAttr[alen] = c ;
+		r -> bEscInUrl = FALSE ;
+		NewEscMode (r, NULL) ;
+		if (pFreeBuf)
+		    _free (r, pFreeBuf) ;
+            
+		return rc ;
+		}
+	    oputs (r, pArgBuf) ;
+
+	    r -> bEscInUrl = FALSE ;
+	    NewEscMode (r, NULL) ;
+	    if (pFreeBuf)
+		_free (r, pFreeBuf) ;
+	    pFreeBuf = NULL ;
+ 	    pAttr[alen] = c ;
+
+	    /* check part after ATTR */
+
+	    if ((rc = ScanCmdEvalsInString (r, (char *)pAttr + alen, &pArgBuf, nInitialScanOutputSize, &pFreeBuf)) != ok)
+		{
+		if (pFreeBuf)
+		    _free (r, pFreeBuf) ;
+            
+		return rc ;
+		}
+	    oputs (r, pArgBuf) ;
+	    if (pFreeBuf)
+		_free (r, pFreeBuf) ;
+	    pFreeBuf = NULL ;
+
+	    }
+	else
+	    {
+	    if ((rc = ScanCmdEvalsInString (r, (char *)sArg, &pArgBuf, nInitialScanOutputSize, &pFreeBuf)) != ok)
+		{
+		if (pFreeBuf)
+		    _free (r, pFreeBuf) ;
+            
+		return rc ;
+		}
+	    oputs (r, pArgBuf) ;
+	    if (pFreeBuf)
+		_free (r, pFreeBuf) ;
+	    pFreeBuf = NULL ;
+	    }
+
+	}
+    else
+        {
+        oputs (r, sArg) ;
+        }
+
+    oputc (r, '>') ;
+    
+    r -> Buf.pCurrPos = NULL ;
+    	
+    return ok ;
+    }
+
+    
+/* ---------------------------------------------------------------------------- */
+/*                                                                              */
 /* A tag ...                                                                    */
 /*                                                                              */
 /* ---------------------------------------------------------------------------- */
@@ -1040,54 +1184,28 @@ static int HtmlBody (/*i/o*/ register req * r,
 static int HtmlA (/*i/o*/ register req * r,
 			/*in*/ const char *   sArg)
     {
-    int    rc ;
-    char * pArgBuf  = NULL ;
-    char * pFreeBuf = NULL ;
-
-    
     EPENTRY (HtmlA) ;
 
-    /*
-    if (r -> pCurrEscape == NULL)
-        return ok ;
-    */
-
-    if (*sArg != '\0')
-    	{
-        if (r -> nEscMode & escUrl)
-            r -> pCurrEscape = Char2Url ;
-        r -> bEscInUrl = TRUE ;
-
-        if ((rc = ScanCmdEvalsInString (r, (char *)sArg, &pArgBuf, nInitialScanOutputSize, &pFreeBuf)) != ok)
-            {
-            r -> bEscInUrl = FALSE ;
-            NewEscMode (r, NULL) ;
-            if (pFreeBuf)
-                _free (r, pFreeBuf) ;
-            
-            return rc ;
-            }
-        r -> bEscInUrl = FALSE ;
-        NewEscMode (r, NULL) ;
-    	}
-    else
-    	pArgBuf = (char *)sArg ;
-
-    oputs (r, r -> Buf.pCurrTag) ;
-    if (*pArgBuf != '\0')
-        {
-        oputc (r, ' ') ;
-        oputs (r, pArgBuf) ;
-        }
-    oputc (r, '>') ;
-    
-    if (pFreeBuf)
-        _free (r, pFreeBuf) ;
-    
-    r -> Buf.pCurrPos = NULL ;
-    	
-    return ok ;
+    return URLEscape (r, sArg, "HREF") ;
     }
+
+/* ---------------------------------------------------------------------------- */
+/*                                                                              */
+/* IMG tag ...                                                                    */
+/*                                                                              */
+/* ---------------------------------------------------------------------------- */
+
+
+static int HtmlIMG     (/*i/o*/ register req * r,
+			/*in*/ const char *   sArg)
+    {
+    EPENTRY (HtmlIMG) ;
+
+    return URLEscape (r, sArg, "SRC") ;
+    }
+
+
+
 /* ---------------------------------------------------------------------------- */
 /*                                                                              */
 /* table tag ...                                                                */
@@ -1436,12 +1554,14 @@ static int HtmlOption (/*i/o*/ register req * r,
     const char *  pVal ;
     const char *  pSelected ;
     int           nlen ;
-    int           vlen ;
+    STRLEN        vlen ;
     int           slen ;
     char *        pName ;
     char *        pData ;
     STRLEN        dlen ;
     int           bSel ;
+    SV *	  pSV ;
+
 
     EPENTRY (HtmlOption) ;
 
@@ -1464,6 +1584,11 @@ static int HtmlOption (/*i/o*/ register req * r,
         return ok ; /* has no value */
         }
 
+    pSV = newSVpv ((char *)pVal, vlen) ;
+    TransHtmlSV (r, pSV) ;
+    pVal = SvPV (pSV, vlen) ;
+
+ 
     pSelected = GetHtmlArg (sArg, "SELECTED", &slen) ;
     bSel = 0 ;
 
@@ -1485,7 +1610,6 @@ static int HtmlOption (/*i/o*/ register req * r,
 
     if (bSel)
         { /* -> selected */
-        SV * pSV = newSVpv ((char *)pVal, vlen) ;
         if (hv_store (r -> pInputHash, pName, strlen (pName), pSV, 0) == NULL)
             return rcHashError ;
 
@@ -1579,6 +1703,7 @@ static int HtmlInput (/*i/o*/ register req * r,
     if ((pVal || vlen != 0) && bCheck == 0)    
         {
         pSV = newSVpv ((char *)pVal, vlen) ;
+        TransHtmlSV (r, pSV) ;
 
         if (r -> bDebug & dbgInput)
             lprintf (r, "[%d]INPU: %s already has a value = %s\n", r -> nPid, sName, SvPV (pSV, na)) ; 
@@ -1786,7 +1911,7 @@ static int HtmlEndtextarea (/*i/o*/ register req * r,
     if (vlen != 0)    
         {
         pSV = newSVpv ((char *)pVal, vlen) ;
-        TransHtml (r, SvPV (pSV, na)) ;
+        TransHtmlSV (r, pSV) ;
 
         if (r -> bDebug & dbgInput)
             lprintf (r, "[%d]TEXT: %s already has a value = %s\n", r -> nPid, sName, SvPV (pSV, na)) ; 

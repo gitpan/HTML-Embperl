@@ -382,19 +382,19 @@ code in your program many times. You can do this with Embperl too.
 As an example, if you have text input fields with
 labels, this may work better for you:
 
-[$ sub textinput $]
-    [- ($label, $name) = @param -]
+ [$ sub textinput $]
+    [- ($label, $name) = @_ -]
     [+ $label +]<input type=text name=[+ $name +]>
-[$ endsub $]
+ [$ endsub $]
 
 
-<form>
+ <form>
     [- textinput ('Last Name', 'lname')  -]<p>
     [- textinput ('First Name', 'fname') -]<p>
-</form>
+ </form>
 
 The B<sub> metacommand starts the subroutine and the parameters are passed in
-the array B<@Z<>param>. You can do anything in the subroutine that you would
+the array C<@_>. You can do anything in the subroutine that you would
 normally be able to do inside normal Embperl pages. Embperl lets you call this
 subroutine just like any other Perl subroutine: just write its name and, if
 necessary, the parameter list.

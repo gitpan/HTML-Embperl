@@ -74,7 +74,25 @@ use vars qw(
 @ISA = qw(Exporter DynaLoader);
 
 
-$VERSION = '1.2b5';
+$VERSION = '1.2b6';
+
+
+# HTML::Embperl cannot be bootstrapped in nonlazy mode except
+# under mod_perl, because its dependencies import symbols like ap_palloc
+# from apache.
+# DynaLoader checks PERL_DL_NONLAZY only in its boot function, which
+# may have been called previously.  This causes "make test" to fail
+# on certain platforms in modules that use Embperl after loading some
+# other module that also uses DynaLoader.
+# Here we detect this unfortunate situation and correct it by re-executing
+# DynaLoader's boot function. 
+if ($ENV{PERL_DL_NONLAZY}
+	&& substr($ENV{GATEWAY_INTERFACE} || '', 0, 8) ne 'CGI-Perl'
+	&& defined &DynaLoader::boot_DynaLoader)
+    {
+    $ENV{PERL_DL_NONLAZY} = '0';
+    DynaLoader::boot_DynaLoader ('DynaLoader');
+    }
 
 
 bootstrap HTML::Embperl $VERSION;
@@ -152,6 +170,7 @@ use constant optAllowZeroFilesize       => 0x20000 ;
 use constant optKeepSrcInMemory         => 0x80000 ;
 use constant optKeepSpaces	        => 0x100000 ;
 use constant optOpenLogEarly            => 0x200000 ;
+use constant optNoUncloseWarn	        => 0x400000 ;
 
 
 use constant ok                     => 0 ;
@@ -305,6 +324,7 @@ else
     eval 'sub OK        { 0 ;   }' ;
     eval 'sub NOT_FOUND { 404 ; }' ;
     eval 'sub FORBIDDEN { 401 ; }' ;
+    eval 'sub DECLINED  { 401 ; }' ; # in non mod_perl environement, same as FORBIDDEN
 no strict ;
     XS_Init (epIOPerl, $DefaultLog, $DebugDefault) ;
 use strict ;
@@ -611,7 +631,16 @@ sub Execute
         my @p ;
         $In = \$InData ;
         $$req{mtime} = 0 ;
-        @p = split (/\s*\,\s*/, $$req{'input_func'}) ;
+        my $ifreq = $$req{'input_func'} ;
+        if (ref $ifreq)
+            {
+            @p = (ref ($ifreq) eq 'ARRAY')?@$ifreq:($$ifreq) ;
+            }
+        else
+            {
+            @p = split (/\s*\,\s*/, $ifreq) ;
+            }
+
         my $InFunc = shift @p ;
 no strict ;
         eval {$rc = &{$InFunc} ($req_rec, $In, \$$req{mtime}, @p)} ;
@@ -654,7 +683,7 @@ use strict ;
         $mtime = 0 ;
 	}
 
-    my $r = SetupRequest ($req_rec, $Inputfile, $mtime, $filesize, $Outputfile, $conf,
+    my $r = SetupRequest ($req_rec, $Inputfile, $mtime, $filesize, ($$req{firstline} || 1), $Outputfile, $conf,
                           &epIOMod_Perl, $In, $Out, $Sub, exists ($$req{import})?scalar(caller ($$req{import} > 0?$$req{import} - 1:0)):'') ;
     
     my $package = $r -> CurrPackage ;
@@ -767,8 +796,17 @@ use strict ;
 	    if (exists $$req{'output_func'}) 
 		{
 		my @p ;
-		my $OutFunc ;
-		($OutFunc, @p) = split (/\s*,\s*/, $$req{'output_func'}) ;
+                my $ofreq = $$req{'output_func'} ;
+                if (ref $ofreq)
+                    {
+                    @p = (ref ($ofreq) eq 'ARRAY')?@$ofreq:($$ofreq) ;
+                    }
+                else
+                    {
+                    @p = split (/\s*\,\s*/, $ofreq) ;
+                    }
+
+                my $OutFunc = shift @p ;
     no strict ;
 		eval { &$OutFunc ($req_rec, $Out,@p) } ;
     use strict ;
@@ -784,10 +822,15 @@ use strict ;
     
 	if ($SessionMgnt && !$r -> SubReq)
 	    {
+	    
 	    if ($udat->{'DIRTY'})
 		{
 		print LOG "[$$]SES:  Store session data of \%udat id=$udat->{ID}\n" if ($dbgSession) ;
 		$udat->{'DATA'}->store ;
+		}
+	    else
+		{	
+		print LOG "[$$]SES:  session data not dirty, do not store \%udat\n" if ($dbgSession) ;
 		}
 
 	    $udat->{'DATA'} = undef ;
@@ -1248,6 +1291,7 @@ sub MailFormTo
 #######################################################################################
 
 
+
 sub ProxyInput
 
     {
@@ -1528,6 +1572,86 @@ sub SendErrorDoc ()
     $self -> output ("</BODY></HTML>\r\n\r\n") ;
 
     }
+
+#######################################################################################
+
+sub MailErrorsTo ()
+
+    {
+    my ($self) = @_ ;
+    local $SIG{__WARN__} = 'Default' ;
+    
+    my $to = $ENV{'EMBPERL_MAIL_ERRORS_TO'} ;
+    return undef if (!$to) ;
+
+    $self -> log ("[$$]ERR:  Mail errors to $to\n") ;
+
+    my $time = localtime ;
+
+    eval 'require Net::SMTP' ;
+    die "require Net::SMTP failed: $@" if ($@); 
+
+    my $smtp = Net::SMTP->new($ENV{'EMBPERL_MAILHOST'} || 'localhost') or die "Cannot connect to mailhost" ;
+    $smtp->mail("Embperl\@$ENV{SERVER_NAME}");
+    $smtp->to($to);
+    my $ok = $smtp->data();
+    $ok and $ok = $smtp->datasend("To: $to\r\n");
+    $ok and $ok = $smtp->datasend("Subject: ERROR in Embperl page $ENV{SCRIPT_NAME} on $ENV{HTTP_HOST}\r\n");
+    $ok and $ok = $smtp->datasend("\r\n");
+
+    $ok and $ok = $smtp->datasend("ERROR in Embperl page $ENV{HTTP_HOST}$ENV{SCRIPT_NAME}\r\n");
+    $ok and $ok = $smtp->datasend("\r\n");
+
+    $ok and $ok = $smtp->datasend("-------\r\n");
+    $ok and $ok = $smtp->datasend("Errors:\r\n");
+    $ok and $ok = $smtp->datasend("-------\r\n");
+    my $errors = $self -> ErrArray() ;
+    my $err ;
+        
+    foreach $err (@$errors)
+        {
+	$ok and $ok = $smtp->datasend("$err\r\n");
+        }
+    
+    $ok and $ok = $smtp->datasend("-----------\r\n");
+    $ok and $ok = $smtp->datasend("Formfields:\r\n");
+    $ok and $ok = $smtp->datasend("-----------\r\n");
+    
+    my $ffld = $self -> FormArray() ;
+    my $fdat = $self -> FormHash() ;
+    my $k ;
+    my $v ;
+    
+    foreach $k (@$ffld)
+        { 
+        $v = $fdat->{$k} ;
+        $ok and $ok = $smtp->datasend("$k\t= \"$v\" \n" );
+        }
+    $ok and $ok = $smtp->datasend("-------------\r\n");
+    $ok and $ok = $smtp->datasend("Environement:\r\n");
+    $ok and $ok = $smtp->datasend("-------------\r\n");
+
+    my $env = $self -> EnvHash() ;
+
+    foreach $k (sort keys %$env)
+        { 
+        $v = $env -> {$k} ;
+        $ok and $ok = $smtp->datasend("$k\t= \"$v\" \n" );
+        }
+
+    my $server = $ENV{SERVER_SOFTWARE} || 'Offline' ;
+
+    $ok and $ok = $smtp->datasend("-------------\r\n");
+    $ok and $ok = $smtp->datasend("$server HTML::Embperl $HTML::Embperl::VERSION [$time]\r\n") ;
+
+    $ok and $ok = $smtp->dataend() ;
+    $smtp->quit; 
+
+    return $ok ;
+    }    
+
+
+#######################################################################################
 
 
 ###############################################################################    

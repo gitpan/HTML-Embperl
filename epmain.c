@@ -132,6 +132,8 @@ char * LogError (/*i/o*/ register req * r,
         case rcSubNotFound:             msg ="[%d]ERR:  %d: Line %d: Call to unknown Embperl macro %s%s" ; break ;
         case rcImportStashErr:          msg ="[%d]ERR:  %d: Line %d: Package %s for import unknown%s" ; break ;
         case rcCGIError:                msg ="[%d]ERR:  %d: Line %d: Setup of CGI.pm failed: %s%s" ; break ;
+        case rcUnclosedHtml:            msg ="[%d]ERR:  %d: Line %d: Unclosed HTML tag <%s> at end of file %s" ; break ;
+        case rcUnclosedCmd:             msg ="[%d]ERR:  %d: Line %d: Unclosed command [$ %s $] at end of file %s" ; break ;
         default:                        msg ="[%d]ERR:  %d: Line %d: Error %s%s" ; break ; 
         }
 
@@ -342,6 +344,7 @@ OPTMGRD (optAllowZeroFilesize      , pCurrReq -> bOptions) ;
 OPTMGRD (optKeepSrcInMemory        , pCurrReq -> bOptions) ;
 OPTMG   (optKeepSpaces             , pCurrReq -> bOptions) ;
 OPTMG   (optOpenLogEarly           , pCurrReq -> bOptions) ;
+OPTMG   (optNoUncloseWarn          , pCurrReq -> bOptions) ;
 
 
 OPTMG   (dbgStd          , pCurrReq -> bDebug) ;
@@ -423,7 +426,7 @@ static int GetFormData (/*i/o*/ register req * r,
                     if (toupper (*pQueryString) >= 'A')
                         num += (toupper (*pQueryString) - 'A' + 10) << 4 ;
                     else
-                        num += (toupper (*pQueryString) - '0') << 4 ;
+                        num += ((*pQueryString) - '0') << 4 ;
                     pQueryString++ ;
                     }
                 if (*pQueryString)
@@ -431,7 +434,7 @@ static int GetFormData (/*i/o*/ register req * r,
                     if (toupper (*pQueryString) >= 'A')
                         num += (toupper (*pQueryString) - 'A' + 10) ;
                     else
-                        num += (toupper (*pQueryString) - '0') ;
+                        num += ((*pQueryString) - '0') ;
                     pQueryString++ ;
                     nLen-- ;
                     }
@@ -705,6 +708,7 @@ static int ScanCmdEvals (/*i/o*/ register req * r,
     char *  pBlank ;
     int     nFilepos = p - r -> Buf.pBuf ;
     SV **   ppSV ;
+    AV *    pAV ;
 
     EPENTRY (ScanCmdEvals) ;
     
@@ -786,10 +790,32 @@ static int ScanCmdEvals (/*i/o*/ register req * r,
 
                 if (pRet)
                     {
-                    OutputToHtml (r, SvPV (pRet, na)) ;
-                    SvREFCNT_dec (pRet) ;
-                    }
-                r -> pCurrEscape = r -> pNextEscape ;
+                    if (r -> bEscInUrl && SvTYPE(pRet) == SVt_RV && SvTYPE((pAV = (AV *)SvRV(pRet))) == SVt_PVAV)
+			{ /* Array reference inside URL */
+			SV ** ppSV ;
+			int i ;
+			int f = AvFILL(pAV)  ;
+			for (i = 0; i <= f; i++)
+			    {
+			    ppSV = av_fetch (pAV, i, 0) ;
+			    if (ppSV && *ppSV)
+				{
+				OutputToHtml (r, SvPV (*ppSV, na)) ;
+				}
+			    if ((i & 1) == 0)
+				oputc (r, '=' ) ;
+			    else if (i < f)
+				oputc (r, '&' ) ;
+			    }
+		    
+			}
+		    else
+			{
+			OutputToHtml (r, SvPV (pRet, na)) ;
+			}
+		    SvREFCNT_dec (pRet) ;
+		    }
+		r -> pCurrEscape = r -> pNextEscape ;
                 r -> bEscModeSet = 0 ;
                 }
 
@@ -833,7 +859,7 @@ static int ScanCmdEvals (/*i/o*/ register req * r,
 
             break ;
         case '$':
-            TransHtml (r, r -> Buf.pCurrPos) ;
+            TransHtml (r, r -> Buf.pCurrPos, 0) ;
 
             /* skip spaces before command */
             while (*r -> Buf.pCurrPos != '\0' && isspace (*r -> Buf.pCurrPos))
@@ -881,7 +907,7 @@ static int ScanCmdEvals (/*i/o*/ register req * r,
 
     
 int ScanCmdEvalsInString (/*i/o*/ register req * r,
-			/*in*/  char *   pIn,
+			  /*in*/  char *   pIn,
                           /*out*/ char * * pOut,
                           /*in*/  size_t   nSize,
                           /*out*/ char * * pFree)
@@ -1416,6 +1442,7 @@ int Init        (/*in*/ int           _nIOType,
     ADDOPTMG (optKeepSrcInMemory       ) ;
     ADDOPTMG (optKeepSpaces            ) ;
     ADDOPTMG (optOpenLogEarly          ) ;
+    ADDOPTMG (optNoUncloseWarn         ) ;
 
     ADDOPTMG   (dbgStd         ) ;
     ADDOPTMG   (dbgMem         ) ;
@@ -1545,7 +1572,7 @@ tConf * SetupConfData   (/*in*/ HV *   pReqInfo,
     pConf -> nEscMode =	    GetHashValueInt (pReqInfo, "escmode",  pCurrReq -> pConf?pCurrReq -> pConf -> nEscMode:escStd) ;  /* EscMode */
     pConf -> sPackage =	    sstrdup (GetHashValueStr (pReqInfo, "package", NULL)) ;         /* Packagename */
     pConf -> sLogFilename = sstrdup (GetHashValueStr (pReqInfo, "log",  NULL)) ;            /* name of logfile */
-    pConf -> sVirtLogURI  = sstrdup (GetHashValueStr (pReqInfo, "virtlog",  NULL)) ;        /* name of logfile */
+    pConf -> sVirtLogURI  = sstrdup (GetHashValueStr (pReqInfo, "virtlog",  pCurrReq -> pConf?pCurrReq -> pConf -> sVirtLogURI:NULL)) ;        /* name of logfile */
     pConf -> pOpcodeMask  = pOpcodeMask ;                                                   /* Opcode mask (if any) */
     pConf -> sCookieName  = sstrdup (GetHashValueStr (pReqInfo, "cookie_name",  sCookieNameDefault))  ;   /* Name to use for cookie */
     pConf -> sCookieExpires = sstrdup (GetHashValueStr (pReqInfo, "cookie_expires",  ""))  ; /* cookie expiration time */
@@ -1608,6 +1635,7 @@ tFile * SetupFileData   (/*i/o*/ register req * r,
                          /*in*/  char *  sSourcefile,
                          /*in*/  double  mtime,
                          /*in*/  long    nFilesize,
+                         /*in*/  int     nFirstLine,
                          /*in*/  tConf * pConf)
 
     {
@@ -1633,6 +1661,7 @@ tFile * SetupFileData   (/*i/o*/ register req * r,
             f -> mtime       = mtime ;	 /* last modification time of file */
             f -> nFilesize   = nFilesize ;	 /* size of File */
 	    f -> bKeep       = (r -> bOptions & optKeepSrcInMemory) != 0 ;
+	    f -> nFirstLine  = nFirstLine ;
 	    if (f -> pExportHash)
 		{
 		SvREFCNT_dec (f -> pExportHash) ;
@@ -1652,6 +1681,7 @@ tFile * SetupFileData   (/*i/o*/ register req * r,
 	f -> pNext2Free  = NULL ;
 	f -> bKeep       = (r -> bOptions & optKeepSrcInMemory) != 0;
 	f -> pExportHash = NULL ;
+	f -> nFirstLine  = nFirstLine ;
 
         f -> pCacheHash  = newHV () ;    /* Hash containing CVs to precompiled subs */
 
@@ -1706,6 +1736,7 @@ tReq * SetupRequest (/*in*/ SV *    pApacheReqSV,
                      /*in*/ char *  sSourcefile,
                      /*in*/ double  mtime,
                      /*in*/ long    nFilesize,
+                     /*in*/ int     nFirstLine,
                      /*in*/ char *  sOutputfile,
                      /*in*/ tConf * pConf,
                      /*in*/ int     nIOType,
@@ -1784,7 +1815,7 @@ tReq * SetupRequest (/*in*/ SV *    pApacheReqSV,
 	}
     else
 	{
-	if ((pFile = SetupFileData (r, sSourcefile, mtime, nFilesize, pConf)) == NULL)
+	if ((pFile = SetupFileData (r, sSourcefile, mtime, nFilesize, nFirstLine, pConf)) == NULL)
             return NULL ;
 	}
 
@@ -1847,7 +1878,7 @@ tReq * SetupRequest (/*in*/ SV *    pApacheReqSV,
     else
 	r -> pImportStash = NULL ;
 
-    r -> Buf.nSourceline = 1 ;
+    r -> Buf.nSourceline = r -> Buf.pFile -> nFirstLine ;
     r -> Buf.pSourcelinePos = NULL ;    
     r -> Buf.pLineNoCurrPos = NULL ;    
 
@@ -2104,7 +2135,16 @@ static int EndOutput (/*i/o*/ register req * r,
     
     if (rc != ok ||  r -> bError)
         { /* --- generate error page if necessary --- */
-        if (r -> bOptions & optReturnError)
+	dSP;                            /* initialize stack pointer      */
+        
+	/* --- check if error should be mailed --- */
+	PUSHMARK(sp);                   /* remember the stack pointer    */
+        XPUSHs(r -> pReqSV) ;            /* push pointer to obeject */
+        PUTBACK;
+        perl_call_method ("MailErrorsTo", G_DISCARD) ; /* call the function             */
+
+        
+	if (r -> bOptions & optReturnError)
 	    {
     	    r -> bError = 1 ;
 	    oRollbackOutput (r, NULL) ;
@@ -2116,7 +2156,6 @@ static int EndOutput (/*i/o*/ register req * r,
 	    {
 	    if (!r -> bAppendToMainReq)
 		{
-		dSP;                            /* initialize stack pointer      */
 
 		oRollbackOutput (r, NULL) ; /* forget everything outputed so far */
 		oBegin (r) ;
@@ -2265,6 +2304,7 @@ static int ResetRequest (/*i/o*/ register req * r,
 			/*in*/ char *  sInputfile)
 
     {
+
     if (r -> bDebug)
         {
         clock_t cl = clock () ;
@@ -2328,10 +2368,31 @@ static int ProcessFile (/*i/o*/ register req * r,
 			/*in*/ int     nFileSize)
 
     {
+    int rc ;
+    
     r -> Buf.pSourcelinePos = r -> Buf.pCurrPos = r -> Buf.pBuf ;
     r -> Buf.pEndPos  = r -> Buf.pBuf + nFileSize ;
 
-    return EvalMain (r) ; 
+    rc = EvalMain (r) ; 
+
+    if ((r -> bOptions & optNoUncloseWarn) == 0)
+	{
+	if (!r -> bSubReq && r -> CmdStack.pStack)
+	    {
+	    if (r -> CmdStack.State.pCmd)
+		strncpy (r -> errdat1, r -> CmdStack.State.pCmd -> sCmdName, sizeof (r -> errdat1) - 1) ;
+	    LogError (r, rcUnclosedCmd) ;
+	    }
+
+	if (!r -> bSubReq && r -> HtmlStack.pStack)
+	    {
+	    if (r -> HtmlStack.State.pCmd)
+		strncpy (r -> errdat1, r -> HtmlStack.State.pCmd -> sCmdName, sizeof (r -> errdat1) - 1) ;
+	    LogError (r, rcUnclosedHtml) ;
+	    }
+	}
+
+    return rc ;
     }
 
 /* ---------------------------------------------------------------------------- */
@@ -2468,7 +2529,7 @@ static int ReadInputFile	(/*i/o*/ register req * r)
 
     if ((pBufSV = r -> Buf.pFile -> pBufSV) == NULL)
 	{
-	if (SvROK(r -> pInData))
+	if (SvROK(r -> pInData) && SvPOK (SvRV(r -> pInData)))
 	    { /* --- get input from memory --- */
 	    STRLEN n ;
 	    r -> Buf.pBuf = SvPV (pBufSV = SvRV(r -> pInData), n) ;
@@ -2496,6 +2557,9 @@ static int ReadInputFile	(/*i/o*/ register req * r)
 
 	    r -> Buf.pFile -> pNext2Free = pMain -> pFiles2Free ;
 	    pMain -> pFiles2Free = r -> Buf.pFile ;
+
+	    
+	    /* SetupDebugger (r) ; */
 	    }
 	}
     else
@@ -2542,7 +2606,7 @@ int ProcessSub		(/*i/o*/ register req * r,
 	    }
 
 	r -> Buf.pSourcelinePos =  r -> Buf.pBuf ;
-	r -> Buf.nSourceline = 1 ;
+	r -> Buf.nSourceline = r -> Buf.pFile -> nFirstLine ;
 	r -> Buf.pLineNoCurrPos = NULL ;    
 	r -> Buf.sEvalPackage   = r -> Buf.pFile -> sCurrPackage ; 
 	r -> Buf.nEvalPackage   = r -> Buf.pFile -> nCurrPackage ; 

@@ -113,6 +113,7 @@ tReq * SetupRequest (/*in*/ SV *    pApacheReqSV,
                      /*in*/ char *  sSourcefile,
                      /*in*/ double  mtime,
                      /*in*/ long    nFilesize,
+                     /*in*/ int     nFirstLine,
                      /*in*/ char *  sOutputfile,
                      /*in*/ tConf * pConf,
                      /*in*/ int     nIOType,
@@ -127,6 +128,7 @@ tFile * SetupFileData   (/*i/o*/ register req * r,
                          /*in*/ char *  sSourcefile,
                          /*in*/ double  mtime,
                          /*in*/ long    nFilesize,
+                         /*in*/ int     nFirstLine,
                          /*in*/ tConf * pConf) ;
 
 tConf * SetupConfData   (/*in*/ HV *   pReqInfo,
@@ -315,9 +317,12 @@ const char * GetHtmlArg (/*in*/  const char *    pTag,
 void OutputToHtml (/*i/o*/ register req * r,
  		   /*i/o*/ const char *   sData) ;
 
-void TransHtml (/*i/o*/ register req * r,
-		/*i/o*/ char *  sData) ;
+int TransHtml (/*i/o*/ register req * r,
+		/*i/o*/ char *         sData,
+		/*in*/   int           nLen) ;
 
+void TransHtmlSV (/*i/o*/ register req * r,
+		  /*i/o*/ SV *           pSV) ;
 
 int GetLineNo (/*i/o*/ register req * r) ;
 
@@ -382,3 +387,7 @@ int EvalSub (/*i/o*/ register req * r,
 	    /*in*/  const char *  sArg,
 	    /*in*/  int           nFilepos,
 	    /*in*/  const char *  sName) ;
+
+/* ---- from epdbg.c ----- */
+
+int SetupDebugger (/*i/o*/ register req * r) ;

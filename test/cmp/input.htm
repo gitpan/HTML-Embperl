@@ -532,8 +532,33 @@ optUndefToEmptyValue is now: 0 <BR>
 	</select>
 
 
+	<input type=checkbox name=mycheck value=N checked>
 
+	<select name="esc">
+		<option value="Wert1">Wert1</option>
+		<option value="Wert2">Wert2</option>
+		<option value="Wert3">Wert3</option>
+		<option value="Wert4">Wert4</option>
+		<option value="Wert5">Wert5</option>
+		<option value="Wert6">Wert6</option>
+		<option value="Wert7">Wert7</option>
+		<option value="a&lt;b" SELECTED>a&lt;b</option>
+		<option value="a&gt;b">a&lt;b</option>
+		<option value="Wert8">Wert8</option>
+	</select>
 
+	<select name="escmult">
+		<option value="Wert1">Wert1</option>
+		<option value="Wert2">Wert2</option>
+		<option value="Wert3" SELECTED>Wert3</option>
+		<option value="Wert4">Wert4</option>
+		<option value="Wert5">Wert5</option>
+		<option value="Wert6">Wert6</option>
+		<option value="Wert7">Wert7</option>
+		<option value="a&lt;b">a&lt;b</option>
+		<option value="a&gt;b" SELECTED>a&gt;b</option>
+		<option value="Wert8">Wert8</option>
+	</select>
 
     <p><input type="submit" name="Search" value="Absenden"></p>
 </form>

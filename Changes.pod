@@ -1,10 +1,47 @@
 =pod
 
-=head1 1.2b5_dev -- That's what currently under developement
+=head1 1.2b6 (BETA) 19 Aug 1999
 
-Last Update: <$localtime$> (MET)
+   - When call another page via Execute EMBPERL_VIRTLOG will
+     automaticly set to the same value as the in the calling page	
+   - Add parameter 'firstline' to specify the linenumber of the
+     first line in the input
+   - Defined missing DECLINED constant for non mod_perl environement
+     Spotted by James Elson.
+   - Inside of an A tag URL escaped characters are translated back
+     to their ascii aquivalent inside of perl code, before the code
+     is executed. This avoid problems with HTML editors, which
+     changes space to %20 inside an URL.
+   - '%' is escaped to %25 inside of URLs
+   - Inside the A tag only the HREF attribute is URL escaped, instead
+     of the whole tag.
+   - The SRC attribute of embed, frame, iframe, img, layer now are
+     also URL escaped.
+   - Giving a an array refernce inside an URL, cause Embperl expand
+     it to URL parameter syntax (i.e. [+ \@A +] becomes A=1&B=2, when
+     @A = (A, 1, B, 2) ).
+   - Embperl checks now for unclosed metacommands (if, while etc.) and
+     unclosed HTML tags (table etc.). Suggest by Todd Eigenshink.
+   - Fixed a problem when file was not found, which causes in some cases
+     a SIGSEGV.
+   - Added new configuration directive EMBPERL_MAIL_ERRORS_TO. If set
+     all error messages will be send to the given address.
+   - input_/output_func parameter can take a code reference as
+     argument. Based on a patch from Jon Tobey.
+   - Set force PERL_DL_NONLAZY to zero, so make test does not fail
+     if dynaloader was initialized with PERL_DL_NONLAZY set.
+     Patch from John Tobey.    
+   - [$ foreach $i(x..y) $] does not require a space before the (
+     anymore. Suggested by Jonny Cavell.
+   - select <option value="a &amp; b"> works now correctly. Spotted by
+     Rick Welykochy.
+   - Fixed SegFault when parameter input => is numeric. Spotted by
+     Cliff Rayman.
+   - Added option optNoUncloseWarn, which disables the warnings
+     about unclosed if, while, table etc.
 
-NOTE: This version is only available via L<"CVS"|CVS/"INTRO">
+
+=head1 1.2b5 (BETA)  5 July 1999
 
    - Renamed __strdup and __strndup so there are no duplicate 
      symbols when compiling with glibc. Spotted by Michael Hall.

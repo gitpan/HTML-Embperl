@@ -11,13 +11,14 @@
     'plain.htm',
     'plainblock.htm',
     'plainblock.htm',
-    'error.htm???7',
-    'error.htm???7',
-    'error.htm???7',
+    'error.htm???8',
+    'error.htm???8',
+    'error.htm???8',
+    'unclosed.htm???1',
 #    'errorright.htm???1',
-#    'notfound.htm???1',
-    'noerr/noerrpage.htm???7?2',
-    'errdoc/errdoc.htm???7?262144',
+    'notfound.htm???1',
+    'noerr/noerrpage.htm???8?2',
+    'errdoc/errdoc.htm???8?262144',
     'rawinput/rawinput.htm????16',
     'var.htm',
     'varerr.htm???-1',
@@ -27,7 +28,7 @@
     'tagscan.htm??1',
     'if.htm',
     'ifperl.htm',
-    'loop.htm?erstes=Hallo&zweites=Leer+zeichen&drittes=%21%22%23&erstes=Wert2',
+    'loop.htm?erstes=Hallo&zweites=Leer+zeichen&drittes=%21%22%23%2a%2B&erstes=Wert2',
     'loopperl.htm?erstes=Hallo&zweites=Leer+zeichen&drittes=%21%22%23&erstes=Wert2',
     'table.htm',
     'table.htm??1',
@@ -36,7 +37,7 @@
     'nesting.htm',
     'object.htm???2',
     'discard.htm???12',
-    'input.htm?feld5=Wert5&feld6=Wert6&feld7=Wert7&feld8=Wert8&cb5=cbv5&cb6=cbv6&cb7=cbv7&cb8=cbv8&cb9=ncbv9&cb10=ncbv10&cb11=ncbv11&mult=Wert3&mult=Wert6',
+    'input.htm?feld5=Wert5&feld6=Wert6&feld7=Wert7&feld8=Wert8&cb5=cbv5&cb6=cbv6&cb7=cbv7&cb8=cbv8&cb9=ncbv9&cb10=ncbv10&cb11=ncbv11&mult=Wert3&mult=Wert6&esc=a<b&escmult=a>b&escmult=Wert3',
     'hidden.htm?feld1=Wert1&feld2=Wert2&feld3=Wert3&feld4=Wert4',
     'java.htm',
     'inputjava.htm',
@@ -48,7 +49,7 @@
     'includeerr1.htm???1',
     'includeerr2.htm???4',
     'registry/Execute.htm',
-    'registry/errpage.htm???14',
+    'registry/errpage.htm???16',
     'callsub.htm',
     'callsub.htm',
     'importsub.htm',
@@ -57,7 +58,7 @@
     'importmodule.htm',
     'recursexec.htm',
     'nph/div.htm????64',
-    'nph/npherr.htm???7?64',
+    'nph/npherr.htm???8?64',
     'nph/nphinc.htm????64',
     'sub.htm',
     'sub.htm',
@@ -258,6 +259,8 @@ $vmhttpdinitsize = 0 ;
 sub chompcr
 
     {
+    local $^W = 0 ;
+
     chomp ($_[0]) ;
     if ($_[0] =~ /(.*?)\s*\r$/) 
 	{
@@ -860,7 +863,7 @@ do
 						}) ;
 		$t_exec += HTML::Embperl::Clock () - $t1 ; 
 		    
-		$err = CheckError (7) if ($err == 0) ;
+		$err = CheckError (8) if ($err == 0) ;
 	
 		open FH, ">$outfile" or die "Cannot open $outfile ($!)" ;
 		print FH $outdata ;
@@ -994,6 +997,7 @@ do
 	    next if (($file =~ /match/) && $loc eq $cgiloc) ;
 	    next if ($file eq 'http.htm' && $loc eq $cgiloc) ;
 	    next if ($file eq 'chdir.htm' && $EPWIN32) ;
+	    next if ($file eq 'notfound.htm' && $loc eq $cgiloc && $EPWIN32) ;
 	    next if ($file =~ /opmask/ && $EPSTARTUP =~ /_dso/) ;
 	    if ($file =~ /sess\.htm/)
                 { 

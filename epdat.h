@@ -65,6 +65,8 @@ typedef struct tFile
     STRLEN  nCurrPackage ;  /* Package of file (length) */
     HV *    pExportHash ;   /* exportable Macros */
 
+    int	    nFirstLine ;    /* First line number of sourcefile */
+
     struct tFile * pNext2Free ;  /* Next file that has to be freed after the request */
     } tFile ;
 

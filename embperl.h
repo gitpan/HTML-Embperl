@@ -64,7 +64,10 @@ enum tRc
     rcCallOutputFuncFailed,
     rcSubNotFound,
     rcImportStashErr,
-    rcCGIError
+    rcCGIError,
+    rcUnclosedHtml,
+    rcUnclosedCmd
+    
     } ;
 
 
@@ -128,7 +131,8 @@ enum opt
     optReturnError             = 0x40000, 
     optKeepSrcInMemory         = 0x80000,
     optKeepSpaces	       = 0x100000,
-    optOpenLogEarly            = 0x200000
+    optOpenLogEarly            = 0x200000,
+    optNoUncloseWarn	       = 0x400000
     } ;
 
 /*

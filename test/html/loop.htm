@@ -54,6 +54,10 @@
 	[+ $v +] <br>
 [$ endforeach $]
 
+[$ foreach $v(1..5) $]
+	2:[+ $v +] <br>
+[$ endforeach $]
+
 [- $i = 0 -]
 [$ do $]
     [+ "\@a[$i] = $a[$i]" +]<br>

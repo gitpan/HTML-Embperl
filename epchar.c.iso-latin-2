@@ -328,7 +328,7 @@ struct tCharTrans Char2Url [] =
         { '"' ,   "%22"   },    /* 	Quotation mark  */
         { '#' ,   ""         },    /* 	&#35;		Number sign  */
         { '$' ,   ""         },    /* 	&#36;		Dollar sign  */
-        { '%' ,   ""         },    /* 	&#37;		Percent sign  */
+        { '%' ,   "%25"      },    /* 	&#37;		Percent sign  */
         { '&' ,   "%26"    },    /* 	Ampersand  */
         { '\'' ,  ""         },    /* 	&#39;		Apostrophe  */
         { '(' ,   ""         },    /* 	&#40;		Left parenthesis  */

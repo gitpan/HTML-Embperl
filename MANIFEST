@@ -40,12 +40,14 @@ epcmd.c
 eputil.c
 epnames.h
 epmacro.h
+epdbg.c
 test.pl
 test/html/ascii
 test/html/pure.htm
 test/html/plain.htm
 test/html/plainblock.htm
 test/html/error.htm
+test/html/unclosed.htm
 test/html/noerr/noerrpage.htm
 test/html/errdoc/errdoc.htm
 test/html/errmsg.htm
@@ -119,6 +121,7 @@ test/cmp/pure.htm
 test/cmp/plain.htm
 test/cmp/plainblock.htm
 test/cmp/error.htm
+test/cmp/unclosed.htm
 test/cmp/noerrpage.htm
 test/cmp/escape.htm
 test/cmp/if.htm

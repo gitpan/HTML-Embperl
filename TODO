@@ -8,19 +8,13 @@ Features
 
 - make optUndefToEmptyValue default [Steve Willer]
 
-- URL encode for frame src
-
 - whitespace intention [Todd Eigenshink]
 
 - make checkbox and option work without value attribute
 
-- check for unclosed if's etc. [Todd Eigenshink]
-
 - used named subroutines for debugging [Ert Dredge]
 
 - Adapt session handling to new Apache::Session
-
-- Mail errors to admin
 
 - EMBPERL_VERSION [Christian Gilmore]
 
@@ -30,12 +24,21 @@ Features
 
 - gzip output [Andreas Koenig]
 
+- Make EMBPERL_FILEMATCH work with CGI [Jason Holt 20.7.99]
  
+- Make @erros visible from outside [James Elson 21.07.99]
+
+- exit -> no error about unclosed if's
+
 Test
 ----
 - test FORBIDDEN
 
 - check permissions of test/html
+
+- remove SSLDisable for mod_ssl >= 2.1 [Roman Maeder]
+
+- not_found cgi test on win32
 
 Bugs
 ----
@@ -49,12 +52,14 @@ Bugs
 
 - [* *] inside if [Vasco Chita 1.5.99]
 
-- select option a &amp; b  [Rick Welykochy 1.6.99]
+- use Embperl Module later than startup -> cleanup fails on first request
 
+- StackFree in offline mode
 
 Docs
 ----
 - Docs about EmbperlChain [Eric CHOLET]
 
+- firstline
 
 

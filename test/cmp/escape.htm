@@ -18,35 +18,57 @@ Now lets look what we are getting from this:<BR>
 (this is the value in $a) (this is the value in $a) &auml;&ouml;&uuml;&auml;&ouml;&uuml;???&lt;&amp;+  <BR>
 
 What is the EscMode? 3
-Now a Url: <A HREF="http://localhost/tests?id=abcdefghijklmnopqrstuvwxyz&text=This+is+a+text+%3F+%26+%2B+-+">Here it goes</A>
+Now a Url: <A HREF="http://localhost/tests?id=abcdefghijklmnopqrstuvwxyz&text=This+is+a+text+%3F+%26+%2B+-+%2521">Here it goes</A>
+A Tag 2:   <A HREF="http://localhost/tests?id=abcdefghijklmnopqrstuvwxyz&text=This+is+a+text+%3F+%26+%2B+-+%2521" TARGET="http://localhost/tests?id=abcdefghijklmnopqrstuvwxyz&text=This is a text ? &amp; + - %21">a2</A>
+A Tag 3:   <A  TARGET="http://localhost/tests?id=abcdefghijklmnopqrstuvwxyz&text=This is a text ? &amp; + - %21" HREF="http://localhost/tests?id=abcdefghijklmnopqrstuvwxyz&text=This+is+a+text+%3F+%26+%2B+-+%2521" TARGET="http://localhost/tests?id=abcdefghijklmnopqrstuvwxyz&text=This is a text ? &amp; + - %21">a3</A>
+A Tag 4:   <A TARGET="http://localhost/tests?id=abcdefghijklmnopqrstuvwxyz&text=This is a text ? &amp; + - %21" HREF="http://localhost/tests?id=abcdefghijklmnopqrstuvwxyz&text=This+is+a+text+%3F+%26+%2B+-+%2521">a4</A>
+A Tag 5:   <A  TARGET="http://localhost/tests?id=abcdefghijklmnopqrstuvwxyz&text=This is a text ? &amp; + - %21">a5</A>
+A Tag 6:   <A >a6</A>
+A Tag 7:   <A  HREF="7">x</A>
+A Tag 8:   <A TARGET=8 HREF="8">x</A>
+A Tag 9:   <A HREF="9" TARGET="9">x</A>
+A Tag 10:  <A TARGET="10" HREF="10" TARGET="10">x</A>
+A Tag 11:  <A  HREF="11"  >x</A>
+A Tag 12:  <A HREF=12>x</A>
+A Tag 13:  <A HREF="abcd%20*">x</A>
+A Tag 14:  <A HREF="abcd%20>">x</A>
+FRAME:	   <FRAME SRC="http://localhost/tests?id=abcdefghijklmnopqrstuvwxyz&text=This+is+a+text+%3F+%26+%2B+-+%2521"  name="%20foo">
+IFRAME:    <IFRAME SRC="http://localhost/tests?id=abcdefghijklmnopqrstuvwxyz&text=This+is+a+text+%3F+%26+%2B+-+%2521" name="%20foo">
+EMBED:     <EMBED SRC="http://localhost/tests?id=abcdefghijklmnopqrstuvwxyz&text=This+is+a+text+%3F+%26+%2B+-+%2521"  name="%20foo">
+LAYER:	   <LAYER SRC="http://localhost/tests?id=abcdefghijklmnopqrstuvwxyz&text=This+is+a+text+%3F+%26+%2B+-+%2521"  name="%20foo">
+IMG:	   <IMG SRC="http://localhost/tests?id=abcdefghijklmnopqrstuvwxyz&text=This+is+a+text+%3F+%26+%2B+-+%2521"    name="%20foo">
 
+Hash in  A <A HREF="http://localhost/tests?A=1&B=2">
+Array in A <A HREF="http://localhost/tests?X=9&Y=8&Z=7">
+
+			
 1
 Now lets look what we are getting from this:<BR>
 (this is the value in $a) (this is the value in $a) &auml;&ouml;&uuml;&auml;&ouml;&uuml;???&lt;&amp;+  <BR>
 
 What is the EscMode? 1
-Now a Url: <A HREF="http://localhost/tests?id=abcdefghijklmnopqrstuvwxyz&text=This is a text ? &amp; + - ">Here it goes</A>
+Now a Url: <A HREF="http://localhost/tests?id=abcdefghijklmnopqrstuvwxyz&text=This is a text ? &amp; + - %21">Here it goes</A>
 
 2
 Now lets look what we are getting from this:<BR>
 (this+is+the+value+in+$a) (this+is+the+value+in+$a)+הצüהצü%3F%3F%3F<%26%2B++<BR>
 
 What is the EscMode? 2
-Now a Url: <A HREF="http://localhost/tests?id=abcdefghijklmnopqrstuvwxyz&text=This+is+a+text+%3F+%26+%2B+-+">Here it goes</A>
+Now a Url: <A HREF="http://localhost/tests?id=abcdefghijklmnopqrstuvwxyz&text=This+is+a+text+%3F+%26+%2B+-+%2521">Here it goes</A>
 
 0
 Now lets look what we are getting from this:<BR>
 (this is the value in $a) (this is the value in $a) הצüהצü???<&+  <BR>
 
 What is the EscMode? 0
-Now a Url: <A HREF="http://localhost/tests?id=abcdefghijklmnopqrstuvwxyz&text=This is a text ? & + - ">Here it goes</A>
+Now a Url: <A HREF="http://localhost/tests?id=abcdefghijklmnopqrstuvwxyz&text=This is a text ? & + - %21">Here it goes</A>
 
 3
 Now lets look what we are getting from this:<BR>
 (this is the value in $a) (this is the value in $a) &auml;&ouml;&uuml;&auml;&ouml;&uuml;???&lt;&amp;+  <BR>
 
 What is the EscMode? 3
-Now a Url: <A HREF="http://localhost/tests?id=abcdefghijklmnopqrstuvwxyz&text=This+is+a+text+%3F+%26+%2B+-+">Here it goes</A>
+Now a Url: <A HREF="http://localhost/tests?id=abcdefghijklmnopqrstuvwxyz&text=This+is+a+text+%3F+%26+%2B+-+%2521">Here it goes</A>
 
 What is the EscMode? 3
 file.html?name=abcd&amp;data=xyz

@@ -196,7 +196,8 @@ changed or is undefined.
 
 =item B<sub>
 
-Call the Embperl subroutine named by this parameter. Currently the subroutine
+Call the Embperl subroutine named by this parameter(see also B<"[$ sub $]">).
+Currently the subroutine
 must be in the same file or if it's in another file, the other file has to be
 imported first.
 
@@ -285,9 +286,17 @@ See eg/x/Excute.pl for a more detailed example.
 
 Could be used to setup the two Embperl predefined variables.
 
+=item B<firstline>
+
+Specifies the first linenumber of the sourcefile (Default: 1)
+
 =item B<options>
 
 Same as L<"EMBPERL_OPTIONS"> (see below), except for cleanup.
+
+B<NOTE:> You should set the B<optDisableFormData> if you have already
+read the form data from stdin while in a POST request. Otherwise
+Execute will hang and try to read the data a second time.
 
 =item B<debug>
 
@@ -314,19 +323,21 @@ The URI of the request. Only needed for the virtlog feature.
 
 Same as L<"EMBPERL_COMPARTMENT"> (see below).
 
-
-B<NOTE:> You should set the B<optDisableFormData> if you have already
-read the form data from stdin while in a POST request. Otherwise
-Execute will hang and try to read the data a second time.
-
 =item B<input_func>
 
 Same as L<"EMBPERL_INPUT_FUNC"> (see below).
+Additionaly you can specify an code reference to an perl function,
+which is used as input function or an array reference, where the
+first element contains the code reference and further elements
+contains additional arguments passed to the function.
 
 =item B<output_func>
 
 Same as L<"EMBPERL_OUTPUT_FUNC"> (see below).
-
+Additionaly you can specify an code reference to an perl function,
+which is used as output function or an array reference, where the
+first element contains the code reference and further elements
+contains additional arguments passed to the function.
 
 =item B<cookie_name>
 
@@ -482,7 +493,8 @@ how to set it up in your srm.conf.
 
 =head2 EMBPERL_OPTIONS
 
-This bitmask specifies some options for the execution of Embperl:
+This bitmask specifies some options for the execution of Embperl.
+To specify multiple options, simply add the values together.
 
 =over 4
 
@@ -628,12 +640,17 @@ This option causeses Embperl to open the logfile as soon as it is loaded into me
 You can use this when you load Embperl via PerlModule under Apache, to open the log
 as root instead of the non-privileged user Apache runs as.
  
+=item optUncloseWarn =   4194304 (only 1.2b6 and above) 
+
+Disable the warnings about unclosed C<if>, C<while>, C<table> etc. at the end of the file.
+
 =back
 
 
 =head2 EMBPERL_DEBUG
 
 This is a bitmask which specifies what should be written to the log.
+To specify multiple debugflags, simply add the values together.
 The following values are defined:
 
 =over 4
@@ -841,7 +858,7 @@ a file/the browser (or to a scalar if you use C<Execute>). Here, you can
 give the name of a Perl function which is called instead of sending the
 output to a file/the browser. The function must look like the following:
 
- InputFunc ($r, $out, additional parameters...) ;
+ OutputFunc ($r, $out, additional parameters...) ;
 
 
 =over 4
@@ -852,7 +869,7 @@ Apache Request Record (see B<perldoc Apache> for details)
 
 =item B<$out>
 
-Output from Embperl
+a reference to a scalar, which contains the output from Embperl
 
 
 =back
@@ -895,6 +912,10 @@ for an output function which comes with Embperl.
 Specifies which host the L<MailFormTo|"MailFormTo($MailTo, $Subject, $ReturnField)"> function uses as SMTP server.
 Default is B<localhost>.
 
+=head2 EMBPERL_MAIL_ERRORS_TO
+
+If set all errors will be send to the email adress given.
+
 =head2 EMBPERL_COOKIE_NAME
 
 (only 1.2b4 or above) Set the name that Embperl uses when it sends the cookie with the session id.
@@ -920,8 +941,8 @@ Default is none.
 
 =head1 SYNTAX
 
-Embperl understands four categories of commands. The first ones are
-special Embperl commands, and the last category consists of some HTML tags
+Embperl understands two categories of commands. The first one are
+special Embperl commands, and the second category consists of some HTML tags
 which can trigger special processing.  Embperl commands can span
 multiple lines and need not start or end at a line boundary.
 
@@ -1011,7 +1032,7 @@ subroutines, or do one-time initialization.
 
 =head2 [* Perl code *]
 
-(only version 1.2b2 or higher, experimental!!)
+(only version 1.2b2 or higher)
 
 This is similar to [- Perl Code -], the main difference is, while [- Perl Code -], has
 always it's own scope, all [* Perl code *] blocks runs in the same scope.
@@ -1070,7 +1091,7 @@ the output.
 B<NOTE 1:> The [* ... *] blocks are interpreted before the comment block, so they are
 executed also inside a comment. 
 
-B<NOTE 2:> Everything (except [* ... +]) is really removed from the source, so you
+B<NOTE 2:> Everything (except [* ... *]) is really removed from the source, so you
 can also use the [# ... #] block to take a part out of your document.
 
 
@@ -1103,7 +1124,7 @@ request method used to retrieve the document.
 
 Executes a loop until the B<Arg> given to B<while> is false.
 
-Example: (see eg/x/while.htm)
+Example: (see eg/x/loop.htm)
 
  [- $i = 0; @k = keys %ENV -]
  [$ while ($i &lt; $#k) $]
@@ -1349,21 +1370,21 @@ The INPUT tag interacts with the hashes C<%idat> und C<%fdat>.  If the
 input tag has no value, and a key exists with the same text as the
 NAME attribute of the input tag, Embperl will generate a VALUE
 attribute with the corresponding value of the hash key.
-
 All values of <INPUT> tags are stored in the hash C<%idat>, with NAME
 as the hash key and VALUE as the hash value.  Special processing is
 done for TYPE=RADIO and TYPE=CHECKBOX.  If the VALUE attribute
 contains the same text as the value of the hash the CHECKED attribute
-is inserted, else it is removed.  So if you specify as the ACTION URL
+is inserted, else it is removed.
+
+So if you specify as the ACTION URL
 the file which contains the form itself, the form will be redisplayed
 with same values as entered the first time. (See eg/x/neu.htm for an
 example.)
 
 =item B<TEXTAREA>, B</TEXTAREA>
 
-The TEXTAREA tag is treated exactly like other input fields.
+The C<TEXTAREA> tag is treated exactly like other input fields.
 
-=back
 
 =item B<META HTTP-EQUIV= ... >
 
@@ -1383,6 +1404,28 @@ http-headers can also be set by the function B<header_out>
 
     [- $req_rec ->  header_out("Language" => "DE"); -]
 
+
+=item B<A>, B<EMBED>, B<IMG>, B<IFRAME>, B<FRAME>, B<LAYER>
+
+The output of perl blocks inside the C<HREF> attribute of the C<A> Tags and the
+C<SRC> attribute of the other Tags are URL escaped instead of HTML escaped.
+(see also L<$escmode>). Also when inside such a URL, I<Embperl> expands array refernces
+to URL paramter syntax. Example:
+
+  [-
+  %A = (A => 1, B => 2) ;
+  @A = (X, 9, Y, 8, Z, 7)
+  -]
+
+  <A HREF="http://localhost/tests?[+ [ %A ] +]">
+  <A HREF="http://localhost/tests?[+ \@A +]">
+
+is expanded by I<Embperl> to
+
+  <A HREF="http://localhost/tests?A=1&B=2">
+  <A HREF="http://localhost/tests?X=9&Y=8&Z=7">
+
+=back
 
 
 =head1 Variable scope and cleanup
@@ -1407,10 +1450,11 @@ Since a CGI script is always a process of its own, you don't need to
 worry about that when you use Embperl as a CGI script.
 
 If you need to declare variables which need to live longer than just one 
-HTTP request (for example, a database handle), you must declare them in 
+HTTP request (for example, a database handle), you must either put it's
+name in the hash C<%CLEANUP> or declare them in 
 another package (i.e., $Persistent::handle instead of $handle).
 
-If you use the strict pragma, you can use the B<var> metacommand to
+If you want to use the strict pragma, you can do this by using the B<var> metacommand to
 declare your variables.
 
 
@@ -1594,7 +1638,7 @@ Turn HTML and URL escaping on and off.  The default is on ($escmode =
 
 The result of a Perl expression is HTML-escaped (e.g., `>' becomes
 `&gt;') in normal text and URL-escaped (e.g., `&' becomes `%26')
-within an <A> tag.
+within of C<A>, C<EMBED>, C<IMG>, C<IFRAME>, C<FRAME> and C<LAYER> tags.
 
 =item B<$escmode = 2>
 
