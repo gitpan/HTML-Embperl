@@ -70,7 +70,7 @@ use vars qw(
 @ISA = qw(Exporter DynaLoader);
 
 
-$VERSION = '1.2b2';
+$VERSION = '1.2b3';
 
 
 bootstrap HTML::Embperl $VERSION;
@@ -535,8 +535,11 @@ sub Execute
     my $rc ;
     my $req = shift ;
     
-    
-    $req = { inputfile => $req, param => \@_ } if (!ref ($req)) ;
+    if (!ref ($req)) 
+        {    
+        my @parameter = @_ ;
+        $req = { inputfile => $req, param => \@parameter }
+        } 
     
     my $req_rec ;
     if (defined ($$req{req_rec})) 
@@ -676,9 +679,11 @@ use strict ;
         local $SIG{__WARN__} = \&Warn ;
         local *0 = \$Inputfile;
         my $oldfh = select (OUT) if ($optRedirectStdout) ;
-
+        my $saver = $r ;
+        
         $rc = $r -> ExecuteReq ($$req{'param'}) ;
         
+        $r = $saver ;
         select ($oldfh) if ($optRedirectStdout) ;
         
         if (exists $$req{'output_func'}) 
@@ -1257,7 +1262,7 @@ sub SendErrorDoc ()
     local $SIG{__WARN__} = 'Default' ;
     
     my $virtlog = $self -> VirtLogURI || '' ;
-    my $logfilepos = $self -> getlogfilepos () ;
+    my $logfilepos = $self -> LogFileStartPos () ;
     my $url     = $HTML::Embperl::dbgLogLink?"<A HREF=\"$virtlog\?$logfilepos\&$$\">Logfile</A>":'' ;    
     my $req_rec = $self -> ApacheReq ;
     my $err ;

@@ -46,7 +46,7 @@
     'reqrec.htm',
     'include.htm',
     'includeerr1.htm???1',
-#    'includeerr2.htm???4',
+    'includeerr2.htm???4',
     'registry/Execute.htm',
     'registry/errpage.htm???14',
     'nph/div.htm????64',

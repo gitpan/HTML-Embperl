@@ -8,7 +8,6 @@ Features
 
 - make optUndefToEmptyValue default [Steve Willer]
 
-
 Test
 ----
 - test FORBIDDEN
@@ -24,12 +23,13 @@ Bugs
 
 - Embperl version number [Eric CHOLET]
 
-- Check Perl5.004_04 Stackproblem
+- keep $r out of pages
+
+- LOG
 
 
 Docs
 ----
 - Docs about EmbperlChain [Eric CHOLET]
 
-- URL Escaping pod2html insert a ; [Michael Smith]
-
+- index.htm spelling [August R. Wohlt]

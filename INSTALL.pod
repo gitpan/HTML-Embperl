@@ -21,12 +21,8 @@ used to build mod_perl.
 
 - B<make install>
 
-B<NOTE:> (only Embperl-1.2b1 or higher) For using session handling you need Apache::Session-0.16 or higher.
-For Apache-Session-0.16 to work, you must apply the session.patch from the
-Embperl distribution.
-
-B<NOTE:> (only Embperl-1.2b1 or higher) If you plan to use nested Embperl pages (i.e. call B<Execute>
-inside a Embperl page, you should upgrade to perl 5.005 or higher due to the better stack-memory-allocation.
+B<NOTE:> (only Embperl-1.2b1 or higher) For using session handling you need
+Apache::Session-0.17 or higher.
 
 =head2 WIN 32
 
@@ -40,8 +36,7 @@ to get it to run with Apache and mod_perl, while I was able to use the binary
 distribution (/authors/id/GSAR/perl5.00402-bindist04-bc.tar.gz) of Perl for
 offline testing under Win 95.
 
-B<NOTE:> If you use mod_perl <= 1.11 you should apply the win32.patch, otherwise you will
-get a deadlock. 
+B<NOTE:> You need mod_perl >= 1.12 on win32
 
 
 On Windows 95/NT you have to do the following:
@@ -66,12 +61,8 @@ B<NOTE:> nmake test needs libwin32, libwww and HTML::Parser installed to work
 
 B<nmake install>
 
-B<NOTE:> (only Embperl-1.2b1 or higher) For using session handling you need Apache::Session-0.16 or higher.
-For Apache-Session-0.16 to work, you must apply the session.patch from the
-Embperl distribution.
-
-B<NOTE:> (only Embperl-1.2b1 or higher) If you plan to use nested Embperl pages (i.e. call B<Execute>
-inside a Embperl page, you should upgrade to perl 5.005 or higher due to the better stack-memory-allocation.
+B<NOTE:> (only Embperl-1.2b1 or higher) For using session handling you need
+Apache::Session-0.17 or higher.
 
 
 =head2 Further Documentation

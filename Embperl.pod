@@ -175,7 +175,7 @@ vary the parameters according to the job that should be done.
   Execute($filename, $p1, $p2, $pn) ;
 
 This will cause Embperl to interpret the file with the name $filename and, if specified, pass
-any additional parameters in the array @param (just like @_ in a perl subroutine).
+any additional parameters in the array @Z<>param (just like @_ in a perl subroutine).
 The above example could also be written in the long form:
 
   Execute ({inputfile => $filename,
@@ -558,7 +558,7 @@ string was stored in %fdat for the field.
 
 
 =item optNoHiddenEmptyValue = 65536 (only 1.2b2 and above)
- 
+
 Normally, if there is a value defined in %fdat for a specific input field, Embperl
 will output a hidden input element for it when you use B<hidden>. When this option
 is set, Embperl will not output a hidden input element for this field when the
@@ -1976,7 +1976,7 @@ browser may not be able to interpret the URL correctly.
 
 Example:
 
-   <A HREF='http://host/script?name="[+$n+]"'>
+   <A HREF="http://host/script?name=[+$n+]">
 
 When $n is "My name" the requested URL, when you click on the
 hyperlink, will be
@@ -2065,15 +2065,21 @@ I have tested Embperl succesfully
 
 =item apache_1.2.6
 
-=item apache_1.3b3
+=item apache_1.3.0
 
-=item apache_1.3b5
+=item apache_1.3.1
 
-=item apache_1.3b6
+=item apache_1.3.2
+
+=item apache_1.3.3
 
 =item apache_ssl (Ben SSL)
 
 =item Stronghold 2.2
+
+=item Stronghold 2.4.1
+
+=item Apache_1.3.3 with mod_ssl
 
 =back
 
@@ -2087,9 +2093,9 @@ I know from other people that it works on many other UNIX systems
 
 =item perl5.005
 
-=item apache_1.3b5
-
 =item apache_1.3.1
+
+=item apache_1.3.2
 
 =back
 

@@ -153,5 +153,3 @@ test/conf/startup_dso.pl
 test/conf/null
 embpexec.test.pl
 embpexec.test.bat
-win32.patch
-session.patch

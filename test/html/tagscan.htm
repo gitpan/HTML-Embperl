@@ -50,16 +50,16 @@ Here it starts with some HTML Text<P bgcolor="[+ 'blue' +]">
 
 [- $fdat{ VERSION } = 3 -]
 <IMG SRC="img.gif" [$ if $fdat{ VERSION } >= 3 $]
-        WIDTH=35 [$ endif $]>
+		WIDTH=35 [$ endif $]>
 
 <IMG SRC="img.gif" [$ if $fdat{ VERSION } >= 4 $]
-        WIDTH=35 [$ endif $]>
+		WIDTH=35 [$ endif $]>
 
 <A HREF="" [$ if $fdat{ VERSION } >= 3 $]
-       foo="" [$ endif $]>
+		foo="" [$ endif $]>
 
 <A HREF="" [$ if $fdat{ VERSION } >= 4 $]
-       foo="" [$ endif $]>
+		foo="" [$ endif $]>
 
 optDisableHtmlScan is now: [+ $optDisableHtmlScan +] <BR>
 optDisableHtmlScan is set now to: [+ $optDisableHtmlScan = 1 +] <BR>

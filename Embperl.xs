@@ -12,128 +12,14 @@
 #
 ###################################################################################*/
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-#include "EXTERN.h"
-#include "perl.h"
-#include "XSUB.h"
-#ifdef __cplusplus
-}
-#endif
 
 #include "ep.h"
 
-static int
-not_here(s)
-char *s;
-{
-    croak("%s not implemented on this architecture", s);
-    return -1;
-}
-#define PERLCONST(NAME) \
-        pSV = newSViv (NAME) ; \
-        if (hv_store (pHash, #NAME, sizeof (#NAME) - 1, pSV, 0) == NULL) \
-            return rcHashError ;
-
-static int constants()
-	{
-
-	HV * pHash ;
-	SV * pSV ;
-
-        if ((pHash = perl_get_hv ("CONSTANT", TRUE)) == NULL)
-            return rcHashError ;
-
-
-	
-        PERLCONST(epIOCGI)
-        PERLCONST(epIOMod_Perl)
-        PERLCONST(epIOPerl)
-        PERLCONST(epIOProcess)
-
-        PERLCONST(ok)
-        PERLCONST(rcStackOverflow)
-        PERLCONST(rcStackUnderflow)
-        PERLCONST(rcEndifWithoutIf)
-        PERLCONST(rcElseWithoutIf)
-        PERLCONST(rcEndwhileWithoutWhile)
-        PERLCONST(rcEndtableWithoutTable)
-        PERLCONST(rcCmdNotFound)
-        PERLCONST(rcOutOfMemory)
-        PERLCONST(rcPerlVarError)
-        PERLCONST(rcHashError)
-        PERLCONST(rcArrayError)
-        PERLCONST(rcFileOpenErr)
-        PERLCONST(rcMissingRight)
-        PERLCONST(rcNoRetFifo)
-        PERLCONST(rcMagicError)
-        PERLCONST(rcWriteErr)
-        PERLCONST(rcUnknownNameSpace)
-        PERLCONST(rcInputNotSupported)
-        PERLCONST(rcCannotUsedRecursive)
-        PERLCONST(rcEndtableWithoutTablerow)
-        PERLCONST(rcEndtextareaWithoutTextarea)
-        PERLCONST(rcArgStackOverflow)
-        PERLCONST(rcEvalErr)
-        PERLCONST(rcNotCompiledForModPerl)
-        PERLCONST(rcLogFileOpenErr)
-        PERLCONST(rcExecCGIMissing)
-        PERLCONST(rcIsDir)
-        PERLCONST(rcXNotSet)
-        PERLCONST(rcNotFound)
-        PERLCONST(rcUnknownVarType)
-        PERLCONST(rcPerlWarn)
-        PERLCONST(rcVirtLogNotSet)
-        
-        PERLCONST(optDisableVarCleanup)
-        PERLCONST(optDisableEmbperlErrorPage)
-        PERLCONST(optSafeNamespace)
-        PERLCONST(optOpcodeMask)
-        PERLCONST(optRawInput)
-        PERLCONST(optSendHttpHeader)
-
-        PERLCONST(dbgStd)
-        PERLCONST(dbgMem)
-        PERLCONST(dbgEval)
-        PERLCONST(dbgCmd)
-        PERLCONST(dbgEnv)
-        PERLCONST(dbgForm)
-        PERLCONST(dbgTab)
-        PERLCONST(dbgInput)
-        PERLCONST(dbgFlushOutput)
-        PERLCONST(dbgFlushLog)
-        PERLCONST(dbgAllCmds)
-        PERLCONST(dbgSource)
-        PERLCONST(dbgFunc)
-        PERLCONST(dbgLogLink)
-        PERLCONST(dbgDefEval)
-        PERLCONST(dbgCacheDisable)
-        PERLCONST(dbgEarlyHttpHeader)
-        PERLCONST(dbgWatchScalar)
-        PERLCONST(dbgHeadersIn)
-        PERLCONST(dbgShowCleanup)
-        PERLCONST(dbgAll)
-     
-        PERLCONST(escNone)
-        PERLCONST(escHtml)
-        PERLCONST(escUrl)
-        PERLCONST(escStd)
-
-    return ok;
-}
 
 # /* ############################################################################### */
 
 MODULE = HTML::Embperl      PACKAGE = HTML::Embperl     PREFIX = embperl_
 
-
-int
-embperl_constants()
-CODE:
-	RETVAL = constants () ;
-OUTPUT:
-    RETVAL
 
 
 int
@@ -357,6 +243,16 @@ embperl_ErrArray(r)
     tReq * r
 CODE:
     RETVAL = newRV_inc((SV *)r -> pErrArray) ;
+OUTPUT:
+    RETVAL
+
+
+
+long
+embperl_LogFileStartPos(r)
+    tReq * r
+CODE:
+    RETVAL = r -> nLogFileStartPos ;
 OUTPUT:
     RETVAL
 

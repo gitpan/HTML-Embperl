@@ -756,7 +756,7 @@ int EvalMain (/*i/o*/ register req *  r)
     {
     int     rc ;
     long    nFilepos = -1 ;
-    char *  sProg ;
+    char *  sProg = "" ;
     SV **   ppSV ;
     SV *    pRet ;
     int     flags = G_SCALAR ;

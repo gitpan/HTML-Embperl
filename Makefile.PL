@@ -7,8 +7,10 @@
 
 
 use ExtUtils::MakeMaker;
-use Cwd ;
+use Cwd qw {abs_path cwd} ;
 use Config ;
+use File::Basename ;
+
 
 $win32 = ($Config{osname} =~ /win32/i) ;
 print "\nRunning on Win 32\n" if ($win32) ;
@@ -110,6 +112,24 @@ sub search_config
     close FH ;
     return undef ;
     }
+
+## ----------------------------------------------------------------------------
+
+
+sub start
+
+    {
+    my ($cmd) = @_ ;
+
+
+    open FH, "$cmd|" or die "\nCannot start $cmd\nPlease make sure you have build Apache and mod_perl before makeing Embperl\n" ;
+
+    my @x = <FH> or die "\nCannot start $cmd\nPlease make sure you have build Apache and mod_perl before makeing Embperl\n" ;
+
+    close FH ;
+    return @x ;
+    }
+
 
 ## ----------------------------------------------------------------------------
 #
@@ -224,6 +244,8 @@ while ($apache && !$b)
 
 if ($b && $apache && $apache_src ne '')
     {
+    $apache_src = abs_path ($apache_src) ;
+
     print "Will use $apache_src for Apache Headers\n" ;
 
     #### look in which subdir the include files resides ####
@@ -260,19 +282,7 @@ if ($b && $apache && $apache_src ne '')
         $o = '' ;
         }
     $d = "-DAPACHE" ;
-    $EPAPACHE_SSL = -e "$apache_src/apache_ssl.c" ;
-    $EPSTRONGHOLD = (-e "$apache_src/mod_ssl.h") || (-e "$apache_src/include/modssl.h") ;
-    $EPMOD_SSL    = -e "$apache_src/modules/ssl/mod_ssl.h";  
-    $i .= " -I$apache_src/../ssl/include"  if ($EPSTRONGHOLD) ;
-    $d .= " -DEPAPACHE_SSL" if ($EPAPACHE_SSL) ;
-    $d .= " -DSTRONGHOLD" if ($EPSTRONGHOLD) ;
 
-    if ($EPMOD_SSL)
-        {
-        my $sslbase = search_config ('SSL_BASE', "$apache_src/Configuration.apaci") ;
-        $sslbase = search_config ('SSL_BASE', "$apache_src/Configuration") if (!$sslbase) ;
-        $i .= " -I$sslbase/include" ;
-        }
     }
 else
     {
@@ -360,11 +370,6 @@ if ($b && $apache)
             }
 	
 	$EPMODPERL="" ;
-	if (-e "$apache_src/modules/perl/libperl.so" ) 
-	    {
-	    $EPMODPERL="LoadModule perl_module $apache_src/modules/perl/libperl.so" ;
-            $EPSTARTUP ='startup_dso.pl' ;
-	    }
         }
     else
         {
@@ -384,6 +389,47 @@ if ($b && $apache)
             }
         }
     
+
+    ### check the apache version ###
+                                
+    @EPAPACHEVERSION = start ("$EPHTTPD -v") ;
+    @modules         = start ("$EPHTTPD -l") ;
+
+    print "Apache Version $EPAPACHEVERSION[0]" ;
+
+    $EPSTRONGHOLD = ($EPAPACHEVERSION[0] =~ /stronghold/i) ;
+    $EPAPACHE_SSL = grep (/apache_ssl.c/, @modules) ;
+    $EPMOD_SSL    = !$EPSTRONGHOLD && grep (/mod_ssl.c/, @modules) ;
+    
+    if (!$win32 && -e "$apache_src/modules/perl/libperl.so" && !grep (/mod_perl.c/, @modules)) 
+	{
+	$EPMODPERL="LoadModule perl_module $apache_src/modules/perl/libperl.so" ;
+        $EPSTARTUP ='startup_dso.pl' ;
+        print " + mod_perl was build with USE_DSO\n" ;
+	}
+
+    
+    if ($EPSTRONGHOLD) 
+        {
+        $i .= " -I$apache_src/../ssl/include" ;
+        $d .= " -DSTRONGHOLD" ;
+        print " + found Stronghold\n" ;
+        }
+    elsif ($EPAPACHE_SSL)
+        {
+        $d .= " -DEPAPACHE_SSL" ;
+        print " + found Apache SSL\n" ;
+        }
+    elsif ($EPMOD_SSL)
+        {
+        my $sslbase = search_config ('SSL_BASE', "$apache_src/Configuration.apaci") ;
+        $sslbase = search_config ('SSL_BASE', "$apache_src/Configuration") if (!$sslbase) ;
+        $i .= " -I$sslbase/include" ;
+        print " + found mod_ssl\n" ;
+        }
+
+
+
     if ($EPSTRONGHOLD)
         {
         my $conf = "$apache_src/../conf/httpd.conf";
@@ -427,6 +473,7 @@ if ($b && $apache)
     print FH "\$EPSTRONGHOLDKEY='$EPSTRONGHOLDKEY' ;\n" ;
     print FH "\$EPMODPERL='$EPMODPERL';\n" ;
     print FH "\$EPSTARTUP='$EPSTARTUP';\n" ;
+    print FH "\$EPAPACHEVERSION='$EPAPACHEVERSION[0]';\n" ;
     if ($win32)
         {
         print FH "\$EPNULL='nul';\n" ;

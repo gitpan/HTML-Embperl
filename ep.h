@@ -21,14 +21,20 @@
 #include <ctype.h>
 #include <time.h>
 
-#ifdef STRONGHOLD
 #if !defined(PERLIO_IS_STDIO)
 #define PERLIO_IS_STDIO
 #endif
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+#include "EXTERN.h"
+#include "perl.h"
+#include "XSUB.h"
+#ifdef __cplusplus
+}
 #endif
 
-#include <EXTERN.h>               /* from the Perl distribution     */
-#include <perl.h>                 /* from the Perl distribution     */
 
 #ifdef APACHE
 /* form mod_perl.h ->
