@@ -24,16 +24,37 @@
 #include <time.h>
 
 
+
+#include <EXTERN.h>               /* from the Perl distribution     */
+#include <perl.h>                 /* from the Perl distribution     */
+
+/* form mod_perl.h ->
+ * perl hides it's symbols in libperl when these macros are 
+ * expanded to Perl_foo
+ * but some cause conflict when expanded in other headers files
+ */
+#undef S_ISREG
+#undef DIR
+#undef VOIDUSED
+#undef pregexec
+#undef pregfree
+#undef pregcomp
+#undef setregid
+#undef setreuid
+#undef sync
+#undef my_memcmp
+#undef RETURN
+#undef die
+#undef __attribute__
+
+
+
 #ifdef APACHE
 #include <httpd.h>
 #include <http_protocol.h>
 #include <http_log.h>
 #endif
 
-
-
-#include <EXTERN.h>               /* from the Perl distribution     */
-#include <perl.h>                 /* from the Perl distribution     */
 
 #include "epnames.h"
 

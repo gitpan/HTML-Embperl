@@ -14,6 +14,10 @@
     Using a different character set
 
 
+ Using Embperl
+    Netscape ask to reload the document
+
+
 
 =head1 Building
 
@@ -278,3 +282,19 @@ If somebody generates new tables for national characters sets, please send a cop
 author, so it can included it in further versions of Embperl.
 
 
+=head1 Using Embperl
+
+=item B<Netscape ask to reload the document>
+
+I found
+
+  <META HTTP-EQUIV="content-type" CONTENT="text/html;charset=iso-8859-1">
+
+in your source. I had get into trouble with such a line with netscape
+browsers when posting formdata and the dbgEarlyHttpHeader is on.
+
+Netscape seem to have a problem in such a case, because http header is only
+content-type text/html, while the META HTTP-EQUIV has an addition charset
+specified. My netscape versions, has asked me to reload the page, when they
+encounterd such a situation. With dbgEarlyHttpHeader off, Embperl will
+automatily setup the http header to the same as the META HTTP-EQUIV.

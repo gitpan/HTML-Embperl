@@ -4,6 +4,14 @@ TODO for Embperl
 
 - Apache::Symbol::undef (avoid function redefinition warning)
 
++ return of CheckFile
++ input type
+- delete empty lines
+- $rawinput
+- print > STDOUT
+- [$foreach$]
+- HTML::Embperl::Offline
+- SetLog
  
 
 

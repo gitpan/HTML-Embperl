@@ -13,6 +13,7 @@ eg/x/table.htm
 eg/x/while.htm
 eg/x/lists.htm
 eg/x/config.htm
+eg/x/Execute.pl
 embpcgi.c
 embperl.h
 embpexec.pl

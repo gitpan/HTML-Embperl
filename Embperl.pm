@@ -33,7 +33,7 @@ require DynaLoader;
 @ISA = qw(Exporter DynaLoader);
 
 
-$VERSION = '0.25-beta';
+$VERSION = '0.26-beta';
 
 
 bootstrap HTML::Embperl $VERSION;
@@ -51,7 +51,6 @@ $Outputfile = '' ;  # Default to stdout
 $package  = '' ;    # package name for current document
 $packno   = 1 ;     # for assigning unique packagenames
 @cleanups = () ;    # packages which need a cleanup
-
 
 # setup constans
 
@@ -123,6 +122,9 @@ use constant rcUnknownVarType => 31 ;
 use constant rcVirtLogNotSet => 33 ;
 use constant rcWriteErr => 16 ;
 use constant rcXNotSet => 29 ;
+
+
+$DebugDefault = dbgStd ;
 
 # Color definition for logfile output
 
@@ -398,20 +400,20 @@ sub CheckFile
     unless (-r $filename && -s _)
         {
 	embperl_logerror (rcNotFound, $filename);
-	return (&NOT_FOUND, 0, 0) ;
+	return &NOT_FOUND ;
         }
 
     if (defined ($req_rec) && !($req_rec->allow_options & &OPT_EXECCGI))
         {
 	embperl_logerror (rcExecCGIMissing, $filename);
-	return (&FORBIDDEN, 0, 0) ;
+	return &FORBIDDEN ;
  	}
 	
     if (-d _)
         {
 	embperl_logerror (rcIsDir, $filename);
-	return (&FORBIDDEN, 0, 0);
-	}
+	return &FORBIDDEN ;
+	}                 
     
     return ok ;
     }
@@ -443,7 +445,7 @@ sub CheckCache
 
 
 
-    if (!defined($mtime{$filename}) || $mtime{$filename} != $mtime || !defined($mtime)) 
+    if (!defined($mtime{$filename}) || !defined($mtime) || $mtime{$filename} != $mtime) 
         {
         # clear out any entries in the cache
         delete $cache{$filename} ;
@@ -518,8 +520,8 @@ sub Execute
     my $rc ;
     my $req = shift ;
     
-    $Debugflags = $$req{'debug'} || 0 ;
-    $req_rec    = $$req{'req_rec'} if (defined ($$req{'req_rec'})) ;
+    $Debugflags   = $$req{'debug'}   || $DebugDefault ;
+    $req_rec      = $$req{'req_rec'} if (defined ($$req{'req_rec'})) ;
     $rc = embperl_setreqrec ($req_rec) if (defined ($req_rec)) ;
         
     undef $package if (defined ($package)) ; 
@@ -566,7 +568,11 @@ sub Execute
         }
    else
         {
-        return $rc if ($rc = CheckFile ($Inputfile)) ;
+        if ($rc = CheckFile ($Inputfile)) 
+            {
+            embperl_resetreqrec () ;
+            return $rc ;
+            }
         $filesize = -s _ ;
         $mtime = -M _ ;
         }
@@ -602,9 +608,13 @@ sub Execute
         }
     else
         {
-        @ffld = () ;
-        %fdat = () ;
+        local $^W = 0 ;
+        @ffld = @{$$req{'ffld'}} ;
+        %fdat = %{$$req{'fdat'}} ;
         }
+
+    *{"$package\:\:param"}   = $$req{'param'} if (exists $$req{'param'}) ;
+    
     @errors = () ;
 
 
@@ -628,6 +638,8 @@ sub Execute
         chdir $cwd;
 	}
 
+    undef *{"$package\:\:param"} ;
+
     if ($cleanup == -1)
         { ; } 
     elsif ($cleanup == 0 && defined ($req_rec))
@@ -650,8 +662,9 @@ sub Execute
 sub Init
 
     {
-    my $Logfile = shift ;
-    
+    my $Logfile   = shift ;
+    $DebugDefault = shift || dbgStd ;
+        
     embperl_init (epIOPerl, $Logfile || $DefaultLog) ;
     
     tie *LOG, 'HTML::Embperl::Log' ;
@@ -791,7 +804,7 @@ sub handler
     $req{'uri'}       = $req_rec -> Apache::uri ;
     $req{'inputfile'} = $ENV{PATH_TRANSLATED} = $req_rec -> filename ;
 
-    print LOG "i = $req{'inputfile'}\n" ;
+    #print LOG "i = $req{'inputfile'}\n" ;
 
     $req{'cleanup'} = -1 if (($req{'options'} & optDisableVarCleanup)) ;
     $req{'options'} |= optSendHttpHeader ;
@@ -817,6 +830,7 @@ sub cleanup
         {
         next if ($package eq '') ;
 
+	print LOG "[$$]CUP:  Cleanup package: $package\n" if ($Debugflags & dbgShowCleanup);
         if (defined (&{"$package\:\:CLEANUP"}))
 	    {
     	    eval "\&$package\:\:CLEANUP;" ;
@@ -1089,6 +1103,9 @@ your browser!
 
 Execute takes a hash reference as argument. This gives the chance to
 vary the parameters according to the job that should be done.
+
+(See B<eg/x/Excute.pl> for more detailed examples)
+
 Possible items are:
 
 =over 4
@@ -1149,6 +1166,24 @@ If running as cgi or offline cleanup takes immediately place.
 Immediate cleanup
 
 =back
+
+=item B<param>
+
+Can be used to pass parameters to the Embperl document and back. Must contain
+an reference to an array.
+
+
+ Example:
+
+    HTML::Embperl::Execute(..., param => [1, 2, 3]) ;
+    HTML::Embperl::Execute(..., param => \@parameters) ;
+
+The array @param in the Embperl document is setup as an alias to the array.
+See eg/x/Excute.pl for more detailed example.
+
+=item B<ffld and fdat>
+
+Could be used to setup the two Embperl predefined variables.
 
 =item B<options>
 
@@ -1992,6 +2027,11 @@ If you are writing a module for use under Embperl you can say
     tie *LOG, 'HTML::Embperl::Log';
 
 to get a handle by which you can write to the Embperl logfile.
+
+=item B<param>
+
+Will be setup by the B<'param'> parameter of the B<Execute> function. Could be used
+to pass parameters to an Embperl document and back. (see B<Execute> for further docs)
 
 =back
 

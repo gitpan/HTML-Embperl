@@ -713,6 +713,7 @@ if (defined ($line = <ERR>))
 	{
 	print "\nFound unexpected output in httpd errorlog:\n" ;
 	print $line ;
+	$err = 1 ;
 	}
 while (defined ($line = <ERR>))
 	{ print $line ; }
@@ -723,3 +724,4 @@ $fatal = 0 ;
 
 system "kill `cat $tmppath/httpd.pid`" if ($EPHTTPD ne '' && $killhttpd) ;
 
+exit ($err || 0) ;

@@ -1129,7 +1129,7 @@ static int HtmlInput (/*in*/ const char *   sArg)
     sName [nlen] = '\0' ;        
 
     pType = GetHtmlArg (sArg, "TYPE", &tlen) ;
-    if (nlen >= 0 && (strnicmp (pType, "RADIO", 5) == 0 || strnicmp (pType, "CHECKBOX", 8) == 0))
+    if (tlen > 0 && (strnicmp (pType, "RADIO", 5) == 0 || strnicmp (pType, "CHECKBOX", 8) == 0))
         bCheck = 1 ;
     else    
         bCheck = 0 ;
@@ -1164,7 +1164,7 @@ static int HtmlInput (/*in*/ const char *   sArg)
 
     if (bCheck)
         {
-        if (vlen == strlen (pData))
+        if (pVal && vlen == strlen (pData))
             bEqual = strncmp (pData, pVal, vlen) == 0 ; 
         else
             bEqual = 0 ;

@@ -94,7 +94,7 @@ my %myfdat = ('test' => 'value',
               
 my @myffld = sort keys %myfdat ;             
 
-HTML::Embperl::Execute ({input		=> \'<P><table><tr><td>[+ $ffld[$row] +]</td><td>[+ local $^W = 0 ; $fdat{$ffld[$row]} +]</td></tr></table></P>',
+HTML::Embperl::Execute ({input		=> \'<P><table><tr><td>[+ $k = $ffld[$row] +]</td><td>[+ $fdat{$k} +]</td></tr></table></P>',
 						 inputfile	=> 'fdat & ffld',
 						 req_rec    => $r,
 						 fdat  => \%myfdat,

@@ -1,5 +1,30 @@
 Revision history for Perl extension HTML::Embperl.
 
+0.26-beta 16 Mar 98
+   - Adapt include pass to compile with apache_1.3b5
+   - Applied patch from Dan Walters to make Embperl compile with 
+     apache_1.3b3 and mod_perl on Win 32
+   - Changed the order of included c headers and undef some macros 
+     inbetween (copied from mod_perl.c) to compile with apache on Win 32
+   - Embperl works with apache_1.3b5 on win nt (make test does not yet)
+     (You need the apache sources and must compile perl with the vc++)
+
+   - Added the 'param' parameter to the Execute function to pass parameters
+     from and to the Embperl document.
+   - Added the 'fdat' and 'ffld' parameter to the Execute function to
+     setup %fdat and @ffld   
+	
+   - Fix a problem which displays tables a second time after the end of 
+     the document, if dbgEarly HttpHeaders is on, thanks to Ask Bjorn Hansen
+     for spotting this.
+   - Fix the return values of CheckFile, which was not correct after a change
+     from 0.24 to 0.25. Thanks to Todd Eigenschrink for spotting this.
+   - Fix an error causing Embperl to crash on an html input tag without
+     the type parameter. Thanks to Todd Eigenschrink for the hint.
+   - Fix a problem that causes Embperl to not correctly recognices an error
+     when reading the sourcefile    
+     
+
 0.25-beta 17 Feb 1998
    - Included the "translation" of the Embperl POD to a human readable
      form done by Todd Eigenschink

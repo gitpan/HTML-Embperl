@@ -1,10 +1,8 @@
 #
 # Building Makefile for Embperl
 #
-# (C) 1997 G.Richter (richter@dev.ecos.de) / ECOS
+# (C) 1997-1998 G.Richter (richter@dev.ecos.de) / ECOS
 #
-# Note: This is a quick hack, hope it works...
-#       Still beta no warrenty!
 #
 
 
@@ -82,23 +80,42 @@ sub GetYesNo
 # Check if known config
 #
 
-eval 'use Apache::MyConfig' ;
 
-if ($@ eq '')
-    { 
-    $apache_src = $Apache::MyConfig::Setup{Apache_Src} ; 
-    }
-else
+$apache = 0 ;
+$b = 0 ;
+
+if (defined ($ARGV[0]))
     {
-    $apache_src = '' ;
+    $apache = 2 ;
+    $b = 1 ;
+    $apache_src = $ARGV[0] ;
+    }
+elsif (defined ($ENV{APACHE_SRC}))
+    {
+    $apache = 2 ;
+    $b = 1 ;
+    $apache_src = $ENV{APACHE_SRC} ;
+    }
+
+if (!$apache)
+    {
+    eval 'use Apache::MyConfig' ;
+
+    if ($@ eq '')
+        { 
+        $apache_src = $Apache::MyConfig::Setup{Apache_Src} ; 
+        }
+    else
+        {
+        $apache_src = '' ;
+        }
     }
 
 $base = '..' ;
 
-$b = 0 ;
 
 
-$apache = GetYesNo ("Build with support for Apache mod_perl?", 'y') ;
+$apache = GetYesNo ("Build with support for Apache mod_perl?", 'y') if (!$apache) ;
 
 if ($apache && $apache_src ne '')
     {
@@ -108,10 +125,13 @@ if ($apache && $apache_src ne '')
     if ($apache_src =~ /^(.*?)\/main$/)
    	{ $apache_src = $1 ; } 
 
-	if (-e "$apache_src/httpd.h" || -e "$apache_src/main/httpd.h")
-		{
-		$b = GetYesNo ("Use $apache_src as Apache source", 'y') ;
-		}
+    if ($apache_src =~ /^(.*?)\/include$/)
+   	{ $apache_src = $1 ; } 
+
+    if (-e "$apache_src/httpd.h" || -e "$apache_src/main/httpd.h" || -e "$apache_src/include/httpd.h")
+	    {
+	    $b = GetYesNo ("Use $apache_src as Apache source", 'y') if (!$b) ;
+	    }
     }
 
 while ($apache && !$b)
@@ -124,7 +144,7 @@ while ($apache && !$b)
        {
 	print "Look at $src_dir\n" ;
 	
-	if (-e "$src_dir/httpd.h" || -e "$src_dir/main/httpd.h")
+	if (-e "$src_dir/httpd.h" || -e "$src_dir/main/httpd.h" || -e "$src_dir/include/httpd.h")
 		{
 		$b = GetYesNo ("Use $src_dir as Apache source", 'y') ;
 		if ($b)
@@ -141,6 +161,9 @@ while ($apache && !$b)
     if ($apache_src =~ /^(.*?)\/main$/)
    	{ $apache_src = $1 ; } 
 
+    if ($apache_src =~ /^(.*?)\/include$/)
+   	{ $apache_src = $1 ; } 
+
 
     if (!$b)
     	{
@@ -151,37 +174,60 @@ while ($apache && !$b)
     		}
     	
     	}
-    	
-
-		
     }
 
-if ($b && $apache)
-	{
-	print "Will use $apache_src for Apache Headers\n" ;
-	if ($win32)
-	    { $i = "-I$apache_src -I$apache_src/regex -I$apache_src/main -I$apache_src/os/win32" ; }
-	else
-	    { $i = "-I$apache_src -I$apache_src/regex -I$apache_src/main -I$apache_src/os/unix" ; }
-	$d = "-DAPACHE" ;
-	}
-else
-	{
-	$apache = 0 ;
-	print "Will build without mod_perl support\n" ;
-	$i = '' ;
-	$d = '' ;
+$b = 0 if ($apache_src eq '') ;
 
-	}
+if ($b && $apache)
+    {
+    print "Will use $apache_src for Apache Headers\n" ;
+    if ($win32)
+	{ 
+        $i = "-I. -I$apache_src -I$apache_src/regex -I$apache_src/main -I$apache_src/include -I$apache_src/os/win32" ;
+        $o = " $apache_src/CoreR/ApacheCore.lib" ;
+        }
+    else
+	{
+        $i = "-I$apache_src -I$apache_src/regex -I$apache_src/main -I$apache_src/include -I$apache_src/os/unix" ; 
+        $o = '' ;
+        }
+    $d = "-DAPACHE" ;
+    }
+else
+    {
+    $apache = 0 ;
+    print "Will build without mod_perl support\n" ;
+    $i = '' ;
+    $d = '' ;
+    $o = '' ;
+    }
 		
+if ($win32 && $apache)
+    {	# borrowed from mod_perl
+    local *FH;
+    open FH, ">dirent.h" || die "can't write dirent.h $!";
+    print FH <<EOF;
+/* major kludge to workaround conflict(s) between perl's dirent.h and apache's readdir.h */
+
+#ifdef WIN32
+
+#define _INC_DIRENT
+#define DIR void
+
+#endif
+
+EOF
+    close FH;
+    }
+
 #
 # Check to see which user to use for httpd tests
 #
 
 $EPPATH  = cwd ;
 
-if ($b && $apache)
-	{
+if ($b && $apache && !$win32)
+    {
     $EPPORT  = 8529 ;
     $EPUSER  = getpwuid($>) ||  $> ;
     $EPGROUP = getgrgid($)) || $) ;
@@ -250,9 +296,10 @@ foreach $f (@bins)
 WriteMakefile(
     'NAME'	   => 'HTML::Embperl',
     'VERSION_FROM' => 'Embperl.pm', 		# finds $VERSION
-    'OBJECT'     => 'Embperl$(OBJ_EXT) epmain$(OBJ_EXT) epio$(OBJ_EXT) epchar$(OBJ_EXT) epcmd$(OBJ_EXT) eputil$(OBJ_EXT) epeval$(OBJ_EXT)',
+    'OBJECT'     => 'Embperl$(OBJ_EXT) epmain$(OBJ_EXT) epio$(OBJ_EXT) epchar$(OBJ_EXT) epcmd$(OBJ_EXT) eputil$(OBJ_EXT) epeval$(OBJ_EXT)' . $o,
     'LIBS'	   => [''],   			 
     'DEFINE'	   => "$d \$(DEFS)", 			 
     'INC'	   => $i,     			 
+    'clean'        => { FILES => 'dirent.h' },
     'dist'         => { COMPRESS => 'gzip', SUFFIX => 'gz'},
 );

@@ -1386,7 +1386,9 @@ static int StartOutput (/*in*/ char *  sOutputfile,
             {
             if (pReq -> main == NULL && (bOptions & optSendHttpHeader))
             	send_http_header (pReq) ;
+#ifndef WIN32
             mod_perl_sent_header(pReq, 1) ;
+#endif
             if (pReq -> header_only)
             	{
             	CloseOutput () ;
@@ -1453,8 +1455,10 @@ static int EndOutput (/*in*/ int    rc,
         if (pReq && !bOutToMem && (bOptions & optSendHttpHeader))
             {
             send_http_header (pReq) ;
+#ifndef WIN32
             mod_perl_sent_header(pReq, 1) ;
-    	    if (bDebug & dbgHeadersIn)
+#endif
+            if (bDebug & dbgHeadersIn)
         	{
         	int i;
         	array_header *hdrs_arr;
@@ -1478,7 +1482,7 @@ static int EndOutput (/*in*/ int    rc,
         pOut = SvRV (pOutData) ;
 
 #ifdef APACHE
-    if (pReq == NULL || !pReq -> header_only)
+    if ((pReq == NULL || !pReq -> header_only) && !(bDebug & dbgEarlyHttpHeader))
 #endif
         {
         oputs ("\r\n") ;
@@ -1701,18 +1705,19 @@ int iembperl_req  (/*in*/ char *  sInputfile,
         { /* --- get input from memory --- */
         pBuf = SvPV (SvRV(pInData), nFileSize) ;
         }
+
     else
         {
         /* --- read input file --- */
         if (rc == ok)
-            ReadHTML (sInputfile, &nFileSize, &pBufSV) ;
+            rc = ReadHTML (sInputfile, &nFileSize, &pBufSV) ;
         if (rc == ok)
             pBuf = SvPVX (pBufSV) ;
         }
 
-    if (pBuf == NULL)
+    if (rc == ok && pBuf == NULL)
         rc = rcMissingInput ;
-
+    
     /* --- ok so far? if not exit ---- */
 #ifdef APACHE
     if (rc != ok || (pReq && pReq -> header_only && (bDebug & dbgEarlyHttpHeader)))

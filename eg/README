@@ -23,6 +23,10 @@ neu.htm	        this example shows many of the feature of Embperl, as
 		Note that the database interface is missing from this example, 
 		since it isn't ready. 
 
+Execute.pl      This is an perl script which shows how to use the function
+                HTML::Embperl::Execute. It runs under Apache::Registry, look
+                at the comment on the top when you want to run it offline.
+
 You can also look at the directory test/html. The files found here are
 will transformed to the files found in test/cmp, the request for that can
 be found at the beginning of test.pl.
