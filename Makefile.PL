@@ -354,6 +354,7 @@ elsif (defined ($ENV{APACHE_SRC}))
     $apache = 2 ;
     $b = 1 ;
     $apache_src = $ENV{APACHE_SRC} ;
+    $apache_src = '' if ($apache_src eq '-') ;
     }
 
 if (!$apache && $apache_src eq '')
@@ -878,7 +879,13 @@ if ($win32)
                 }
             }
         }
+    
+    $d .= ' -D_WINDOWS ';
+    $d .= ' -DMULTIPLICITY' if ($Config{usemultiplicity}) ;
+
     }
+
+$d .= ' -DEP2' if ($EP2) ;
 
 $dynlib->{'OTHERLDFLAGS'} .= " $lddebug" ;
 
@@ -886,7 +893,9 @@ $dynlib->{'OTHERLDFLAGS'} .= " $lddebug" ;
 WriteMakefile(
     'NAME'	   => 'HTML::Embperl',
     'VERSION_FROM' => 'Embperl.pm', 		# finds $VERSION
-    'OBJECT'     => 'Embperl$(OBJ_EXT) epmain$(OBJ_EXT) epio$(OBJ_EXT) epchar$(OBJ_EXT) epcmd$(OBJ_EXT) eputil$(OBJ_EXT) epeval$(OBJ_EXT) epdbg$(OBJ_EXT) ' . ($EP2?'epcmd2$(OBJ_EXT) epparse$(OBJ_EXT) epdom$(OBJ_EXT) epcomp$(OBJ_EXT)':'') . $o,
+    'OBJECT'       => 'Embperl$(OBJ_EXT) epmain$(OBJ_EXT) epio$(OBJ_EXT) epchar$(OBJ_EXT) epcmd$(OBJ_EXT) eputil$(OBJ_EXT) epeval$(OBJ_EXT) epdbg$(OBJ_EXT) ' . 
+                       ($EP2?'epcmd2$(OBJ_EXT) epparse$(OBJ_EXT) epdom$(OBJ_EXT) epcomp$(OBJ_EXT)':'') . $o,
+#    'XS'           => { 'Embperl.xs' => 'Embperl.c', ($EP2?('Cmd.xs' => 'Cmd.c', 'DOM.xs' => 'DOM.c'):())}, 
     'LIBS'	   => [''],   			 
     'DEFINE'	   => "$d \$(DEFS)", 			 
     'INC'	   => $i,     			 
@@ -898,6 +907,9 @@ WriteMakefile(
     'dist'         => { COMPRESS => 'gzip', SUFFIX => 'gz'},
     'dynamic_lib'  => $dynlib,
     'PREREQ_PM'    => { 'File::Spec' => 0 },
+    'ABSTRACT'     => 'Embed Perl code in HTML documents',
+    'AUTHOR'       => 'Gerald Richter <richter@dev.ecos.de>',
+
 );
 
 
@@ -907,7 +919,7 @@ WriteMakefile(
 #
 
 @bins = ('embpexec.pl','embpexec.bat', 
-         'embpcgi.pl', 'embpcgi.test.pl', 'embpcgi.bat', 'embpcgi.test.bat',) ;
+         'embpcgi.pl', 'embpcgi.test.pl', 'embpcgi.bat') ;
 
 
 die "Missing path to perl binary" if (!$perlbinpath) ;
@@ -915,9 +927,7 @@ die "Missing path to perl binary" if (!$perlbinpath) ;
 
 foreach $f (@bins)
 	{
-	unlink "$f.org" ;
-	rename $f, "$f.org" or die "Cannot rename $f to $f.org" ;
-	open IN, "<$f.org" or die "Cannot open $f.org" ;
+	open IN, "<$f.templ" or die "Cannot open $f.templ" ;
 	open OUT, ">$f" or die "Cannot open $f" ;
 	my $l = 1 ;
         while (<IN>)

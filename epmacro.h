@@ -60,7 +60,7 @@ int EMBPERL_mgGet##name (pTHX_ SV * pSV, MAGIC * mg) \
     return 0 ; \
     } \
 \
-    int EMBPERL_mgSet##name (SV * pSV, MAGIC * mg) \
+int EMBPERL_mgSet##name (pTHX_ SV * pSV, MAGIC * mg) \
 \
     { \
     return 0 ; \
@@ -79,7 +79,7 @@ int EMBPERL_mgGet##name (pTHX_ SV * pSV, MAGIC * mg) \
     return 0 ; \
     } \
 \
-    int EMBPERL_mgSet##name (pTHX_ SV * pSV, MAGIC * mg) \
+int EMBPERL_mgSet##name (pTHX_ SV * pSV, MAGIC * mg) \
 \
     { \
 \

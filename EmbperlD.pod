@@ -2,7 +2,7 @@
 
 =head1 NAME
 
-HTML::Embperl - einbetten von Perlcode in HTML Dokumente
+HTML::Embperl_ - einbetten von Perlcode in HTML Dokumente
 
 =head1 SYNOPSIS
 
@@ -285,7 +285,7 @@ Wie L<"EMBPERL_ALLOW"|"EMBPERL_ALLOW (ab 1.2b10)"> (siehe unten)
 
 =item B<path (ab 1.3b1)>
 
-Wie L<"EMBPERL_PATH"|"EMBPERL_PATH (ab 1.3b1)"> (siehe unten)
+Wie L<"EMBPERL_PATH"|"EMBPERL_PATH (ab 1.3b6)"> (siehe unten)
 
 =item B<uri>
 
@@ -430,12 +430,17 @@ B<Perl regular expression> entsprechen. Die Bearbeitung anderer Dateien wird mit
 dem Fehlercode FORBIDDEN verweigert. Dies ist vorallem in CGI Mode nützlich, um
 die Serversicherheit zu erhöhen.
 
-=head2 EMBPERL_PATH (ab 1.3b1)
+=head2 EMBPERL_PATH (ab 1.3b6)
 
 Hier kann eine durch Semikolon (unter Unix auch Doppelpunkte) getrennte Liste von
 Verzeichnissen angegeben werden,
-die I<Embperl> durchsucht, wenn eine Datei verabeitet werden soll und die Datei keine
-Pfadangaben enthält.
+die I<Embperl> durchsucht, wenn eine Datei verabeitet werden soll und
+der Dateiname keine absolute Pfadangabe enthält und nicht mit
+C<./> (bzw. C<.\> unter Windows) anfängt. Verzeichnisse müssen mit einem
+Slash (C</> bzw. C<\>) abgeschlossen werden, andernfalls wird der Teil als
+Dateiprefix interpretiert. Eine spezielle Behandlung findet statt, wenn
+der Dateiname mit C<../> (bzw. C<..\>) beginnt. Dann wird die selbe Anzahl
+Elemente wie C<../> im Dateinamen sind im Pfad übersprungen.
 
 =head2 EMBPERL_COMPARTMENT
 
@@ -502,7 +507,13 @@ Diese Option hat keinen Effekt, wenn L<"optReturnError"> gesetzt ist.
 Wenn diese Option gesetzt ist, sendet Embperl keine Fehlerseite, sondern
 liefert den Fehlercode an Apache oder das aufrufende Programm zurück.
 Unter I<Apache> ermöglicht dies die C<ErrorDocument> Anweisung zu benutzen,
-um eine eigene Fehlerseite anzuzeigen.
+um eine eigene Fehlerseite anzuzeigen. Innerhalb des ErrorDokuments ist es
+möglich die Embperlfehlermeldungen mittels
+
+  $errors = $req_rec -> prev -> pnotes('EMBPERL_ERRORS') ;
+
+zu ermitteln, wobei C<$errors> eine Arrayreferenz ist. (1.3b5+)
+
 
 =item optSafeNamespace = 4
 
@@ -1651,6 +1662,8 @@ dem Benuter ermöglich beliebiges HTML einzugeben. Um dies zu verhindern muß zu d
 unten aufgeführten Werten jeweils eine 4 addiert werden. Dies führt dazu, dass I<Embperl>
 den Backslash bei der Ausgabe nicht gesondert behandelt. (ab 1.3b4)
 
+B<Hinweis 2:>Um binäre Daten auszugeben muß escmode auf Null gesetzt werden (ab 1.3b6)
+
 =over 4
 
 =item $escmode = 3 (oder 7)
@@ -1761,6 +1774,11 @@ weitere Variablen aufgeräumt werden, können diese dem Hash C<%CLEANUP>, mit dem 
 als Schlüssel und einem Wert von B<1>, hinzugefügt werden. Umgedreht ist es möglich das Aufräumen
 zu verhindern, wenn der Variablennamen mit einem Wert von B<0> hinzugefügt wird.
 
+=head2 %CLEANUPFILE (ab 1.2b6)
+
+Hat die selbe Aufgabe wie C<%CLEANUP>, jedoch können hier Dateinamen hinzugefügt werden und
+alle Variable die in diesen Dateien definiert wurden, werden am jedes des entsprechenden
+Requests aufgeräumt.
 
 
 =head1 Session Handling (ab 1.2b2)
@@ -1843,6 +1861,59 @@ Id, wird diese zunächst nur abgespeichert, erst bei einem Zugriff auf C<%udat>,
 werden die Daten tatsächlich von I<Apache::Session> angefordert. Ebenso
 werden die Daten für C<%mdat> erst von I<Apache::Session> angefordert, wenn
 auf diesen Hash zugegriffen wird.
+
+=head2 Funktionen/Methoden fürs Session Handling
+
+=head2 HTML::Embperl::Req::SetupSession ($req_rec, $Inputfile) [1.3b6+]
+
+Diese Funktion kann von Skripten benutzt werden die in ihrem Verlauf
+L<HTML::Embperl::Execute|Execute> aufrufen, jedoch vorher schon auf die Sessiondaten
+von Embperl zugreifen wollen.
+
+=over 4
+
+=item $req_rec
+
+Apache request record soweit das Skript unter I<mod_perl> läuft, ansonsten C<undef>.
+
+=item $Inputfile
+
+Name der Datei die später von I<Embperl> bearbeitet werden soll. Dient dazu L<%mdat> zu
+initialsieren. Wird C<%mdat> nicht benötigt, kann dieser Parameter weggelassen werden.
+
+=back
+
+Liefert eine Referenz auf L<%udat> oder, wenn es in einem Arraykontext aufgerufen wird,
+eine Referenz auf L<%udat> und L<%mdat> zurück. Siehe auch C<CleanupSession>.
+
+=head2 HTML::Embperl::Req::GetSession / $r -> GetSession [1.3b6+]
+
+Liefert eine Referenz auf L<%udat> oder, wenn es in einem Arraykontext aufgerufen wird,
+eine Referenz auf L<%udat> und L<%mdat> zurück.
+Dies Funktion kann benutzt werden um auf die Embperl Sessiondaten aus einem Modul
+zuzugreifen, wenn das Session Handling bereits initialisiert ist.
+Wenn es als eine Methode aufgerufen wird muß C<$r> ein C<HTML::Embperl::Req> Objekt sein.
+Dieses wird als erster Parameter in @_ an jede Seite übergeben.
+
+=head2 HTML::Embperl::Req::CleanupSession / $r -> CleanupSession [1.3b6+]
+
+Muß am Ende B<jedes> Skripts aufgerufen werden , welches C<SetupSession> benutzt, danach aber nicht
+L<HTML::Embperl::Execute|Execute> aufruft.
+Wenn es als eine Methode aufgerufen wird muß C<$r> ein C<HTML::Embperl::Req> Objekt sein.
+Dieses wird als erster Parameter in @_ an jede Seite übergeben.
+
+=head2 HTML::Embperl::Req::DeleteSession / $r -> DeleteSession [1.3b6+]
+
+Löscht die Sessiondaten und entfernt den Cookie vom Browser.
+Wenn es als eine Methode aufgerufen wird muß C<$r> ein C<HTML::Embperl::Req> Objekt sein.
+Dieses wird als erster Parameter in @_ an jede Seite übergeben.
+
+=head2 HTML::Embperl::Req::DeleteSession / $r -> DeleteSession [1.3b6+]
+
+Stößt das nochmalige senden des Cookies an. Normalerweise wird der Cookie nur beim ersten
+Mal gesendet.
+Wenn es als eine Methode aufgerufen wird muß C<$r> ein C<HTML::Embperl::Req> Objekt sein.
+Dieses wird als erster Parameter in @_ an jede Seite übergeben.
 
 
 =head1 (Sichere-)Namensräume und Opcode Restriktionen
@@ -2552,7 +2623,7 @@ Man braucht mmm.el von
 http://members.tripod.com/gchen2/xemacs/
 
 Anschließend muß man mein mmm-embperl.el downloaden von
-http://inanna.starseed.com/~erik/mmm-embperl.el
+http://www.aarg.net/erik/mmm-embperl.el
 
 Dokumentation ist in den Dateien enthalten.
 

@@ -12,7 +12,7 @@
 <P>Here is some text</P>
 <H1> 2.) Include from memory with some Embperl code</H1>
 
-<table><tr><td>a1</td><td>b2</td><td>c3</td></tr></table></P>
+<table><tr><td>a1</td> <td>b2</td> <td>c3</td> </tr> </table> </P>
 <H1> 3.) Include from memory with passing of variables</H1>
 
 
@@ -34,7 +34,7 @@
 <H1> 7.) Presetup \%fdat and \@ffld</H1>
 
 <P><table><tr><td>fdat</td><td>text</td></tr><tr><td>test</td><td>value</td></tr></table></P>
-<H1> 8.) Inculde a file</H1>
+<H1> 8a.) Include a file</H1>
 
 
 Here it starts with some HTML Text<P>
@@ -83,7 +83,56 @@ $e = 2 <BR>
 <P>Ok.<P>
 
 
-<H1> 9.) Inculde a file and return output in a scalar</H1>
+<H1> 8b.) Include again the same file </H1> 
+ 
+
+Here it starts with some HTML Text<P>
+
+All values should be undefined at the first include and
+apear at the second include:
+<P>
+
+$a = (this is the value in $a) <BR>
+$b = (this is the value in $a) &auml;&ouml;&uuml; <BR>
+$c = 57 <BR>
+$d = 1 <BR>
+$e = 2 <BR>
+
+
+First of all assign a value:
+<BR>
+
+Now we have some 'Umlaute':
+
+
+Now lets look what we are getting from this:<BR>
+(this is the value in $a) (this is the value in $a) &auml;&ouml;&uuml;<BR>
+
+And now a and b together: (this is the value in $a)(this is the value in $a) &auml;&ouml;&uuml;<P>
+
+Here we have some HTML tags within the perl code, Embperl will delete them!<BR>
+
+57
+SELECT *  FROM a ORDER BY b USING &lt;; Hi There&gt;
+Here we have something which looks like a HTML tag, but does not start with<br>
+a character, Embperl does not change them!<BR>
+
+SELECT * FROM a ORDER BY b USING &lt;; Hi There&gt;
+Embperl will also translate HMTL escapes to the right characters i.e. $a &amp;lt; 6 will get the perl expression $a &lt; 6: <BR>
+
+1
+Now they should have a value
+
+$a = (this is the value in $a) <BR>
+$b = (this is the value in $a) &auml;&ouml;&uuml; <BR>
+$c = 57 <BR>
+$d = 1 <BR>
+$e = 2 <BR>
+
+<P>Ok.<P>
+
+
+<H1> 9.) Include a file and return output in a scalar</H1>
 
 
 
@@ -238,7 +287,7 @@ End include
 </table>
 
 
-<H1> 11.) Inculde a file with parameters</H1>
+<H1> 11.) Include a file with parameters</H1>
 
 Here is param[0] -> 0<br>
 Here is param[1] -> B<br>
@@ -248,7 +297,7 @@ Here is param[4] -> 555<br>
 
 
 
-<H1> 12.) Inculde a file and write outputfile</H1>
+<H1> 12.) Include a file and write outputfile</H1>
 
 <H1> 12.) Done :-)</H1>
 

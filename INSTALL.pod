@@ -58,8 +58,15 @@ B<NOTE 3:> I<EmbperlObject> needs the following modules to work:
 If you have already successfully build and tested C<mod_perl> all modules
 will already be there.
 
+=head2 Options for make test
 
+C<make test> can take several options, with can be given with the C<TESTARGS>
+parameter:
 
+  make test TESTARGS="--help"
+
+will show you a list of available option. Most of them you will never need,
+they are mainly nesseccary for debugging I<Embperl> itself.
 
 
 =head2 WIN 32

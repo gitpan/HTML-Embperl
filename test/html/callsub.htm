@@ -8,22 +8,22 @@
 
 [###### first sub #####]
 [$sub txt$]
-
-<h2>Here goes some normal html text <h2>
-
+*txt* 
+*txt* <h2>Here goes some normal html text <h2>
+*txt* 
 [$endsub$]
 
 
 [###### second sub #####]
 [$sub perl_code $]
-
-Here comes some perl:
-
-[- $foo = 'Hello world' -]
-
-foo = [+ $foo +]<br>
-testdata = [+ $testdata +]<br>
-
+*perl_code* 
+*perl_code* Here comes some perl:
+*perl_code* 
+*perl_code* [- $foo = 'Hello world' -]
+*perl_code* 
+*perl_code* foo = [+ $foo +]<br>
+*perl_code* testdata = [+ $testdata +]<br>
+*perl_code* 
 [$endsub$]
 
 [###### main page #####]
@@ -48,6 +48,28 @@ Now we call the first sub via Perl:
 And now the second via Perl:
 
 [- perl_code -]
+
+-> Second time, other order:
+
+And now the second via Perl:
+
+[- perl_code -]
+
+Now we call the first sub via Perl:
+
+[- txt -]
+
+-> And Execute again, but other order
+
+And now the second via Execute:
+
+[- Execute ('#perl_code') -]
+
+Now we call the first sub via Execute:
+
+[- Execute ('#txt') -]
+
+
 
 And done!
 

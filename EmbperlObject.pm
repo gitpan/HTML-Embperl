@@ -10,7 +10,7 @@
 #   IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 #   WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 #
-#   $Id$
+#   $Id: EmbperlObject.pm,v 1.38 2000/10/17 07:25:15 richter Exp $
 #
 ###################################################################################
 
@@ -180,7 +180,7 @@ sub Execute
     
     my $fn ;
     my $ap ;
-    my $ldir ;
+    my $ldir  = '' ;
     my $found = 0 ;
     my $fallback = 0 ;
     	
@@ -203,13 +203,20 @@ sub Execute
         }
     while (!$found && $ldir ne $rootdir && $ldir ne $stopdir && $directory ne '/' && $directory ne '.' && $directory ne $ldir) ;
 
+    while ($found && $stopdir && $stopdir ne $directory && $directory ne '/' && $directory ne '.' && $directory ne $ldir) 
+        {
+	$ldir      = $directory ;
+        $directory = dirname ($directory) ;
+        $searchpath .= ";$directory" ; 
+        }
+
+    $searchpath .= ";$addpath" if ($addpath) ; 
     if (!$found)
         {
         foreach $ap (@addpath)
             {
             next if (!$ap) ;
             $fn = "$ap/$basename" ;
-            $searchpath .= ";$ap" ; 
             print HTML::Embperl::LOG "[$$]EmbperlObject Check for base: $fn\n"  if ($debug);
             if (-e $fn)
                 {
@@ -309,13 +316,15 @@ I<HTML::EmbperlObject> is basicly a I<mod_perl> handler or could be invoked
 offline and helps you to
 build a whole page out of smaller parts. Basicly it does the following:
 
-When a request comes in a page, which name is specified by L<EMBPERL_OBJECT_BASE>, is
+When a request comes in, a page, which name is specified by L<EMBPERL_OBJECT_BASE>, is
 searched in the same directory as the requested page. If the pages isn't found, 
 I<EmbperlObject> walking up the directory tree until it finds the page, or it
 reaches C<DocumentRoot> or the directory specified by L<EMBPERL_OBJECT_STOPDIR>.
 
 This page is then called as frame for building the real page. Addtionaly I<EmbperlObject>
 sets the search path to contain all directories it had to walk before finding that page.
+If L<EMBPERL_OBJECT_STOPDIR> is set the path contains all directories up to the
+in EMBPERL_OBJECT_STOPDIR specified one.
 
 This frame page can now include other pages, using the C<HTML::Embperl::Execute> method.
 Because the search path is set by I<EmbperlObject> the included files are searched in
@@ -324,6 +333,8 @@ which contains the base page. This means that you can have common files, like he
 in the base directory and override them as necessary in the subdirectory.
 
 To include the original requested file, you need to call C<Execute> with a C<'*'> as filename.
+To call the the same file, but in an upper directory you can use the
+special shortcut C<../*>.
 
 Additionaly I<EmbperlObject> sets up a inherence hierachie for you: The requested page
 inherit from the base page and the base page inherit from a class which could be
@@ -362,7 +373,8 @@ Directory where to stop searching for the base page
 =head2 EMBPERL_OBJECT_ADDPATH
 
 Additional directories where to search for pages. Directories are
-separated by C<;> (on Unix C<:> works also)
+separated by C<;> (on Unix C<:> works also). This path is
+B<always> appended to the searchpath.
 
 =head2 EMBPERL_OBJECT_FALLBACK
 

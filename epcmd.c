@@ -544,7 +544,7 @@ static int CmdUntil (/*i/o*/ register req * r,
     
     rc = EvalBool (r, (char *)sArg, (r -> CmdStack.State.pStart - r -> Buf.pBuf), &r -> CmdStack.State.nResult) ;
 
-    if (!r -> CmdStack.State.nResult && rc == ok) 
+    if (!r -> CmdStack.State.nResult && rc == ok && !r -> pImportStash)
         {
         r -> Buf.pCurrPos = r -> CmdStack.State.pStart ;        
         r -> Buf.nBlockNo = r -> CmdStack.State.nBlockNo ;        
@@ -622,7 +622,10 @@ static int CmdForeach (/*i/o*/ register req * r,
 	    if ((rc = EvalTransFlags (r, sVarName, (r -> CmdStack.State.pStart - r -> Buf.pBuf), G_ARRAY, &pRV)) != ok)
                 return rc ;
 
-            if (pRV == NULL)
+	    if (r -> pImportStash)
+		return ok ;
+          
+	    if (pRV == NULL)
                 return rcMissingArgs ;
 
             if (SvTYPE (pRV) != SVt_RV)
@@ -874,8 +877,7 @@ static int CmdVar (/*i/o*/ register req * r,
 	           r -> Buf.sEvalPackage, r -> Buf.nSourceline, r -> Buf.pFile -> sSourcefile, sArg,
 		   r -> Buf.sEvalPackage, sArg) ;
 
-    lprintf (r, SvPV (pSV, na)) ;
-    rc = EvalDirect (r, pSV) ;
+    rc = EvalDirect (r, pSV, 0, NULL) ;
     SvREFCNT_dec(pSV);
 
     return rc ;
@@ -1455,7 +1457,7 @@ static int HtmlTableHead (/*i/o*/ register req * r,
 /* ---------------------------------------------------------------------------- */
 
 
-static SV * SplitFdat     (/*i/o*/ register req * r,
+SV * SplitFdat     (/*i/o*/ register req * r,
                            /*in*/  SV ** ppSVfdat,
                            /*out*/ SV ** ppSVerg,
                            /*in*/  char * pName,
@@ -1635,7 +1637,7 @@ static int HtmlOption (/*i/o*/ register req * r,
                 oputc (r, ' ') ;
                 oputs (r, sArg) ;
                 }
-            oputs (r, " SELECTED>") ;
+            oputs (r, " selected>") ;
             r -> Buf.pCurrPos = NULL ; /* nothing more left of html tag */
             return ok ;
             }
@@ -1787,12 +1789,12 @@ static int HtmlInput (/*i/o*/ register req * r,
             SvREFCNT_dec (pSVVal) ;
 	    }
        
-        pCheck = GetHtmlArg (sArg, "CHECKED", &clen) ;
+        pCheck = GetHtmlArg (sArg, "checked", &clen) ;
         if (pCheck)
             {
             if (!bEqual)
                 { /* Remove "checked" */
-                oputs (r, "<INPUT ") ;
+                oputs (r, "<input ") ;
                 
                 owrite (r, sArg, pCheck - sArg) ;
     
@@ -1806,9 +1808,9 @@ static int HtmlInput (/*i/o*/ register req * r,
             {
             if (bEqual)
                 { /* Insert "checked" */
-                oputs (r, "<INPUT ") ;
+                oputs (r, "<input ") ;
                 oputs (r, sArg) ;
-                oputs (r, " CHECKED>") ;
+                oputs (r, " checked>") ;
     
                 r -> Buf.pCurrPos = NULL ; /* nothing more left of html tag */
                 }
@@ -1818,11 +1820,11 @@ static int HtmlInput (/*i/o*/ register req * r,
         { /* text field */
         if (pVal)
             {
-            oputs (r, "<INPUT ") ;
+            oputs (r, "<input ") ;
 
             owrite (r, sArg, pVal - sArg) ;
 
-            oputs (r, " VALUE=\"") ;
+            oputs (r, " value=\"") ;
             OutputToHtml (r, pData) ;
             oputs (r, "\" ") ;
 
@@ -1836,9 +1838,9 @@ static int HtmlInput (/*i/o*/ register req * r,
             }
         else
             {
-            oputs (r, "<INPUT ") ;
+            oputs (r, "<input ") ;
             oputs (r, sArg) ;
-            oputs (r, " VALUE=\"") ;
+            oputs (r, " value=\"") ;
             OutputToHtml (r, pData) ;
             oputs (r, "\">") ;
     

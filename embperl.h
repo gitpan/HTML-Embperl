@@ -67,7 +67,9 @@ enum tRc
     rcCGIError,
     rcUnclosedHtml,
     rcUnclosedCmd,
-    rcNotAllowed
+    rcNotAllowed,
+    rcNotHashRef,
+    rcTagMismatch
     
     } ;
 
@@ -101,6 +103,9 @@ enum dbg
     dbgProfile          = 0x100000,
     dbgSession          = 0x200000,
     dbgImport		= 0x400000,
+    dbgBuildToken       = 0x800000,
+    dbgParse            = 0x1000000,
+    dbgObjectSearch     = 0x2000000,
     
     dbgAll  = -1
     } ;

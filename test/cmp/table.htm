@@ -5,8 +5,6 @@
 
 <body>
 
-<table></table>
-
 
 <p> $tabmode = default <p>
 
@@ -22,79 +20,128 @@ $a[0][0] = '1/1' ;<BR>
 
 <P>$tabmode = default <P>
 
-<table border="2" width="100%">
+
+<table>
     <tr>
-        <td>a1/1 </td>
+        <td>a1/1</td>
     </tr> 
 
     <tr>
-        <td>a2/1 </td>
-    
-        <td>a2/2 </td>
+        <td>a2/1</td>
     </tr> 
 
     <tr>
-        <td>a3/1 </td>
+        <td>a3/1</td>
+    </tr> 
+</table>
+<table>
+    <tr>
+        <td>a3/1</td>
     
-        <td>a3/2 </td>
+        <td>a3/2</td>
     
-        <td>a3/3 </td>
+        <td>a3/3</td>
     </tr> 
 </table>
 
-<table border="2" width="100%">
+
+<table>
     <tr>
-        <th>1</th>
-        <th>2</th>
-        <th>3</th>
+        <td>beforea1/1</td>
     </tr> 
+
     <tr>
-        <td>a1/1 </td>
+        <td>beforea2/1</td>
     </tr> 
- 
+
     <tr>
-        <td>a2/1 </td>
-    
-        <td>a2/2 </td>
-    </tr> 
- 
-    <tr>
-        <td>a3/1 </td>
-    
-        <td>a3/2 </td>
-    
-        <td>a3/3 </td>
+        <td>beforea3/1</td>
     </tr> 
 </table>
-
-<table border="2" width="100%">
+<table>
     <tr>
-        <th>b3/1</th>
+        <td>beforea3/1</td>
     
-        <th>b3/2</th>
+        <td>beforea3/2</td>
     
-        <th>b3/3</th>
-    </tr> 
-    <tr>
-        <td>a1/1 </td>
-    </tr> 
- 
-    <tr>
-        <td>a2/1 </td>
-    
-        <td>a2/2 </td>
-    </tr> 
- 
-    <tr>
-        <td>a3/1 </td>
-    
-        <td>a3/2 </td>
-    
-        <td>a3/3 </td>
+        <td>beforea3/3</td>
     </tr> 
 </table>
 
 <table>
+    <tr>
+        <td>a1/1after</td>
+    </tr> 
+
+    <tr>
+        <td>a2/1after</td>
+    </tr> 
+
+    <tr>
+        <td>a3/1after</td>
+    </tr> 
+</table>
+<table>
+    <tr>
+        <td>a3/1after</td>
+    
+        <td>a3/2after</td>
+    
+        <td>a3/3after</td>
+    </tr> 
+</table>
+<table>
+    <tr>
+        <td>beforea1/1after</td>
+    </tr> 
+
+    <tr>
+        <td>beforea2/1after</td>
+    </tr> 
+
+    <tr>
+        <td>beforea3/1after</td>
+    </tr> 
+</table>
+<table>
+    <tr>
+        <td>beforea3/1after</td>
+    
+        <td>beforea3/2after</td>
+    
+        <td>beforea3/3after</td>
+    </tr> 
+</table>
+
+<table></table>
+^<table>
+^-    <tr></tr> 
+^-</table>
+^-
+^-
+<table border="1" width="100%">
+    <tr>
+        <td>a1/1 </td>
+    </tr> 
+
+    <tr>
+        <td>a2/1 </td>
+    
+        <td>a2/2 </td>
+    </tr> 
+
+    <tr>
+        <td>a3/1 </td>
+    
+        <td>a3/2 </td>
+    
+        <td>a3/3 </td>
+    </tr> 
+</table>
+
+
+
+<table border="4">
     <tr>
         <td>
             <table>
@@ -240,7 +287,7 @@ $a[0][0] = '1/1' ;<BR>
     </tr> 
 </table>
 
-<table border="3" width="100%">
+<table border="5" width="100%">
     <tr>
         <td>b3/1</td>
     
@@ -257,7 +304,7 @@ $a[0][0] = '1/1' ;<BR>
     </tr> 
 </table>
 
-<table border="4" width="100%">
+<table border="6" width="100%">
     <tr>
         <td>a2/1</td>
     </tr> 
@@ -273,7 +320,7 @@ $a[0][0] = '1/1' ;<BR>
     </tr> 
 </table>
 
-<table>
+<table border="7">
     <tr>
         <TD BGCOLOR="#F4A460">a1/1 </td>
     </tr> 
@@ -294,7 +341,7 @@ $a[0][0] = '1/1' ;<BR>
 </table>
 
 
-<table>
+<table border="8">
     <tr>
         <TD BGCOLOR="#F4A460">a1/1 </td>
         <TD BGCOLOR="#FFFF00">a1/2 </td>
@@ -305,9 +352,9 @@ $a[0][0] = '1/1' ;<BR>
     </tr> 
 </table>
 
-<table border="0" width="100%">
+<table border="9" width="100%">
         <tr>
-            <td><table border="0">
+            <td><table border="10">
                 <tr>
                     <td valign="top">
                     <a href="inhalt.htm?Region=Pfalz">Pfalz</a></td>
@@ -319,7 +366,7 @@ $a[0][0] = '1/1' ;<BR>
                 </tr>
             </table>
             </td>
-            <td><table border="0">
+            <td><table border="11">
                 <tr>
                     <td valign="top"><p align="left">
                     <a href="inhalt.htm?Kategorie=Kultur">Kultur</a></p>
@@ -336,10 +383,9 @@ $a[0][0] = '1/1' ;<BR>
         </tr>
     </table>
 
-
-<table border="0" width="100%">
+<table border="12" width="100%">
         <tr>
-            <td><table border="0">
+            <td><table border="13">
                 <tr>
                     <td valign="top">
                     <a href="inhalt.htm?Region=Pfalz">Pfalz</a></td>
@@ -351,7 +397,7 @@ $a[0][0] = '1/1' ;<BR>
                     </tr>
             </table>
             </td>
-            <td><table border="0">
+            <td><table border="14">
                 <tr>
                     <td valign="top"><p align="left">
                     <a href="inhalt.htm?Kategorie=Kultur">Kultur</a></p>
@@ -379,124 +425,6 @@ $a[0][0] = '1/1' ;<BR>
         </tr>
     </table>
 
-
-<hr><P>$tabmode=3 + 48 ; $maxcol = 4; $maxrow = 4 <P>
-<table>
-    <tr>
-        <td>a1/1 </td>
-    
-        <td> </td>
-    
-        <td> </td>
-    
-        <td> </td>
-    </tr> 
-
-    <tr>
-        <td>a2/1 </td>
-    
-        <td>a2/2 </td>
-    
-        <td> </td>
-    
-        <td> </td>
-    </tr> 
-
-    <tr>
-        <td>a3/1 </td>
-    
-        <td>a3/2 </td>
-    
-        <td>a3/3 </td>
-    
-        <td> </td>
-    </tr> 
-
-    <tr>
-        <td> </td>
-    
-        <td> </td>
-    
-        <td> </td>
-    
-        <td> </td>
-    </tr> 
-</table>
-
-<hr><p> $tabmode=1 + 32 ; <p>
-<table>
-    <tr>
-        <td>a1/1 </td>
-    
-        <td> </td>
-    </tr> 
-
-    <tr>
-        <td>a2/1 </td>
-    
-        <td>a2/2 </td>
-    
-        <td> </td>
-    </tr> 
-
-    <tr>
-        <td>a3/1 </td>
-    
-        <td>a3/2 </td>
-    
-        <td>a3/3 </td>
-    
-        <td> </td>
-    </tr> 
-
-    <tr>
-        <td> </td>
-    </tr> 
-</table>
-
-optDisableTableScan is now: 0 <BR>
-optDisableTableScan is set now to: 1 <BR>
-optDisableTableScan is now: 1 <BR>
-
-<table border="2" width="100%">
-    <tr>
-        <td>a1/1 </td>
-    </tr> 
-</table>
-
-optDisableTableScan is now: 1 <BR>
-optDisableTableScan is set now to: 0 <BR>
-optDisableTableScan is now: 0 <BR>
-
-<table border="2" width="100%">
-    <tr>
-        <td>a1/1 </td>
-    
-        <td> </td>
-    </tr> 
-
-    <tr>
-        <td>a2/1 </td>
-    
-        <td>a2/2 </td>
-    
-        <td> </td>
-    </tr> 
-
-    <tr>
-        <td>a3/1 </td>
-    
-        <td>a3/2 </td>
-    
-        <td>a3/3 </td>
-    
-        <td> </td>
-    </tr> 
-
-    <tr>
-        <td> </td>
-    </tr> 
-</table>
 
 </body>
 </html>

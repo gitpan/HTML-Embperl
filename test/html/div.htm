@@ -170,19 +170,11 @@ Please take a look at the source in your browser to see the difference<BR>
 
 <table border="2" width="100%">
     <tr>
-        <th>1</th>
-        <th>2</th>
-        <th>3</th>
-    </tr> 
-    <tr>
         <td>[+ $a[$row][$col] +] </td>
     </tr> 
 </table>
 
 <table border="2" width="100%">
-    <tr>
-        <th>[+ $b[2][$col] +]</th>
-    </tr> 
     <tr>
         <td>[+ $a[$row][$col] +] </td>
     </tr> 
@@ -203,7 +195,7 @@ Please take a look at the source in your browser to see the difference<BR>
 
 <P>[+ $HTML::Embperl::VERSION +]<P>
 
-<P>[+ $tabmode +]<P>
+<P>[+ $tabmode || 17 +]<P>
 <P>[+ local $tabmode = 1 +]<P>
 
 <P>

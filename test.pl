@@ -2,6 +2,422 @@
 # Before `make install' is performed this script should be runnable with
 # `make test'. After `make install' it should work as `perl test.pl'
 
+
+@testdata = (
+    'ascii' => { },
+    'pure.htm' => { },
+    'plain.htm' => {
+        repeat => 3,
+        },
+    'plainblock.htm' => { 
+        repeat => 2,
+        },
+    'error.htm' => { 
+        'repeat'     => 3,
+        'errors'     => 8,
+        'version'    => 1,
+        },
+    'error.htm' => { 
+        'repeat'     => 3,
+        'errors'     => 7,
+        'version'    => 2,
+        },
+    'errormismatch.htm' => { 
+        'errors'     => '1',
+        'version'    => 2,
+        },
+    'errormismatchcmd.htm' => { 
+        'errors'     => '1',
+        'version'    => 2,
+        },
+    'unclosed.htm' => { 
+        'errors'     => '1',
+        },
+    'notfound.htm' => { 
+        'errors'     => '1',
+        },
+    'notallow.xhtm' => { 
+        'errors'     => '1',
+        },
+    'noerr/noerrpage.htm' => { 
+        'option'     => 2,
+        'errors'     => 8,
+        'version'    => 1,
+        'cgi'        => 0,
+        },
+    'errdoc/errdoc.htm' => { 
+        'option'     => '262144',
+        'errors'     => 6,
+        'version'    => 1,
+        'cgi'        => 0,
+        },
+    'errdoc/errdoc.htm' => { 
+        'option'     => '262144',
+        'errors'     => 7,
+        'version'    => 2,
+        'cgi'        => 0,
+        },
+    'errdoc/epl/errdoc2.htm' => { 
+        'option'     => '262144',
+        'errors'     => 6,
+        'version'    => 1,
+        'cgi'        => 0,
+        'noloop'     => 1,
+        },
+    'errdoc/epl/errdoc2.htm' => { 
+        'option'     => '262144',
+        'errors'     => 7,
+        'version'    => 2,
+        'cgi'        => 0,
+        },
+    'rawinput/rawinput.htm' => { 
+        'option'     => '16',
+        'cgi'        => 0,
+        },
+    'var.htm' => { },
+    'varerr.htm' => { 
+        'errors'     => -1,
+        'noloop'     => 1,
+        },
+    'varerr.htm' => { 
+        'errors'     => 2,
+        'version'    => 1,
+        'cgi'        => 0,
+        },
+    'escape.htm' => { 
+        repeat => 2,
+        },
+    'escraw.htm' => { 
+        'version'    => 1,
+        },
+    'spaces.htm' => { 
+        'version'    => 1,
+        },
+    'tagscan.htm' => { },
+    'tagscan.htm' => { 
+        'debug'      => '1',
+        },
+    'tagscandisable.htm' => { 
+        'version'    => 1,
+        },
+    'if.htm' => { },
+    'ifperl.htm' => { },
+    'loop.htm' => { 
+        'query_info' => 'erstes=Hallo&zweites=Leer+zeichen&drittes=%21%22%23%2a%2B&erstes=Wert2',
+        },
+    'loopperl.htm' => { 
+        'query_info' => 'erstes=Hallo&zweites=Leer+zeichen&drittes=%21%22%23&erstes=Wert2',
+        },
+    'table.htm' => { },
+    'table.htm' => { 
+        'debug'      => '1',
+        },
+    'tabmode.htm' => { 
+        'version'    => 1,
+        },
+    'lists.htm' => { 
+        'query_info' => 'sel=2&SEL1=B&SEL3=D&SEL4=cc',
+        },
+    'mix.htm' => { },
+    'binary.htm' => { },
+    'nesting.htm' => { 
+        'version'    => 1,
+        },
+    'object.htm' => { 
+        'version'    => 1,
+        'errors'     => '2',
+        },
+    'object.htm' => { 
+        'version'    => 2,
+        },
+    'discard.htm' => { ###
+        'errors'     => '12',
+        'version'    => 1,
+        },
+    'input.htm' => { 
+        'query_info' => 'feld5=Wert5&feld6=Wert6&feld7=Wert7&feld8=Wert8&cb5=cbv5&cb6=cbv6&cb7=cbv7&cb8=cbv8&cb9=ncbv9&cb10=ncbv10&cb11=ncbv11&mult=Wert3&mult=Wert6&esc=a<b&escmult=a>b&escmult=Wert3',
+        },
+    'hidden.htm' => { 
+        'query_info' => 'feld1=Wert1&feld2=Wert2&feld3=Wert3&feld4=Wert4',
+        },
+    'java.htm' => { },
+    'inputjava.htm' => { },
+    'post.htm' => {
+        'offline'    => 0,
+        },
+    'upload.htm' => { 
+        'query_info' => 'multval=A&multval=B&multval=C&single=S',
+        'offline'    => 0,
+        },
+    'reqrec.htm' => {
+        'offline'    => 0,
+        'cgi'        => 0,
+        'repeat'     => 2,
+        },
+    'include.htm' => { 
+        'version'    => 1,
+        },
+    'rawinput/include.htm' => { 
+        'option'     => '16',
+        'version'    => 2,
+        },
+    'includeerr1.htm' => { 
+        'errors'     => '1',
+        },
+    'includeerr2.htm' => { 
+        'errors'     => 4,
+        'version'    => 1,
+        },
+    'includeerr2.htm' => { 
+        'errors'     => 1,
+        'version'    => 2,
+        },
+    'registry/Execute.htm' => {
+        'modperl'    => 1,
+        },
+    'registry/errpage.htm' => { ###
+        'modperl'    => 1,
+        'errors'     => '16',
+        'version'    => 1,
+        },
+    'registry/tied.htm' => { 
+        'modperl'    => 1,
+        'errors'     => '3',
+        },
+    'registry/tied.htm' => { 
+        'modperl'    => 1,
+        'errors'     => '3',
+        },
+    'callsub.htm' => { 
+        'repeat'     => 2,
+        },
+    'importsub.htm' => { 
+        'version'    => 1,
+        'repeat'     => 2,
+        },
+    'importsub2.htm' => { 
+        'version'    => 1,
+        },
+    'importmodule.htm' => { 
+        'version'    => 1,
+        },
+    'recursexec.htm' => { 
+        'version'    => 1,
+        },
+    'nph/div.htm' => { 
+        'option'     => '64',
+        },
+    'nph/npherr.htm' => { 
+        'option'     => '64',
+        'errors'     => '8',
+        'version'    => 1,
+        'cgi'        => 0,
+        },
+    'nph/nphinc.htm' => { 
+        'option'     => '64',
+        'cgi'        => 0,
+        },
+    'sub.htm' => { },
+    'sub.htm' => { },
+    'exit.htm' => { 
+        'version'    => 1,
+        'offline'    => 0,
+        'cgi'        => 0,
+        },
+    'exit2.htm' => { 
+        'version'    => 1,
+        'offline'    => 0,
+        },
+    'exit3.htm' => { 
+        'version'    => 1,
+        'offline'    => 0,
+        },
+    'chdir.htm' => { 
+        'query_info' => 'a=1&b=2&c=&d=&f=5&g&h=7&=8&=',
+        },
+    'chdir.htm' => { 
+        'query_info' => 'a=1&b=2&c=&d=&f=5&g&h=7&=8&=',
+        },
+    'allform/allform.htm' => { 
+        'query_info' => 'a=1&b=2&c=&d=&f=5&g&h=7&=8&=',
+        'option'     => '8192',
+        'cgi'        => 0,
+        },
+    'stdout/stdout.htm' => { 
+        'option'     => '16384',
+        'version'    => 1,
+        'cgi'        => 0,
+        },
+    'nochdir/nochdir.htm' => { 
+        'query_info' => 'a=1&b=2',
+        'option'     => '384',
+        'cgi'        => 0,
+        },
+    'match/div.htm' => {
+        'offline'    => 0,
+     },
+    'match/div.asc' => {
+        'offline'    => 0,
+     },
+    'http.htm' => { 
+        'offline'    => 0,
+        'version'    => 1,
+        },
+    'div.htm' => { },
+    'taint.htm' => { 
+        'offline'    => 0,
+        'cgi'        => 0,
+        'errors'     => '1',
+        },
+    'ofunc/div.htm' => { },
+    'safe/safe.htm' => { 
+        'option'     => '4',
+        'errors'     => '-1',
+        'version'    => 1,
+        'cgi'        => 0,
+        },
+    'safe/safe.htm' => { 
+        'option'     => '4',
+        'errors'     => '-1',
+        'version'    => 1,
+        'cgi'        => 0,
+        },
+    'safe/safe.htm' => { 
+        'option'     => '4',
+        'errors'     => '-1',
+        'version'    => 1,
+        'cgi'        => 0,
+        },
+    'opmask/opmask.htm' => { 
+        'option'     => '12',
+        'errors'     => '-1',
+        'compartment'=> 'TEST',
+        'version'    => 1,
+        'cgi'        => 0,
+        },
+    'opmask/opmasktrap.htm' => { 
+        'option'     => '12',
+        'errors'     => '2',
+        'compartment'=> 'TEST',
+        'version'    => 1,
+        'cgi'        => 0,
+        },
+    'mdatsess.htm' => { 
+        'offline'    => 0,
+        'query_info' => 'cnt=0',
+        },
+    'setsess.htm' => { 
+        'offline'    => 0,
+        'query_info' => 'a=1',
+        },
+    'mdatsess.htm' => { 
+        'offline'    => 0,
+        'query_info' => 'cnt=1',
+        },
+    'getnosess.htm' => { 
+        'offline'    => 0,
+        'query_info' => 'nocookie=2',
+        },
+    'mdatsess.htm' => { 
+        'offline'    => 0,
+        'query_info' => 'cnt=2',
+        },
+    'getsess.htm' => {
+        'offline'    => 0,
+        },
+    'mdatsess.htm' => { 
+        'offline'    => 0,
+        'query_info' => 'cnt=3',
+        },
+    'execgetsess.htm' => {
+        'offline'    => 0,
+        },
+    'registry/reggetsess.htm' => { 
+        'modperl'    => 1,
+        'cgi'        => 0,
+        },
+    'getsess.htm' => {
+        'offline'    => 0,
+        },
+    'delsess.htm' => { 
+        'offline'    => 0,
+        },
+    'getdelsess.htm' => { 
+        'offline'    => 0,
+        },
+    'clearsess.htm' => {
+        'offline'    => 0,
+        },
+    'EmbperlObject/epopage1.htm' => {
+        'offline'    => 0,
+        'cgi'        => 0,
+	'version'    => 1,
+        },
+    'EmbperlObject/epodiv.htm' => { 
+        'offline'    => 0,
+        'cgi'        => 0,
+        'version'    => 1,
+        },
+    'EmbperlObject/sub/epopage2.htm' => { 
+        'offline'    => 0,
+        'cgi'        => 0,
+        'version'    => 1,
+        },
+    'EmbperlObject/sub/epopage2.htm' => { 
+        'offline'    => 0,
+        'cgi'        => 0,
+        'version'    => 1,
+        },
+    'EmbperlObject/sub/subsub/eposubsub.htm' => { 
+        'offline'    => 0,
+        'cgi'        => 0,
+        'version'    => 1,
+        },
+    'EmbperlObject/sub/eponotfound.htm' => { 
+        'offline'    => 0,
+        'cgi'        => 0,
+        'version'    => 1,
+        },
+    'EmbperlObject/obj/epoobj1.htm' => { 
+        'offline'    => 0,
+        'cgi'        => 0,
+        'version'    => 1,
+        },
+    'EmbperlObject/obj/epoobj2.htm' => { 
+        'offline'    => 0,
+        'cgi'        => 0,
+        'version'    => 1,
+        },
+    'EmbperlObject/obj/epoobj3.htm' => { 
+        'offline'    => 0,
+        'cgi'        => 0,
+        'version'    => 1,
+        },
+    'EmbperlObject/obj/epoobj4.htm' => { 
+        'offline'    => 0,
+        'cgi'        => 0,
+        'version'    => 1,
+        },
+    'EmbperlObject/base2/epostopdir.htm' => { 
+        'offline'    => 0,
+        'cgi'        => 0,
+        'version'    => 1,
+        },
+    'EmbperlObject/base3/epobaselib.htm' => { 
+        'offline'    => 0,
+        'cgi'        => 0,
+        'version'    => 1,
+        },
+) ;
+
+for ($i = 0 ; $i < @testdata; $i += 2)
+    { 
+    for ($j = 0; $j < ($testdata[$i+1]->{repeat} || 1); $j++)
+        { push @tests, $i ; }
+    }
+
+
+=pod
 @tests = (
     'ascii',
     'pure.htm',
@@ -19,6 +435,7 @@
     'notallow.xhtm???1',
     'noerr/noerrpage.htm???8?2',
     'errdoc/errdoc.htm???8?262144',
+    'errdoc/epl/errdoc2.htm???8?262144',
     'rawinput/rawinput.htm????16',
     'var.htm',
     'varerr.htm???-1',
@@ -54,6 +471,7 @@
     'registry/errpage.htm???16',
     'registry/tied.htm???3',
     'registry/tied.htm???3',
+#    'registry/subreq2.htm',
     'callsub.htm',
     'callsub.htm',
     'importsub.htm',
@@ -93,8 +511,13 @@
     'getsess.htm',
     'mdatsess.htm?cnt=3',
     'execgetsess.htm',
+    'registry/reggetsess.htm',
+    'getsess.htm',
+    'delsess.htm',
+    'getdelsess.htm',
     'clearsess.htm',
     'EmbperlObject/epopage1.htm',
+    'EmbperlObject/epodiv.htm',
     'EmbperlObject/sub/epopage2.htm',
     'EmbperlObject/sub/epopage2.htm',
     'EmbperlObject/sub/eponotfound.htm',
@@ -102,6 +525,8 @@
     'EmbperlObject/obj/epoobj2.htm',
     'EmbperlObject/obj/epoobj3.htm',
     'EmbperlObject/obj/epoobj4.htm',
+    'EmbperlObject/base2/epostopdir.htm',
+    'EmbperlObject/base3/epobaselib.htm',
     ) ;
 
 @tests2 = (
@@ -208,7 +633,7 @@
     'EmbperlObject/epopage1.htm',
 ##    'EmbperlObject/sub/epopage2.htm',
     ) ;
-
+=cut
 
 # avoid some warnings:
 
@@ -374,7 +799,7 @@ if ($opt_tests)
     $i = 0 ;
     foreach $t (@tests)
 	{
-	print "$i = $t\n" ;
+	print "$i = $testdata[$t]\n" ;
 	$i++ ;
 	}
     $fatal = 0 ;
@@ -412,6 +837,8 @@ sub chompcr
 	{
 	$_[0] = $1
 	}
+    $_[0] =~ s/\s+/ /g ;
+    $_[0] =~ s/\s+>/>/g ;
     }
 
 #####################################################
@@ -431,11 +858,19 @@ sub CmpFiles
     while (defined ($l1 = <F1>))
 	{
 	chompcr ($l1) ;
+        while (($l1 =~ /^\s*$/) && defined ($l1 = <F1>))
+            { chompcr ($l1) ; } 
+
+
 	if (!$errin) 
 	    {
 	    $l2 = <F2> ;
 	    chompcr ($l2) ;
+            while (($l2 =~ /^\s*$/) && defined ($l2 = <F2>))
+                { chompcr ($l2) ; } 
 	    }
+	last if (!defined ($l2) && !defined ($l1)) ;
+
 	if (!defined ($l2))
 	    {
 	    print "\nError in Line $line\nIs:\t$l1\nShould:\t<EOF>\n" ;
@@ -444,7 +879,7 @@ sub CmpFiles
 
 	
 	$eq = 0 ;
-	while (((!$notseen && ($l2 =~ /^\^\^(.*?)$/)) || ($l2 =~ /^\^\-(.*?)$/)) && !$eq)
+	while (((!$notseen && ($l2 =~ /^\^\^(.*?)$/i)) || ($l2 =~ /^\^\-(.*?)$/i)) && !$eq)
 	    {
 	    $l2 = $1 ;
 	    if (($l1 =~ /^\s*$/) && ($l2 =~ /^\s*$/))
@@ -461,10 +896,10 @@ sub CmpFiles
 
 	if (!$eq)
 	    {
-	    if ($l2 =~ /^\^(.*?)$/)
+	    if ($l2 =~ /^\^(.*?)$/i)
 		{
 		$l2 = $1 ;
-		$eq = $l1 =~ /$l2/ ;
+		$eq = $l1 =~ /$l2/i ;
 		}
 	    else
 		{
@@ -565,6 +1000,7 @@ sub REQ
 
     my $c = $response -> header ('Set-Cookie') || '' ;
     $cookie = $c if (!$cookie && ($c =~ /EMBPERL_UID/)) ;  
+    $cookie = undef if (($c =~ /EMBPERL_UID=;/)) ;  
     #print "Got Cookie $cookie\n" ;
 
     #print $response -> headers -> as_string () ;
@@ -725,7 +1161,7 @@ $defaultdebug = 0 if ($opt_quite) ;
 $opt_ep1 = 0 if (!$EP2) ;
 $EP1COMPAT = 1 if ($opt_ep1) ;
 
-@tests = @tests2 if ($EP2) ;
+#@tests = @tests2 if ($EP2) ;
 $startnumber = 0 ;
 
 if ($#ARGV >= 0)
@@ -743,6 +1179,7 @@ if ($#ARGV >= 0)
     elsif ($ARGV[0] =~ /^\d/)
 	{
 	@savetests = @tests ;
+        $startnumber = $ARGV[0] ;
 	@tests = () ;
 	while (defined ($t = shift @ARGV))
 	    {
@@ -785,6 +1222,7 @@ $loopcnt = 0 ;
 $notseen = 1 ;
 %seen = () ;
 $max_sv = 0 ;
+$version = $EP2?2:1 ;
 	
 $cp = HTML::Embperl::AddCompartment ('TEST') ;
 
@@ -814,48 +1252,47 @@ do
 	$n = 0 ;
 	$t_offline = 0 ;
 	$n_offline = 0 ;
-	$testnum = -1 + $startnumber ;
-        foreach $ep1compat (0, 1)
+        foreach $ep1compat (($version == 2 && $opt_ep1)?(0, 1):(0))
             {
-            next if (($ep1compat && !($opt_ep1))  || (!$ep1compat && !($opt_offline)));
+	    $testnum = -1 + $startnumber ;
+            #next if (($ep1compat && !($opt_ep1))  || (!$ep1compat && !($opt_offline)));
 
             $ENV{EMBPERL_EP1COMPAT} = $ep1compat ;
 	    print "\nTesting Embperl 1.x compatibility mode...\n\n" if ($ep1compat) ;
             
-            foreach $url (@tests)
+            foreach $testno (@tests)
 	        {
+                $file = $testdata[$testno] ;
+                $test = $testdata[$testno+1] ;
+	        $org  = '' ;
+	        $testversion = $version == 2 && !$ep1compat?2:1 ;
+
 	        $testnum++ ;
-                ($file, $query_info, $debug, $errcnt, $option, $ns) = split (/\?/, $url) ;
-	        next if ($file eq 'http.htm') ;
-	        next if ($file eq 'taint.htm') ;
-	        next if ($file eq 'reqrec.htm') ;
-	        next if ($file eq 'http.htm') ;
-	        next if ($file eq 'post.htm') ;
-	        next if ($file eq 'upload.htm') ;
-	        next if ($file =~ /^exit.htm/) ;
-	        next if ($file =~ /registry/) ;
-	        next if ($file =~ /match\//) ;
-	        next if ($file =~ /sess\.htm/) ;
-	        next if ($file =~ /EmbperlObject/) ;
+                next if ($test->{version} && $testversion != $test->{version}) ;
+                next if ((defined ($test -> {offline}) && $test -> {offline} == 0) ||
+                              (!$test -> {offline} && ($test -> {modperl} || $test -> {cgi} || $test -> {http}))) ;
+
 	        next if ($DProf && ($file =~ /safe/)) ;
 	        next if ($DProf && ($file =~ /opmask/)) ;
+                
+                $errcnt = $test -> {errors} || 0 ;
                 $errcnt = 7 if ($file eq 'varerr.htm' && $^V && $^V ge v5.6.0) ;
 
-	        $debug ||= $defaultdebug ;  
+                $debug = $test -> {debug} || $defaultdebug ;  
 	        $page = "$inpath/$file" ;
-                $page .= '-1' if ($ep1compat && -e "$page-1") ;
-	        $errcnt ||= 0 ;
+	        $page = "$inpath$testversion/$file" if (-e "$inpath$testversion/$file") ;
+                #$page .= '-1' if ($ep1compat && -e "$page-1") ;
     
 	        $notseen = $seen{"o:$page"}?0:1 ;
 	        $seen{"o:$page"} = 1 ;
     
 	        delete $ENV{EMBPERL_OPTIONS} if (defined ($ENV{EMBPERL_OPTIONS})) ;
-	        $ENV{EMBPERL_OPTIONS} = $option if (defined ($option)) ;
-	        $ENV{EMBPERL_COMPARTMENT} = $ns if (defined ($ns)) ;
+	        $ENV{EMBPERL_OPTIONS} = $test -> {option} if (defined ($test -> {option})) ;
+	        $ENV{EMBPERL_COMPARTMENT} = $test -> {compartment} if (defined ($test -> {compartment})) ;
 	        @testargs = ( '-o', $outfile ,
 			      '-l', $logfile,
 			      '-d', $debug,
-			       $page, $query_info || '') ;
+			       $page, $test -> {query_info} || '') ;
 	        unshift (@testargs, 'dbgbreak') if ($opt_dbgbreak) ;
     
 	        $txt = "#$testnum ". $file . ($debug != $defaultdebug ?"-d $debug ":"") . '...' ;
@@ -888,8 +1325,9 @@ do
 		    {
 		    $page =~ /.*\/(.*)$/ ;
 		    $org = "$cmppath/$1" ;
+		    $org = "$cmppath$testversion/$1" if (-e "$cmppath$testversion/$1") ;
                     $org .= '56' if ($file eq 'varerr.htm' && $^V && $^V ge v5.6.0) ;
-                    $org .= '-1' if ($ep1compat && -e "$org-1") ;
+                    #$org .= '-1' if ($ep1compat && -e "$org-1") ;
 
 		    $err = CmpFiles ($outfile, $org, $errin) ;
 		    }
@@ -1033,7 +1471,10 @@ do
 
 	    $txt = 'error.htm' ;
 	    $org = "$cmppath/$txt" ;
+	    $org = "$cmppath$version/$txt" if (-e "$cmppath$version/$txt") ;
 	    $src = "$inpath/$txt" ;
+	    $src = "$inpath$version/$txt" if (-e "$inpath$version/$txt") ;
+            $page = $src ;
 
 	    $notseen = $seen{"o:$src"}?0:1 ;
 	    $seen{"o:$src"} = 1 ;
@@ -1074,7 +1515,7 @@ do
 
             foreach $src ('EmbperlObject/epopage1.htm', 'EmbperlObject/sub/epopage2.htm', 'EmbperlObject/obj/epoobj3.htm')
                 {
-	        if ($err == 0)
+	        if ($err == 0 && $version == 1)
 		    {
                     $src =~ m#^.*/(.*?)$# ;
 		    $org = "$cmppath/$1" ;
@@ -1215,7 +1656,7 @@ do
 	print "without apache httpd installed.\n" ;
 	}
 
-    
+    $ep1compat = 0 ;
     while ($loc ne '' && $err == 0)
 	{
 	if ($loc eq $embploc)
@@ -1228,11 +1669,27 @@ do
 	$n_req = 0 ;
 	$n = 0 ;
 	$testnum = -1  + $startnumber;
-        foreach $url (@tests)
+        foreach $testno (@tests)
 	    {
-	    $testnum++ ;
-            ($file, $query_info, $debug, $errcnt) = split (/\?/, $url) ;
+            $file = $testdata[$testno] ;
+            $test = $testdata[$testno+1] ;
+	    $org  = '' ;
+            $testnum++ ;
+            $testversion = $version == 2 && !$ep1compat?2:1 ;
 
+            next if ($test->{noloop} && $loopcnt > 0) ;
+            next if ($test->{version} && $testversion != $test->{version}) ;
+            next if ($loc eq $embploc && 
+                      ((defined ($test -> {modperl}) && $test -> {modperl} == 0) ||
+                        (!$test -> {modperl} && ($test -> {offline} || $test -> {cgi})))) ;
+
+            next if ($loc eq $cgiloc && 
+                      ((defined ($test -> {cgi}) && $test -> {cgi} == 0) ||
+                        (!$test -> {cgi} && ($test -> {offline} || $test -> {modperl})))) ;
+            
+
+
+=pod
 	    next if ($file =~ /\// && $loc eq $cgiloc) ;        
 	    next if ($file eq 'taint.htm' && $loc eq $cgiloc) ;
 	    next if ($file eq 'reqrec.htm' && $loc eq $cgiloc) ;
@@ -1243,13 +1700,13 @@ do
 	    next if (($file =~ /registry/) && $loc eq $cgiloc) ;
 	    next if (($file =~ /match/) && $loc eq $cgiloc) ;
 	    #next if ($file eq 'http.htm' && $loc eq $cgiloc) ;
-	    next if ($file eq 'chdir.htm' && $EPWIN32) ;
-	    next if ($file eq 'notfound.htm' && $loc eq $cgiloc && $EPWIN32) ;
 	    #next if ($file eq 'notallow.xhtm' && $loc eq $cgiloc && $EPWIN32) ;
-	    next if ($file =~ /opmask/ && $EPSTARTUP =~ /_dso/) ;
 	    next if ($file eq 'clearsess.htm' && !$looptest) ;
 	    next if (($file =~ /EmbperlObject/) && $loc eq $cgiloc) ;
-            $errcnt = 7 if ($file eq 'varerr.htm' && $^V && $^V ge v5.6.0) ;
+=cut
+	    next if ($file eq 'chdir.htm' && $EPWIN32) ;
+	    next if ($file eq 'notfound.htm' && $loc eq $cgiloc && $EPWIN32) ;
+	    next if ($file =~ /opmask/ && $EPSTARTUP =~ /_dso/) ;
 	    if ($file =~ /sess\.htm/)
                 { 
                 next if ($loc eq $cgiloc && $EPSESSIONCLASS ne 'Embperl') ;
@@ -1262,10 +1719,13 @@ do
                     }
                 }
      
-	    $debug ||= $defaultdebug ;  
-	    $errcnt ||= 0 ;
+            $errcnt = $test -> {errors} || 0 ;
+            $errcnt = 7 if ($file eq 'varerr.htm' && $^V && $^V ge v5.6.0) ;
 	    $errcnt = -1 if ($EPWIN32 && $loc eq $cgiloc) ;
+
+	    $debug = $test -> {debug} || $defaultdebug ;  
 	    $page = "$inpath/$file" ;
+            $page = "$inpath$testversion/$file" if (-e "$inpath$testversion/$file") ;
 	    if ($opt_nostart)
 		{
 		$notseen = 0 ;
@@ -1297,9 +1757,9 @@ do
 
             if (!$EPWIN32 && $loc eq $embploc && !($file =~ /notfound\.htm/))
                 {
-                print "ERROR: Missing read permission for file $inpath/$file\n" if (!-r "$inpath/$file") ;
+                print "ERROR: Missing read permission for file $inpath/$file\n" if (!-r $page) ;
                 local $> = $httpduid ;
-                print "ERROR: $inpath/$file must be readable by $EPUSER (uid=$httpduid)\n" if (!-r "$inpath/$file") ;
+                print "ERROR: $inpath/$file must be readable by $EPUSER (uid=$httpduid)\n" if (!-r $page) ;
                 }
 
 	    $n_req++ ;
@@ -1309,13 +1769,13 @@ do
             if (defined ($opt_ab))
 		{
 		$opt_ab = 10 if (!$opt_ab) ;
-		my $cmd = "ab -n $opt_ab 'http://$host:$port/$loc$file?$query_info'";
+		my $cmd = "ab -n $opt_ab 'http://$host:$port/$loc$file?$test->{query_info}'";
 		print "$cmd\n" ;
 		system ($cmd) and die "Cannot start ab ($!)" ;
 		}
 	    else
 		{				
-	        $m = REQ ($loc, $file, $query_info, $outfile, $content, $upload) ;
+	        $m = REQ ($loc, $file, $test -> {query_info}, $outfile, $content, $upload) ;
 		}
 	    $t_req += HTML::Embperl::Clock () - $t1 ; 
 
@@ -1343,8 +1803,9 @@ do
 		{
 		$page =~ /.*\/(.*)$/ ;
 		$org = "$cmppath/$1" ;
+	        $org = "$cmppath$testversion/$1" if (-e "$cmppath$testversion/$1") ;
                 $org .= '56' if ($file eq 'varerr.htm' && $^V && $^V ge v5.6.0) ;
-                $org .= '-1' if ($opt_ep1 && -e "$org-1") ;
+                #$org .= '-1' if ($opt_ep1 && -e "$org-1") ;
 
 		#print "Compare $page with $org\n" ;
 		$err = CmpFiles ($outfile, $org) ;
@@ -1393,11 +1854,12 @@ until ($looptest == 0 || $err != 0 || ($loopcnt >= $opt_loop && $opt_loop > 0)) 
 if ($err)
     {
     $page ||= '???' ;
-    $org  ||= '???' ;
     print "Input:\t\t$page\n" ;
     print "Output:\t\t$outfile\n" ;
-    print "Compared to:\t$org\n" ;
+    print "Compared to:\t$org\n" if ($org) ;
     print "Log:\t\t$logfile\n" ;
+    @p = map { " $_ = $test->{$_}\n" } keys %$test if (ref ($test) eq 'HASH') ;
+    print "Testparameter:\n @p" if (@p) ;
     print "\n ERRORS detected! NOT all test have been passed successfully\n\n" ;
     }
 else

@@ -26,12 +26,15 @@
 *
 ------------------------------------------------------------------------------- */
 
-int EvalDirect (/*i/o*/ register req * r,
-			/*in*/    SV * pArg) 
+int EvalDirect (/*i/o*/ register req *  r,
+		/*in*/  SV *            pArg, 
+                /*in*/  int		numArgs,
+                /*in*/  SV **		pArgs)
     {
     dTHXsem 
     dSP;
     SV *  pSVErr  ;
+    int   num ;         
 
     EPENTRY (EvalDirect) ;
 
@@ -39,6 +42,10 @@ int EvalDirect (/*i/o*/ register req * r,
     pCurrReq = r ;
 
     PUSHMARK(sp);
+    for (num = 0; num < numArgs; num++)
+	XPUSHs(pArgs [num]) ;            /* push pointer to argument */
+    PUTBACK;
+
     perl_eval_sv(pArg, G_SCALAR | G_KEEPERR);
 
 
@@ -575,6 +582,205 @@ static int EvalAndCall (/*i/o*/ register req * r,
     return rcEvalErr ;
     }
 
+#ifdef EP2
+
+/* -------------------------------------------------------------------------------
+*
+* Call an already evaled PERL Statement
+* 
+* in  sArg   Statement to eval (only used for logging)
+* in  pSub   CV which should be called
+* in  numArgs number of arguments
+* in  pArgs   args for subroutine
+* out pRet   pointer to SV contains the eval return
+*
+------------------------------------------------------------------------------- */
+
+
+int CallStoredCV  (/*i/o*/ register req * r,
+		    /*in*/  const char *  sArg,
+                    /*in*/  CV *          pSub,
+                    /*in*/  int           numArgs,
+                    /*in*/  SV **         pArgs,
+                    /*in*/  int           flags,
+                    /*out*/ SV **         pRet)             
+    {
+    int   num ;         
+    SV *  pSVErr ;
+
+    dSP;                            /* initialize stack pointer      */
+
+    EPENTRY (CallCV) ;
+
+    if (r -> bDebug & dbgEval)
+        lprintf (r, "[%d]EVAL< %s\n", r -> nPid, sArg) ;
+
+    tainted = 0 ;
+    pCurrReq = r ;
+
+    ENTER ;
+    SAVETMPS ;
+    PUSHMARK(sp);                   /* remember the stack pointer    */
+    for (num = 0; num < numArgs; num++)
+	XPUSHs(pArgs [num]) ;            /* push pointer to argument */
+    PUTBACK;
+
+    num = perl_call_sv ((SV *)pSub, flags | G_EVAL | (numArgs?0:G_NOARGS)) ; /* call the function             */
+    
+    SPAGAIN;                        /* refresh stack pointer         */
+    
+    if (r -> bDebug & dbgMem)
+        lprintf (r, "[%d]SVs:  %d\n", r -> nPid, sv_count) ;
+    /* pop the return value from stack */
+    if (num == 1)   
+        {
+        *pRet = POPs ;
+        if (SvTYPE (*pRet) == SVt_PVMG)
+            { /* variable is magicaly -> fetch value now */
+            SV * pSV = newSVsv (*pRet) ;
+            *pRet = pSV ;
+            }
+        else        
+            SvREFCNT_inc (*pRet) ;
+
+        if (r -> bDebug & dbgEval)
+            {
+            if (SvOK (*pRet))
+                lprintf (r, "[%d]EVAL> %s\n", r -> nPid, SvPV (*pRet, na)) ;
+            else
+                lprintf (r, "[%d]EVAL> <undefined>\n", r -> nPid) ;
+            }                
+        }
+     else if (num == 0)
+        {
+        *pRet = NULL ;
+        if (r -> bDebug & dbgEval)
+            lprintf (r, "[%d]EVAL> <NULL>\n", r -> nPid) ;
+        }
+     else
+        {
+        *pRet = &sv_undef ;
+        if (r -> bDebug & dbgEval)
+            lprintf (r, "[%d]EVAL> returns %d args instead of one\n", r -> nPid, num) ;
+        }
+
+     PUTBACK;
+     FREETMPS ;
+     LEAVE ;
+
+     if (r -> bExit)
+	 {
+	 if (*pRet)
+	     SvREFCNT_dec (*pRet) ;
+	 *pRet = NULL ;
+	 return rcExit ;
+	 }
+     
+     pSVErr = ERRSV ;
+     if (SvTRUE (pSVErr))
+        {
+        STRLEN l ;
+        char * p ;
+
+        if (SvMAGICAL (pSVErr) && mg_find (pSVErr, 'U'))
+            {
+ 	    /* On an Apache::exit call, the function croaks with error having 'U' magic.
+ 	     * When we get this return, we'll just give up and quit this file completely,
+ 	     * without error. */
+             
+	    /*struct magic * m = SvMAGIC (pSVErr) ;*/
+
+	    sv_unmagic(pSVErr,'U');
+	    sv_setpv(pSVErr,"");
+
+	    r -> bOptions |= optNoUncloseWarn ;
+	    r -> bExit = 1 ;
+
+            return rcExit ;
+            }
+
+        p = SvPV (pSVErr, l) ;
+        if (l > sizeof (r -> errdat1) - 1)
+            l = sizeof (r -> errdat1) - 1 ;
+        strncpy (r -> errdat1, p, l) ;
+        if (l > 0 && r -> errdat1[l-1] == '\n')
+             l-- ;
+        r -> errdat1[l] = '\0' ;
+         
+	LogError (r, rcEvalErr) ;
+
+	sv_setpv(pSVErr,"");
+
+	return rcEvalErr ;
+        }
+
+     
+    return ok ;
+    }
+
+
+/* -------------------------------------------------------------------------------
+*
+* Eval PERL Statements check if it's already compiled
+* 
+* in  sArg      Statement to eval
+* in  nFilepos  position von eval in file (is used to build an unique key)
+* out pRet      pointer to SV contains the eval return
+*
+------------------------------------------------------------------------------- */
+
+int EvalStore (/*i/o*/ register req * r,
+	      /*in*/  const char *  sArg,
+	      /*in*/  int           nFilepos,
+	      /*out*/ SV **         pRet)             
+
+
+    {
+    int     rc ;
+    SV **   ppSV ;
+    
+    
+    EPENTRY (Eval) ;
+
+    r -> numEvals++ ;
+    *pRet = NULL ;
+
+    if (r -> bDebug & dbgCacheDisable)
+        return EvalAllNoCache (r, sArg, pRet) ;
+
+    /* Already compiled ? */
+
+    ppSV = hv_fetch(r -> Buf.pFile -> pCacheHash, (char *)&nFilepos, sizeof (nFilepos), 1) ;  
+    if (ppSV == NULL)
+        return rcHashError ;
+
+    if (*ppSV != NULL && SvTYPE (*ppSV) == SVt_PV)
+        {
+        strncpy (r -> errdat1, SvPV(*ppSV, na), sizeof (r -> errdat1) - 1) ; 
+        LogError (r, rcEvalErr) ;
+        return rcEvalErr ;
+        }
+
+    lprintf (r, "CV ppSV=%s type=%d\n", *ppSV?"ok":"NULL", *ppSV?SvTYPE (*ppSV):0) ;               
+    if (*ppSV == NULL || SvTYPE (*ppSV) != SVt_PVCV)
+	{
+	if ((rc = EvalOnly (r, sArg, ppSV, G_SCALAR, "")) != ok)
+	    {
+	    *pRet = NULL ;
+	    return rc ;
+	    }
+        *pRet = *ppSV  ;
+	return ok ;
+	}
+
+    *pRet = *ppSV  ;
+    r -> numCacheHits++ ;
+    return ok ;
+    }
+
+
+
+#endif /* EP2 */
 
 /* -------------------------------------------------------------------------------
 *

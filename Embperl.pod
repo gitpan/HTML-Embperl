@@ -337,7 +337,7 @@ Same as L<"EMBPERL_ALLOW"|"EMBPERL_ALLOW (only 1.2b10 and above)"> (see below)
 
 =item B<path (1.3b1 and above)>
 
-Same as L<"EMBPERL_PATH"|"EMBPERL_PATH (1.3b1 and above)"> (see below)
+Same as L<"EMBPERL_PATH"|"EMBPERL_PATH (1.3b6 and above)"> (see below)
 
 =item B<uri>
 
@@ -485,12 +485,17 @@ If specified, only files which match the given B<perl regular expression> will b
 processed by Embperl, all other files will return FORBIDDEN.
 Especialy in a CGI environenemt this can be usefull to make a server more secure.
 
-=head2 EMBPERL_PATH (1.3b1 and above)
+=head2 EMBPERL_PATH (1.3b6 and above)
 
 Can contain a semikolon (under Unix also colon) separated file search path.
-When a file is processed and the filename
-does not contain a path, I<Embperl> searches all the specified directories for
-that file.
+When a file is processed and the filename isn't an absolute path or
+does not start with ./ (or .\ under windows), I<Embperl> searches all
+the specified directories for that file. Directories must end with a
+slash (C</>), otherwise the entry is treated as a fileprefix. 
+A special handling is done if the filename starts with any number
+of C<../> i.e. refers to an upper directory. Then I<Embperl> strips
+the same number of entries at the start of the searchpath as the filename
+contains C<../>.
 
 =head2 EMBPERL_COMPARTMENT
 
@@ -561,7 +566,12 @@ optReturnError is set.
 With this option set Embperl sends no output in case of an error, instead
 it returns the error back to Apache or the calling programm. When running
 under mod_perl this gives you the chance to use the Apache I<ErrorDocument>
-directive to show a custom error-document.
+directive to show a custom error-document. Inside the ErrorDocument
+you can retrieve the error messages with
+
+  $errors = $req_rec -> prev -> pnotes('EMBPERL_ERRORS') ;
+
+where C<$errors> is a array reference. (1.3b5+)
 
 =item optSafeNamespace = 4
 
@@ -1750,6 +1760,10 @@ again. To avoid this problem, add 4 to the values below. This will cause
 Embperl to ignore the backslash when it does output escaping at all.
 (only 1.3b4 and above)
 
+B<NOTE 2:> If you want to output binary data, you must set the escmode
+to zero. (only 1.3b6 and above)
+
+ 
 =over 4
 
 =item B<$escmode = 3 (or 7)>
@@ -1871,6 +1885,10 @@ to cleanup addtional variables you can add them to the hash %CLEANUP, with the k
 variable name and the value set to one. The other way round you could prevent Embperl from cleaning
 up some variables, by adding them to this hash, with a values of zero.
 
+=head2 %CLEANUPFILE (1.2b6+)
+
+Same purpose as C<%CLEANUP>, but you may add filenames and all variables defined inside that file
+will be cleaned up.
 
 =head1 Session handling
 
@@ -1938,6 +1956,57 @@ it's id, while the data is stored by Apache::Session. (Further version may also 
 URL rewriting for storing the id).
 When you store data to %mdat Embperl will store the data via Apache::Session and retrieves it
 when the next request comes to the same page.
+
+
+=head2 Functions/Methods for session handling
+
+=head2 HTML::Embperl::Req::SetupSession ($req_rec, $Inputfile)  [1.3b6+]
+
+This can be used from an script that will later on call L<HTML::Embperl::Execute|Execute> to
+preset the session so it's available to the calling script. 
+
+=over 4
+
+=item $req_rec
+
+Apache request record when running under mod_perl, C<undef> otherwise.
+
+=item $Inputfile
+
+Name of file that will be process later by Embperl. It is used to setup L<%mdat>. If you
+don't pass the C<$Inputfile>, C<%mdat> is not setup.
+
+=back
+
+Returns a reference to L<%udat> or, if call in an array context, a reference to L<%udat>
+and L<%mdat>. See also C<CleanupSession>.
+
+=head2 HTML::Embperl::Req::GetSession / $r -> GetSession [1.3b6+]
+
+Returns a reference to L<%udat> or, if call in an array context, a reference to L<%udat>
+and L<%mdat>. This could be used by modules that are called from inside a Embperl page,
+where the session management is already setup. If called as a method C<$r> must be 
+a HTML::Embperl::Req object, which is passed as first parameter to every Embperl page in @_ .
+
+=head2 HTML::Embperl::Req::CleanupSession / $r -> CleanupSession [1.3b6+]
+
+Must be called at the end of a script by scripts, that uses C<SetupSession>,
+ but do not call L<HTML::Embperl::Execute|Execute>.
+If called as a method C<$r> must be 
+a HTML::Embperl::Req object, which is passed as first parameter to every Embperl page in @_ .
+
+=head2 HTML::Embperl::Req::DeleteSession / $r -> DeleteSession [1.3b6+]
+
+Deletes the session data and removes the cookie from the browser.
+If called as a method C<$r> must be 
+a HTML::Embperl::Req object, which is passed as first parameter to every Embperl page in @_ .
+
+=head2 HTML::Embperl::Req::DeleteSession / $r -> DeleteSession [1.3b6+]
+
+Triggers a resend of the cookie. Normaly the cookie is only send the first time.
+If called as a method C<$r> must be 
+a HTML::Embperl::Req object, which is passed as first parameter to every Embperl page in @_ .
+
 
 =head1 (Safe-)Namespaces and opcode restrictions
 
@@ -2596,7 +2665,7 @@ They need to get mmm.el from this URL:
 http://members.tripod.com/gchen2/xemacs/
 
 Then download my mmm-embperl.el from this one:
-http://inanna.starseed.com/~erik/mmm-embperl.el
+http://www.aarg.net/erik/mmm-embperl.el
 
 The documentation for using these is included in those two elisp files.
 

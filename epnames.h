@@ -40,6 +40,7 @@
 #define _malloc                EMBPERL__malloc           
 #define LogError               EMBPERL_LogError          
 #define OutputToHtml           EMBPERL_OutputToHtml      
+#define OutputEscape           EMBPERL_OutputEscape      
 #define Eval                   EMBPERL_Eval              
 #define EvalNum                EMBPERL_EvalNum           
 #define EvalBool               EMBPERL_EvalBool           
@@ -50,6 +51,8 @@
 #define GetHtmlArg             EMBPERL_GetHtmlArg        
 #define GetHashValueLen        EMBPERL_GetHashValueLen   
 #define GetHashValue           EMBPERL_GetHashValue      
+#define GetHashValueStrDup     EMBPERL_GetHashValueStrDup      
+#define SetHashValueStr        EMBPERL_SetHashValueStr      
 #define Char2Html              EMBPERL_Char2Html         
 #define Html2Char              EMBPERL_Html2Char         
 #define sizeHtml2Char          EMBPERL_sizeHtml2Char     
@@ -72,6 +75,7 @@
 #define ScanCmdEvalsInString   EMBPERL_ScanCmdEvalsInString
 #define EvalDirect             EMBPERL_EvalDirect
 #define GetLineNo              EMBPERL_GetLineNo
+#define GetLineNoOf            EMBPERL_GetLineNoOf
 #define Dirname                EMBPERL_Dirname
 #define CommitError            EMBPERL_CommitError
 #define RollbackError          EMBPERL_RollbackError
@@ -91,12 +95,15 @@
 #define SetupRequest           EMBPERL_SetupRequest   
 #define Term                   EMBPERL_Term           
 #define sstrdup                EMBPERL_sstrdup        
+#define _ep_memdup             EMBPERL__ep_memdup
 #define ProcessBlock           EMBPERL_ProcessBlock
 #define NewEscMode             EMBPERL_NewEscMode
 #define GetSubTextPos          EMBPERL_GetSubTextPos
 #define SetSubTextPos          EMBPERL_SetSubTextPos
 #define SetupDebugger          EMBPERL_SetupDebugger
 #define GetFileData            EMBPERL_GetFileData
+#define SplitFdat              EMBPERL_SplitFdat
+#define AddMagicAV             EMBPERL_AddMagicAV
 
 #define InitialReq             EMBPERL_InitialReq
 #define pCurrReq               EMBPERL_pCurrReq

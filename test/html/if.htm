@@ -28,12 +28,13 @@ a3
 [$ endif <br>$]
 
 a4
+[#
 [$<br>if $a $]
     a <br>
 [$ <br> else<br>$]
     not a<br>
 [$ <br>endif $]
-
+#]
 a5
 [$ if $a$]
     a <br>
@@ -311,6 +312,104 @@ Ignored, ok!
 Not ignored, ERROR!
 
 <endif> 
+
+
+
+<TABLE WIDTH="530" BORDER="0">
+ <TR>
+  <TD ALIGN="LEFT">
+   [$ if ($badge eq "iit") $]
+	<A HREF="/iit/">
+   [$ else $]
+	<A HREF="/">
+   [$ endif $]
+  <IMG SRC="[$ if (($server_type eq "iii.co.uk")) $]/i/www.[+ $server_type +]/[+ $badge || "iiilogo_narrow" +].gif[$ else $]/icons/[+ $badge || "iiilogo_narrow" +].gif[$ endif $]"
+  WIDTH="[+ $icon_width +]" HEIGHT="[+ $icon_height +]" BORDER="0" 
+   [$ if ($badge eq "iit") $]
+	ALT="iit logo"
+   [$ else $]
+	ALT="iii logo"
+   [$ endif $]
+   [$ if (($badge eq "iit") && ($badge ne $cookie_badge) && !$cookie_to) $]
+        onload="window.open('/iit/welcometoiit.epl','dis','status=no,scrollbars=no,resizable=yes,width=390,height=410,screenX=50,screenY=50,top=50,left=50'); return false"
+   [$ elsif (($badge eq "") && ($cookie_badge eq "iit") && !$cookie_from) $]
+        onload="window.open('/iit/leavingiit.epl','dis','status=no,scrollbars=no,resizable=yes,width=370,height=320,screenX=100,screenY=100,top=100,left=100'); return false"
+   [$ endif $] qqq >
+
+  </TD>
+</TR>
+</TABLE>
+
+[- $cookie_badge = "iit" ; 
+   $server_type = "iii.co.uk" ; 
+   $icon_width = 1 ; 
+   $icon_height=2; -]
+<TABLE WIDTH="530" BORDER="0">
+ <TR>
+  <TD ALIGN="LEFT">
+   [$ if ($badge eq "iit") $]
+	<A HREF="/iit/">
+   [$ else $]
+	<A HREF="/">
+   [$ endif $]
+  <IMG SRC="[$ if (($server_type eq "iii.co.uk")) $]/i/www.[+ $server_type +]/[+ $badge || "iiilogo_narrow" +].gif[$ else $]/icons/[+ $badge || "iiilogo_narrow" +].gif[$ endif $]"
+  WIDTH="[+ $icon_width +]" HEIGHT="[+ $icon_height +]" BORDER="0" 
+   [$ if ($badge eq "iit") $]
+	ALT="iit logo"
+   [$ else $]
+	ALT="iii logo"
+   [$ endif $]
+   [$ if (($badge eq "iit") && ($badge ne $cookie_badge) && !$cookie_to) $]
+        onload="window.open('/iit/welcometoiit.epl','dis','status=no,scrollbars=no,resizable=yes,width=390,height=410,screenX=50,screenY=50,top=50,left=50'); return false"
+   [$ elsif (($badge eq "") && ($cookie_badge eq "iit") && !$cookie_from) $]
+        onload="window.open('/iit/leavingiit.epl','dis','status=no,scrollbars=no,resizable=yes,width=370,height=320,screenX=100,screenY=100,top=100,left=100'); return false"
+   [$ endif $]>
+
+  </TD>
+</TR>
+</TABLE>
+
+
+[- $icon_width = 5 ; $icon_height=10; -]
+
+<IMG 
+[$ if (($server_type eq "iii")) $]
+SRC="/i/www.[+ $server_type +]/[+ $badge || "iiilogo_narrow_if" +].gif" WIDTH="[+ $icon_width +]" HEIGHT="[+ $icon_height +]" BORDER="0"
+[$ else $]
+SRC="/icons/[+ $badge || "iiilogo_narrow_else" +].gif" WIDTH="[+ $icon_width +]" HEIGHT="[+ $icon_height +]" BORDER="0" 
+[$ endif $]
+[$ if ($badge eq "iit") $]
+	ALT="iit logo"
+[$ else $]
+	ALT="iii logo"
+[$ endif $]>
+
+[- $icon_width = 6 ; $icon_height=11; $server_type="iii" ; $badge = "iit" -]
+
+<IMG 
+[$ if (($server_type eq "iii")) $]
+SRC="/i/www.[+ $server_type +]/[+ $badge || "iiilogo_narrow_if" +].gif" WIDTH="[+ $icon_width +]" HEIGHT="[+ $icon_height +]" BORDER="0"
+[$ else $]
+SRC="/icons/[+ $badge || "iiilogo_narrow_else" +].gif" WIDTH="[+ $icon_width +]" HEIGHT="[+ $icon_height +]" BORDER="0" 
+[$ endif $]
+[$ if ($badge eq "iit") $]
+	ALT="iit logo"
+[$ else $]
+	ALT="iii logo"
+[$ endif $]>
+
+<IMG 
+[$ if (($server_type eq "iii")) $]
+SRC="/i/www.[+ $server_type +]/[+ $badge || "iiilogo_narrow_if" +].gif" WIDTH="[+ $icon_width +]" HEIGHT="[+ $icon_height +]" BORDER="0"
+[$ else $]
+SRC="/icons/[+ $badge || "iiilogo_narrow_else" +].gif" WIDTH="[+ $icon_width +]" HEIGHT="[+ $icon_height +]" BORDER="0" 
+[$ endif $]
+[$ if ($badge eq "iit") $]
+	ALT="iit logo"
+[$ else $]
+	ALT="iii logo"
+[$ endif $]
+qqq>
 
 
 

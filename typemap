@@ -2,6 +2,7 @@ TYPEMAP
 tConf * T_PTROBJ_CONF
 tReq *  T_PTROBJ_REQ
 tFile * T_PTROBJ_FILE
+tDomNode * T_PTROBJ_DOMNODE
 
 INPUT
 T_PTROBJ_CONF
@@ -14,7 +15,7 @@ T_PTROBJ_REQ
     {
     MAGIC * mg ;
     if (mg = mg_find (SvRV($arg), '~'))
-        $var = (tReq *)(mg -> mg_len) ;
+        $var = *((tReq **)(mg -> mg_ptr)) ;
     else
         croak (\"$var is not of type HTML::Embperl::Req\") ;
     }
@@ -25,6 +26,17 @@ T_PTROBJ_FILE
         $var = (tFile *)(SvIV((SV *)SvRV($arg))) ;
     else
         croak (\"$var is not of type HTML::Embperl::File\") ;
+
+T_PTROBJ_DOMNODE
+    {
+    MAGIC * mg ;
+    if (mg = mg_find (SvRV($arg), '~'))
+        $var = *((tDomNode **)(mg -> mg_ptr)) ;
+    else
+        croak (\"$var is not of type XML::Embperl::DOM::Node\") ;
+    }
+
+
 
 OUTPUT
 T_PTROBJ_CONF
@@ -41,3 +53,12 @@ T_PTROBJ_REQ
  
 T_PTROBJ_FILE
     sv_setref_pv ($arg, \"HTML::Embperl::File\", (void *)$var) ;
+
+T_PTROBJ_DOMNODE
+    {
+    SV * pSV = $var -> pDomNodeSV ;
+    if (pSV == NULL)
+       $arg = &sv_undef ;
+    else
+        $arg = pSV ;
+    }

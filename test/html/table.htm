@@ -5,12 +5,6 @@
 
 <body>
 
-<table>
-    <tr>
-        <td>[+ $c[$row][$col] +] </td>
-    </tr> 
-</table>
-
 
 <p> $tabmode = default <p>
 
@@ -46,33 +40,72 @@ Please take a look at the source in your browser to see the difference<BR>
 
 <P>$tabmode = default <P>
 
-<table border="2" width="100%">
+
+<table>
     <tr>
-        <td>[+ $a[$row][$col] +] </td>
+        <td>[+ $a[$row][0] +]</td>
+    </tr> 
+</table>
+<table>
+    <tr>
+        <td>[+ $a[2][$col] +]</td>
     </tr> 
 </table>
 
-<table border="2" width="100%">
+
+<table>
     <tr>
-        <th>1</th>
-        <th>2</th>
-        <th>3</th>
-    </tr> 
-    <tr>
-        <td>[+ $a[$row][$col] +] </td>
+        <td>before[+ $a[$row][0] +]</td>
     </tr> 
 </table>
-
-<table border="2" width="100%">
+<table>
     <tr>
-        <th>[+ $b[2][$col] +]</th>
-    </tr> 
-    <tr>
-        <td>[+ $a[$row][$col] +] </td>
+        <td>before[+ $a[2][$col] +]</td>
     </tr> 
 </table>
 
 <table>
+    <tr>
+        <td>[+ $a[$row][0] +]after</td>
+    </tr> 
+</table>
+<table>
+    <tr>
+        <td>[+ $a[2][$col] +]after</td>
+    </tr> 
+</table>
+<table>
+    <tr>
+        <td>before[+ $a[$row][0] +]after</td>
+    </tr> 
+</table>
+<table>
+    <tr>
+        <td>before[+ $a[2][$col] +]after</td>
+    </tr> 
+</table>
+
+<table>
+    <tr>
+        <td>[+ $c[$row] +]</td>
+    </tr> 
+</table>
+<table>
+    <tr>
+        <td>[+ $c[$col] +]</td>
+    </tr> 
+</table>
+
+
+<table border="1" width="100%">
+    <tr>
+        <td>[+ $a[$row][$col] +] </td>
+    </tr> 
+</table>
+
+
+
+<table border="4">
     <tr>
         <td>
             <table>
@@ -85,7 +118,7 @@ Please take a look at the source in your browser to see the difference<BR>
     </tr> 
 </table>
 
-<table border="3" width="100%">
+<table border="5" width="100%">
     <tr>
         <td>[+ $b[2][$col] +]</td>
     </tr> 
@@ -94,7 +127,7 @@ Please take a look at the source in your browser to see the difference<BR>
     </tr> 
 </table>
 
-<table border="4" width="100%">
+<table border="6" width="100%">
     <tr>
         <td>[+ $a[$row+1][0] +]</td>
     </tr> 
@@ -103,7 +136,7 @@ Please take a look at the source in your browser to see the difference<BR>
     </tr> 
 </table>
 
-<table>
+<table border="7">
     <tr>
         <TD BGCOLOR="[+ ($row & 1)?(($col&1)?'#7CFC00':'#A4A4B4'):(($col&1)?'#FFFF00':'#F4A460') +]">[+ $a[$row][$col] +] </td>
     </tr> 
@@ -112,7 +145,7 @@ Please take a look at the source in your browser to see the difference<BR>
 
 [-    $a[0][1] = 'a1/2' ; -]
 
-<table>
+<table border="8">
     <tr>
         <TD BGCOLOR="#F4A460">[+ $a[$row*2][$col*2] +] </td>
         <TD BGCOLOR="#FFFF00">[+ $a[$row*2][$col*2+1] +] </td>
@@ -124,6 +157,7 @@ Please take a look at the source in your browser to see the difference<BR>
 </table>
 
 [-     $a[0][1] = undef ; -]
+
 
 [-
 
@@ -137,17 +171,16 @@ $kats[0]{Id} = 'Kultur' ;
 $kats[1]{Id} = 'Sport' ;
 
 -]
-
-    <table border="0" width="100%">
+    <table border="9" width="100%">
         <tr>
-            <td><table border="0">
+            <td><table border="10">
                 <tr>
                     <td valign="top">
                     <a href="inhalt.htm?Region=[+$regs[$row]{Id}+]">[+$regs[$row]{Id}+]</a></td>
                 </tr>
             </table>
             </td>
-            <td><table border="0">
+            <td><table border="11">
                 <tr>
                     <td valign="top"><p align="left">
                     <a href="inhalt.htm?Kategorie=[+$kats[$row]{Id}+]">[+$kats[$row]{Id}+]</a></p>
@@ -158,29 +191,30 @@ $kats[1]{Id} = 'Sport' ;
         </tr>
     </table>
 
-
 [-
 $kats[2]{Id} = 'Veranstaltungen' ;
 $kats[3]{Id} = '' ;
 
 -]
 
-
-    <table border="0" width="100%">
+    <table border="12" width="100%">
         <tr>
-            <td><table border="0">
+            <td><table border="13">
                 <tr>
                     <td valign="top">
-                    [- $cmp = $regs[$row]{Id} -]
-                    [$if ($cmp || '') ne '' $] 
-                    <a href="inhalt.htm?Region=[+$regs[$row]{Id}+]">[+$regs[$row]{Id}+]</a></td>
+                    [- print LOG "row= $row  regs=$regs[0]{Id}\n" ; 1 ; -]
+					[- print LOG "1row= $row  regs=$regs[0]{Id}\n" ; $cmp = $regs[0]->{Id} ;  print LOG "2row= $row  regs=$regs[0]{Id}\n" ; 1 ; -]
+                    [- while (($k, $v) = each (%{$regs[0]})) { print LOG "$v=$k;\n" ; } -]
+					[$if ($cmp || '') ne '' $] 
+                    <a href="inhalt.htm?Region=[+print LOG "row= $row  regs=$regs[0]{Id}\n" ; $regs[$row]{Id}+]">[+$regs[$row]{Id}+]</a></td>
                     [$endif$]
                 </tr>
             </table>
             </td>
-            <td><table border="0">
+            <td><table border="14">
                 <tr>
                     <td valign="top"><p align="left">
+                    [- print LOG "row= $row  regs=$kats[0]{Id}\n" ; 1 ; -]
                     [- $cmp = $kats[$row]{Id} -]
                     [$if ($cmp || '') ne '' $] 
                     <a href="inhalt.htm?Kategorie=[+$kats[$row]{Id}+]">[+$kats[$row]{Id}+]</a></p>
@@ -192,44 +226,6 @@ $kats[3]{Id} = '' ;
         </tr>
     </table>
 
-
-<hr><P>$tabmode=3 + 48 ; $maxcol = 4; $maxrow = 4 <P>
-[- $tabmode=3 + 48 ; $maxcol = 4; $maxrow = 4 -]
-
-<table>
-    <tr>
-        <td>[+ $a[$row][$col] +] </td>
-    </tr> 
-</table>
-
-<hr><p> $tabmode=1 + 32 ; <p>
-[- $tabmode=1 + 32 ; -]
-
-<table>
-    <tr>
-        <td>[+ $a[$row][$col] +] </td>
-    </tr> 
-</table>
-
-optDisableTableScan is now: [+ $optDisableTableScan +] <BR>
-optDisableTableScan is set now to: [+ $optDisableTableScan = 1 +] <BR>
-optDisableTableScan is now: [+ $optDisableTableScan +] <BR>
-
-<table border="2" width="100%">
-    <tr>
-        <td>[+ $a[$row][$col] +] </td>
-    </tr> 
-</table>
-
-optDisableTableScan is now: [+ $optDisableTableScan +] <BR>
-optDisableTableScan is set now to: [+ $optDisableTableScan = 0 +] <BR>
-optDisableTableScan is now: [+ $optDisableTableScan +] <BR>
-
-<table border="2" width="100%">
-    <tr>
-        <td>[+ $a[$row][$col] +] </td>
-    </tr> 
-</table>
 
 </body>
 </html>

@@ -9,7 +9,7 @@
 #   IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 #   WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 #
-#   $Id:$
+#   $Id: Mail.pm,v 1.29 2000/09/11 09:53:33 richter Exp $
 #
 ###################################################################################
 
@@ -140,7 +140,7 @@ __END__
 
 =head1 NAME
 
-HTML::EmbperlObject - Extents HTML::Embperl for building webpages out of small objects
+HTML::Embperl::Mail - Sends results from Embperl via E-Mail
 
 
 =head1 SYNOPSIS

@@ -39,7 +39,10 @@ static char sTabMaxRowName [] = "HTML::Embperl::maxrow" ;
 static char sTabMaxColName [] = "HTML::Embperl::maxcol" ;
 static char sTabModeName   [] = "HTML::Embperl::tabmode" ;
 static char sEscModeName   [] = "HTML::Embperl::escmode" ;
-
+#ifdef EP2
+static char sCurrNodeName   [] = "HTML::Embperl::_ep_node" ;
+static char sTokenHashName [] = "HTML::Embperl::Syntax::Default" ;
+#endif
 
 static char sDefaultPackageName [] = "HTML::Embperl::DOC::_%d" ;
 
@@ -118,7 +121,7 @@ char * LogError (/*i/o*/ register req * r,
         case rcUnknownVarType:          msg ="[%d]ERR:  %d: Line %d: Type for Variable %s is unknown %s" ; break ;
         case rcPerlWarn:                msg ="[%d]ERR:  %d: Line %d: Warning in Perl code: %s%s" ; break ;
         case rcVirtLogNotSet:           msg ="[%d]ERR:  %d: Line %d: EMBPERL_VIRTLOG must be set, when dbgLogLink is set %s%s" ; break ;
-        case rcMissingInput:            msg ="[%d]ERR:  %d: Line %d: Sourcedaten fehlen %s%s" ; break ;
+        case rcMissingInput:            msg ="[%d]ERR:  %d: Line %d: Sourcedata missing %s%s" ; break ;
         case rcUntilWithoutDo:          msg ="[%d]ERR:  %d: Line %d: until without do%s%s" ; break ;
         case rcEndforeachWithoutForeach:msg ="[%d]ERR:  %d: Line %d: endforeach without foreach%s%s" ; break ;
         case rcMissingArgs:             msg ="[%d]ERR:  %d: Line %d: Too few arguments%s%s" ; break ;
@@ -131,6 +134,8 @@ char * LogError (/*i/o*/ register req * r,
         case rcUnclosedHtml:            msg ="[%d]ERR:  %d: Line %d: Unclosed HTML tag <%s> at end of file %s" ; break ;
         case rcUnclosedCmd:             msg ="[%d]ERR:  %d: Line %d: Unclosed command [$ %s $] at end of file %s" ; break ;
 	case rcNotAllowed:              msg ="[%d]ERR:  %d: Line %d: Forbidden %s: Does not match EMBPERL_ALLOW %s" ; break ;
+        case rcNotHashRef:              msg ="[%d]ERR:  %d: Line %d: %s need hashref in %s" ; break ; 
+	case rcTagMismatch:		msg ="[%d]ERR:  %d: Line %d: Endtag '%s' doesn't match starttag '%s'" ; break ; 
         default:                        msg ="[%d]ERR:  %d: Line %d: Error %s%s" ; break ; 
         }
 
@@ -157,7 +162,8 @@ char * LogError (/*i/o*/ register req * r,
         if (r -> nIOType != epIOCGI)
 #endif
             {
-            fprintf (stderr, "%s\n", sText) ;
+            /*fprintf (stderr, "%s\n", sText) ;*/
+            PerlIO_printf (PerlIO_stderr(), "%s\n", sText) ;
             fflush (stderr) ;
             }
         }
@@ -321,6 +327,9 @@ INTMG (TabMaxRow, pCurrReq -> nTabMaxRow, notused,  ;)
 INTMG (TabMaxCol, pCurrReq -> nTabMaxCol, notused, ;) 
 INTMG (TabMode, pCurrReq -> nTabMode, notused, ;) 
 INTMG (EscMode, pCurrReq -> nEscMode, notused, NewEscMode (pCurrReq, pSV)) 
+#ifdef EP2
+INTMG (CurrNode, pCurrReq -> xCurrNode, notused, ;) 
+#endif
 
 OPTMGRD (optDisableVarCleanup      , pCurrReq -> bOptions) ;
 OPTMG   (optDisableEmbperlErrorPage, pCurrReq -> bOptions) ;
@@ -832,7 +841,13 @@ static int ScanCmdEvals (/*i/o*/ register req * r,
 			}	
 		    else
 			{
-			OutputToHtml (r, SvPV (pRet, na)) ;
+			if (r -> pCurrEscape == NULL)
+			    {
+			    char * p = SvPV (pRet, l) ;
+			    owrite (r, p, l) ;
+			    }
+			else
+			    OutputToHtml (r, SvPV (pRet, l)) ;
 			}
 		    SvREFCNT_dec (pRet) ;
 		    }
@@ -1244,6 +1259,42 @@ static int AddMagic (/*i/o*/ register req * r,
     return ok ;
     }
 
+    
+/* ---------------------------------------------------------------------------- */
+/* add magic to array								*/
+/*										*/
+/* in  sVarName = Name of varibale						*/
+/* in  pVirtTab = pointer to virtual table					*/
+/*										*/
+/* ---------------------------------------------------------------------------- */
+
+int AddMagicAV (/*i/o*/ register req * r,
+		/*in*/ char *     sVarName,
+                /*in*/ MGVTBL *   pVirtTab) 
+
+    {
+    SV * pSV ;
+    struct magic * pMagic ;
+
+    EPENTRY (AddMagicAV) ;
+
+    
+    pSV = (SV *)perl_get_av (sVarName, TRUE) ;
+    sv_magic (pSV, NULL, 'P', sVarName, strlen (sVarName)) ;
+    pMagic = mg_find (pSV, 0) ;
+
+    if (pMagic)
+        pMagic -> mg_virtual = pVirtTab ;
+    else
+        {
+        LogError (r, rcMagicError) ;
+        return 1 ;
+        }
+
+
+    return ok ;
+    }
+
 
 /* ---------------------------------------------------------------------------- */
 /* init embperl module */
@@ -1258,6 +1309,9 @@ int Init        (/*in*/ int           _nIOType,
 
     {
     int     rc ;
+#ifdef EP2
+    HV *   pTokenHash ;
+#endif
 
     req * r = &InitialReq ;
     
@@ -1422,6 +1476,13 @@ int Init        (/*in*/ int           _nIOType,
         return 1 ;
         }
     
+#ifdef EP2
+    if (!(r -> pDomTreeAV = newAV ()))
+        {
+        LogError (r, rcArrayError) ;
+        return 1 ;
+        }
+#endif    
     
     rc = 0 ;
 
@@ -1432,6 +1493,9 @@ int Init        (/*in*/ int           _nIOType,
     ADDINTMG (TabMaxCol) ;
     ADDINTMG (TabMode) ;
     ADDINTMG (EscMode) ;
+#ifdef EP2
+    ADDINTMG (CurrNode) ;
+#endif    
     
     ADDOPTMG (optDisableVarCleanup      ) ;
     ADDOPTMG (optDisableEmbperlErrorPage) ;
@@ -1480,6 +1544,25 @@ int Init        (/*in*/ int           _nIOType,
     ADDOPTMG   (dbgSession     ) ;
     ADDOPTMG   (dbgImport      ) ;
    
+#ifdef EP2
+
+    DomInit () ;
+    embperl_CompileInit () ;    
+
+
+    if ((pTokenHash = perl_get_hv (sTokenHashName, TRUE)) == NULL)
+        {
+        return rcHashError ;
+        }
+    r -> pTokenTable = &DefaultTokenTable ;
+    if (rc = BuildTokenTable (r, pTokenHash , "", r -> pTokenTable))
+	{
+	LogError (r, rc) ;
+	return rc ;
+	}
+#endif    
+    
+
     bInitDone = 1 ;
 
     return rc ;
@@ -1575,6 +1658,10 @@ tConf * SetupConfData   (/*in*/ HV *   pReqInfo,
                          /*in*/ SV *   pOpcodeMask)
 
     {
+#ifdef EP2
+    SV * *   ppSV ;
+    SV *     pSV ;
+#endif
     tConf *  pConf = malloc (sizeof (tConf)) ;
     
     if (!pConf)
@@ -1596,6 +1683,27 @@ tConf * SetupConfData   (/*in*/ HV *   pReqInfo,
     pConf -> pCloseBracket = "*]" ;
     pConf -> sPath         = sstrdup (GetHashValueStr (pReqInfo, "path",  pCurrReq -> pConf?pCurrReq -> pConf -> sPath:NULL)) ;        /* file search path */
     pConf -> sReqFilename  = sstrdup (GetHashValueStr (pReqInfo, "reqfilename",  pCurrReq -> pConf?pCurrReq -> pConf -> sReqFilename:NULL)) ;        /* filename of original request */
+
+
+#ifdef EP2
+    pConf -> bEP1Compat =   GetHashValueInt (pReqInfo, "ep1compat",  pCurrReq -> pConf?pCurrReq -> pConf -> bEP1Compat:pCurrReq -> bEP1Compat) ;  /* EP1Compat */
+    /* ##ep2##
+    pConf -> sExpiresKey   = sstrdup (GetHashValueStr (pReqInfo, "expires_key",  pCurrReq -> pConf?pCurrReq -> pConf -> sExpiresKey:NULL)) ; ;
+
+    pConf -> nExpiresAt    = 0 ;
+    pConf -> pExpiresCV    = NULL ;
+    ppSV = hv_fetch (pReqInfo, "expires_at", 10, 0) ;
+    if (ppSV && *ppSV && SvTYPE (*ppSV) == SVt_RV &&
+	SvTYPE (pSV = SvRV (*ppSV)) == SVt_PVCV)
+	pConf -> pExpiresCV = pSV ;
+    else if (ppSV && *ppSV)
+	pConf -> nExpiresAt = SvNV (*ppSV) ;
+    */
+    pConf -> sExpiresKey   = NULL ;
+    pConf -> nExpiresAt    = 0 ;
+    pConf -> pExpiresCV    = NULL ;
+#endif
+
 
     return pConf ;
     }
@@ -1640,6 +1748,14 @@ void FreeConfData       (/*in*/ tConf *   pConf)
     if (pConf -> sReqFilename)
 	free (pConf -> sReqFilename) ;
 
+#ifdef EP2
+    if (pConf -> sExpiresKey)
+	free (pConf -> sExpiresKey) ;
+ 
+    if (pConf -> pExpiresCV)
+	SvREFCNT_dec (pConf -> pExpiresCV) ;
+#endif
+
     free (pConf) ;
     }
 
@@ -1663,6 +1779,7 @@ tFile * SetupFileData   (/*i/o*/ register req * r,
     char	txt [sizeof (sDefaultPackageName) + 50] ;
     char *	cache_key;
     int		cache_key_len;
+    char olddir[PATH_MAX] = "" ;
     
     EPENTRY (SetupFileData) ;
 
@@ -1671,10 +1788,33 @@ tFile * SetupFileData   (/*i/o*/ register req * r,
     if ( pConf->sPackage )
 	cache_key_len += strlen( pConf->sPackage );
     
-    cache_key = _malloc( r, cache_key_len + 1 );
+    /* is it a relativ filename? -> append path */
+    if (sSourcefile[0] == '/' || 
+        sSourcefile[0] == '\\' || 
+        (isalpha(sSourcefile[0]) && sSourcefile[1] == ':' && 
+            (sSourcefile[2] == '\\' || sSourcefile[2] == '/')))
+        getcwd (olddir, sizeof (olddir) - 1) ;
+
+    if ( olddir[0] )
+	cache_key_len += strlen( olddir );
+        
+    cache_key = _malloc( r, cache_key_len + 3 );
     strcpy( cache_key, sSourcefile );
     if ( pConf->sPackage )
 	strcat( cache_key, pConf->sPackage );
+
+    if ( olddir[0] )
+	strcat( cache_key, olddir );
+
+
+#ifdef EP2
+    if ( pConf->bEP1Compat )
+	{
+	strcat( cache_key, "-1" ); /* make sure Embperl 1.x compatible files get another namespace */
+	cache_key_len += 2 ;
+	}
+#endif
+
     ppSV = hv_fetch(pCacheHash, cache_key, cache_key_len, 0);  
     
     if (ppSV && *ppSV)
@@ -1754,6 +1894,7 @@ tFile * GetFileData     (/*in*/  char *  sSourcefile,
     char	txt [sizeof (sDefaultPackageName) + 50] ;
     char *	cache_key;
     int		cache_key_len;
+    char olddir[PATH_MAX] = "" ;
     
     EPENTRY (GetFileData) ;
 
@@ -1762,10 +1903,33 @@ tFile * GetFileData     (/*in*/  char *  sSourcefile,
     if ( sPackage && *sPackage)
 	cache_key_len += strlen( sPackage );
     
-    cache_key = malloc(cache_key_len + 1 );
+    /* is it a relativ filename? -> append path */
+    if (sSourcefile[0] == '/' || 
+        sSourcefile[0] == '\\' || 
+        (isalpha(sSourcefile[0]) && sSourcefile[1] == ':' && 
+            (sSourcefile[2] == '\\' || sSourcefile[2] == '/')))
+        getcwd (olddir, sizeof (olddir) - 1) ;
+
+    if ( olddir[0] )
+	cache_key_len += strlen( olddir );
+        
+    cache_key = malloc(cache_key_len + 3 );
     strcpy( cache_key, sSourcefile );
     if ( sPackage && *sPackage)
 	strcat( cache_key, sPackage );
+
+    if ( olddir[0] )
+	strcat( cache_key, olddir );
+
+
+#ifdef EP2xxx
+    if ( pConf->bEP1Compat )
+	{
+	strcat( cache_key, "-1" ); /* make sure Embperl 1.x compatible files get another namespace */
+	cache_key_len += 2 ;
+	}
+#endif
+
     ppSV = hv_fetch(pCacheHash, cache_key, cache_key_len, 0);  
     
     if (ppSV && *ppSV)
@@ -1900,6 +2064,9 @@ tReq * SetupRequest (/*in*/ SV *    pApacheReqSV,
         memcpy (r, pCurrReq, sizeof (*r)) ;
         }
     
+#ifdef EP2
+    r -> nPhase  = phInit ;
+#endif
     r -> bSubReq = !(pCurrReq == &InitialReq) ;
 
     r -> pLastReq = pCurrReq ;
@@ -1923,7 +2090,7 @@ tReq * SetupRequest (/*in*/ SV *    pApacheReqSV,
 	}
 
     sv_unmagic ((SV *)pReqHV, '~') ;
-    sv_magic ((SV *)pReqHV, NULL, '~', NULL, (STRLEN)r) ;
+    sv_magic ((SV *)pReqHV, NULL, '~', (char *)&r, sizeof (r)) ;
     r -> pReqSV = newRV_noinc ((SV *)pReqHV) ;
     if (!r -> pLastReq -> pReqSV)
 	sv_bless (r -> pReqSV, gv_stashpv ("HTML::Embperl::Req", 0)) ;
@@ -1936,6 +2103,9 @@ tReq * SetupRequest (/*in*/ SV *    pApacheReqSV,
 
     r -> nPid            = getpid () ; /* reget pid, because it could be chaned when loaded with PerlModule */
     r -> bDebug          = pConf -> bDebug ;
+#ifdef EP2
+    r -> bEP1Compat      = pConf -> bEP1Compat ;
+#endif
     if (rc != ok)
         r -> bDebug = 0 ; /* Turn debbuging off, only errors will go to stderr if logfile not open */
     r -> bOptions        = pConf -> bOptions ;
@@ -2069,8 +2239,12 @@ tReq * SetupRequest (/*in*/ SV *    pApacheReqSV,
             }
         
         lprintf (r, "[%d]REQ:  %s  %s  ", r -> nPid, (r -> bOptions & optSafeNamespace)?"SafeNamespace":"No Safe Eval", (r -> bOptions & optOpcodeMask)?"OpcodeMask":"All Opcode allowed") ;
+#ifdef EP2
+	lprintf (r, " mode = %s (%d) %s\n", sMode, r -> nIOType, r -> bEP1Compat?"EP 1.x":"EP 2.x") ;
+#else
         lprintf (r, " mode = %s (%d)\n", sMode, r -> nIOType) ;
-        lprintf (r, "[%d]REQ:  Package = %s\n", r -> nPid, r -> Buf.pFile -> sCurrPackage) ;
+#endif
+	lprintf (r, "[%d]REQ:  Package = %s\n", r -> nPid, r -> Buf.pFile -> sCurrPackage) ;
         }
 
     return r ;
@@ -2111,7 +2285,9 @@ void FreeRequest (/*i/o*/ register req * r)
         hv_clear (r -> pFormHash) ;
         hv_clear (r -> pInputHash) ;
         hv_clear (r -> pFormSplitHash) ;
-
+#ifdef EP2 
+        av_clear (r -> pDomTreeAV) ;
+#endif
 	if ((pFile = r -> pFiles2Free))
 	    {
 	    do
@@ -2135,7 +2311,7 @@ void FreeRequest (/*i/o*/ register req * r)
 	{
 	SV * pReqHV = SvRV (pCurrReq -> pReqSV) ;
 	sv_unmagic (pReqHV, '~') ;
-	sv_magic (pReqHV, NULL, '~', NULL, (STRLEN)pCurrReq) ;
+	sv_magic (pReqHV, NULL, '~', (char *)&pCurrReq, sizeof (pCurrReq)) ;
 	}
 
     r -> pNext = pReqFree ;
@@ -2291,7 +2467,11 @@ static int EndOutput (/*i/o*/ register req * r,
     SV * pOut = NULL ;
     int  bOutToMem = SvROK (pOutData) ;
     SV * pCookie = NULL ;
+    int  bError = 0 ;
+    STRLEN ldummy ;
     
+    r -> bEscModeSet = 0 ;
+
     if (rc != ok ||  r -> bError)
         { /* --- generate error page if necessary --- */
 	dSP;                            /* initialize stack pointer      */
@@ -2331,6 +2511,7 @@ static int EndOutput (/*i/o*/ register req * r,
 		    r -> pApacheReq -> status = 500 ;
 #endif
 		}
+	    bError = 1 ;
 	    }
 	if (!r -> bAppendToMainReq)
    	    r -> bError = 0 ; /* error already handled */
@@ -2346,10 +2527,19 @@ static int EndOutput (/*i/o*/ register req * r,
             MAGIC * pMG ;
 	    char *  pUID = NULL ;
 	    STRLEN  ulen = 0 ;
-            
+
 	    if (r -> nSessionMgnt)
 		{			
-		if (r -> nSessionMgnt == 2)
+		if (r -> nSessionMgnt == -1)
+		    { /* delete cookie */
+		    pCookie = newSVpvf ("%s=; expires=Thu, 1-Jan-1970 00:00:01 GMT%s%s%s%s",  r -> pConf -> sCookieName, 
+				r -> pConf -> sCookieDomain[0]?"; domain=":""  , r -> pConf -> sCookieDomain, 
+				r -> pConf -> sCookiePath[0]?"; path=":""      , r -> pConf -> sCookiePath) ;
+
+		    if (r -> bDebug & dbgSession)  
+		        lprintf (r, "[%d]SES:  Delete Cookie -> %s\n", r -> nPid, SvPV(pCookie, ldummy)) ;
+		    }
+		else if (r -> nSessionMgnt == 2)
 		    {			
 		    if ((pMG = mg_find((SV *)r -> pUserHash,'P')))
 			{
@@ -2384,6 +2574,8 @@ static int EndOutput (/*i/o*/ register req * r,
 				r -> pConf -> sCookieDomain[0]?"; domain=":""  , r -> pConf -> sCookieDomain, 
 				r -> pConf -> sCookiePath[0]?"; path=":""      , r -> pConf -> sCookiePath, 
 				r -> pConf -> sCookieExpires[0]?"; expires=":"", r -> pConf -> sCookieExpires) ;
+		    if (r -> bDebug & dbgSession)  
+			lprintf (r, "[%d]SES:  Send Cookie -> %s\n", r -> nPid, SvPV(pCookie, ldummy)) ; 
 		    
 		    }
 		}
@@ -2405,7 +2597,7 @@ static int EndOutput (/*i/o*/ register req * r,
 
 		    if (pHeader && pKey)
 			{			    
-			p = SvPV (pHeader, na) ;
+			p = SvPV (pHeader, ldummy) ;
 			if (strnicmp (pKey, "location", 8) == 0)
 			    r -> pApacheReq->status = 301;
 			if (strnicmp (pKey, "content-type", 12) == 0)
@@ -2416,7 +2608,7 @@ static int EndOutput (/*i/o*/ register req * r,
 		    }
 		if (pCookie)
 		    {
-		    table_add(r -> pApacheReq->headers_out, sSetCookie, pstrdup(r -> pApacheReq->pool, SvPV(pCookie, na))) ;
+		    table_add(r -> pApacheReq->headers_out, sSetCookie, pstrdup(r -> pApacheReq->pool, SvPV(pCookie, ldummy))) ;
 		    SvREFCNT_dec (pCookie) ;
 		    }
 		set_content_length (r -> pApacheReq, GetContentLength (r) + 2) ;
@@ -2513,11 +2705,25 @@ static int EndOutput (/*i/o*/ register req * r,
     if (!(r -> bOptions & optEarlyHttpHeader) || r -> bAppendToMainReq)
 #endif
         {
-        oputs (r, "\r\n") ;
+#ifdef EP2
+	if (r -> bEP1Compat && r -> pCurrEscape)
+#else
+	if (r -> pCurrEscape)
+#endif		
+	    oputs (r, "\r\n") ;
+
         if (bOutToMem)
             {
             char * pData ;
-            int    l = GetContentLength (r) + 1 ;
+            int    l ;
+#ifdef EP2
+            		
+	    if (!bError && !r -> bEP1Compat)
+		Node_toString (DomTree_self (r -> xCurrDomTree), r, r -> xDocument) ;
+	    if (!r -> bEP1Compat)
+		oputs (r, "\r\n") ;
+#endif		
+            l = GetContentLength (r) + 1 ;
             
             sv_setpv (pOut, "") ;
             SvGROW (pOut, l) ;
@@ -2531,20 +2737,46 @@ static int EndOutput (/*i/o*/ register req * r,
                 {
                 tReq * l = r -> pLastReq ;
 
-                l -> pFirstBuf   = r -> pFirstBuf  ;
-                l -> pLastBuf    = r -> pLastBuf   ;
-                l -> pFreeBuf    = r -> pFreeBuf   ;
-                l -> pLastFreeBuf= r -> pLastFreeBuf ;
-                }
+
+#ifdef EP2
+		if (r -> bEP1Compat)
+		    {
+#endif
+		    l -> pFirstBuf   = r -> pFirstBuf  ;
+		    l -> pLastBuf    = r -> pLastBuf   ;
+		    l -> pFreeBuf    = r -> pFreeBuf   ;
+		    l -> pLastFreeBuf= r -> pLastFreeBuf ;
+#ifdef EP2
+		    }
+		else
+		    {
+		    if (!bError)
+    			Node_replaceChildWithNode (DomTree_self (r -> xCurrDomTree), r -> xDocument, DomTree_self (l -> xCurrDomTree), l -> xCurrNode) ;
+		    }
+#endif
+		}
             else
+		{
                 oCommit (r, NULL) ;
-            }
+#ifdef EP2
+		if (!bError && !r -> bEP1Compat)
+		    {
+		    Node_toString (DomTree_self (r -> xCurrDomTree), r, r -> xDocument) ;
+		    oputs (r, "\r\n") ;
+		    }
+#endif
+		}
+	    }
         }
     else
         {
         oRollbackOutput (r, NULL) ;
         if (bOutToMem)
             sv_setsv (pOut, &sv_undef) ;
+#ifdef EP2
+	else if (!r -> bEP1Compat)
+            Node_toString (DomTree_self (r -> xCurrDomTree), r, r -> xDocument) ;
+#endif
         }    
 
     if (!r -> bAppendToMainReq)
@@ -2633,8 +2865,29 @@ static int ProcessFile (/*i/o*/ register req * r,
     r -> Buf.pSourcelinePos = r -> Buf.pCurrPos = r -> Buf.pBuf ;
     r -> Buf.pEndPos  = r -> Buf.pBuf + nFileSize ;
 
-    rc = EvalMain (r) ; 
+#ifdef EP2
+    if (!r -> bEP1Compat)
+	rc = embperl_CompileDocument (r) ;
+    else
+        {
+        clock_t cl1 = clock () ;
+        clock_t cl2  ;
 
+	rc = EvalMain (r) ; 
+	
+	cl2 = clock () ;
+#ifdef CLOCKS_PER_SEC
+        if (r -> bDebug)
+	    {
+	    lprintf (r, "[%d]PERF: Run Start Time: %d ms \n", r -> nPid, ((cl1 - r -> startclock) * 1000 / CLOCKS_PER_SEC)) ;
+	    lprintf (r, "[%d]PERF: Run End Time:   %d ms \n", r -> nPid, ((cl2 - r -> startclock) * 1000 / CLOCKS_PER_SEC)) ;
+	    lprintf (r, "[%d]PERF: Run Time:       %d ms \n", r -> nPid, ((cl2 - cl1) * 1000 / CLOCKS_PER_SEC)) ;
+	    }
+#endif    
+        }
+#else /* EP2 */
+    rc = EvalMain (r) ; 
+#endif /* EP2 */
     if ((r -> bOptions & optNoUncloseWarn) == 0)
 	{
 	if (!r -> bSubReq && r -> CmdStack.pStack)
@@ -2787,6 +3040,21 @@ static int ReadInputFile	(/*i/o*/ register req * r)
     SV *    pBufSV = NULL ;
     req *   pMain = r ;
 
+#ifdef EP2
+    if (!r -> bEP1Compat)
+    	{
+    	SV * * ppSV ;
+    	
+    	ppSV = hv_fetch (r -> Buf.pFile -> pCacheHash, "SRCDOM", 6, 0) ;
+    	if (ppSV && *ppSV)
+    	    {
+	    r -> Buf.pBuf		    = NULL ;
+	    r -> Buf.pFile -> nFilesize     = 1 ;
+	    return ok ;  /* source already parsed */
+	    }
+	}
+#endif
+
     if ((pBufSV = r -> Buf.pFile -> pBufSV) == NULL || !SvPOK (pBufSV))
 	{
 	if (SvROK(r -> pInData))
@@ -2912,11 +3180,13 @@ int ExecuteReq (/*i/o*/ register req * r,
     int		olddrive ;
 #endif
 
-	dTHR ;
+    dTHR ;
 
     EPENTRY (ExecuteReq) ;
 
-   
+    
+    /* r -> pReqSV = pReqSV ;  ep2?? */
+
     if (!r -> Buf.pFile -> pExportHash)
 	r -> Buf.pFile -> pExportHash = newHV () ;
     
@@ -2939,7 +3209,7 @@ int ExecuteReq (/*i/o*/ register req * r,
     if (rc == ok)
 	rc = ReadInputFile (r) ;
 
-    if (rc == ok && r -> Buf.pBuf == NULL)
+    if (rc == ok && r -> Buf.pBuf == NULL && r -> Buf.pFile -> nFilesize == 0)
         rc = rcMissingInput ;
     
     /* --- ok so far? if not exit ---- */
@@ -2987,8 +3257,8 @@ int ExecuteReq (/*i/o*/ register req * r,
         Dirname (sInputfile, dir, sizeof (dir) - 1) ;
 	getcwd (olddir, sizeof (olddir) - 1) ;
 #endif
-	
-	chdir (dir) ;
+	if (chdir (dir) < 0)
+	   lprintf (r, "chdir error\n" ) ;
 	}
     else
 	r -> bOptions |= optDisableChdir ;

@@ -185,6 +185,14 @@ PerlSetEnv EMBPERL_OPTIONS 262144
 ErrorDocument 500 /html/errmsg.htm
 </Location>
 
+<Location /embperl/errdoc/epl>
+SetHandler perl-script
+PerlHandler HTML::Embperl
+Options ExecCGI
+PerlSetEnv EMBPERL_OPTIONS 262144
+ErrorDocument 500 /embperl/errmsg2.htm
+</Location>
+
 
 
 <Location /embperl/match>
@@ -281,6 +289,27 @@ PerlHandler Apache::Registry
 Options ExecCGI
 </Location>
 
+<Location /embperl/EmbperlObject/base3>
+PerlSetEnv EMBPERL_OBJECT_BASE epobase3.htm
+PerlSetEnv EMBPERL_OBJECT_STOPDIR $EPPATH/test/html/EmbperlObject
+PerlSetEnv EMBPERL_OBJECT_ADDPATH $EPPATH/test/html/EmbperlObject/lib
+PerlSetEnv EMBPERL_OBJECT_FALLBACK epofallback.htm
+PerlSetEnv EMBPERL_FILESMATCH \"\\.htm.?\$|\\.epl\$\"
+SetHandler perl-script
+PerlHandler HTML::EmbperlObject 
+Options ExecCGI
+</Location>
+
+<Location /embperl/EmbperlObject/base2>
+PerlSetEnv EMBPERL_OBJECT_BASE epobase2.htm
+PerlSetEnv EMBPERL_OBJECT_STOPDIR $EPPATH/test/html/EmbperlObject
+PerlSetEnv EMBPERL_OBJECT_ADDPATH $EPPATH/test/html/EmbperlObject/lib
+PerlSetEnv EMBPERL_OBJECT_FALLBACK epofallback.htm
+PerlSetEnv EMBPERL_FILESMATCH \"\\.htm.?\$|\\.epl\$\"
+SetHandler perl-script
+PerlHandler HTML::EmbperlObject 
+Options ExecCGI
+</Location>
 
 <Location /embperl/EmbperlObject>
 PerlSetEnv EMBPERL_OBJECT_BASE epobase.htm
@@ -290,7 +319,6 @@ SetHandler perl-script
 PerlHandler HTML::EmbperlObject 
 Options ExecCGI
 </Location>
-
 
 
 <Location /eg>
@@ -327,3 +355,10 @@ EOD
     }
 
 
+print OFH <<EOD ;
+<IfModule mod_jserv.c>
+ApJServManual on
+ApJServSecretKey DISABLED
+ApJServLogFile /dev/null
+</IfModule>
+EOD

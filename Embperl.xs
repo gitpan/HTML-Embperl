@@ -45,6 +45,20 @@ OUTPUT:
 
 # /* ---- Helper ----- */
 
+
+
+int
+embperl_Multiplicity()
+CODE:
+#ifdef MULTIPLICITY
+    RETVAL = 1 ;
+#else
+    RETVAL = 0 ;
+#endif
+OUTPUT:
+    RETVAL
+
+
 int
 embperl_ResetHandler(pReqSV)
     SV * pReqSV
@@ -217,11 +231,18 @@ CODE:
 
 void
 embperl_output(sText)
-    char * sText
+    SV * sText
 INIT:
+    STRLEN l ;
     tReq * r = pCurrReq ;
 CODE:
-    OutputToHtml (r,sText) ;
+    if (r -> pCurrEscape == NULL)
+	{
+	char * p = SvPV (sText, l) ;
+	owrite (r, p, l) ;
+	}
+    else
+	OutputToHtml (r, SvPV (sText, l)) ;
 
 
 void
@@ -361,6 +382,13 @@ CODE:
 OUTPUT:
     RETVAL
 
+int
+embperl_Debug(r)
+    tReq * r
+CODE:
+    RETVAL = r -> bDebug ;
+OUTPUT:
+    RETVAL
 
 SV *
 embperl_ApacheReq(r)
@@ -633,3 +661,18 @@ embperl_FreeRequest(r)
     tReq * r
 CODE:
     FreeRequest(r) ; 
+
+
+#ifdef EP2
+
+INCLUDE: Cmd.xs
+
+INCLUDE: DOM.xs
+
+#endif
+
+# Reste Module, so we get the correct boot function
+
+MODULE = HTML::Embperl      PACKAGE = HTML::Embperl     PREFIX = embperl_
+
+

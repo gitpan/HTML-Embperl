@@ -1206,3 +1206,22 @@ char * _ep_strndup (/*i/o*/ register req * r,
     return p ;
     }
     
+char * _ep_memdup (/*i/o*/ register req * r,
+                  /*in*/  const char *   str,
+                  /*in*/  int            len)
+
+    {
+    char * p ;        
+
+    p = (char *)_malloc (r, len + 1) ;
+
+    if (p)
+        {
+        memcpy (p, str, len) ;
+
+        p[len] = '\0' ;
+        }
+
+    return p ;
+    }
+    

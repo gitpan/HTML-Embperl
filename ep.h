@@ -86,6 +86,11 @@ extern "C" {
 #undef stat
 #endif
 
+#ifdef lstat
+#define apache_lstat lstat
+#undef lstat
+#endif
+
 #ifdef sleep
 #define apache_sleep sleep
 #undef sleep
@@ -139,9 +144,16 @@ extern "C" {
 #endif
 #endif
 
+struct tReq ;
+
+typedef struct tReq req ;
+typedef struct tReq tReq ;
 
 #include "epnames.h"
 
+#ifdef EP2
+#include "epdom.h"
+#endif
 #include "epdat.h"
 #include "embperl.h"
 
@@ -234,6 +246,12 @@ int ProcessSub		(/*i/o*/ register req * r,
 
 void NewEscMode (/*i/o*/ register req * r,
 			           SV * pSV) ;
+
+
+int AddMagicAV (/*i/o*/ register req * r,
+		/*in*/ char *     sVarName,
+                /*in*/ MGVTBL *   pVirtTab) ;
+
 
 /* ---- from epio.c ----- */
 
@@ -366,6 +384,13 @@ int ProcessCmd (/*i/o*/ register req * r,
 			/*in*/ struct tCmd *  pCmd,
                         /*in*/ const char *    sArg) ;
 
+
+SV * SplitFdat     (/*i/o*/ register req * r,
+                           /*in*/  SV ** ppSVfdat,
+                           /*out*/ SV ** ppSVerg,
+                           /*in*/  char * pName,
+                           /*in*/  STRLEN nlen) ;
+
 /* ---- from eputil.c ----- */
 
 
@@ -380,14 +405,17 @@ char * GetHashValueLen (/*in*/  HV *           pHash,
                         /*in*/  int            nMaxLen,
                         /*out*/ char *         sValue) ;
 
-int    GetHashValueInt (/*in*/  HV *           pHash,
+IV    GetHashValueInt (/*in*/  HV *           pHash,
                         /*in*/  const char *   sKey,
-                        /*in*/  int            nDefault) ;
+                        /*in*/  IV            nDefault) ;
 
 char * GetHashValueStr (/*in*/  HV *           pHash,
                         /*in*/  const char *   sKey,
                         /*in*/  char *         sDefault) ;
 
+char * GetHashValueStrDup (/*in*/  HV *           pHash,
+                           /*in*/  const char *   sKey,
+                           /*in*/  char *         sDefault) ;
 
 const char * GetHtmlArg (/*in*/  const char *    pTag,
                          /*in*/  const char *    pArg,
@@ -395,6 +423,12 @@ const char * GetHtmlArg (/*in*/  const char *    pTag,
 
 void OutputToHtml (/*i/o*/ register req * r,
  		   /*i/o*/ const char *   sData) ;
+
+void OutputEscape (/*i/o*/ register req * r,
+ 		   /*in*/  const char *   sData,
+ 		   /*in*/  int            nDataLen,
+ 		   /*in*/  struct tCharTrans *   pEscTab,
+ 		   /*in*/  char           cEscChar) ;
 
 int TransHtml (/*i/o*/ register req * r,
 		/*i/o*/ char *         sData,
@@ -404,6 +438,9 @@ void TransHtmlSV (/*i/o*/ register req * r,
 		  /*i/o*/ SV *           pSV) ;
 
 int GetLineNo (/*i/o*/ register req * r) ;
+
+int GetLineNoOf (/*i/o*/ register req * r,
+               /*in*/  char * pPos) ;
 
 #ifndef WIN32
 #define strnicmp strncasecmp
@@ -428,8 +465,10 @@ int GetSubTextPos (/*i/o*/ register req * r,
 /* ---- from epeval.c ----- */
 
 
-int EvalDirect (/*i/o*/ register req * r,
-			/*in*/  SV * pArg) ;
+int EvalDirect (/*i/o*/ register req *	r,
+		/*in*/  SV *		pArg,
+                /*in*/  int		numArgs,
+                /*in*/  SV **		pArgs) ;
 
 int EvalNum (/*i/o*/ register req * r,
 	     /*in*/  char *        sArg,
@@ -440,6 +479,13 @@ int Eval (/*i/o*/ register req * r,
 	  /*in*/  const char *  sArg,
           /*in*/  int           nFilepos,
           /*out*/ SV **         pRet) ;
+
+#ifdef EP2
+int EvalStore (/*i/o*/ register req * r,
+	      /*in*/  const char *  sArg,
+	      /*in*/  int           nFilepos,
+	      /*out*/ SV **         pRet) ;
+#endif
 
 int EvalTrans (/*i/o*/ register req * r,
 	       /*in*/  char *   sArg,
@@ -469,7 +515,26 @@ int EvalSub (/*i/o*/ register req * r,
 
 int EvalMain (/*i/o*/ register req *  r) ;
 
+
+#ifdef EP2
+int CallStoredCV  (/*i/o*/ register req * r,
+		    /*in*/  const char *  sArg,
+                    /*in*/  CV *          pSub,
+                    /*in*/  int           numArgs,
+                    /*in*/  SV **         pArgs,
+                    /*in*/  int           flags,
+                    /*out*/ SV **         pRet) ;
+#endif
+
+
+
 /* ---- from epdbg.c ----- */
 
 int SetupDebugger (/*i/o*/ register req * r) ;
+
+
+
+#ifdef EP2
+#include "ep2.h"
+#endif
 

@@ -68,6 +68,65 @@ void OutputToHtml (/*i/o*/ register req * r,
         owrite (r, p, sData - p) ;
     }
 
+/* ---------------------------------------------------------------------------- */
+/*                                                                              */
+/* Output a string and escape it                                                */
+/*                                                                              */
+/* in sData     = input:  string                                                */
+/*    nDataLen  = input:  length of string                                      */
+/*    pEscTab   = input:  escape table                                          */
+/*    cEscChar  = input:  char to escape escaping (0 = off)                     */
+/*                                                                              */
+/* ---------------------------------------------------------------------------- */
+
+void OutputEscape (/*i/o*/ register req * r,
+ 		   /*in*/  const char *   sData,
+ 		   /*in*/  int            nDataLen,
+ 		   /*in*/  struct tCharTrans *   pEscTab,
+ 		   /*in*/  char           cEscChar)
+
+    {
+    char * pHtml  ;
+    const char * p ;
+    int	         l ;
+
+    EPENTRY (OutputEscape) ;
+
+    if (pEscTab == NULL)
+        {
+        owrite (r, sData, nDataLen) ;
+        return ;
+        }
+
+    p = sData ;
+    l = nDataLen ;
+
+    while (l > 0)
+        {
+        if (cEscChar && *sData == cEscChar)
+            {
+            if (p != sData)
+                owrite (r, p, sData - p) ;
+            sData++, l-- ;
+            p = sData ;
+            }
+        else
+            {
+            pHtml = pEscTab[(unsigned char)(*sData)].sHtml ;
+            if (*pHtml)
+                {
+                if (p != sData)
+                    owrite (r, p, sData - p) ;
+                oputs (r, pHtml) ;
+                p = sData + 1;
+                }
+            }
+        sData++, l-- ;
+        }
+    if (p != sData)
+        owrite (r, p, sData - p) ;
+    }
+
 
 #if 0
 
@@ -481,9 +540,9 @@ char * GetHashValue (/*in*/  HV *           pHash,
 
 
 
-int    GetHashValueInt (/*in*/  HV *           pHash,
+IV    GetHashValueInt (/*in*/  HV *           pHash,
                         /*in*/  const char *   sKey,
-                        /*in*/  int            nDefault)
+                        /*in*/  IV            nDefault)
 
     {
     SV **   ppSV ;
@@ -504,15 +563,55 @@ char * GetHashValueStr (/*in*/  HV *           pHash,
 
     {
     SV **   ppSV ;
+    STRLEN  l ;
 
     /*EPENTRY (GetHashValueInt) ;*/
 
     ppSV = hv_fetch(pHash, (char *)sKey, strlen (sKey), 0) ;  
     if (ppSV != NULL)
-        return SvPV (*ppSV, na) ;
+        return SvPV (*ppSV, l) ;
         
     return sDefault ;
     }
+
+char * GetHashValueStrDup (/*in*/  HV *           pHash,
+                           /*in*/  const char *   sKey,
+                           /*in*/  char *         sDefault)
+    {
+    SV **   ppSV ;
+    STRLEN  l ;
+    char *  s ;
+
+    ppSV = hv_fetch(pHash, (char *)sKey, strlen (sKey), 0) ;  
+    if (ppSV != NULL)
+        {
+	if (s = SvPV (*ppSV, l))
+	    return strdup (s);
+	else
+	    return NULL ;
+	}
+
+    if (sDefault)
+        return strdup (sDefault) ;
+    else
+	return NULL ;
+    }
+
+
+void SetHashValueStr   (/*in*/  HV *           pHash,
+                        /*in*/  const char *   sKey,
+                        /*in*/  char *         sValue)
+
+    {
+    SV *   pSV = newSVpv (sValue, 0) ;
+
+    /*EPENTRY (GetHashValueInt) ;*/
+
+    hv_store(pHash, (char *)sKey, strlen (sKey), pSV, 0) ;  
+    }
+
+
+
 
 
 /* ------------------------------------------------------------------------- */
@@ -527,10 +626,11 @@ char * GetHashValueStr (/*in*/  HV *           pHash,
 /* ------------------------------------------------------------------------- */
 
 
-int GetLineNo (/*i/o*/ register req * r)
+int GetLineNoOf (/*i/o*/ register req * r,
+               /*in*/  char * pPos)
 
     {
-    char * pPos = r -> Buf.pCurrPos ;
+
     
     if (r -> Buf.pSourcelinePos == NULL)
 	if (r -> Buf.pFile == NULL)
@@ -570,6 +670,14 @@ int GetLineNo (/*i/o*/ register req * r)
     return r -> Buf.nSourceline ;
     }
 
+
+int GetLineNo (/*i/o*/ register req * r)
+
+    {
+    char * pPos = r -> Buf.pCurrPos ;
+    
+    return GetLineNoOf (r, pPos) ;
+    }
 
 
 /* ------------------------------------------------------------------------- */

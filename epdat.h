@@ -14,10 +14,41 @@
 
 
 
-struct tReq ;
+#ifdef EP2
+/*-----------------------------------------------------------------*/
+/*								   */
+/*  Processor							   */
+/*								   */
+/*-----------------------------------------------------------------*/
 
-typedef struct tReq req ;
-typedef struct tReq tReq ;
+
+typedef struct tProcessor
+    {
+    int     (* pCompiler)(tReq *, tDomTree *, tNode) ;
+    } tProcessor ;
+
+/*-----------------------------------------------------------------*/
+/*								   */
+/*  RequestPhases						   */
+/*								   */
+/*-----------------------------------------------------------------*/
+
+typedef enum 
+    {
+    phInit,
+    phParse,
+    phCompile,
+    phRunAfterCompile,
+    phPerlCompile,
+    phRun,
+    phTerm
+    } tPhase ;
+    
+
+
+#endif
+
+
 
 /*-----------------------------------------------------------------*/
 /*								   */
@@ -42,6 +73,13 @@ typedef struct tConf
     char    cMultFieldSep ;
     char *  pOpenBracket  ;
     char *  pCloseBracket ;
+#ifdef EP2
+    bool    bEP1Compat ;    /* run in Embperl 1.x compatible mode */
+    tProcessor ** pProcessor ;   /* [array] processors used to process the file */
+    char **  sExpiresKey ;  /* [array] Key used to store expires setting */
+    double * nExpiresAt ;   /* [array] Data expiers at */
+    SV **    pExpiresCV ;   /* [array] sub that is called to determinate expiration */
+#endif    
     char *  sPath ;	    /* file search path */
     char *  sReqFilename ;  /* filename of original request */
     } tConf ;
@@ -265,7 +303,18 @@ struct tReq
     int	    nSessionMgnt ;	/* how to retrieve the session id */
     int	    nInsideSub ;	/* Are we inside of a sub? */
     int	    bExit ;		/* We should exit the page */
-    
+#ifdef EP2
+    bool    bEP1Compat ;	/* run in Embperl 1.x compatible mode */    
+    tPhase  nPhase ;		/* which phase of the request we are in */
+
+    /* --- DomTree ---*/
+
+    tNode	xCurrNode ;
+    tIndex	xCurrDomTree ;
+    struct tTokenTable *  pTokenTable ;
+
+#endif
+
     /* --- Source in memory --- */
 
     tSrcBuf   Buf ;            /* Buffer */
@@ -370,6 +419,9 @@ struct tReq
     HV *    pUserHash ;  /* User data */
     HV *    pModHash ;   /* Module data */
     HV *    pHeaderHash ;/* http headers */
+#ifdef EP2
+    AV *    pDomTreeAV ; /* holds all DomTrees alocated during the request */
+#endif
 
     /* --- for statistics --- */
 

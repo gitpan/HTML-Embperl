@@ -86,6 +86,18 @@ See http://www.bitwizard.nl/sig11/
 Try recompiling Perl and all modules -- this can sometimes make those
 annoying error messages disappear!
 
+=head2 How can I prevent 'make test' from running some of the tests? 
+
+For 
+example, I don't allow CGI scripts, so 'make test' fails at CGI. How 
+do I run just the other tests?
+
+Try:
+
+ $ make test TESTARGS="--help"
+ # and for just offline and mod_perl:
+ $ make test TESTARGS="-hoe"
+
 
 
 =head2 Running 'make test' fails with an error message at loading of Embperl 
@@ -238,7 +250,7 @@ debugging infomation enabled. Therefor do
 
 =head2 How do I build Embperl with debugging informations
 
-=over4
+=over 4
 
 =item edit the Makefile
 
@@ -477,7 +489,7 @@ when the source changes.
 Nothing weird here. Everything is well defined. Just let us try to
 understand how I<Perl>, I<mod_perl> and I<Embperl> works together:
 
-"perldoc -f use" tells us:
+  "perldoc -f use" tells us:
 
   Imports some semantics into the current package from the named module,
   generally by aliasing certain subroutine or variable names into your
@@ -490,7 +502,7 @@ understand how I<Perl>, I<mod_perl> and I<Embperl> works together:
 So what's important here for us is, that C<use> executes a C<require> and
 this is always done before any other code is executed.
 
-"perldoc -f require" says (among other things):
+  "perldoc -f require" says (among other things):
 
   ..., demands that a library file be included if it hasn't already
   been included. 
