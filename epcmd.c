@@ -116,7 +116,7 @@ struct tCmd CmdTab [] =
         { "option",   HtmlOption,       0, 0, cmdNorm,          1, 0, cnNop   } ,
         { "select",   HtmlSelect,       1, 0, cmdTable,         1, 0, cnSelect   } ,
         { "table",    HtmlTable,        1, 0, cmdTable,         1, 0, cnTable   } ,
-        { "textarea", HtmlTextarea,     1, 0, cmdTextarea,      0, 1, cnNop   } ,
+        { "textarea", HtmlTextarea,     1, 0, cmdTextarea,      1, 1, cnNop   } ,
         { "th",       HtmlTableHead,    0, 0, cmdNorm,          1, 0, cnNop   } ,
         { "tr",       HtmlRow,          1, 0, cmdTablerow,      1, 0, cnTr   } ,
         { "ul",       HtmlTable,        1, 0, cmdTable,         1, 0, cnUl   } ,
@@ -145,6 +145,7 @@ static int CmpCmd (/*in*/ const void *  p1,
 /* */
 
 int  SearchCmd          (/*in*/  const char *    sCmdName,
+                         /*in*/  int             nCmdLen,
                          /*in*/  const char *    sArg,
                          /*in*/  int             bIgnore,
                          /*out*/ struct tCmd * * ppCmd)
@@ -161,8 +162,10 @@ int  SearchCmd          (/*in*/  const char *    sCmdName,
 
     i = sizeof (sCmdLwr) - 1 ;
     p = sCmdLwr ;
-    while (--i > 0 && (*p++ = tolower (*sCmdName++)) != '\0')
-        ;
+    while (nCmdLen-- > 0 && --i > 0)
+        if ((*p++ = tolower (*sCmdName++)) == '\0')
+            break ;
+
     *p = '\0' ;
     
     p = sCmdLwr ;
@@ -185,7 +188,7 @@ int  SearchCmd          (/*in*/  const char *    sCmdName,
     
     if (pCmd == NULL)
         {
-        strncpy (errdat1, sCmdName, sizeof (errdat1) - 1) ;
+        strncpy (errdat1, sCmdLwr, sizeof (errdat1) - 1) ;
         return rcCmdNotFound ;
         }
 
@@ -491,7 +494,7 @@ static int CmdHidden (/*in*/ const char *   sArg)
         sprintf (errdat1, "nArgLen=%d, pArgStack=%d",nArgLen,  pArgStack - ArgStack) ;
         return rcArgStackOverflow ;
         }
-    if (nArgLen > 0)
+    if (nArgLen > 1)
         {            
         strncpy (sVar, sEvalPackage, sizeof (sVar) - 5) ;
         sVar[nEvalPackage] = ':' ;

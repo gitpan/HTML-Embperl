@@ -25,6 +25,7 @@ use IO::Handle ;
 use CGI;
 use File::Basename ();
 use Cwd ();
+eval { require Apache::Symbol ; } ;
 
 require Exporter;
 require DynaLoader;
@@ -32,7 +33,7 @@ require DynaLoader;
 @ISA = qw(Exporter DynaLoader);
 
 
-$VERSION = '0.24-beta';
+$VERSION = '0.25-beta';
 
 
 bootstrap HTML::Embperl $VERSION;
@@ -45,23 +46,83 @@ $DefaultLog = '/tmp/embperl.log' ;
 $Outputfile = '' ;  # Default to stdout
 
 
-%cache = () ;   # cache for evaled code
-$package = '' ; # package name for current document
+%cache    = () ;    # cache for evaled code
+%filepack = () ;    # translate filename to packagename
+$package  = '' ;    # package name for current document
+$packno   = 1 ;     # for assigning unique packagenames
+@cleanups = () ;    # packages which need a cleanup
 
 
 # setup constans
 
-    {
-    my $k ;
-    my $v ;
-
-    embperl_constants () ;
-    while (($k, $v) = each (%CONSTANT))
-	    {
-	    eval "sub $k { $v ; }" ;
-	    die "Cannot define constant $k" if ($@) ;
-	    }
-    }
+use constant dbgAll => -1 ;
+use constant dbgAllCmds => 1024 ;
+use constant dbgCacheDisable => 32768 ;
+use constant dbgCmd => 8 ;
+use constant dbgDefEval => 16384 ;
+use constant dbgEarlyHttpHeader => 65536 ;
+use constant dbgEnv => 16 ;
+use constant dbgEval => 4 ;
+use constant dbgFlushLog => 512 ;
+use constant dbgFlushOutput => 256 ;
+use constant dbgForm => 32 ;
+use constant dbgFunc => 4096 ;
+use constant dbgHeadersIn => 262144 ;
+use constant dbgInput => 128 ;
+use constant dbgLogLink => 8192 ;
+use constant dbgMem => 2 ;
+use constant dbgShowCleanup => 524288 ;
+use constant dbgSource => 2048 ;
+use constant dbgStd => 1 ;
+use constant dbgTab => 64 ;
+use constant dbgWatchScalar => 131072 ;
+use constant epIOCGI => 1 ;
+use constant epIOMod_Perl => 3 ;
+use constant epIOPerl => 4 ;
+use constant epIOProcess => 2 ;
+use constant escHtml => 1 ;
+use constant escNone => 0 ;
+use constant escStd => 3 ;
+use constant escUrl => 2 ;
+use constant ok => 0 ;
+use constant optDisableEmbperlErrorPage => 2 ;
+use constant optDisableVarCleanup => 1 ;
+use constant optOpcodeMask => 8 ;
+use constant optRawInput => 16 ;
+use constant optSafeNamespace => 4 ;
+use constant optSendHttpHeader => 32 ;
+use constant rcArgStackOverflow => 23 ;
+use constant rcArrayError => 11 ;
+use constant rcCannotUsedRecursive => 19 ;
+use constant rcCmdNotFound => 7 ;
+use constant rcElseWithoutIf => 4 ;
+use constant rcEndifWithoutIf => 3 ;
+use constant rcEndtableWithoutTable => 6 ;
+use constant rcEndtableWithoutTablerow => 20 ;
+use constant rcEndtextareaWithoutTextarea => 22 ;
+use constant rcEndwhileWithoutWhile => 5 ;
+use constant rcEvalErr => 24 ;
+use constant rcExecCGIMissing => 27 ;
+use constant rcFileOpenErr => 12 ;
+use constant rcHashError => 10 ;
+use constant rcInputNotSupported => 18 ;
+use constant rcIsDir => 28 ;
+use constant rcLogFileOpenErr => 26 ;
+use constant rcMagicError => 15 ;
+use constant rcMissingRight => 13 ;
+use constant rcNoRetFifo => 14 ;
+use constant rcNotCompiledForModPerl => 25 ;
+use constant rcNotFound => 30 ;
+use constant rcOutOfMemory => 8 ;
+use constant rcPerlVarError => 9 ;
+use constant rcPerlWarn => 32 ;
+use constant rcStackOverflow => 1 ;
+use constant rcStackUnderflow => 2 ;
+use constant rcUnknownNameSpace => 17 ;
+use constant rcUnknownVarType => 31 ;
+use constant rcVirtLogNotSet => 33 ;
+use constant rcWriteErr => 16 ;
+use constant rcXNotSet => 29 ;
 
 # Color definition for logfile output
 
@@ -126,7 +187,7 @@ if (defined ($INC{'Apache.pm'}))
     eval 'use Apache::Constants qw(:common &OPT_EXECCGI)' ;
 
     $DefaultLog = $ENV{EMBPERL_LOG} || $DefaultLog ;
-    embperl_init (&epIOMod_Perl, $DefaultLog) ;
+    embperl_init (epIOMod_Perl, $DefaultLog) ;
     tie *LOG, 'HTML::Embperl::Log' ;
     }
 else
@@ -142,7 +203,7 @@ else
 
 sub _eval_ ($)
     {
-    my $result = eval "$_[0]" ;
+    my $result = eval "package $evalpackage ; $_[0] " ;
     if ($@ ne '')
         { embperl_logevalerr ($@) ; }
     return $result ;
@@ -164,12 +225,16 @@ sub _evalsub_ ($)
 
 sub Warn 
     {
+    local $^W = 0 ;
     my $msg = $_[0] ;
     chop ($msg) ;
     
     my $lineno = embperl_getlineno () ;
-    $msg =~ s/at (.*?) line (\d*)/at $Inputfile line $lineno/ ;
-    embperl_logerror (&rcPerlWarn, $msg);
+    if ($msg =~ /HTML\/Embperl/)
+        {
+        $msg =~ s/at (.*?) line (\d*)/at $Inputfile in block starting at line $lineno/ ;
+        }
+    embperl_logerror (rcPerlWarn, $msg);
     }
 
 #######################################################################################
@@ -204,6 +269,7 @@ sub SendLogFile ($$)
     my $cnt = 0 ;
     my $ecnt = 0 ;
     my $tag ;
+    my $fontcol ;
 
     $escmode = 3 ;
         
@@ -212,7 +278,9 @@ sub SendLogFile ($$)
     seek (LOGFILE, $filepos, 0) || return 500 ;
 
     print "<HTML><HEAD><TITLE>Embperl Logfile</TITLE></HEAD><BODY bgcolor=\"#FFFFFF\">\r\n" ;
+    print "<font color=0>" ;
     print "Logfile = $fn, Position = $filepos, Pid = $pid<BR><CODE>\r\n" ;
+    $fontcol = 0 ;
 
     while (<LOGFILE>)
         {
@@ -223,11 +291,19 @@ sub SendLogFile ($$)
             {
             if (defined ($LogFileColors{$tag}))
                 {
-                print "<font color=\"$LogFileColors{$tag}\">" ;
+                if ($fontcol ne $LogFileColors{$tag})
+                    {
+                    $fontcol = $LogFileColors{$tag} ;
+                    print "</font><font color=\"$fontcol\">" ;
+                    }
                 }
             else
                 {
-                print "<font color=0>" ;
+                if ($fontcol ne '0')
+                    {
+                    $fontcol = '0' ;
+                    print "</font><font color=0>" ;
+                    }
                 }
             s/\n/\\<BR\\>\r\n/ ;
             if (defined($src) && ($tag eq $src || $tag eq 'ERR:'))
@@ -284,28 +360,29 @@ sub SendErrorDoc ()
         foreach $err (@errors)
             {
             embperl_output ("<A HREF=\"$virtlog?$logfilepos&$$#E$cnt\">") ;
-	        $escmode = 3 ;
+            $escmode = 3 ;
             embperl_output ($err) ;
-	        $escmode = 0 ;
+            $escmode = 0 ;
             embperl_output ("</a><P>\r\n") ;
             $cnt++ ;
             }
         }
     else
         {
-	    $escmode = 3 ;
+	$escmode = 3 ;
         foreach $err (@errors)
             {
             embperl_output ("$err\\<P\\>\r\n") ;
             $cnt++ ;
             }
-	    $escmode = 0 ;
+	$escmode = 0 ;
         }
          
     my $server = $ENV{SERVER_SOFTWARE} || 'Offline' ;
 
     embperl_output ("$server HTML::Embperl $VERSION [$time]<P>\r\n") ;
     embperl_output ("</BODY></HTML>\r\n\r\n") ;
+
     }
 
 
@@ -320,36 +397,65 @@ sub CheckFile
 
     unless (-r $filename && -s _)
         {
-	    embperl_logerror (&rcNotFound, $filename);
-	    return (&NOT_FOUND, 0, 0) ;
+	embperl_logerror (rcNotFound, $filename);
+	return (&NOT_FOUND, 0, 0) ;
         }
 
-	if (defined ($req_rec) && !($req_rec->allow_options & &OPT_EXECCGI))
+    if (defined ($req_rec) && !($req_rec->allow_options & &OPT_EXECCGI))
         {
-	    embperl_logerror (&rcExecCGIMissing, $filename);
-	    return (&FORBIDDEN, 0, 0) ;
- 	    }
+	embperl_logerror (rcExecCGIMissing, $filename);
+	return (&FORBIDDEN, 0, 0) ;
+ 	}
 	
     if (-d _)
         {
-	    embperl_logerror (&rcIsDir, $filename);
-	    return (&FORBIDDEN, 0, 0);
-	    }
+	embperl_logerror (rcIsDir, $filename);
+	return (&FORBIDDEN, 0, 0);
+	}
     
-   	my $mtime = -M _ ;
+    return ok ;
+    }
 
-	# Escape everything into valid perl identifiers
-    if (!defined ($ENV{EMBPERL_PACKAGE}))
+#######################################################################################
+
+sub CheckCache
+
+    {
+    my ($filename, $mtime, $pack) = @_ ;
+
+
+
+    # Escape everything into valid perl identifiers
+    if (!defined ($pack))
         {
-        my @p = unpack ('H*', $filename) ;
-	    $package = 'HTML::Embperl::ROOT' . join ('x', @p ) ;
+        $package = $filepack{$filename} ;
+        if (!defined($package))
+            {
+            $package = "HTML::Embperl::DOC::_$packno" ;
+            $packno++ ;
+            $filepack{$filename} = $package ;
+            }
         }
     else
         {
-        $package = $ENV{EMBPERL_PACKAGE} ;
+        $filepack{$filename} = $package = $pack ;
         }
 
 
+
+    if (!defined($mtime{$filename}) || $mtime{$filename} != $mtime || !defined($mtime)) 
+        {
+        # clear out any entries in the cache
+        delete $cache{$filename} ;
+ 	$mtime{$filename} = $mtime ;
+        # This will remove the functions to avoid redefinition warnings
+        # but the symbol table entrys still remain
+        #Apache::Symbol::undef_functions ($package) if (defined(&Apache::Symbol::undef_functions)) ;
+        # setup one function, so we can check later if it was undef'd by another request
+        #eval "sub $package\:\:__info__ { my %info = ('filename' => '$filename', 'mtime' => $mtime) ; } " ;
+        print LOG  "[$$]MEM: Reload $filename in $package\n" ;
+        }
+    
     if (!defined(${"$package\:\:row"}))
         { # create new aliases for Embperl magic vars
         *{"$package\:\:fdat"}    = \%fdat ;
@@ -363,24 +469,204 @@ sub CheckFile
         *{"$package\:\:tabmode"} = \$tabmode ;
         *{"$package\:\:escmode"} = \$escmode ;
         *{"$package\:\:MailFormTo"} = \&MailFormTo ;
+        tie *{"$package\:\:LOG"}, 'HTML::Embperl::Log' ;
     	*{"$package\:\:req_rec"} = \$req_rec if defined ($req_rec) ;
+
         
-        #print LOG "Created Aliases for $package\n" ;
+        #print LOG  "[$$]MEM: Created Aliases for $package\n" ;
         }
 
 
-
-    if (!defined($mtime{$filename}) || $mtime{$filename} != $mtime)
-        {
-        # clear out any entries in the cache
-        delete $cache{$filename} ;
- 	    $mtime{$filename} = $mtime ;
-        }
-    
     $cache{$filename}{'~-1'} = 1 ; # make sure hash is defined 
     
-    return (0, -s _, \$cache{$filename}) ;
+    return \$cache{$filename} ;
     }
+
+
+##########################################################################################
+
+sub ScanEnvironement
+
+    {
+    my $req = shift ; 
+    
+    %ENV = %{{$req_rec->cgi_env, %ENV}} if (defined ($req_rec)) ;
+    
+    $$req{'virtlog'}     = $ENV{EMBPERL_VIRTLOG}     if (exists ($ENV{EMBPERL_VIRTLOG})) ;
+    $$req{'compartment'} = $ENV{EMBPERL_COMPARTMENT} if (exists ($ENV{EMBPERL_COMPARTMENT})) ;
+    $$req{'package'}     = $ENV{EMBPERL_PACKAGE}     if (exists ($ENV{EMBPERL_COMPARTMENT})) ;
+    $$req{'debug'}       = $ENV{EMBPERL_DEBUG}   || 0 ;
+    $$req{'options'}     = $ENV{EMBPERL_OPTIONS} || 0 ;
+    $$req{'log'}         = $ENV{EMBPERL_LOG}     || $DefaultLog ;
+
+    if (defined($ENV{EMBPERL_ESCMODE}))
+        { $$req{'escmode'}    = $ENV{EMBPERL_ESCMODE} }
+    else
+        { $$req{'escmode'}    = escStd ; }
+    
+    }
+
+
+
+#######################################################################################
+
+
+
+sub Execute
+    
+    {
+    my $rc ;
+    my $req = shift ;
+    
+    $Debugflags = $$req{'debug'} || 0 ;
+    $req_rec    = $$req{'req_rec'} if (defined ($$req{'req_rec'})) ;
+    $rc = embperl_setreqrec ($req_rec) if (defined ($req_rec)) ;
+        
+    undef $package if (defined ($package)) ; 
+   
+    if (defined ($$req{'virtlog'}) && $$req{'virtlog'} eq $$req{'uri'})
+        {
+        if (defined ($req_rec))
+            {
+            $req_rec -> content_type ('text/html') ;
+            $req_rec -> send_http_header ;
+            }
+        $rc = SendLogFile ($DefaultLog, $ENV{QUERY_STRING}) ;
+        embperl_resetreqrec () ;
+        return $rc ;
+        }
+
+
+    if (defined($$req{'escmode'}))
+        { $escmode    = $$req{'escmode'} }
+    else
+        { $escmode    = escStd ; }
+    
+    my $Outputfile = $$req{'outputfile'} || '' ;
+    my $Options    = $$req{'options'}    || 0 ;
+    my $cleanup    = $$req{'cleanup'}    || 0 ;
+    my $In         = $$req{'input'}   ;
+    my $Out        = $$req{'output'}  ;
+    my $ns ;
+    my $pcodecache ;
+    my $cgi ;
+    my $filesize ;
+    my $mtime ;
+    
+    my $cwd       = Cwd::fastcwd();
+    
+    $Inputfile    = $$req{'inputfile'} ;
+    $Inputfile    = $cwd . '/' . $Inputfile   if ($Inputfile  && !defined ($In)  && !($Inputfile  =~ /^(\/|\\|.\:\\|.\:\/)/)) ;
+    $Outputfile   = $cwd . '/' . $Outputfile  if ($Outputfile && !defined ($Out) && !($Outputfile =~ /^(\/|\\|.\:\\|.\:\/)/)) ;
+        
+    if (defined ($In))
+        {
+        $filesize = -1 ;
+        $mtime    = $$req{'mtime'} ;
+        }
+   else
+        {
+        return $rc if ($rc = CheckFile ($Inputfile)) ;
+        $filesize = -s _ ;
+        $mtime = -M _ ;
+        }
+
+    $pcodecache = CheckCache ($Inputfile, $mtime, $$req{'package'}) ;
+    if (defined ($ns = $$req{'compartment'}))
+        {
+        my $cp = AddCompartment ($ns) ;
+        $opcodemask = $cp -> mask ;
+        }
+    else
+        {
+        undef $opcodemask if (defined ($opcodemask)) ;
+        }
+   
+    if (($Options & optSafeNamespace))
+	{ $evalpackage = 'main' ; }
+    else
+	{ $evalpackage = $package ; }
+
+
+    if (defined($ENV{'CONTENT_TYPE'}) && $ENV{'CONTENT_TYPE'}=~m|^multipart/form-data|)
+        { # just let CGI.pm read the multipart form data, see cgi docu
+	$cgi = new CGI;
+	    
+        @ffld = $cgi->param;
+    
+    	foreach ( @ffld )
+            {
+    	    $fdat{ $_ } = $cgi->param( $_ );
+            }
+
+        }
+    else
+        {
+        @ffld = () ;
+        %fdat = () ;
+        }
+    @errors = () ;
+
+
+    if ($Debugflags & dbgLogLink)
+	{
+        embperl_logerror (rcVirtLogNotSet, '') if (!defined($$req{'virtlog'})) ;
+        $logfilepos = embperl_getlogfilepos () ;
+        $LogfileURL = "<A HREF=\"$$req{'virtlog'}?$logfilepos&$$\">Logfile</A> / <A HREF=\"$ENV{EMBPERL_VIRTLOG}?$logfilepos&$$&SRC:\">Source only</A> / <A HREF=\"$ENV{EMBPERL_VIRTLOG}?$logfilepos&$$&EVAL\<\">Eval only</A><BR>" ;
+	}
+    else
+	{ undef $LogfileURL if (defined ($LogfileURL)) ; }    
+
+        {
+        local $SIG{__WARN__} = \&Warn ;
+        local *0 = \$Inputfile;
+
+	chdir File::Basename::dirname($Inputfile) if (!defined ($In)) ;
+    
+        $rc = embperl_req ($Inputfile, $Outputfile, $Debugflags, $Options, $filesize, $pcodecache, $In, $Out) ;
+        local $^W = 0; #shutup Cwd.pm
+        chdir $cwd;
+	}
+
+    if ($cleanup == -1)
+        { ; } 
+    elsif ($cleanup == 0 && defined ($req_rec))
+        {
+        push @cleanups, $package ;
+        $req_rec -> register_cleanup(\&HTML::Embperl::cleanup) if ($#cleanups == 0) ;
+        }
+    else
+        {
+        push @cleanups, $package ;
+        cleanup () ;
+        }
+
+    return 0 ;
+    }
+
+#######################################################################################
+
+
+sub Init
+
+    {
+    my $Logfile = shift ;
+    
+    embperl_init (epIOPerl, $Logfile || $DefaultLog) ;
+    
+    tie *LOG, 'HTML::Embperl::Log' ;
+    }
+
+#######################################################################################
+
+
+sub Term
+
+    {
+    cleanup () ;
+    embperl_term () ;
+    }
+
 
 #######################################################################################
 
@@ -390,23 +676,21 @@ sub run (\@)
     {
     my ($args) = @_ ;
     my $Logfile    = $ENV{EMBPERL_LOG} || $DefaultLog ;
-    my $Options    = $ENV{EMBPERL_OPTIONS} || 0 ;
-    my $Outputfile = '' ;
     my $Daemon     = 0 ;
     my $Cgi        = $#{$args} >= 0?0:1 ;
     my $rc         = 0 ;
     my $log ;
-    my $pcodecache ;
     my $cgi ;
     my $ioType ;
-    my $ns ;
+    my %req ;
 
     $Inputfile  = '' ;
     undef $req_rec ;
-    
-    $Debugflags = $ENV{EMBPERL_DEBUG} || 0 ;
 
-    if (defined ($$argv[0]) && $$args[0] eq 'dbgbreak') 
+    ScanEnvironement (\%req) ;
+    
+
+    if (defined ($$args[0]) && $$args[0] eq 'dbgbreak') 
     	{
     	shift @$args ;
     	embperl_dbgbreak () ;
@@ -417,32 +701,32 @@ sub run (\@)
     	if ($$args[0] eq '-o')
     	    {
     	    shift @$args ;
-    	    $Outputfile = shift @$args ;	
+    	    $req{'outputfile'} = shift @$args ;	
             }
     	elsif ($$args[0] eq '-l')
     	    {
     	    shift @$args ;
     	    $Logfile = shift @$args ;	
-	        }
+            }
     	elsif ($$args[0] eq '-d')
     	    {
     	    shift @$args ;
-    	    $Debugflags = shift @$args ;	
-	        }
+    	    $req{'debug'} = shift @$args ;	
+	    }
     	elsif ($$args[0] eq '-D')
     	    {
     	    shift @$args ;
     	    $Daemon = 1 ;	
-	        }
-	    else
-	        {
-	        last ;
-	        }
 	    }
+	else
+	    {
+	    last ;
+	    }
+	}
     
     if ($#{$args} >= 0)
     	{
-    	$Inputfile = shift @$args ;
+    	$req{'inputfile'} = shift @$args ;
     	}		
     if ($#{$args} >= 0)
     	{
@@ -453,98 +737,32 @@ sub run (\@)
     if ($Daemon)
         {
         $Logfile = '' || $ENV{EMBPERL_LOG};   # log to stdout
-        $ioType = &epIOProcess ;
-        $Outputfile = $ENV{__RETFIFO} ;
+        $ioType = epIOProcess ;
+        $req{'outputfile'} = $ENV{__RETFIFO} ;
         }
     elsif ($Cgi)
         {
-	    $Inputfile = $ENV{PATH_TRANSLATED} ;
-        $ioType = &epIOCGI ;
+        $req{'inputfile'} = $ENV{PATH_TRANSLATED} ;
+        $ioType = epIOCGI ;
         }
     else
         {
-        $ioType = &epIOPerl ;
+        $ioType = epIOPerl ;
         }
 
-    if (defined ($ENV{EMBPERL_VIRTLOG}) &&
-        $ENV{EMBPERL_VIRTLOG} eq $ENV{SCRIPT_NAME})
-        {
-        return SendLogFile ($Logfile, $ENV{QUERY_STRING}) ;
-        }
-    
 
     embperl_init ($ioType, $Logfile) ;
 
+    
     tie *LOG, 'HTML::Embperl::Log' ;
 
-	my $cwd = Cwd::fastcwd();
-	$Inputfile  = $cwd . '/' . $Inputfile  if (!($Inputfile  =~ /^(\/|\\|.\:\\|.\:\/)/)) ;
-	$Logfile    = $cwd . '/' . $Logfile    if (!($Logfile    =~ /^(\/|\\|.\:\\|.\:\/)/)) ;
-	$Outputfile = $cwd . '/' . $Outputfile if ($Outputfile ne '' && !($Outputfile =~ /^(\/|\\|.\:\\|.\:\/)/)) ;
+    $req{'uri'} = $ENV{SCRIPT_NAME} ;
 
-    
-    
-    my $filesize ;
-    
-    ($rc, $filesize, $pcodecache) = CheckFile ($Inputfile) ;
-    return $rc if ($rc) ;
+    $req{'cleanup'} = 1 ;
+    $req{'cleanup'} = -1 if (($req{'options'} & optDisableVarCleanup)) ;
+    $req{'options'} |= optSendHttpHeader ;
 
-
-    if (defined ($ns = $ENV{EMBPERL_COMPARTMENT}))
-        {
-        my $cp = AddCompartment ($ns) ;
-        #$package    = $cp -> root ;
-        $opcodemask = $cp -> mask ;
-        }
-    else
-        {
-        undef $opcodemask ;
-        }
-
-	if ($Options & &optSafeNamespace)
-		{ $evalpackage = 'main' ; }
-	else
-		{ $evalpackage = $package ; }
-
-    
-
-    if (defined($ENV{'CONTENT_TYPE'}) && $ENV{'CONTENT_TYPE'}=~m|^multipart/form-data|)
-        { # just let CGI.pm read the multipart form data, see cgi docu
-	    $cgi = new CGI;
-	    
-        @ffld = $cgi->param;
-    
-    	foreach ( @ffld )
-        	{
-    	    $fdat{ $_ } = $cgi->param( $_ );
-        	}
-        }
-    else
-        {
-        @ffld = () ;
-        %fdat = () ;
-        }
-
-    @errors = () ;
-    do
-	    {
-            {
-            local $SIG{__WARN__} = \&Warn ;
-            local *0 = \$Inputfile;
-    
-            chdir File::Basename::dirname($Inputfile);
-
-            $rc = HTML::Embperl::embperl_req  ($Inputfile, $Outputfile, $Debugflags, $Options, $filesize,$pcodecache ) ;
-	
-            local $^W = 0; #shutup Cwd.pm
-	        chdir $cwd;
-    	    }
-
-        if (!($Options & &optDisableVarCleanup))
-            { cleanup () ; }
-
-	    }
-    until ($ioType != &epIOProcess) ;
+    $rc = Execute (\%req) ;
 
     #close LOG ;
     embperl_term () ;
@@ -560,150 +778,92 @@ sub run (\@)
 sub handler 
     
     {
-    $req_rec = $_[0] ;
-    my $rc ;
-    my $ns ;
-    my $pcodecache ;
-    my $cgi ;
-    my $Options    = $ENV{EMBPERL_OPTIONS} || 0 ;
-    
-    $Debugflags = $ENV{EMBPERL_DEBUG} || 0 ;
+    log_svs ("handler entry") ;
 
+    $req_rec = shift ;
+
+    my %req ;
+
+    ScanEnvironement (\%req) ;
+    
     undef $package if (defined ($package)) ; 
     
-    %ENV = %{{$req_rec->cgi_env, %ENV}} ;
+    $req{'uri'}       = $req_rec -> Apache::uri ;
+    $req{'inputfile'} = $ENV{PATH_TRANSLATED} = $req_rec -> filename ;
 
-   
-    if (defined ($ENV{EMBPERL_VIRTLOG}) &&
-        $ENV{EMBPERL_VIRTLOG} eq $req_rec -> Apache::uri)
-        {
-        $req_rec -> content_type ('text/html') ;
-        $req_rec -> Apache::send_http_header ;
-        embperl_setreqrec ($req_rec) ;
-        $rc = SendLogFile ($DefaultLog, $ENV{QUERY_STRING}) ;
-        embperl_resetreqrec () ;
-        return $rc ;
-        }
+    print LOG "i = $req{'inputfile'}\n" ;
 
-    $Inputfile = $ENV{PATH_TRANSLATED} = $req_rec -> Apache::filename ;
-	my $cwd       = Cwd::fastcwd();
-    $Inputfile    = $cwd . '/' . $Inputfile  if (!($Inputfile  =~ /^(\/|\\|.\:\\|.\:\/)/)) ;
-        
-    my $filesize ;
-    ($rc, $filesize, $pcodecache) = CheckFile ($Inputfile) ;
-    return $rc if ($rc) ;
-    
-    if (defined ($ns = $ENV{EMBPERL_COMPARTMENT}))
-        {
-        my $cp = AddCompartment ($ns) ;
-        #$package    = $cp -> root ;
-        $opcodemask = $cp -> mask ;
-        }
-    else
-        {
-        undef $opcodemask if (defined ($opcodemask)) ;
-        }
-   
-	if (($Options & &optSafeNamespace))
-		{ $evalpackage = 'main' ; }
-	else
-		{ $evalpackage = $package ; }
+    $req{'cleanup'} = -1 if (($req{'options'} & optDisableVarCleanup)) ;
+    $req{'options'} |= optSendHttpHeader ;
 
+    my $rc = Execute (\%req) ;
 
-    if (defined($ENV{'CONTENT_TYPE'}) && $ENV{'CONTENT_TYPE'}=~m|^multipart/form-data|)
-        { # just let CGI.pm read the multipart form data, see cgi docu
-	    $cgi = new CGI;
-	    
-        @ffld = $cgi->param;
-    
-    	foreach ( @ffld )
-        	{
-    	    $fdat{ $_ } = $cgi->param( $_ );
-        	}
-
-        }
-    else
-        {
-        @ffld = () ;
-        %fdat = () ;
-        }
-    @errors = () ;
-
-
-    $rc = embperl_setreqrec ($req_rec) ;
-    
-    if ($rc == 0)
-        {
-        if (!($Options & &optDisableVarCleanup))
-            { Apache -> push_handlers("PerlCleanupHandler", \&HTML::Embperl::cleanup) ; }
-    
-	    if ($Debugflags & &dbgLogLink)
-	        {
-            $logfilepos = embperl_getlogfilepos () ;
-            $LogfileURL = "<A HREF=\"$ENV{EMBPERL_VIRTLOG}?$logfilepos&$$\">Logfile</A> / <A HREF=\"$ENV{EMBPERL_VIRTLOG}?$logfilepos&$$&SRC:\">Source only</A> / <A HREF=\"$ENV{EMBPERL_VIRTLOG}?$logfilepos&$$&EVAL\<\">Eval only</A><BR>" ;
-	        }
-	    else
-	        { undef $LogfileURL if (defined ($LogfileURL)) ; }    
-
-            {
-            local $SIG{__WARN__} = \&Warn ;
-            local *0 = \$Inputfile;
-
-	        chdir File::Basename::dirname($Inputfile);
-        
-            $rc = embperl_req ($Inputfile, '', $Debugflags, $Options, $filesize, $pcodecache) ;
-            local $^W = 0; #shutup Cwd.pm
-            chdir $cwd;
-	        }
-        }
-    
-
-    return 0 ;
+    log_svs ("handler exit") ;
+    return $rc ;
     }
 
 #######################################################################################
 
 sub cleanup 
     {
+    log_svs ("cleanup entry") ;
     my $glob ;
     my $val ;
     my $key ;
     local $^W = 0 ;
+    my $package ;
 
-    if ($Debugflags & &dbgShowCleanup)
+    foreach $package (@cleanups)
         {
-	    while (($key,$val) = each(%{*{"$package\::"}})) {
+        next if ($package eq '') ;
+
+        if (defined (&{"$package\:\:CLEANUP"}))
+	    {
+    	    eval "\&$package\:\:CLEANUP;" ;
+	    print LOG "[$$]CUP:  Call \&$package\:\:CLEANUP;\n" if ($Debugflags & dbgShowCleanup);
+	    embperl_logevalerr ($@) if ($@) ;
+	    }
+
+
+        if ($Debugflags & dbgShowCleanup)
+            {
+	    while (($key,$val) = each(%{*{"$package\::"}}))
+                {
 	        local(*ENTRY) = $val;
-            $glob = $package.'::'.$key ;
-            if (defined (*ENTRY{SCALAR})) 
-#            if (defined (${$glob})) 
-                {
-                print LOG "[$$]CUP:  \$$key = ${$glob}\n" ;
-                undef ${$glob} ;
+                $glob = $package.'::'.$key ;
+                if (defined (*ENTRY{SCALAR})) 
+                    {
+                    print LOG "[$$]CUP:  \$$key = ${$glob}\n" ;
+                    undef ${$glob} ;
+                    }
+                if (defined (*ENTRY{HASH}) && !($key =~ /\:\:$/))
+                    {
+                    print LOG "[$$]CUP:  \%$key\n" ;
+                    undef %{$glob} ;
+                    }
+                if (defined (*ENTRY{ARRAY}))
+                    {
+                    print LOG "[$$]CUP:  \@$key\n" ;
+                    undef @{$glob} ;
+                    }
                 }
-            if (defined (*ENTRY{HASH}) && !($key =~ /\:\:$/))
+            }
+        else
+            {
+            while (($key,$val) = each(%{*{"$package\::"}}))
                 {
-                print LOG "[$$]CUP:  \%$key\n" ;
-                undef %{$glob} ;
-                }
-            if (defined (*ENTRY{ARRAY}))
-                {
-                print LOG "[$$]CUP:  \@$key\n" ;
-                undef @{$glob} ;
+	        local(*ENTRY) = $val;
+                $glob = $package.'::'.$key ;
+                undef ${$glob} if (defined (*ENTRY{SCALAR})) ;
+                undef %{$glob} if (defined (*ENTRY{HASH}) && !($key =~ /\:\:$/)) ;
+                undef @{$glob} if (defined (*ENTRY{ARRAY})) ;
                 }
             }
         }
-    else
-        {
-	    while (($key,$val) = each(%{*{"$package\::"}})) {
-	        local(*ENTRY) = $val;
-            $glob = $package.'::'.$key ;
-            undef ${$glob} if (defined (*ENTRY{SCALAR})) ;
-            undef %{$glob} if (defined (*ENTRY{HASH}) && !($key =~ /\:\:$/)) ;
-            undef @{$glob} if (defined (*ENTRY{ARRAY})) ;
-            }
-        }
 
+    @cleanups = () ;
+
+    log_svs ("cleanup exit") ;
     return &OK ;
     }
 
@@ -782,13 +942,15 @@ __END__
 
 =head1 NAME
 
-HTML::Embperl - Perl extension for embedding perl code in HTML documents
+HTML::Embperl - Perl extension for embedding Perl code in HTML documents
+
 
 =head1 SYNOPSIS
 
-Embperl is a perl extension module which gives you the ability to embed perl 
-code in HTML documents (much like Server Side Includes for shell 
-commands).
+Embperl is a Perl extension module which gives you the ability to
+embed Perl code in HTML documents, like server-side includes for shell
+commands.
+
 
 =head1 DESCRIPTION
 
@@ -798,66 +960,72 @@ Embperl can operate in one of four modes:
 
 =item B<Offline>
 
-converts a HTML file with embedded perl statements into a standard HTML 
-file.
+Converts an HTML file with embedded Perl statements into a standard
+HTML file.
 
-B<embpexec.pl [-o outputfile][-l logfile][-d debugflags] htmlfile [query_string]>
+B<embpexec.pl [-o outputfile] [-l logfile] [-d debugflags] htmlfile
+[query_string]>
 
 =over 4
 
 =item B<htmlfile>
 
-is the full pathname of the html file which should be processed by Embperl
+The full pathname of the HTML file which should be processed by
+Embperl.
 
 =item B<query_string>
 
-is optional and has same meaning as the environment variable QUERY_STRING 
-when invoked as CGI-Script, i.e. everything following the first "?" in an 
-URL. <query_string> should be url-encoded. Default is no query_string.
+Optional.  Has the same meaning as the environment variable
+QUERY_STRING when invoked as a CGI script.  That is, QUERY_STRING
+contains everything following the first "?" in a URL.  <query_string>
+should be URL-encoded.  The default is no query string.
 
 =item B<-o outputfile>
 
-gives the filename to which the output is written. Default is stdout. 
+Optional.  Gives the filename to which the output is written.  The
+default is stdout.
 
 =item B<-l logfile>
 
-is optional and give the filename of the logfile. Default is 
-/tmp/embperl.log. 
+Optional.  Gives the filename of the logfile.  The default is
+/tmp/embperl.log.
 
 =item B<-d debugflags>
 
-specifies the level of debugging (What is written to the logfile). Default
-is nothing. See below for exact values. 
+Optional.  Specifies the level of debugging (what is written to the
+log file).  The default is nothing.  See below for exact values.
 
 =back
 
 
-=item B<As CGI-Script>
+=item B<As a CGI script>
 
-instead of directly retrieving the document from the web-server, it is 
-processed by the CGI-Script and the result is send to the client.
+Instead of a file being sent directly by the web server, the document
+is processed by the CGI script and the result is sent to the client.
 
 B<embpexec.pl>
 
-If C<embpexec.pl> is invoked without any parameters and the environment variable 
-PATH_TRANSLATED is set, it invoke it self as CGI-Script. That means form 
-data is taken either from the environment variable QUERY_STRING or from 
-stdin depending on CONTENT_LENGTH (this will be set by httpd depending on 
-the method GET or POST). Input is taken from the file pointed to by 
-PATH_TRANSLATED and output is send to stdout. The logfile is generated at 
-it's default location (this is configurable via the environment variable 
-EMBPERL_LOG).
+If C<embpexec.pl> is invoked without any parameters and the
+environment variable PATH_TRANSLATED is set, it runs itself as a CGI
+script.  This means that form data is taken either from the
+environment variable QUERY_STRING or from stdin, depending on whether
+or not CONTENT_LENGTH is set.  (This will be set by the web server
+depending on whether the request method is GET or POST).  Input is
+taken from the file pointed to by PATH_TRANSLATED and the output is
+send to stdout.  The logfile is generated at its default location,
+which is configurable via the environment variable EMBPERL_LOG.
 
-To use this mode you have to copy B<embpexec.pl> to your cgi-bin 
-directory. You can invoke it with the URL http://www.domain.xyz/cgi-
-bin/embpexec.pl/url/of/your/document.
+To use this mode you must copy B<embpexec.pl> to your cgi-bin
+directory.  You can invoke it with the URL
+http://www.domain.xyz/cgi-bin/embpexec.pl/url/of/your/document.
 
-The /url/of/your/document will be passed to Embperl by the web server. 
-Normal processing i.e. aliasing etc. takes place before it is made to the 
-filename contained in PATH_TRANSLATED.
+The /url/of/your/document will be passed to Embperl by the web server.
+Normal processing (aliasing, etc.) takes place before the URI makes it
+to PATH_TRANSLATED.
 
-If you are running apache httpd you can also define B<embpexec.pl> as a 
-handler for a specific file extention or directory.
+If you are running the Apache httpd, you can also define
+B<embpexec.pl> as a handler for a specific file extention or
+directory.
 
 Example of Apache C<srm.conf>:
 
@@ -866,14 +1034,14 @@ Example of Apache C<srm.conf>:
     </Directory>
 
 
-=item B<From mod_perl>
+=item B<From mod_perl> (Apache httpd)
 
-(Apache httpd), this works like the CGI-Script, but with the advantage 
-that the script is compiled only once at server startup, where also other 
-one time action (such as opening files and databases ) can take place. 
-This will drastically reduce response times for the request.
-To use this you have to compile C<Apache httpd> with C<mod_perl> and add C<HTML::Embperl> as
-C<PerlHandler>.
+This works like the CGI-Script, but with the advantage that the script
+is compiled only once at server startup, where other one-time actions
+(such as opening files and databases) can take place.  This will
+drastically reduce response times for the request.  To use this you
+must compile C<Apache httpd> with C<mod_perl> and add C<HTML::Embperl>
+as the C<PerlHandler>.
 
 Example of Apache C<srm.conf>:
 
@@ -882,220 +1050,373 @@ Example of Apache C<srm.conf>:
     Alias /embperl /path/to/embperl/eg
 
     <Location /embperl/x>
-    SetHandler perl-script
+    SetHandler  perl-script
     PerlHandler HTML::Embperl
-    Options ExecCGI
+    Options     ExecCGI
     </Location>
 
-Another possible setup is
+Another possible setup (for Apache 1.3bX see below) is
 
     SetEnv EMBPERL_DEBUG 2285
 
-    <files *.epl>
-    SetHandler perl-script
+    <Files *.epl>
+    SetHandler  perl-script
     PerlHandler HTML::Embperl
+    Options     ExecCGI
     </files>
 
     AddType text/html .epl
 
-Don't forget the B<AddType>. In this setup all files with the ending epl are processed
-by Embperl. 
+Don't forget the B<AddType>.  In this setup, all files ending with
+.epl are processed by Embperl.
+
+C<NOTE:> Since <Files> does not work the same in Apache 1.3bX as it
+does in Apache 1.2.x, you need to use <FilesMatch> instead.
+
+    <FilesMatch ".*\.epl$">
+    SetHandler  perl-script
+    PerlHandler HTML::Embperl
+    Options     ExecCGI
+    </FilesMatch>
 
 
-See also under debugging (dbgLogLink and EMBPERL_VIRTLOG) how you can setup Embperl
-so you can view logfile with your browser!
+See the section on debugging (dbgLogLink and EMBPERL_VIRTLOG) to find
+out how you can configure Embperl so you can view the log file with
+your browser!
 
 
-=item B<As standalone process>
+=item B<By calling HTML::Embperl::Execute (\%param)>
 
-At the moment this is only for debugging because it can only handle one 
-request at a time, no serialization takes place if more than one client is 
-accessing an embperl-document. This mode has the same advantage as 
-mod_perl, because the process is once started and running (hopefully) 
-until the web server goes down. Data from the web-server is transferred 
-via two named pipes. The first gives the data of the request and is feeded 
-by a small c-program which is invoked as a CGI-Script and the second 
-transfers the output back to the CGI-Program, which sends it to the 
-client. This mode should work in conjunction with every web server, but to 
-really use it a serialization (and maybe a management for multiple 
-processes must be done)
+Execute takes a hash reference as argument. This gives the chance to
+vary the parameters according to the job that should be done.
+Possible items are:
 
-B<embpexec.pl -D>
+=over 4
 
-or
+=item B<inputfile>
 
-B<embpexec.pl> if PATH_TRANSLATED is not defined as a environment variable
+File which should be used as source. If B<input> is also specified
+this parameter should give a unique name to identify the source.
+Everytime Embperl sees the same text in B<inputfile> it assumes that
+you compile the same source, that means Embperl uses the same package
+name as in your last call and only recompiles the code if B<mtime> has
+changed or is undefined.
 
-This start Embperl as a Daemon. You have also to copy the file embcgi to 
-your cgi-bin directory. This program is invoked as CGI-Script by the web 
-server. The names of the named pipe which will be used must be changed in 
-epmain.c and embpcgi.c before compiling it and the pipes must be created 
-by hand (i.e. mkfifo) with read and write access for both processes, 
-before starting the processes.
-Input- and Formdata is the same as for the CGI-Script. Logfile outut is 
-going to stdout.
+=item B<input>
 
-B<WARNING:> Everybody who has write access to the named pipe can do things as 
-user which runs Embperl daemon. So be carefully not to run Embperl as root 
-unless you are sure nobody else can access it.
+Reference to a string which contains the source. B<inputfile> must also
+be specified to give a name for the source. The name can be any text.
+
+=item B<mtime>
+
+Last modification time of member B<input>. If undef the code passed
+by input is always recompiled, else the code is only recompiled if
+mtime changes.
+
+
+=item B<outputfile>
+
+File to which the output should be written. If neither outputfile
+nor output is specified ouput is written to stdout.
+
+=item B<output>
+
+Reference to a scalar where the output should be written to.
+
+=item B<cleanup>
+
+This value specifies if and when the cleanup of the package should be
+executed. (See variables scopes below for more information on cleanup)
+
+=over 4
+
+=item B<cleanup = -1>
+
+Never cleanup the variables
+
+=item B<cleanup = 0> or not specified
+
+If running under mod_perl cleanup is delayed until the connection to the
+client is closed, so it does not enlarge the response time to the client.
+If the Execute function is called more the once before the end of the request
+all cleanups take place after the end of the request and not between calls
+of Execute.
+
+If running as cgi or offline cleanup takes immediately place.
+
+=item B<cleanup = 1>
+
+Immediate cleanup
 
 =back
+
+=item B<options>
+
+Same as EMBPERL_OPTIONS (see below), except for cleanup.
+
+=item B<debug>
+
+Same as EMBPERL_DEBUG (see below).
+
+=item B<escmode>
+
+Same as EMBPERL_ESCMODE (see below).
+
+=item B<package>
+
+Same as EMBPERL_PACKAGE (see below).
+
+=item B<virtlog>
+
+Same as EMBPERL_VIRTLOG (see below). If B<virtlog> is equal to B<uri> the
+logfile is send.
+
+=item B<uri>
+
+The URI of the request. Only needed for the virtlog feature.
+
+=item B<compartment>
+
+Same as EMBPERL_COMPARTMENT (see below).
+
+
+=back
+
+
+=head2 Helper functions for Execute
+
+=over 4
+
+=item B<HTML::Embperl::Init ($Logfile)>
+
+When B<not> running under mod_perl, you must first do a call to Init before
+you can use B<Execute>. Do not call Init when running under mod_perl!
+
+=item B<HTML::Embperl::Term>
+
+Call this when your work is done.
+
+=item B<HTML::Embperl::ScanEnvironement (\%params)>
+
+Scans the B<%ENV> and setups B<%params> for use by B<Execute>. All
+Embperl runtime configuration options are recognised, except EMBPERL_LOG.
+
+=back
+
+
+=head2 EXAMPLES for Execute:
+
+ # Get source form /path/to/your.html and
+ # write output to /path/to/output'
+
+ HTML::Embperl::Execute ({ inputfile  => '/path/to/your.html',
+                           outputfile => '/path/to/output'}) ;
+
+
+ # Get source from scalar and write output to stdout
+ # Don't forget to modify mtime if $src changes
+
+ $src = '<html><head><title>Page [+ $no +]</title></head>' ;
+
+ HTML::Embperl::Execute ({ inputfile  => 'some name',
+                           input      => \$src,
+                           mtime      => 1 }) ;
+
+ # Get source from scalar and write output another scalar
+
+ my $src = '<html><head><title>Page [+ $no +]</title></head>' ;
+ my $out ;
+
+ HTML::Embperl::Execute ({ inputfile  => 'another name',
+                           input      => \$src,
+                           mtime      => 1,
+                           output     => \$out }) ;
+
+ print $out ;
+
+
+
+
+
 
 =head1 B<Runtime configuration>
 
 The runtime configuration is done by setting environment variables,
-either on the command line 
-(when working offline) or in your web servers configuration file. Most 
-http daemons understand
+either on the command line (when working offline) or in your web
+server's configuration file.  Most HTTP servers understand
 
 SetEnv <var> <value>
 
-If you are using apache httpd and mod_perl you can use instead
+If you are using Apache and mod_perl you can use
 
 PerlSetEnv <var> <value>
 
-The advantage is that this can be used on a per directory/virtual host basis.
+The advantage of PerlSetEnv over SetEnv is that it can be used on a
+per directory/virtual host basis.
 
 =over 4
 
+=item B<EMBPERL_COMPARTMENT>
+
+Gives the name of the compartment from which to take the opcode mask.
+(See the chapter about Safe namespaces for more details.)
+
+
+=item B<EMBPERL_ESCMODE>
+
+Specifies the initial value for $escmode (see below).
+
+
+=item B<EMBPERL_LOG>
+
+Gives the location of the log file.  This will contain information
+about what Embperl is doing.  How much information depends on the
+debug settings (see below).  The log output is intended to show what
+your embedded Perl code is doing and to help debug it.  Default is
+B</tmp/embperl.log>.
+
+NOTE: When running under mod_perl you need to use B<PerlSetEnv> for
+setting the logfile path, and mod_perl >= 1.07_03 if you load Embperl
+at server startup (with PerlScript or PerlModule).
+
+
 =item B<EMBPERL_PACKAGE>
 
-the name of the package where your code is eval in. By default Embperl generates
-a unique package name for every file. This makes sure variables and functions from
-one file can not affect the ones from another file. (But they will be still be 
-accessable thru explict package names)
+The name of the package where your code will be executed.  By default
+Embperl generates a unique package name for every file.  This ensures
+that variables and functions from one file can not affect those from
+another file.  (Any package's variables will still be accessible with
+explict package names.)
+
+
+=item B<EMBPERL_VIRTLOG>
+
+Gives a virtual location where you can access the Embperl logfile with
+a browser.  This feature is disabled (default) if EMBPERL_VIRTLOG is
+not specified.  See also dbgLogLink for an Example how to set it up in
+your srm.conf.
+
 
 =item B<EMBPERL_OPTIONS>
 
-This bitmask specifies some options for exectution of Embperl:
+This bitmask specifies some options for the execution of Embperl:
 
 =over 4
 
 =item optDisableVarCleanup = 1
 
-disables the automatic cleanup of variables at the end of each request
+Disables the automatic cleanup of variables at the end of each
+request.
 
 =item optDisableEmbperlErrorPage = 2
 
-tells Embperl to not send his own errorpage in case of a failure, instead giving the 
-error back to the web server and let ot handle it the standard way
-Without this option Embperl sends his own error page, showing all the errors which has
-occured. If you have the dbgLogLink enabled, every error will be a link to the corresponding
-location in the log file.
+Tells Embperl to not send its own errorpage in case of failure,
+instead giving the error back to the web server and let the web server
+handle it the standard way.  Without this option, Embperl sends its
+own error page, showing all the errors which have occured.  If you
+have dbgLogLink enabled, every error will be a link to the
+corresponding location in the log file.
 
 =item optSafeNamespace = 4
 
-tells Embperl to execute the embbeded code in a safe namespace, thus the code cannot access
-data or code in any other package (see the Chapter about Safe namespaces below for more details)
+Tells Embperl to execute the embbeded code in a safe namespace so the
+code cannot access data or code in any other package.  (See the
+chapter about Safe namespaces below for more details.)
 
 =item optOpcodeMask = 8
 
-tells Embperl to aply an operator mask. This gives you the chance to disallow special (unsafe)
-opcodes (see the Chapter about Safe namespaces below for more details)
+Tells Embperl to aply an operator mask.  This gives you the chance to
+disallow special (unsafe) opcodes.  (See the Chapter about Safe
+namespaces below for more details.)
 
 =item optRawInput = 16
 
-The option optRawInput causes Embperl not to preprocess the
-source for a perl expression. (Only exceptions is that CR will be removed).
-This option should be set when you writing your code with an ascii editor. 
+Causes Embperl not to preprocess the source for a Perl expression.
+(The only exception is that carriage returns will be removed, as Perl
+does not like them.)  This option should be set when you writing your
+code with an ASCII editor.
 
-
-If you using a WYSIWYG editor, which insert unwanted html tags in your
-perl expressions and escapes special charcaters automaticly (i.e.
-< will occur as &lt; in the source), you should not set this option, and
-Embperl will automaticly convert the html input back to the perl
-expression you written.
+If you using a WYSIWYG editor which inserts unwanted HTML tags in your
+Perl expressions and escapes special charcaters automatically (e.g.,
+`<' appears as `&lt;' in the source), you should not set this option.
+Embperl will automaticly convert the HTML input back to the Perl
+expressions as you wrote them.
 
 =back
 
-=item B<EMBPERL_LOG>
-
-gives the pathname of the log file. This will contain more or less infos 
-about what Embperl is doing depending on the debug settings (see below). 
-The log-output is specially intended to see what your embedded perl code 
-is doing and to debug it.
-Default is B</tmp/embperl.log>
-
-NOTE: When running under mod_perl you need to use B<PerlSetEnv> for setting
-the logfilepath and mod_perl >= 1.07_03, if you load Embperl at server
-startup (e.g. with PerlScript or with PerlModule). 
-
-
-=item B<EMBEPRL_VIRTLOG>
-
-gives a virtual location, where you can access the embperl logfile with a browser.
-This feature is disabled (default) if EMBPERL_VIRTLOG is not specified. See also
-dbgLogLink for an Example how to set it up in your srm.conf.
 
 =item B<EMBPERL_DEBUG>
 
-This is a bitmask which specifies what should be written to the log
+This is a bitmask which specifies what should be written to the log.
 The following values are defined:
 
 =over 4
 
-=item dbgStd = 1,
+=item dbgStd = 1
 
-Minimum Infos
+Show minimum information.
 
-=item dbgMem = 2,
+=item dbgMem = 2
 
-Memory and Scalar Value allocation
+Show memory and scalar value allocation.
 
-=item dbgEval = 4,
+=item dbgEval = 4
 
-Arguments and result of evals
+Show arguments to and results of evals.
 
-=item dbgCmd = 8,
+=item dbgCmd = 8
 
-Metacommands and HTML tags which are processed
+Show metacommands and HTML tags which are processed.
 
 =item dbgEnv = 16,
 
-List environement variables
+List every request's environment variables.
 
-=item dbgForm = 32,
+=item dbgForm = 32
 
-List form data 
+Lists posted form data.
 
-=item dbgTab = 64,
+=item dbgTab = 64
 
-Log processing of dynamic tables
+Show processing of dynamic tables.
 
-=item dbgInput = 128,
+=item dbgInput = 128
 
-Log processing of html input tags
+Show processing of HTML input tags.
 
-=item dbgFlushOutput = 256,
+=item dbgFlushOutput = 256
 
-Flush output after every write (Should normaly not set. Only for debugging 
-when Embperl crashs, will drasticaly slow down operation)
+Flush Embperl's output after every write.  This should only be set to
+help debug Embperl crashes, as it drastically slows down Embperl's
+operation.
 
-=item dbgFlushLog = 512,
+=item dbgFlushLog = 512
 
-Flush logfile after every line (Should normaly not set. Only for debugging 
-when Embperl crashs, log is automatily flushed after each html file, when set
-will slow down operation)
+Flush Embperl's logfile output after every write.  This should only be
+set to help debug Embperl crashes, as it drastically slows down
+Embperl's operation.
 
-=item dbgAllCmds  = 1024,
+=item dbgAllCmds  = 1024
 
-Logs all commands and HTML tags, regardless if they are really excuted or
-not. (Showing a + or - to tell you if they are executed).
+Logs all commands and HTML tags, whether or not they are really
+excuted or not.  (It logs a `+' or `-' to tell you if they are
+executed.)
 
-=item dbgSource = 2048,
+=item dbgSource = 2048
 
-Logs the next piece of the HTML-source which is processed. (Gives a lot
-of output!)
+Logs the next piece of the HTML source to be processed. (NOTE: This
+generates a lot of output!)
 
-=item dbgFunc = 4096,
+=item dbgFunc = 4096
 
-Only anvailable when compiled with -DEPDEBUGALL. Normaly only used for debugging
-Embperl itself. Logs all functionentrys to the logfile (lot of data!)
+This is only anvailable when Embperl is compiled with -DEPDEBUGALL,
+and it normally only used for debugging Embperl itself.  Records all
+function entries to the logfile.
 
-=item dbgLogLink = 8192,
+=item dbgLogLink = 8192
 
-Inserts a link on the top of each page, which can be used to view the log for current
-html file. See also EMBEPRL_VIRTLOG under configuration.
+Inserts a link at the top of each page which can be used to view the
+log for the current HTML file.  See also EMBEPRL_VIRTLOG.
 
 Example:
 
@@ -1108,143 +1429,159 @@ Example:
     Options ExecCGI
     </Location>
 
-=item dbgDefEval = 16386
+=item dbgDefEval = 16384
 
-Shows everytime a new perl-code is compiled
+Shows every time new Perl code is compiled.
 
 =item dbgCacheDisable = 32768
 
-Disables the usage of the p-code cache. All the perl code is recompiled everytime.
-(Should not be used in normal operation, slows down Embperl drasticaly)
+Disables the use of the p-code cache.  All Perl code is recompiled
+every time.  (This should not be used in normal operation as it slows
+down Embperl dramatically.) This option is only here for debugging
+Embperls cache handling. There is no guarantee, that Embperl behaves
+the same with and without cache (actually is does not!)
+
 
 =item dbgEarlyHttpHeader = 65536
 
-Normaly http-headers are send after the request was finished without any errors.
-This gives you the chance to set aribary http-header within the page, and Embperl
-the chance to calculate the content length. To do this all the output the kept in
-memory until the http-headers are send, and send afterwards. This flag will cause
-the http-headers to be send before script-processing and then the output directly
-without keeping it in memory (like versions before 0.18)
+Normally, HTTP headers are sent after a request is finished without
+error.  This gives you the chance to set arbitrary HTTP headers within
+the page, and Embperl the chance to calculate the content length.  To
+do this, all the output is kept in memory until the HTTP headers are
+sent, and then the document is sent.  This flag will cause the HTTP
+headers to be sent before the script is processed, and the script's
+output will be sent directly.  (Embperl versions before 0.18 did not
+have this option; all headers were sent early.)
 
 =item dbgHeadersIn = 262144
 
-Log all http headers which are send from the brwoser
+Log all HTTP headers which are sent from the browser.
 
 =item dbgShowCleanup = 524288
 
-Show every varibale which is undef'd at the end of the request. For Scalars
-variables also the value is logged.
+Show every variable which is undef'd at the end of the request.  For
+scalar variables, the value before undef'ing is logged.
 
 
 =back
 
-A good value to start is C<2285> or C<10477> if you want to view the logfile
-with your browser (Don't forget to set EMBPERL_VIRTLOG).
-If Embperl crashs (you get a Segmentation
-fault) add C<512> so the logfile is flushed and you can see where Embperl
-crashs.
+A good value to start is C<2285> or C<10477> if you want to view the
+logfile with your browser.  (Don't forget to set EMBPERL_VIRTLOG.)  If
+Embperl crashes, add C<512> so the logfile is flushed after every line
+is written and you can see where Embperl is when it crashes.
 
-
-=item B<EMBPERL_COMPARTMENT>
-
-gives the name of the compartment from which to take the opcode mask
-(see the Chapter about Safe namespaces below for more details)
-
-=back
 
 =head1 B<SYNTAX>
 
-Embperl understands four categories of commands. The first three are 
-special Embperl command, the last category are some HTML-Tags which can 
-trigger a special processing. Before the special Embperl-commands are 
-processed and for the VALUE attribute of the input tag (see below), all 
-HTML-Tags are removed and special HTML characters are translated to their 
-ascii values (e.g. &lt; is translated to "<" ). Embperl-commands can spawn 
-multiple lines and not necessarily starts or ends at line boundary. You 
-can escape from this behavior by preceding the special character or HTML 
-tag with a backslash. This is done, so you can create your embperl-html-
-file with your favorite (WYSIWYG) HTML-Editor, no matter if it inserts 
-tags like line breaks or formatting into your Embperl-commands where you 
-don't want them.
+Embperl understands four categories of commands. The first three are
+special Embperl commands, and the last category are some HTML tags
+that can trigger special processing.  Embperl commands can span
+multiple lines and need not start or end at a line boundary.
 
-B<NOTE:> If you do use an B<ascii editor> to write your HTML-Documents you should
-set the option B<optRawInput> so Embperl does not preprocess your source.
-You can also html-escape your code (i.e. write &lt; instead of <), to avoid 
-ambiguousness. In the most cases it will also work without the optRawInput and
-html-escaping, but in some cases Embperl will deteced a html-tag were there
-isn't one.
+Before the special Embperl commands are processed, and for the VALUE
+attribute of the INPUT tag (see below), all HTML tags are removed and
+special HTML characters are translated to their ASCII values (e.g.,
+`&lt;' is translated to `<').  You can avoid from this behavior by
+preceding the special character or HTML tag with a backslash.  This is
+done in case your favorite (WYSIWYG) HTML editor inserts tags like
+line breaks or formatting into your Embperl commands where you don't
+want them.
 
-All Embperl-commands starts with a "[" and ends with a "]". To get a real 
-"[" you must enter "[[".
+B<NOTE:> If you do use an ASCII editor to write your HTML documents,
+you should set the option B<optRawInput> so Embperl does not
+preprocess your source.  You can also HTML-escape your code
+(i.e. write `&lt;' instead of `<'), to avoid ambiguity.  In most cases
+it will also work without the optRawInput and HTML-escaping, but in
+some cases Embperl will deteced an HTML tag were there isn't one.
 
-I am not using sgml comments (i.e. <! ... !> or similar things) because 
-some HTML-Editors can't create them or it's much more complicated. Sinces 
-every HTML-Editor takes [ and ] as normal text, there should be no problem.
+All Embperl commands start with a `[' and end with a `]'.  To get a
+real `[' you must enter `[['.
 
-=over 4
-
-=item B<[+ perl-code +]>
-
-Replace the command with the result of the perl code (The value returned 
-by eval "perl-code").
-As C<perl-code> you can use everything which can be an argument to the perl 
-eval statement (see Security below for restrictions). 
-Examples:
-
- [+$a+]          replaces the [+$a+] with the content
-                 of the variable $a
- [+$a+1+]        every expression can be used
- [+ $x[$i] +]    also array and hashes or more complex
-                 expressions works
-
-C<NOTE:> White space are ignored
-The output will automaticly HTML escaped (e.g. "<" is translated to &lt;). 
-You do have to care about it.
-
-
-=item B<[- perl-code -]>
-
-Executes the perl-code, but delete the whole command from the HTML output.
-
-Examples:
-
- [-$a=1-]        set the variable $a to one, no output
-                 will be generated
- [-use somemodule-] you can use other modules
- [-$i=0; while ($i<5) {$i++} -] even more complex statements
-                                or multiple statements are possible.
-
-NOTE: Statements like if, while, for, etc. must be included in one embperl 
-command. You can not have the if in one command block and the terminating 
-"}" or else in another.
-
-=item B<[$cmd arg$]>
-
-Execute a Embperl metacommand
-<cmd> can be one of the following (<arg> varies depending on <cmd>):
+Embperl does not use SGML comments (i.e., <! ... !> or similar things)
+because some HTML editors can't create them, or it's much more
+complicated.  Sinces every HTML editor takes (or B<should> take) `['
+and `]' as normal text, there should be no problem.
 
 =over 4
 
-=item B<if, elsif, else, endif>
+=item B<[+ Perl code +]>
 
-everything following the if metacommand until the else, elsif or endif is 
-only outputted if the perl expression given in <arg> is true. else and 
-elsif works analog.
+Replace the command with the result of evaluating the Perl code.  The
+Perl code can be anything which can be used as an argument to Perl
+eval statement.  (See Security below for restrictions.)  Examples:
+
+ [+ $a +]        Replaces the [+ $a +] with the content of
+                 the variable $a
+
+ [+ $a+1 +]      (Any expression can be used)
+
+ [+ $x[$i] +]    (Arrays, hashes, and more complex
+                  expressions work)
+
+C<NOTE:> Whitespace is ignored.  The output will be automatically
+HTML-escaped (e.g., `<' is translated to `&lt;') depending on the
+value of the variables C<$escmode>.  You do not have to worry about
+it.
+
+
+=item B<[- Perl code -]>
+
+Executes the Perl code, but delete the whole command from the HTML
+output.
 
 Examples:
 
- [$if $ENV{REQUEST_METHOD} eq 'GET' $]
+ [- $a=1 -]            Set the variable $a to one.
+ 		       No output will be generated.
+
+ [- use SomeModule -]  You can use other modules.
+
+ [- $i=0; while ($i<5) {$i++} -]  Even more complex
+                                  statements or multiple
+                                  statements are possible.
+
+C<NOTE:> Statements like if, while, for, etc., must be contained in a
+single Embperl command.  You cannot have the if in one command block
+and the terminating `}' or else in another.
+
+C<NOTE:> To define subroutines, use [! ... !] (see below) instead of
+[- ... -] to avoid recompilation of the subroutine on every request.
+
+
+=item B<[! Perl Code !]>
+
+Same as [- Perl Code -] with the exception that the code is only
+executed at the first request.  This could be used to define
+subroutines, or do one-time initialization.
+
+
+=item B<[$ Cmd Arg $]>
+
+Execute an Embperl metacommand.  B<Cmd> can be one of the following.
+(B<Arg> varies depending on <Cmd>).
+
+=over 4
+
+=item B<if>, B<elsif>, B<else>, B<endif>
+
+Everything following the B<if> metacommand until the B<else>,
+B<elsif>, or B<endif> is only output if the Perl expression given in
+B<Arg> is true.  B<else> and B<elsif> work similarly.
+
+Example:
+
+ [$ if $ENV{REQUEST_METHOD} eq 'GET' $]
  Method was GET<BR>
- [$else$]
+ [$ else $]
  Method other than GET used<BR>
- [$endif$]
+ [$ endif $]
 
-This will send one of the two sentence to the client, depending on the 
-request method used to call the document.
+This will send one of the two sentences to the client, depending on the
+request method used to retrieve the document.
 
-=item B<while, endwhile>
+=item B<while>, B<endwhile>
 
-Executes a loop until the <arg> given to while is false
+Executes a loop until the B<Arg> given to B<while> is false.
 
 Example: (see eg/x/while.htm)
 
@@ -1256,270 +1593,310 @@ Example: (see eg/x/while.htm)
 
 This will send a list of all environment variables to the client.
 
-NOTE: The '&lt;' is translated to '<' before call the perl eval.
+NOTE: The `&lt;' is translated to `<' before call the Perl eval,
+unless optRawInput is set.
 
 =item B<hidden>
 
-<arg> consists of zero, one or two names of hashs (with or without the leading %) 
-and an optional array as third parameter. 
-The hidden metacommand will generated hidden fields for all data contained 
-in first hash and not in second hash. Default for first hash is C<%fdat> and 
-for second hash C<%idat>. If the third paramter is specified the fields are
-written in the order of this array to the output file, i.e. all keys of the first
-hash must be in this array properly sorted.
-This is intended for situations where you want to 
-pass data from one forms to the next, e.g. two forms which should be 
-filled one after each other (e.g. an input form and a second form to 
-review and accept the input). Here you can transport the data from 
-previous forms within hidden fields. (See eg/x/neu.htm for an example).
-If you use just the hidden command without parameters it simply generates
-hiddenfields for all formfields submited to this document, which are not yet
-contained in another input field.
+B<Arg> consists of zero, one or two names of hashes (with or without
+the leading %) and an optional array as third parameter.  The
+B<hidden> metacommand will generated hidden fields for all data
+contained in first hash and not in second hash.  The default used for
+the first hash is C<%fdat>, C<%idat> for the second.
 
+If the third parameter is specified, the fields are written in the
+order they appear in this array.  That is, all keys of the first hash
+must be in this array properly sorted.  This is intended for
+situations where you want to pass data from one form to the next, for
+example, two forms which should be filled one after the other.
+(Examples might be an input form and a second form to review and
+accept the input, or a Windows-style "wizard").  Here you can pass
+along data from previous forms in hidden fields.  (See eg/x/neu.htm
+for an example.)  If you use just the hidden command without
+parameters, it simply generates hidden fields for all form fields
+submitted to this document which aren't already contained in another
+input field.
 
- Example:
+Example:
 
-    <form action="inhalt.htm" method="GET">
-	<input type="text" name="feld1">
-    [$hidden$]
-    </form>
+    <FORM ACTION="inhalt.htm" METHOD="GET">
+	<INPUT TYPE="TEXT" NAME="field1">
+    [$ hidden $]
+    </FORM>
 
-
- If you request this with 
+If you request this with 
     
-    http://host/doc.htm?feld1=A&feld2=B&feld3=C
+    http://host/doc.htm?field1=A&field2=B&field3=C
 
- the output will be
+the output will be
 
-    <form action="inhalt.htm" method="GET">
-	<input type="text" name="feld1" value="A">
+    <FORM ACTION="inhalt.htm" METHOD="GET">
+	<INPUT TYPE="TEXT" NAME="feld1" VALUE="A">
 	
-    <input type="hidden" name="feld2" value="B">
-    <input type="hidden" name="feld3" value="C">
-    </form>
+    <INPUT TYPE="HIDDEN" NAME="field2" VALUE="B">
+    <INPUT TYPE="HIDDEN" NAME="field3" VALUE="C">
+    </FORM>
 
 
-
-NOTE: This should only be used for small amount of data, since the hidden 
-fields are sent to the browser, which sends it back at next request. If 
-you have large data, store it within a file with a unique name and send 
-only the filename within the hidden field. But be aware of the fact, that 
-the data could be change by the browser if the user didn't behave exactly 
-as you except. Your program should handle such situations properly.
+C<NOTE:> This should only be used for small amount of data, since the
+hidden fields are sent to the browser, which sends it back with the
+next request.  If you have a large amount of data, store it in a file
+with a unique name and send only the filename in a hidden field.  Be
+aware of the fact that the data could be change by the browser if the
+user didn't behave exactly as you expect. Your program should handle
+such situations properly.
 
 
 =item B<var>
 
-The var command declares one or more variables for use within this Embperl 
-document and sets the strict pragma. The variablenames must be supplied as
-space separted list.
+The var command declares one or more variables for use within this
+Embperl document and sets the B<strict> pragma. The variable names
+must be supplied as space separated list.
 
 Example:
 	
 	[$var $a %b @c $]
 
-This is the same as writing the following in normal perl code:
+This is the same as writing the following in normal Perl code:
 
 	use strict ;
 	use vars qw($a %b @c) ;
 
-NOTE 1: You cannot use the 'use strict' within an Embperl document, this will
-only aply to the block where it occurs
-
-NOTE 2: Warnings about non declared variables will not terminate the execution
-of the document. It will be processed as normaly, but warning messages will be
-written to STDERR (httpd error log). The messages will not occur in the embperl
-log file
+NOTE 1: `use strict' within an Embperl document will only aply to the
+block where it occurs.
 
 
 =back
 
 =item B<HTML Tags>
 
-Embperl recognizes the following HTML Tags (all other are simply passed 
-through, as long as they not part of a Embperl command).
+Embperl recognizes the following HTML tags specially.  All other are
+simply passed through, as long as they are not part of a Embperl
+command.
 
 =over 4
 
-=item B<table, /table, tr, /tr>
+=item B<TABLE>, B</TABLE>, B<TR>, B</TR>
 
-Embperl can generate dynamic tables (one or two dimensional). You only have to specify one row/column. 
-Embperl generates as much rows/columns as nessecary. This is done by using the 
-magic variables $row, $col and $cnt. If you don't use $row/$cnt/$cnt within a table,
-Embperl does nothing and simply pass the table through.
-Embperl checks if the varibale $row/$col/$cnt 
-is used. 
-Embperl repeats all text between <table> and </table>, as long 
-the expressions in which $row or $cnt occurs is/are defined.
-Embperl repeats all text between <tr> and </tr>, as long 
-the expressions in which $col or $cnt occurs is/are defined.
+Embperl can generate dynamic tables (one or two dimensional).  You
+only need to specify one row or column.
 
-See also $tabmode (below) for end of table criteria.
+Embperl generates as many rows or columns as necessary. This is done
+by using the magic variables $row, $col, and $cnt.  If you don't use
+$row/$col/$cnt within a table, Embperl does nothing and simply passes
+the table through.
 
+Embperl checks if any of $row, $col, or $cnt is used.  Embperl repeats
+all text between <table> and </table>, as long the expressions in
+which $row or $cnt occurs is/are defined.
+
+Embperl repeats all text between <tr> and </tr>, as long the
+expressions in which $col or $cnt occurs is/are defined.
+
+See also $tabmode (below) for end-of-table criteria.
 
 Examples: (see eg/x/table.htm for more examples)
 
  [- @k = keys %ENV -]
- <table>
-     <tr>
-         <td>[+ $i=$row +] </td>
-         <td>[+ $k[$row] +] </td>
-         <td>[+ $ENV{$k[$i]} +] </td>
-     </tr> 
- </table>
+ <TABLE>
+     <TR>
+         <TD>[+ $i=$row +]</TD>
+         <TD>[+ $k[$row] +]</TD>
+         <TD>[+ $ENV{$k[$i]} +]</TD>
+     </TR> 
+ </TABLE>
 
-This will show all entries in array @k (which contains the keys from %ENV), so 
-the whole environment is displayed (like in the while example), with the 
-first column containing the index (from 0) and the second containing the 
-content of the array and the third the environment variable.
+This will show all entries in array @k (which contains the keys from
+%ENV), so the whole environment is displayed (as in the B<while>
+example), with the first column containing the zero-based index, the
+second containing the content of the variable name, and the third the
+environment variable's value.
 
-This could be used to display the result of database query if you have the 
-result in an array. You make as much columns as you need. It is also 
-possible to call a fetch subroutine in each table row.
+This could be used to display the result of database query if you have
+the result in an array.  You may provide as many columns as you need.
+It is also possible to call a fetch subroutine in each table row.
 
-=item B<th, /th>
+=item B<TH>, B</TH>
 
-th tags is interpreted as table heading. If the whole row is made of <th> </th>
-instead of <td> </td> it's treated as column heading. Everythingelse will be 
-treated as row heading in the future, but is ignored in the current version. 
+The TH tag is interpreted as table heading.  If the whole row is made
+of <TH> </TH> instead of <TD> </TD> it's treated as column heading.
+Everything else will be treated as row headings in the future, but is
+ignored in the current version.
 
-=item B<dir, menu, ol, ul, dl, select, /dir, /menu, /ol, /ul, /dl, /select>
+=item B<DIR>, B<MENU>, B<OL>, B<UL>, B<DL>, B<SELECT>, B</DIR>, B</MENU>,
+B</OL>, B</UL>, B</DL>, B</SELECT>
 
-Lists and Dropdown/Listboxes are treated excatly as one dimensional tables.
-Only $row, $maxrow, $cnt,
-$maxcnt and $tabmode are honoured. $col and $maxcol are ignored.
-see eg/x/lists.htm for an example.
+Lists and dropdowns or list boxes are treated exactly as one-
+dimensional tables.  Only $row, $maxrow, $col, $maxcol and $tabmode
+are honored.  $col and $maxcol are ignored.  See eg/x/lists.htm for an
+example.
 
-=item B<option>
+=item B<OPTION>
 
-Embperl looks if theres a value from the form data for a specific option in 
-a menu. If so this option will be preselected.
+Embperl checks if there is a value from the form data for a specific
+option in a menu.  If so, this option will be preselected.
 
 Example:
 
-<form method="POST">
+<FORM METHOD="POST">
   <P>Select Tag</P>
 
-    If you request this document with list.htm?SEL1=x
-    you can specify that the element which has a value
-    of x is initialy selected
-    
+  If you request this document with list.htm?SEL1=x
+  you can specify that the element which has a value
+  of x is initialy selected
 
-    <p><select name="SEL1">
-        <option value="[+ $v[$row] +]">[+ $k[$row] +]</option>
-    </select></p>
-</form>
+  <P><SELECT NAME="SEL1">
+     <OPTION VALUE="[+ $v[$row] +]">
+        [+ $k[$row] +]
+     </OPTION>
+  </SELECT></P>
+</FORM>
 
 
-=item B<input>
+=item B<INPUT>
 
-The input tag interacts with the hashs C<%idat> und C<%fdat>. If the input tag 
-has no value and a key exists with the same text as the NAME attribute of 
-the input tag, Embperl generates a VALUE attribute which the corresponding 
-value to the hashkey.
-All values of <input> tags are stored in the hash C<%idat>, which NAME as 
-hashkey and VALUE as hashvalue.
-Special processing is made for TYPE=RADIO and TYPE=CHECKBOX. If the VALUE 
-attribute contains the same text as the value of the hash the CHECKED 
-attribute is inserted else it is removed.
-So if you specify as action url the file which contains the form itself, 
-the form will be redisplayed with same values as entered in the first 
-form. (See eg/x/neu.htm for an example)
+The INPUT tag interacts with the hashes C<%idat> und C<%fdat>.  If the
+input tag has no value, and a key exists with the same text as the
+NAME attribute of the input tag, Embperl will generate a VALUE
+attribute with the corresponding value of the hash key.
 
-=item B<textarea, /textarea>
+All values of <INPUT> tags are stored in the hash C<%idat>, with NAME
+as the hash key and VALUE as the hash value.  Special processing is
+done for TYPE=RADIO and TYPE=CHECKBOX.  If the VALUE attribute
+contains the same text as the value of the hash the CHECKED attribute
+is inserted, else it is removed.  So if you specify as the ACTION URL
+the file which contains the form itself, the form will be redisplayed
+with same values as entered the first time. (See eg/x/neu.htm for an
+example.)
 
-The textarea tags treated excatly like other input fields (see above)
+=item B<TEXTAREA>, B</TEXTAREA>
 
+The TEXTAREA tag is treated excatly like other input fields.
 
 =back
 
-=head1 B<Variables scope>
 
-The scope of a variable declared with B<my> or B<local> is ending at the end of
-the [+/- ... -/+] block (if it's not in a perl { ... } block, then the scope ends
-at the correspondig '}', like everytime in perl ).
+=head1 B<Variable scope and cleanup>
 
-Global variables (everything not declared with B<my> or B<local>) will be undef'ed 
-at the end of each request. So you don't have to care for any old variables lieing
-arround and causeing suspicious results. This is only done for variables in the
-package the code is evaled in (every variable that does not have an explicit 
-package name). All variables with an explicit package name (i.e. in modules you use)
-will stay vaild until the httpd child process dies. Embperl will change the
-current package to unique name for every document, so the influence between
-differnet document is kept to a minimum. You can set the name of the package with
-B<EMBPERL_PACKAGE>. (see also safe namespaces)
+The scope of a variable declared with B<my> or B<local> ends at the
+end of the enclosing [+/- ... -/+] block; the [+/- ... -/+] blocks act
+much like Perl's { ... } in that regard.
+
+Global variables (everything not declared with B<my> or B<local>) will
+be undef'ed at the end of each request, so you don't need to worry
+about any old variables laying around and causing suspicous results.
+This is only done for variables in the package the code is evaled in--
+every variable that does not have an explicit package name.  All
+variables with an explicit package name (i.e., in modules you use)
+will stay valid until the httpd child process dies.  Embperl will
+change the current package to unique name for every document, so the
+influence between different documents is kept to a minimum.  You can
+set the name of the package with B<EMBPERL_PACKAGE>. (See also Safe
+namespaces.)
+
+Since a CGI scripts is always a process of its own, you don't need to
+worry about that when you use Embperl as a CGI script.
+
+If you need to declare variables which live more the one HTTP request
+(for example, a database handle), you must declare then in another
+package (i.e., $Persistent::handle instead of $handle).
+
+If you use the strict pragma, you can use the B<var> metacommand to
+declare your variables.
 
 
-If you like to use the strict pragma, you can use the B<var> meta command to declare
-your varibales.
+C<NOTE:> Bacause Apache::DBI has its own namespace this module will
+work together with Embperl to maintain your persistent database
+connection.
 
-Since cgi-scripts are always a child process on it's own, you don't have to care for
-that when you using Embperl as cgi-script.
+You can disable the automatic cleanup of global variables with
+B<EMBPERL_OPTIONS> or the B<cleanup> parameter of the B<Execute>
+function.
 
-If you need to declare variables which lives more the one http request (i.e. a
-databasehandle), you must declare then in another package (i.e. $persitent::h instead
-of $h).
+If you like to do your own cleanup you can define a subroutine B<CLEANUP>
+in your document. This will called right before the variables will be
+cleaned up, but after the connection to the client is closed.
 
-NOTE: Bacause Apache::DBI has it's own namespace this module will also work together
-with Embperl an maintain your persitent database connection.
+ EXAMPLE:
 
-You can disable the automatic cleanup of global variables with B<EMBPERL_OPTIONS>
+  [! sub CLEANUP { close FH ; } !]
+
+
+
 
 =head1 B<Predefined variables>
 
-Embperl has some special variables which has a predefined meaning.
+Embperl has some special variables which have a predefined meaning.
 
 =over 4
 
 =item B<%ENV>
 
-contains the environment as seen from a CGI-Script.
+Contains the environment as seen from a CGI script.
 
 =item B<%fdat>
 
-contains all the formdata send to the script by the calling form. The NAME 
-attribute build the key and the VALUE attribute is used as hashvalue. 
-Embperl doesn't matter if it's called with GET or POST method. (but there 
-may be restrictions on the length of parameters using GET, not from Embperl
-but maybe from your Webserver, especialy if you using cgi-mode, so it's more 
-save to use POST). Embperl also support multipart formdata, as it's been used
-for fileupload. For normal fields there is no difference to normal formdata, 
-see docs of CGI.pm how fileupload fields are handled. 
+Contains all the form data sent to the script by the calling form.
+The NAME attribute builds the key and the VALUE attribute is used as
+the hash value.  Embperl doesn't care if it's called with the GET or
+POST method, but there may be restrictions on the length of parameters
+using GET--not from Embperl, but perhaps from the web server,
+especially if you're using Embperl's CGI mode--do it's safer to use
+POST.
+
+Embperl also supports ENCTYPE multipart/form-data, which is used for
+file uploads.  The entry in %fdat corresponding to the file field will
+be a filehandle, as with CGI.pm.  (Embperl uses CGI.pm internally to
+process forms encoded with multipart/form-data.)
+
+File upload example:
+
+  HTML page:
+
+    <FORM METHOD="POST" ENCTYPE="multipart/form-data">
+      <INPUT TYPE="FILE" NAME="ImageName">
+    </FORM>
+
+  Embperl ACTION:
+
+    [- if (defined $fdat{ImageName}) {
+         open FILE, "> /tmp/file.$$";
+	 print FILE $buffer
+           while read($fdat{ImageName}, $buffer, 32768);
+         close FILE;
+       }
+    -]
+	
 
 =item B<@ffld>
 
-contains all the field names in the order they where send by the browser 
-(normally as they appear in your form)
+Contains all the field names in the order in which they were sent by
+the browser.  This is normally--but not necessarily--the order in
+which they appear in your form.
 
 =item B<%idat>
 
-contains all the values from all input tags processed so far.
+Contains all the values from all input tags processed so far.
 
-=item B<$row>
+=item B<$row>, B<$col>
 
-row count for use in dynamic tables (see html tag table)
+Row and column counts for use in dynamic tables.  (See HTML tag
+table.)
 
-=item B<$maxrow>
+=item B<$maxrow>, B<$maxcol>
 
-maxium number of rows displayed in a table. This is set to 100 by default to prevent
-endless loops. (see html tag table)
-
-=item B<$col>
-
-column count for use in dynamic tables (see html tag table)
-
-=item B<$maxcol>
-
-maxium number of columns displayed in a table. This is set to 10 by default to prevent
-endless loops. (see html tag table)
+Maxium number of rows or columns to display in a table. To prevent
+endless loops, $maxrow defaults to 100 and $maxcol to 10.  (See HTML
+tag table.)
 
 =item B<$cnt>
 
-contains the number of tables cells displayed so far (see html tag table)
+Contains the number of table cells displayed so far.  (See HTML tag
+table.)
 
 =item B<$tabmode>
 
-determintas how the end of a dynamic table is detected:
+Determines how the end of a dynamic table is detected:
 
 B<end of table>
 
@@ -1527,15 +1904,17 @@ B<end of table>
 
 =item B<1>
 
-end when a expression with $row gets undefined (The row containing the undefined is not displayed)
+End when an expression with $row becomes undefined.  The row
+containing the undefined expression is B<not> displayed.
 
 =item B<2>
 
-end when a expression with $row gets undefined (The row containing the undefined is displayed)
+End when an expression with $row becomes undefined.  The row
+containing the undefined expression B<is> displayed.
 
-=item B<3>
+=item B<4>
 
-end when $maxrow rows displayed
+End when $maxrow rows have been displayed.
 
 =back
 
@@ -1545,102 +1924,113 @@ B<end of row>
 
 =item B<16>
 
-end when a expression with $col gets undefined (The column containing the undefined is not displayed)
+End when an expression with $col becomes undefined.  The column
+containing the undefined expression is B<not> displayed.
 
 =item B<32>
 
-end when a expression with $col gets undefined (The column containing the undefined is displayed)
+End when an expression with $col becomes undefined.  The column
+containing the undefined B<is> displayed.
 
-=item B<63>
+=item B<64>
 
-end when $maxcol column displayed
+End when $maxcol columns have been displayed.
 
 =back
 
-default is B<17> which is correct for all sort of arrays. You rarely should have
-to change it.
-The two values can be added together
+The default is B<17>, which is correct for all sort of arrays.  You
+should rarely need to change it.  The two values can be added
+together.
 
 =item B<$escmode>
 
-turn html and url escaping on and off (default is on ($escmode = 3))
+Turn HTML and URL escaping on and off.  The default is on ($escmode =
+3).
 
 =over 4
 
 =item B<$escmode = 3>
 
-The output of a perl expression ([+ ... +]) is html escaped (i.e. > becomes &gt;) in
-normal text and url escaped (i.e. & becomes %26) within a <A> tag
+The result of a Perl expression is HTML-escaped (e.g., `>' becomes
+`&gt;') in normal text and URL-escaped (e.g., `&' becomes `%26')
+within an <A> tag.
 
 =item B<$escmode = 2>
 
-The output of a perl expression ([+ ... +]) is always url escaped (i.e. & becomes %26)
+The result of a Perl expression is always URL-escaped (e.g., `&'
+becomes `%26').
 
 =item B<$escmode = 1>
 
-The output of a perl expression ([+ ... +]) is always html escaped (i.e. > becomes &gt;)
+The result of a Perl expression is always HTML-escaped (e.g., `>'
+becomes `&gt;').
 
 =item B<$escmode = 0>
 
-No escaping takes place
+No escaping takes place.
 
 =back
 
 =item B<$req_rec>
 
-This variable is only available when running under control of mod_perl. 
-It contains the request record needed to access the apache server api.
-See B<perldoc Apache> for more information.
+This variable is only available when running under control of
+mod_perl.  It contains the request record needed to access the Apache
+server API.  See B<perldoc Apache> for more information.
 
 =item B<LOG>
 
-is the filehandle of the embperl logfile, by writing print LOG "something" you can add lines
-to the logfile. NOTE: The logfileline should always start with the pid of the currect process
-and continue with a four character signature delimited by a ':', which specifies the log reason.
+This is the filehandle of the Embperl logfile.  By writing `print LOG
+"something"' you can add lines to the logfile.  NOTE: The logfile line
+should always start with the pid of the current process and continue
+with a four character signature delimited by a ':', which specifies
+the log reason.
 
 Example: print LOG "[$$]ABCD: your text\n" ;
 
 If you are writing a module for use under Embperl you can say
 
-    tie *LOG, 'HTML::Embperl::Log' ;
+    tie *LOG, 'HTML::Embperl::Log';
 
 to get a handle by which you can write to the Embperl logfile.
 
 =back
 
+
 =head1 B<Namespaces and opcode restrictions>
 
-Since most web servers will contain more than one document, it is 
-necessary to protected them against each other. Embperl does this by using 
-perl-namespaces. By default Embperl executes every document in it's own
-namespace (package). This will protected documents against each other from
-accidently overriding the other data. You can change this behaviour (or
-simpily the package name) with the configuration directive B<EMBPERL_PACKAGE>.
-NOTE: By explicitly specifing a package name you can access every data, also
-that used by another document.
+Since most web servers will contain more than one document, it is
+necessary to protect the documents against each other.  Embperl does
+this by using Perl namespaces.  By default, Embperl executes every
+document in its own namespace (package).  This will prevent documents
+from accidentally overriding the others' data.  You can change this
+behavior (or simply the package name) with the configuration directive
+B<EMBPERL_PACKAGE>.  NOTE: By explicitly specifing a package name, you
+can access data that is used by another document.
 
-If Embperl is used by more then one person, it's maybe neccessary to really
-protected one document against each other. Embperl gives you the possibility
-to use safe namespaces. Each document runs in it's own package and can't access
-anything out of this package. (Look at the documentation of Safe.pm for
-a more detailed discusion about safe namespaces)
+If Embperl is used by more then one person, it may be neccessary to
+really protect one document from each other.  To do this, Embperl
+gives you the option to use safe namespaces.  Each document runs in
+its own package and can't access anything outside of this package.
+(See the documentation of Safe.pm for a more detailed discusion about
+safe namespaces.)
 
-To make a document run in a safe namespace, simply set the B<optSafeNamespace>
-in B<EMBPERL_OPTIONS>. The package name used is the same as in normal operation
-i.e. can be changed with B<EMBPERL_PACKAGE>.
-NOTE: From the point of the executed document the code is executeed in the
-package B<main>!
+To make a document run in a safe namespace, simply add
+B<optSafeNamespace> to B<EMBPERL_OPTIONS>.  The default package name
+used is the same as in normal operation and can be changed with
+B<EMBPERL_PACKAGE>.  NOTE: From the perspective of the document being
+executed, the code is running in the package B<main>!
 
-A second possibility to make Embperl more secure, is to use opcode restriction
-mask. Before you can use opcode mask, you have to setup a safe compartement.
+A second option to make Embperl more secure is the use of the opcode
+restriction mask.  Before you can use the opcode mask, you must set up
+a safe compartement.
 
- B<$cp = HTML::Embperl::AddCompartment ($name) ;>
+ B<$cp = HTML::Embperl::AddCompartment($name);>
 
-This will create a new compartment with a default opcode mask and the name
-in $name. The name is used later to tell Embperl with compartment to use. Now
-you can change the operator mask. For example:
+This will create a new compartment with a default opcode mask and the
+name $name.  (The name is used later to tell Embperl which compartment
+to use.)  Now you can change the operator mask.  For example:
 
- B<$cp -> deny (':base_loop') ;>
+ B<$cp->deny(':base_loop');>
 
 In your configuration you must set the option B<optOpcodeMask> in
 B<EMBPERL_OPTIONS> and specify from which compartment the opcode mask
@@ -1666,116 +2056,125 @@ should be taken by setting B<EMBPERL_COMPARTMENT>.
 
     B<startup.pl:>
 
-    $cp = HTML::Embperl::AddCompartment ('test') ;
-    $cp -> deny (':base_loop') ;
+    $cp = HTML::Embperl::AddCompartment('test');
+    $cp->deny(':base_loop');
 
 
-This will execute the file startup.pl on server start, which sets up a compartment
-named 'test', which will have a default opcode mask and additionaly loops disabled.
-Also the code is executed in a safe namespace.
+This will execute the file startup.pl on server startup.  startup.pl
+sets up a compartment named `test', which will have a default opcode
+mask and additionaly, will have loops disabled.  Code will be executed
+in a safe namespace.
 
-NOTE: The package name form the compartment is B<NOT> used!
+NOTE: The package name from the compartment is B<NOT> used!
 
-Look at the documentation of Safe.pm and Opcode.pm for more detail information
-how to setup opcode masks.
+Look at the documentation of Safe.pm and Opcode.pm for more detailed
+information on how to set opcode masks.
 
 
 =head1 UTILITY FUNCTIONS
 
 =over 4
 
-=item B<AddCompartment ($Name)>
+=item B<AddCompartment($Name)>
 
-Adds a compartment for use with Embperl. Embperl only uses the opcode mask
-form it, not the package name. AddCompartement return the newly created
-compartment, so you can allow or deny certain opcodes. See the Safe.pm
-documentation for details of setting up a compartment, see chapter about
-Safe namepsaces for details how Embperl uses it.
-
-Example:
-
-	$cp = HTML::Embperl::AddCompartment ('TEST') ;
-	$cp -> deny (':base_loop') ;
-
-
-=item B<MailFormTo ($MailTo, $Subject)>
-
-Sends the content of the hash %fdat in the order specified by @ffld to the
-given B<$MailTo> adresse, with the subject of B<$Subject>.
-
-If you specifiy the following example code as action in your form
-
-  <form action="x/feedback.htm" method="POST"
-   enctype="application/x-www-form-urlencoded">
-
-The content of the form will be mailed to the given email adress.
-
+Adds a compartment for use with Embperl.  Embperl only uses the opcode
+mask from it, not the package name.  AddCompartement return the newly-
+created compartment so you can allow or deny certain opcodes.  See the
+Safe.pm documentation for details of setting up a compartment.  See
+chapter about Safe namepsaces for details of how Embperl uses it.
 
 Example:
 
- <html>
- <head>
- <title>Feedback</title>
- </head>
- <body>
-        Your data has been sccesfully send!
-        [- MailFormTo ('webmaster@domain.xy',
-                       'Mail from WWW Form') -]
- </body>
- </html>
+	$cp = HTML::Embperl::AddCompartment('TEST');
+	$cp->deny(':base_loop');
 
-B<NOTE:> You must have Net::SMTP (from libnet package) installed to use this function.
+
+=item B<MailFormTo($MailTo, $Subject)>
+
+Sends the content of the hash %fdat in the order specified by @ffld to
+the given B<$MailTo> addressee, with a subject of B<$Subject>.
+
+If you specifiy the following example code as the action in your form
+
+  <FORM ACTION="x/feedback.htm" METHOD="POST"
+        ENCTYPE="application/x-www-form-urlencoded">
+
+The content of the form will be mailed to the given email address.
+
+
+Example:
+
+ <HTML>
+ <HEAD>
+ <TITLE>Feedback</TITLE>
+ </HEAD>
+ <BODY>
+        [- MailFormTo('webmaster@domain.xy',
+                      'Mail from WWW Form') -]
+        Your data has been sccesfully sent!
+ </BODY>
+ </HTML>
+
+B<NOTE:> You must have Net::SMTP (from the libnet package) installed
+to use this function.
 
 =back
 
+
 =head1 PERFORMANCE
 
-To get the best performace for Embperl is necessary to restrict logging to
-a minimum. You can drasticaly slow down Embperl if you enable all logging
-options (This is why 'make test' takes a little bit longer...).
-You should B<never> enable B<dbgFlushOutput>, B<dbgFlushLog> and
-B<dbgCacheDisable> in a production environement.
-The most debugging options are usefull for
-developement, where it doesn't matter if the request takes a little bit
-longer, but on a heavy loaded server they should be disabled. 
+To get the best performace from Embperl, it is necessary to restrict
+logging to a minimum.  You can drastically slow down Embperl if you
+enable all logging options.  (This is why `make test' takes a while to
+run.)  You should B<never> enable B<dbgFlushOutput>, B<dbgFlushLog> or
+B<dbgCacheDisable> in a production environment.  More debugging
+options are useful for developement where it doesn't matter if the
+request takes a little bit longer, but on a heavily-loaded server they
+should be disabled.
 
-Also take a look a B<mod_perl_tunning.pod> for general ideas about performance. 
+Also take a look at B<mod_perl_tuning.pod> for general ideas about
+performance.
+
 
 =head1 BUGS
 
-No known for Embperl.
+None known.
 
-Under perl5.004 there are memory leaks, this is not an Embperl Bug, but can
-cause your httpd to endless grow when running under mod_perl. Please upgrade
-to perl5.004_04 to fix this.
-You should also upgrade to version higher then mod_perl-1.07_01 as soon as 
-available, because until 1.07_01 there are a memory leak in Apache->push_handler
+Under perl5.004 there are memory leaks.  This is not an Embperl bug,
+but can cause your httpd to grow endlessly when running under
+mod_perl.  Please upgrade to perl5.004_04 to fix this.  You should
+also upgrade to a mod_perl version higher than 1.07_01 as soon as
+possible, because until 1.07_01 there is a memory leak in
+Apache->push_handler.
 
-=head1 FEEDBACK and BUGREPORTS
 
-Please give me a feedback if you use/test this module. Bugs, 
-questions, thinks you would find useful etc. are discussed on the mod_perl
-mailling list.
+=head1 FEEDBACK and BUG REPORTS
 
->From mod_perl README:
+Please let me know if you use or test this module.  Bugs, questions,
+suggestions for things you would find useful, etc., are discussed on
+the mod_perl mailling list.
+
+>From the mod_perl README:
  
->For comments, questions, bug-reports, announcements, etc., join the
->Apache/Perl mailing list by sending mail to
->listserv@listproc.itribe.net with the string "subscribe modperl" in
->the body.   
+For comments, questions, bug-reports, announcements, etc., join the
+Apache/Perl mailing list by sending mail to
+listserv@listproc.itribe.net with the string "subscribe modperl" in
+the body.
 
->There is a hypermail archive for this list available from:
->http://outside.organic.com/mail-archives/modperl/
+There is a hypermail archive for this list available from:
+http://outside.organic.com/mail-archives/modperl/
 
 
 =head1 SUPPORT
 
-You can get free support on the mod_perl mailing list (see above).
-If you need commercial support (with a garantie for response time/a solution) for Embperl
-or want a web site where you can run your Embperl/mod_perl scripts without setting
-up your own internet www-server, please send an email to info@ecos.de.
+You can get free support on the mod_perl mailing list (see above).  If
+you need commercial support (with a guarantee for response time or a
+solution) for Embperl or want a web site where you can run your
+Embperl/mod_perl scripts without setting up your own web server,
+please send email to info@ecos.de.
 
-=head1 WWW-LINKS
+
+=head1 REFERENCES
 
  mod_perl            http://perl.apache.org/
  mod_perl FAQ        http://perl.apache.org/faq
@@ -1783,11 +2182,12 @@ up your own internet www-server, please send an email to info@ecos.de.
  apache web server   http://www.apache.org/
  see also            http://www.perl.com/CPAN/modules/by-module/Apache/apache-modlist.html
 
+
 =head1 AUTHOR
 
-G.Richter
-<richter@dev.ecos.de>
+G. Richter (richter@dev.ecos.de)
+
 
 =head1 SEE ALSO
 
-perl(1), mod_perl, apache httpd.
+perl(1), mod_perl, Apache httpd

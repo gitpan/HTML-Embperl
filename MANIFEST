@@ -5,6 +5,7 @@ MANIFEST
 Makefile.PL
 README
 TODO
+Faq
 eg/README
 eg/images/jazzbkgd.gif
 eg/x/neu.htm
@@ -42,6 +43,9 @@ test/html/hidden.htm
 test/html/java.htm
 test/html/inputjava.htm
 test/html/tagscan.htm
+test/html/inc.htm
+test/html/sub.htm
+test/html/registry/Execute.htm
 test/html/div.htm
 test/html/taint.htm
 test/html/reqrec.htm
@@ -66,6 +70,8 @@ test/cmp/hidden.htm
 test/cmp/java.htm
 test/cmp/inputjava.htm
 test/cmp/tagscan.htm
+test/cmp/Execute.htm
+test/cmp/sub.htm
 test/cmp/div.htm
 test/cmp/safe.htm
 test/cmp/taint.htm

@@ -15,6 +15,8 @@ StartServers 2
 MaxClients 2
 MaxRequestsPerChild 0
 
+DirectoryIndex index.htm  
+
 
 #-Tw
 PerlTaintCheck On
@@ -22,7 +24,7 @@ PerlWarn On
 
 
 
-SetEnv EMBPERL_DEBUG 286717
+SetEnv EMBPERL_DEBUG 811005
 SetEnv EMBPERL_VIRTLOG /embperl/log
 PerlSetEnv EMBPERL_LOG $EPPATH/test/tmp/test.log
 SetEnv EMBPERL_LOG $EPPATH/test/tmp/test.log
@@ -89,6 +91,12 @@ Options ExecCGI
 <Location /perl/perl-status>
 SetHandler perl-script
 PerlHandler Apache::Status
+</Location>
+
+<Location /embperl/registry>
+SetHandler perl-script
+PerlHandler Apache::Registry
+Options ExecCGI
 </Location>
 
 

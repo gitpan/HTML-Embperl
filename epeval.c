@@ -402,8 +402,10 @@ static int EvalAndCall (/*in*/  const char *  sArg,
 
     if (rc == ok && pSub != NULL && SvTYPE (pSub) == SVt_RV)
         {
+        /*sv_setsv (*ppSV, pSub) ;*/
+        SvREFCNT_dec (*ppSV) ;  
         *ppSV = SvRV(pSub) ;
-        SvREFCNT_inc (*ppSV) ;
+        SvREFCNT_inc (*ppSV) ;  
         }
     else
         {
@@ -513,7 +515,12 @@ int EvalTrans (/*in*/  char *   sArg,
     *pRet = NULL ;
 
     if (bDebug & dbgCacheDisable)
+        {
+        /* strip off all <HTML> Tags */
+        TransHtml (sArg) ;
+        
         return EvalAllNoCache (sArg, pRet) ;
+        }
 
     /* Already compiled ? */
 
@@ -540,6 +547,61 @@ int EvalTrans (/*in*/  char *   sArg,
     
     return CallCV (sArg, (CV *)*ppSV, pRet) ;
     }
+
+/* -------------------------------------------------------------------------------
+*
+* Eval PERL Statements and execute the evaled code, check if it's already compiled
+* if yes do not call the code a second time
+* strip off all <HTML> Tags before 
+* 
+* in  sArg      Statement to eval
+* in  nFilepos  position von eval in file (is used to build an unique key)
+* out pRet      pointer to SV contains the eval return
+*
+------------------------------------------------------------------------------- */
+
+
+int EvalTransOnFirstCall (/*in*/  char *   sArg,
+                          /*in*/  int      nFilepos,
+                          /*out*/ SV **    pRet)             
+
+
+    {
+    int     rc ;
+    SV **   ppSV ;
+    
+    EPENTRY (EvalTrans) ;
+
+
+    numEvals++ ;
+    *pRet = NULL ;
+
+    /* Already compiled ? */
+
+    ppSV = hv_fetch(pCacheHash, (char *)&nFilepos, sizeof (nFilepos), 1) ;  
+    if (ppSV == NULL)
+        return rcHashError ;
+
+    if (*ppSV != NULL && SvTYPE (*ppSV) == SVt_PV)
+        {
+        strncpy (errdat1, SvPV(*ppSV, na), sizeof (errdat1) - 1) ; 
+        LogError (rcEvalErr) ;
+        return rcEvalErr ;
+        }
+
+    if (*ppSV == NULL || SvTYPE (*ppSV) != SVt_PVCV)
+        {
+        /* strip off all <HTML> Tags */
+        TransHtml (sArg) ;
+
+        return EvalAndCall (sArg, ppSV, pRet) ;
+        }
+
+    numCacheHits++ ;
+    
+    return ok ; /* Do not call this a second time */
+    }
+
 
 
 /* -------------------------------------------------------------------------------

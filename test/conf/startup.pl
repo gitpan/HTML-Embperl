@@ -7,3 +7,4 @@ $cp = HTML::Embperl::AddCompartment ('TEST') ;
 
 $cp -> deny (':base_loop') ;
 
+1 ;

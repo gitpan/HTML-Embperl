@@ -114,6 +114,16 @@ char errdat2 [ERRDATLEN]  ;
 
 char lastwarn [ERRDATLEN]  ;
 
+
+/* for statistics */
+
+static    clock_t startclock ;
+static    I32     stsv_count ;
+static    I32     stsv_objcount ;
+static    I32     lstsv_count ;
+static    I32     lstsv_objcount  ;
+
+
 /* */
 /* print error */
 /* */
@@ -169,6 +179,8 @@ char * LogError (/*in*/ int   rc)
         case rcNotFound:                msg ="[%d]ERR:  %d: Line %d: Not found %s%s" ; break ;
         case rcUnknownVarType:          msg ="[%d]ERR:  %d: Line %d: Type for Variable %s is unknown %s" ; break ;
         case rcPerlWarn:                msg ="[%d]ERR:  %d: Line %d: Warning in Perl code: %s%s" ; break ;
+        case rcVirtLogNotSet:           msg ="[%d]ERR:  %d: Line %d: EMBPERL_VIRTLOG must be set, when dbgLogLink is set %s%s" ; break ;
+        case rcMissingInput:            msg ="[%d]ERR:  %d: Line %d: Sourcedaten fehlen %s%s" ; break ;
         default:                        msg ="[%d]ERR:  %d: Line %d: Error %s%s" ; break ; 
         }
 
@@ -555,7 +567,6 @@ static int ScanCmdEvals (/*in*/ char *   p)
     int     n ;
     char *  c ;
     char *  a ;
-    char    as ;
     char    nType ;
     SV *    pRet ;
     struct tCmd * pCmd ;
@@ -572,7 +583,7 @@ static int ScanCmdEvals (/*in*/ char *   p)
 
     pCurrPos = p ;
 
-    if (nType != '+' && nType != '-' && nType != '$' )
+    if (nType != '+' && nType != '-' && nType != '$' && nType != '!')
         { /* escape (for [[ -> [) */
         if (State.bProcessCmds == cmdAll)
             {
@@ -631,35 +642,41 @@ static int ScanCmdEvals (/*in*/ char *   p)
             pCurrPos = p ;
 
             break ;
+        case '!':
+            if (State.bProcessCmds == cmdAll)
+                {
+                EvalTransOnFirstCall (pCurrPos, (pCurrPos - pBuf), &pRet) ;
+                if (pRet)
+                    SvREFCNT_dec (pRet) ;
+                }
+
+            p [-2] = nType ;
+            pCurrPos = p ;
+
+            break ;
         case '$':
             TransHtml (pCurrPos) ;
 
+            /* skip spaces before command */
             while (*pCurrPos != '\0' && isspace (*pCurrPos))
                     pCurrPos++ ;
 
+            /* c holds the start of the command */
             a = c = pCurrPos ;
-            while (*a != '\0' && !isspace (*a))
+            while (*a != '\0' && isalpha (*a))
                 a++ ;
 
-            as = '\0' ;
-            if (*a != '\0')
-                {
-                as = *a ;
-                *a = '\0' ;
-                a++ ;
-                }
+            /* a points to first char after command */
 
             pCurrPos = p ;
 
-            if ((rc = SearchCmd (c, a, FALSE, &pCmd)) != ok)
+            if ((rc = SearchCmd (c, a-c, a, FALSE, &pCmd)) != ok)
                 return rc ;
         
         
             if ((rc = ProcessCmd (pCmd, a)) != ok)
                 return rc ;
         
-            if (as != '\0')
-                a [-1] = as ;
             p [-2] = nType ;
 
             break ;
@@ -812,7 +829,7 @@ static int ScanHtmlTag (/*in*/ char *   p)
     pec = p ;
     *p++ = '\0' ;          /* set end of tag name to \0 */
 
-    if ((rc = SearchCmd (pCmd, "", TRUE, &pCmdInfo)) != ok)
+    if ((rc = SearchCmd (pCmd, pec - pCmd, "", TRUE, &pCmdInfo)) != ok)
         {
         *pec = ec ;
         oputc (*pCurrTag) ;
@@ -1208,68 +1225,64 @@ opmask_addlocal(SV *   opset,
         }
     }
 
-
-
-
 /* ---------------------------------------------------------------------------- */
 /*                                                                              */
-/* Request handler                                                              */
+/* Setup Request                                                                */
 /*                                                                              */
 /* ---------------------------------------------------------------------------- */
 
 
-
-int iembperl_req  (/*in*/ char *  sInputfile,
-                   /*in*/ char *  sOutputfile,
-                   /*in*/ int     bDebugFlags,
-                   /*in*/ int     bOptionFlags,
-                   /*in*/ int     nFileSize,
-                   /*in*/ HV *    pCache) 
-
-
-
+static int SetupRequest   (/*in*/ char *  sInputfile,
+                           /*in*/ int     bDebugFlags,
+                           /*in*/ int     bOptionFlags,
+                           /*in*/ HV *    pCache,
+                           /*in*/ char *  op_mask_buf, 
+                           /*in*/ SV *    pOutData) 
 
     {
-    clock_t startclock = clock () ;
-    int     rc ;
-    int     len ;
-    char *  p ;
-    char *  sMode ;
-    int     n ;
-    char *  c ;
-    char *  a ;
-    SV **   ppSV ;
-    struct stat st ;
-    char    nType ;
-    SV *    pRet ;
-    int     ifd ;
-    I32     stsv_count = sv_count ;
-    I32     stsv_objcount = sv_objcount ;
-    I32     lstsv_count = sv_count ;
-    I32     lstsv_objcount = sv_objcount ;
-    char    op_mask_buf[MAXO + 100]; /* maxo shouldn't differ from MAXO but leave room anyway (see BOOT:)	*/
     GV *    gv;
+    char *  sMode ;
 
-
-    nPid = getpid () ; /* reget pid, because it could be chaned when loaded with PerlModule */
-#ifndef WIN32
-    nPid &= 0xffff ;
-#endif
-
-
-    EPENTRY (iembperl_req) ;
-
-
-    bDebug     = bDebugFlags ;
-    bOptions   = bOptionFlags ;
-    pCacheHash = pCache ;
-    bReqRunning = 1 ;
-    sSourcefile = sInputfile ;
-    nSourceline = 1 ;
-    pSourcelinePos = NULL ;    
-    pLineNoCurrPos = NULL ;    
-    bError         = 0 ;    
     
+    EPENTRY (SetupRequest) ;
+
+
+    startclock      = clock () ;
+    stsv_count      = sv_count ;
+    stsv_objcount   = sv_objcount ;
+    lstsv_count     = sv_count ;
+    lstsv_objcount  = sv_objcount ;
+
+    nPid            = getpid () ; /* reget pid, because it could be chaned when loaded with PerlModule */
+    bDebug          = bDebugFlags ;
+    bOptions        = bOptionFlags ;
+    pCacheHash      = pCache ;
+    bReqRunning     = 1 ;
+    sSourcefile     = sInputfile ;
+    nSourceline     = 1 ;
+    pSourcelinePos  = NULL ;    
+    pLineNoCurrPos  = NULL ;    
+    bError          = 0 ;    
+    tainted         = 0 ;
+    sEvalPackage    = SvPV (pEvalPackage, nEvalPackage) ;
+    bStrict         = FALSE ;
+
+    nStack          = 0 ;
+    nTableStack     = 0 ;
+    pArgStack       = ArgStack ;
+
+    memset (&State, 0, sizeof (State)) ;
+    memset (&TableState, 0, sizeof (TableState)) ;
+    
+    State.nCmdType      = cmdNorm ;
+    State.bProcessCmds  = cmdAll ;
+    State.sArg          = strcpy (pArgStack, "") ;
+    pArgStack       += 1 ;
+    nTabMode        = epTabRowDef | epTabColDef ;
+    nTabMaxRow      = 100 ;
+    nTabMaxCol      = 10 ;
+    pCurrTag        = NULL ;
+
     if (bDebug)
         {
         time_t t ;
@@ -1281,12 +1294,6 @@ int iembperl_req  (/*in*/ char *  sInputfile,
         numCacheHits = 0 ;
         }
     
-    tainted = 0 ;
-
-    sEvalPackage = SvPV (pEvalPackage, nEvalPackage) ;
-
-
-    ENTER;
 
     /* The following is borrowed from Opcode.xs */
 
@@ -1315,7 +1322,6 @@ int iembperl_req  (/*in*/ char *  sInputfile,
         GvHV(gv) = (HV*)SvREFCNT_inc(defstash);
         }
 
-    bStrict = FALSE ;
         
     if (bDebug)
         {
@@ -1334,84 +1340,35 @@ int iembperl_req  (/*in*/ char *  sInputfile,
         lprintf (" mode = %s (%d)\n", sMode, nIOType) ;
         lprintf ("[%d]REQ:  Package = %s\n", nPid, SvPV (pPackage, na)) ;
         }
-    nStack      = 0 ;
-    nTableStack = 0 ;
-    pArgStack = ArgStack ;
 
-    memset (&State, 0, sizeof (State)) ;
-    memset (&TableState, 0, sizeof (TableState)) ;
+    return ok ;
+    }
+
     
-    State.nCmdType      = cmdNorm ;
-    State.bProcessCmds  = cmdAll ;
-    State.sArg          = strcpy (pArgStack, "") ;
-    pArgStack += 1 ;
-    nTabMode    = epTabRowDef | epTabColDef ;
-    nTabMaxRow  = 100 ;
-    nTabMaxCol  = 10 ;
-    pCurrTag    = NULL ;
-    bEscMode    = escHtml | escUrl ;
-    NewEscMode () ;
+/* ---------------------------------------------------------------------------- */
+/*                                                                              */
+/* Start the output stream                                                      */
+/*                                                                              */
+/* ---------------------------------------------------------------------------- */
 
-    /* */
-    /* read data from cgi script */
-    /* */
-
-    rc = ok ;
-    if (av_len (pFormArray) == -1)
-        { /* Not already read by perl part */
-        switch (nIOType)
-            {
-            case epIOPerl:
-            case epIOCGI:
-            case epIOMod_Perl:
-                rc = GetInputData_CGIScript () ;
-                break ;
-            case epIOProcess:
-                rc = GetInputData_CGIProcess () ;
-                break ;
-            }
-        }
-            
-    if (rc != ok)
-        {
-        LogError (rc);
-#ifdef APACHE
-        pReq = NULL ;
-#endif
-        bReqRunning = 0 ;
-        LEAVE;
-        return rc ;
-        }
     
-    /*
-    sRetFifo [0] = '\0' ;
-    if (nIOType == epIOProcess)
-        {
-        GetHashValue (pEnvHash, sRetFifoName, sizeof (sRetFifo), sRetFifo) ;
+static int StartOutput (/*in*/ char *  sOutputfile,
+                        /*in*/ SV *    pOutData) 
 
-        if (sRetFifo [0] == '\0')
-            {
-            LogError (rcNoRetFifo) ;
-#ifdef APACHE
-        pReq = NULL ;
-#endif
-        bReqRunning = 0 ;
-            return rcNoRetFifo ;
-            }
-        }
-    */
+    {
+    int rc ;
+    int  bOutToMem = SvROK (pOutData) ;
 
-
+    
     if ((rc = OpenOutput (sOutputfile)) != ok)
-        {
-        LogError (rc) ;
-#ifdef APACHE
-        pReq = NULL ;
-#endif
-        bReqRunning = 0 ;
-        LEAVE;
         return rc ;
-        }
+
+#ifdef APACHE
+    if (pReq && pReq -> main)
+    	bDebug |= dbgEarlyHttpHeader ; /* do not direct output to memory on internal redirect */
+#endif
+    if (bOutToMem)
+    	bDebug &= ~dbgEarlyHttpHeader ;
 
 
     if (bDebug & dbgEarlyHttpHeader)
@@ -1427,15 +1384,14 @@ int iembperl_req  (/*in*/ char *  sInputfile,
             }
         else
             {
-            send_http_header (pReq) ;
+            if (pReq -> main == NULL && (bOptions & optSendHttpHeader))
+            	send_http_header (pReq) ;
+            mod_perl_sent_header(pReq, 1) ;
             if (pReq -> header_only)
-                {
-                CloseOutput () ;
-                pReq = NULL ;
-                bReqRunning = 0 ;
-                LEAVE;
-                return ok ;
-                }
+            	{
+            	CloseOutput () ;
+            	return ok ;
+    	        }
             }
 #endif
         }
@@ -1451,26 +1407,184 @@ int iembperl_req  (/*in*/ char *  sInputfile,
         oBegin () ;
         }
 
+    return ok ;
+    }
 
-    /* Read HTML file */
+/* ---------------------------------------------------------------------------- */
+/*                                                                              */
+/* End the output stream                                                        */
+/*                                                                              */
+/* ---------------------------------------------------------------------------- */
 
-    if ((rc = ReadHTML (sInputfile, &nFileSize, &pBuf)) != ok)
-        {
-        LogError (rc) ;
+
+static int EndOutput (/*in*/ int    rc,
+                      /*in*/ SV *   pOutData) 
+                      
+
+    {
+    SV * pOut ;
+    int  bOutToMem = SvROK (pOutData) ;
+
+    
+    if (rc != ok ||  bError)
+        { /* --- generate error page if necessary --- */
+        dSP;                            /* initialize stack pointer      */
+
+        oRollback (NULL) ; /* forget everything outputed so far */
+        oBegin () ;
+
 #ifdef APACHE
-        pReq = NULL ;
+        if (pReq)
+            pReq -> status = 500 ;
 #endif
-        bReqRunning = 0 ;
-        LEAVE;
-        return rc ;
+        PUSHMARK(sp);                   /* remember the stack pointer    */
+        perl_call_pv ("HTML::Embperl::SendErrorDoc", G_DISCARD | G_NOARGS) ; /* call the function             */
+        }
+#ifdef APACHE
+    else
+        if (pReq)
+            set_content_length (pReq, GetContentLength () + 2) ;
+#endif
+    
+
+    if (!(bDebug & dbgEarlyHttpHeader))
+        {  /* --- send http headers if not alreay done --- */
+#ifdef APACHE
+        if (pReq && !bOutToMem && (bOptions & optSendHttpHeader))
+            {
+            send_http_header (pReq) ;
+            mod_perl_sent_header(pReq, 1) ;
+    	    if (bDebug & dbgHeadersIn)
+        	{
+        	int i;
+        	array_header *hdrs_arr;
+        	table_entry  *hdrs;
+
+        	hdrs_arr = table_elts (pReq->headers_out);
+	        hdrs = (table_entry *)hdrs_arr->elts;
+
+        	lprintf ( "[%d]HDR:  %d\n", nPid, hdrs_arr->nelts) ; 
+	        for (i = 0; i < hdrs_arr->nelts; ++i)
+		    if (hdrs[i].key)
+                	lprintf ( "[%d]HDR:  %s=%s\n", nPid, hdrs[i].key, hdrs[i].val) ; 
+        	}
+            }
+#endif
         }
 
+    /* --- output the content if not alreay done --- */
+
+    if (bOutToMem)
+        pOut = SvRV (pOutData) ;
+
+#ifdef APACHE
+    if (pReq == NULL || !pReq -> header_only)
+#endif
+        {
+        oputs ("\r\n") ;
+        if (bOutToMem)
+            {
+            char * pData ;
+            int    l = GetContentLength () + 1 ;
+            
+            sv_setpv (pOut, "") ;
+            SvGROW (pOut, l) ;
+            pData = SvPVX (pOut) ;
+            oCommitToMem (NULL, pData) ;
+            SvCUR_set (pOut, l - 1) ;
+            }
+        else
+            {
+            oCommit (NULL) ;
+            }
+        }
+#ifdef APACHE
+    else
+        {
+        oRollback (NULL) ;
+        if (bOutToMem)
+            sv_setsv (pOut, &sv_undef) ;
+        }    
+#endif
+
+    CloseOutput () ;
+
+    return ok ;
+    }
+    
+/* ---------------------------------------------------------------------------- */
+/*                                                                              */
+/* Reset Request                                                                */
+/*                                                                              */
+/* ---------------------------------------------------------------------------- */
 
 
+static int ResetRequest (/*in*/ char *  sInputfile)
 
-    /* */
-    /* Process the file... */
-    /* */
+    {
+    if (bDebug)
+        {
+        clock_t cl = clock () ;
+        time_t t ;
+        struct tm * tm ;
+        
+        time (&t) ;        
+        tm =localtime (&t) ;
+        
+        lprintf ("[%d]PERF: input = %s\n", nPid, sInputfile) ;
+#ifdef CLOCKS_PER_SEC
+        lprintf ("[%d]PERF: Time: %d ms ", nPid, ((cl - startclock) * 1000 / CLOCKS_PER_SEC)) ;
+#else
+        lprintf ("[%d]PERF: ", nPid) ;
+#endif        
+        lprintf ("Evals: %d ", numEvals) ;
+        if (bDebug & dbgCacheDisable)
+            lprintf ("Cache disabled") ;
+        else
+            if (numEvals == 0)
+                lprintf ("No Evals to cache") ;
+            else
+                lprintf ("Cache Hits: %d (%d%%)", numCacheHits, numCacheHits * 100 / numEvals) ;
+
+        lprintf ("\n") ;    
+        lprintf ("[%d]Request finished. %s. Entry-SVs: %d -OBJs: %d Exit-SVs: %d -OBJs: %d\n", nPid, asctime(tm), stsv_count, stsv_objcount, sv_count, sv_objcount) ;
+        }
+
+    pCurrPos = NULL ;
+
+
+    FlushLog () ;
+
+    sSourcefile = "???" ;
+    nSourceline = 1 ;
+    pSourcelinePos = NULL ;    
+    pLineNoCurrPos = NULL ;    
+
+    bReqRunning = 0 ;
+
+#ifdef APACHE
+    /* This must be the very very very last !!!!! */
+    pReq = NULL ;
+#endif
+    return ok ;
+    }
+
+
+/* ---------------------------------------------------------------------------- */
+/*                                                                              */
+/* Process the file                                                             */
+/*                                                                              */
+/* ---------------------------------------------------------------------------- */
+
+    
+
+static int ProcessFile (/*in*/ int     nFileSize)
+
+    {
+    int     rc ;
+    char *  p ;
+    int     n ;
+
 
     pSourcelinePos = pCurrPos = pBuf ;
     pEndPos  = pBuf + nFileSize ;
@@ -1484,7 +1598,6 @@ int iembperl_req  (/*in*/ char *  sInputfile,
             lstsv_count = sv_count ;
             lstsv_objcount = sv_objcount ;
             }
-        
         
         /* */
         /* execute [x ... x] and special html tags and replace them if nessecary */
@@ -1540,122 +1653,98 @@ int iembperl_req  (/*in*/ char *  sInputfile,
             rc = ScanCmdEvals (p) ;
             }
         }
-        
-    if (!(bDebug & dbgEarlyHttpHeader) && rc == ok && bError == 0)
-        {
-#ifdef APACHE
-        if (pReq)
-            {
-            set_content_length (pReq, GetContentLength () + 2) ;
-            send_http_header (pReq) ;
-    	    if (bDebug & dbgHeadersIn)
-        	{
-        	int i;
-        	array_header *hdrs_arr;
-        	table_entry  *hdrs;
 
-        	hdrs_arr = table_elts (pReq->headers_out);
-	        hdrs = (table_entry *)hdrs_arr->elts;
+    return rc ;
+    }
 
-        	lprintf ( "[%d]HDR:  %d\n", nPid, hdrs_arr->nelts) ; 
-	        for (i = 0; i < hdrs_arr->nelts; ++i)
-		    if (hdrs[i].key)
-                	lprintf ( "[%d]HDR:  %s=%s\n", nPid, hdrs[i].key, hdrs[i].val) ; 
-        	}
-            }
-#endif
+/* ---------------------------------------------------------------------------- */
+/*                                                                              */
+/* Request handler                                                              */
+/*                                                                              */
+/* ---------------------------------------------------------------------------- */
+
+
+
+int iembperl_req  (/*in*/ char *  sInputfile,
+                   /*in*/ char *  sOutputfile,
+                   /*in*/ int     bDebugFlags,
+                   /*in*/ int     bOptionFlags,
+                   /*in*/ int     nFileSize,
+                   /*in*/ HV *    pCache, 
+                   /*in*/ SV *    pInData,
+                   /*in*/ SV *    pOutData) 
+
+
+
+
+    {
+    int     rc ;
+    char    op_mask_buf[MAXO + 100]; /* maxo shouldn't differ from MAXO but leave room anyway (see BOOT:)	*/
+    SV *    pBufSV = NULL ;
+
+    EPENTRY (iembperl_req) ;
+
+    ENTER;
+
+    /* --- initialize variables and setup perl namespace --- */
+    rc = SetupRequest (sInputfile, bDebugFlags, bOptionFlags, pCache, op_mask_buf, pOutData); 
+
+    /* --- read form data from browser if not already read by perl part --- */
+    if (rc == ok && av_len (pFormArray) == -1)
+        rc = GetInputData_CGIScript () ;
     
-#ifdef APACHE
-        if (pReq == NULL || !pReq -> header_only)
-#endif
-            {
-            oCommit (NULL) ;
-            oputs ("\r\n") ;
-            }
-#ifdef APACHE
-        else
-            oRollback (NULL) ;
-#endif
+    /* --- open output and send http header if EarlyHttpHeaders --- */
+    if (rc == ok)
+        rc = StartOutput (sOutputfile, pOutData) ;
+
+    if (SvROK(pInData))
+        { /* --- get input from memory --- */
+        pBuf = SvPV (SvRV(pInData), nFileSize) ;
         }
     else
-        oRollback (NULL) ;
+        {
+        /* --- read input file --- */
+        if (rc == ok)
+            ReadHTML (sInputfile, &nFileSize, &pBufSV) ;
+        if (rc == ok)
+            pBuf = SvPVX (pBufSV) ;
+        }
 
+    if (pBuf == NULL)
+        rc = rcMissingInput ;
+
+    /* --- ok so far? if not exit ---- */
+#ifdef APACHE
+    if (rc != ok || (pReq && pReq -> header_only && (bDebug & dbgEarlyHttpHeader)))
+#else
     if (rc != ok)
+#endif
+        {
+        if (rc != ok)
+            LogError (rc);
+#ifdef APACHE
+        pReq = NULL ;
+#endif
+        bReqRunning = 0 ;
+        LEAVE;
+        return rc ;
+        }
+
+    /* --- Process the file --- */
+    if ((rc = ProcessFile (nFileSize)) != ok)
         LogError (rc) ;
 
-    /* Restore Operatormask and Package */
-
+    /* --- Restore Operatormask and Package, destroy temp perl sv's --- */
     LEAVE;
     bReqRunning = 0 ;
-    
-    if (rc != ok ||  bError)
-        {
-        dSP;                            /* initialize stack pointer      */
 
-#ifdef APACHE
-        if (pReq)
-            {
-            pReq -> status = 500 ;
-            send_http_header (pReq) ;
-            }
-#endif
-        PUSHMARK(sp);                   /* remember the stack pointer    */
+    /* --- send http header and data to the browser if not already done --- */
+    if ((rc = EndOutput (rc, pOutData)) != ok)
+        LogError (rc) ;
 
-        perl_call_pv ("HTML::Embperl::SendErrorDoc", G_DISCARD | G_NOARGS) ; /* call the function             */
-        }
+    /* --- reset variables and log end of request --- */
+    if ((rc = ResetRequest (sInputfile)) != ok)
+        LogError (rc) ;
 
-    
-    CloseOutput () ;
-
-    hv_clear (pFormHash) ;
-    av_clear (pFormArray) ;
-    hv_clear (pInputHash) ;
-
-    if (bDebug)
-        {
-        clock_t cl = clock () ;
-        time_t t ;
-        struct tm * tm ;
-        
-        time (&t) ;        
-        tm =localtime (&t) ;
-        
-        lprintf ("[%d]PERF: mode = %s  input = %s\n", nPid, sMode, sInputfile) ;
-#ifdef CLOCKS_PER_SEC
-        lprintf ("[%d]PERF: Time: %d ms ", nPid, ((cl - startclock) * 1000 / CLOCKS_PER_SEC)) ;
-#else
-        lprintf ("[%d]PERF: ", nPid) ;
-#endif        
-        lprintf ("Evals: %d ", numEvals) ;
-        if (bDebug & dbgCacheDisable)
-            lprintf ("Cache disabled") ;
-        else
-            if (numEvals == 0)
-                lprintf ("No Evals to cache") ;
-            else
-                lprintf ("Cache Hits: %d (%d%%)", numCacheHits, numCacheHits * 100 / numEvals) ;
-
-        lprintf ("\n") ;    
-        lprintf ("[%d]Request finished. %s. Entry-SVs: %d -OBJs: %d Exit-SVs: %d -OBJs: %d\n", nPid, asctime(tm), stsv_count, stsv_objcount, sv_count, sv_objcount) ;
-        }
-
-    pCurrPos = NULL ;
-    if (pBuf)
-        _free (pBuf) ;
-
-
-    FlushLog () ;
-
-    sSourcefile = "???" ;
-    nSourceline = 1 ;
-    pSourcelinePos = NULL ;    
-    pLineNoCurrPos = NULL ;    
-
-    bReqRunning = 0 ;
-
-#ifdef APACHE
-    /* This must be the very very very last !!!!! */
-    pReq = NULL ;
-#endif
     return ok ;
     }

@@ -250,7 +250,7 @@ foreach $f (@bins)
 WriteMakefile(
     'NAME'	   => 'HTML::Embperl',
     'VERSION_FROM' => 'Embperl.pm', 		# finds $VERSION
-    'MYEXTLIB'     => 'epmain$(OBJ_EXT) epio$(OBJ_EXT) epchar$(OBJ_EXT) epcmd$(OBJ_EXT) eputil$(OBJ_EXT) epeval$(OBJ_EXT)',
+    'OBJECT'     => 'Embperl$(OBJ_EXT) epmain$(OBJ_EXT) epio$(OBJ_EXT) epchar$(OBJ_EXT) epcmd$(OBJ_EXT) eputil$(OBJ_EXT) epeval$(OBJ_EXT)',
     'LIBS'	   => [''],   			 
     'DEFINE'	   => "$d \$(DEFS)", 			 
     'INC'	   => $i,     			 

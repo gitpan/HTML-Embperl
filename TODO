@@ -1,8 +1,8 @@
 TODO for Embperl
 
-- Tainting does work correct with perl 5.004
-- Kill lf in middel of perl strings
 - Add a DBI databaseinterface
+
+- Apache::Symbol::undef (avoid function redefinition warning)
 
  
 

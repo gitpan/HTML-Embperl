@@ -1,5 +1,47 @@
 Revision history for Perl extension HTML::Embperl.
 
+0.25-beta 17 Feb 1998
+   - Included the "translation" of the Embperl POD to a human readable
+     form done by Todd Eigenschink
+   - Started a FAQ file form the questions I answered per email
+   - Added a the function Execute, which can be call form perl programs
+     (or Apache::Registry scripts) and can take input from and/or
+     output to memory as suggested by Doug Bagley and Randy Harmon
+     (Look at test/html/registry/Execute.htm for an example)
+   - Changed the source that it will compile on aix, spotted by
+     Patrick McAuliffe 
+   - Access sys_errlist via perl macro Strerror to avoid errors with
+     redeclaration, thanks for spotting this to Honza, Jirousek
+   - Changed the tab size from 4 to 8 in my editor to be compatible with
+     unix standard
+   - Added warning if dbgLogLink is set and EMBPERL_VIRTLOG not
+   - Change the delimter of metacommand from space to any non alpha char
+     to allow writing [$while(a==b)$] as suggested by Michael D. Dowling
+   - Added config variable EMBPERL_ESCMODE to set inital values of $escmode
+     as suggested by Todd Eigenschink
+   - Added [! ... !]. Does just the same as [- ... -] but will only executed
+     on the first request for that document. This can be used to do one time
+     initialisation and to define subroutines.
+   - Change push_handlers to register_cleanup, so PERL_STACKED_HANDLERS and
+     PREL_CLEANUP aren't necessary anymore, as suggested by Doug MacEachern
+   - If exists, the function CLEANUP of the processed document will be called
+     before variable cleanup, but after the connection to the client is closed
+   - Added a closing </font> in logfile send to the browser, otherwise msie 4
+     can't handle it     
+   - Changed perl constants in perl part form subroutines to "real" constants
+   - Does some rearangeing of code
+
+   - Fixed a memory leak which has caused Embperl to loose one sv per perl
+     block, when a document is reloaded
+   - Fixed a bug which causes [+... +] within the Textarea tag to be ignored
+     spotted by Todd Eigenschink
+   - Fixed a bug in sorting hidden fields
+   - Fixed an wrong argument to MakeMaker, which was the cause that Embperl
+     couldn't build static, spotted by Belomestnov, Anatolii (and added a 
+     decription to the Faq how to link static to mod_perl)
+   - Fixed that the LOG filehandle was not imported in the documents package,
+     so printing to LOG just has gone to nowhere
+   
 0.24-beta 13 Jan 1998 
    - Added the option optRawInput which causes Embperl not to preprocess the
      source for a perl expression (Only exceptions is that CR will be removed).

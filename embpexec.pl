@@ -1,4 +1,4 @@
-#!/usr/bin/perl --
+#!g:\perl\bin\perl.exe --
 ###################################################################################
 #
 #   Embperl - Copyright (c) 1997-1998 Gerald Richter / ECOS

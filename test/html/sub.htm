@@ -1,0 +1,32 @@
+
+<html>
+<head>
+<title>Define a SUbroutine within Embperl</title>
+</head>
+
+<body>
+
+
+Here we define a subroutine<P>
+
+NOTE: It must be defined within [[! ... !] to avoid redefinition!
+
+[!
+
+sub Hello
+
+	{
+	return 'Hello world' ;
+	}
+	
+!]
+
+Now we call the subroutine: [+ Hello () +] <P>
+
+[! sub CLEANUP { print LOG "This will be called before variable cleanup\n" ; }!]
+ 
+<P>Ok.<P>
+
+
+</body>
+</html>

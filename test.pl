@@ -12,11 +12,12 @@ BEGIN { $fatal = 1 ; $^W = 1 ; }
 END   { print "\nTest terminated with fatal error\n" if ($fatal) ; }
 
 @tests = (
-	'ascii',
-	'pure.htm',
+    'ascii',
+    'pure.htm',
     'plain.htm',
     'plain.htm',
     'plain.htm',
+    'error.htm???5',
     'error.htm???5',
     'error.htm???5',
     'rawinput/rawinput.htm????16',
@@ -25,22 +26,24 @@ END   { print "\nTest terminated with fatal error\n" if ($fatal) ; }
     'varerr.htm???2',
     'escape.htm',
     'tagscan.htm',
-	'tagscan.htm??1',
+    'tagscan.htm??1',
     'if.htm',
     'while.htm?erstes=Hallo&zweites=Leer+zeichen&drittes=%21%22%23&erstes=Wert2',
- 	'table.htm',
- 	'table.htm??1',
- 	'table.htm??32769',
-# 	'table.htm??131085',
-	'lists.htm?sel=2&SEL1=B&SEL3=D&SEL4=cc',
- 	'input.htm?feld5=Wert5&feld6=Wert6&feld7=Wert7&feld8=Wert8&cb5=cbv5&cb6=cbv6&cb7=cbv7&cb8=cbv8&cb9=ncbv9&cb10=ncbv10&cb11=ncbv11',
- 	'hidden.htm?feld1=Wert1&feld2=Wert2&feld3=Wert3&feld4=Wert4',
-	'java.htm',
-	'inputjava.htm',
+    'table.htm',
+    'table.htm??1',
+    'table.htm??32769',
+#   'table.htm??131085',
+    'lists.htm?sel=2&SEL1=B&SEL3=D&SEL4=cc',
+    'input.htm?feld5=Wert5&feld6=Wert6&feld7=Wert7&feld8=Wert8&cb5=cbv5&cb6=cbv6&cb7=cbv7&cb8=cbv8&cb9=ncbv9&cb10=ncbv10&cb11=ncbv11',
+    'hidden.htm?feld1=Wert1&feld2=Wert2&feld3=Wert3&feld4=Wert4',
+    'java.htm',
+    'inputjava.htm',
     'reqrec.htm',
     'reqrec.htm',
+    'registry/Execute.htm',
+    'sub.htm',
     'div.htm',
- 	'taint.htm???1',
+    'taint.htm???1',
     'safe/safe.htm???1?4',
     'safe/safe.htm???1?4',
     'safe/safe.htm???1?4',
@@ -53,6 +56,12 @@ END   { print "\nTest terminated with fatal error\n" if ($fatal) ; }
 $confpath = './test/conf' ;
 $cmdarg   = $ARGV[0] || '' ;
 shift @ARGV ;
+$dbgbreak = 0 ;
+if ($cmdarg eq 'dbgbreak')
+	{
+	$dbgbreak = 1 ;
+	$cmdarg = shift @ARGV || '' ;
+	}
 
 if ($cmdarg =~ /f/)
     { do $ARGV[0] ; shift @ARGV ; }
@@ -66,8 +75,8 @@ $httpdconf = "$confpath/httpd.conf" ;
 $inpath  = './test/html' ;
 $tmppath = './test/tmp' ;
 $cmppath = './test/cmp' ;
-$embploc = '/embperl/' ;
-$cgiloc  = '/cgi-bin/' ;
+$embploc = 'embperl/' ;
+$cgiloc  = 'cgi-bin/' ;
 $httpderr = "$tmppath/httpd.err.log" ;
 $offlineerr = "$tmppath/test.err.log" ;
 
@@ -117,8 +126,15 @@ sub CmpFiles
     while (defined ($l1 = <F1>))
         {
         $l2 = <F2> ;
-        $eq = $notseen ;
-        while (($l2 =~ /^\^\^(.*?)$/) && !$eq)
+        if (!defined ($l2))
+            {
+            print "\nError in Line $line\nIs:\t$l1\nShould:\t<EOF>\n" ;
+            return $line ;
+            }
+
+        
+        $eq = 0 ;
+        while (!$notseen && ($l2 =~ /^\^\^(.*?)$/) && !$eq)
             {
             $l2 = $1 ;
             $eq = $l1 =~ /$l2/ ;
@@ -295,12 +311,6 @@ unlink ("$offlineerr") ;
 
 -w $tmppath or die "***Cannot write to $tmppath" ;
 
-$dbgbreak = 0 ;
-if ($cmdarg eq 'dbgbreak')
-	{
-	$dbgbreak = 1 ;
-	shift @ARGV ;
-	}
 	
 if ($EPHTTPD ne '')
     { $testtype = $cmdarg || 'ohc' ; }
@@ -336,65 +346,214 @@ do  {
 #############
 
 if ($testtype =~ /o/)
-  {
-  print "\nTesting offline mode...\n\n" ;
-
-  open (SAVEERR, ">&STDERR")  || die "Cannot save stderr" ;  
-  open (STDERR, ">$offlineerr") || die "Cannot redirect stderr" ;  
-  open (ERR, "$offlineerr")  || die "Cannot open redirected stderr ($offlineerr)" ;  ;  
-  foreach $url (@tests)
     {
-    ($file, $query_info, $debug, $errcnt, $option, $ns) = split (/\?/, $url) ;
-    next if ($file eq 'taint.htm') ;
-    next if ($file eq 'reqrec.htm') ;
-    $debug ||= $defaultdebug ;	
-    $page = "$inpath/$file" ;
-    $errcnt ||= 0 ;
-    
-    $notseen = $seen{"o:$page"}?0:1 ;
-    $seen{"o:$page"} = 1 ;
-    
-    delete $ENV{EMBPERL_OPTIONS} if (defined ($ENV{EMBPERL_OPTIONS})) ;
-    $ENV{EMBPERL_OPTIONS} = $option if (defined ($option)) ;
-    $ENV{EMBPERL_COMPARTMENT} = $ns if (defined ($ns)) ;
-    @testargs = ( '-o', "$tmppath/out.htm" ,
-                  '-l', "$tmppath/test.log",
-                  '-d', $debug,
-                   $page, $query_info || '') ;
-    unshift (@testargs, 'dbgbreak') if ($dbgbreak) ;
-    
-    $txt = $file . ($debug != $defaultdebug ?"-d $debug ":"") ;
-    formline ('@<<<<<<<<<<<<<<<<<<<<... ', $txt) ;
-    print $^A ;	
-    $^A = '' ;
-    
-    
-    $err = HTML::Embperl::run (@testargs) ;
-    if ($memcheck)
-    	{
-    	my $vmsize = GetMem ($$) ;
-    	$vminitsize = $vmsize if $loopcnt == 2 ;
-    	print "\#$loopcnt size=$vmsize init=$vminitsize " ;
-    	print "GROWN! at iteration = $loopcnt  " if ($vmsize > $vmmaxsize) ;
-    	$vmmaxsize = $vmsize if ($vmsize > $vmmaxsize) ;
-    	}
-    	
-    $err = CheckError ($errcnt) if ($err == 0) ;
-    
-    if ($err == 0)
-        {
-        $page =~ /.*\/(.*)$/ ;
-        $org = "$cmppath/$1" ;
+    print "\nTesting offline mode...\n\n" ;
 
-        $err = CmpFiles ("$tmppath/out.htm", $org) ;
-        }
+    open (SAVEERR, ">&STDERR")  || die "Cannot save stderr" ;  
+    open (STDERR, ">$offlineerr") || die "Cannot redirect stderr" ;  
+    open (ERR, "$offlineerr")  || die "Cannot open redirected stderr ($offlineerr)" ;  ;  
+    foreach $url (@tests)
+        {
+        ($file, $query_info, $debug, $errcnt, $option, $ns) = split (/\?/, $url) ;
+        next if ($file eq 'taint.htm') ;
+        next if ($file eq 'reqrec.htm') ;
+        next if ($file =~ /registry/) ;
+        $debug ||= $defaultdebug ;	
+        $page = "$inpath/$file" ;
+        $errcnt ||= 0 ;
+    
+        $notseen = $seen{"o:$page"}?0:1 ;
+        $seen{"o:$page"} = 1 ;
+    
+        delete $ENV{EMBPERL_OPTIONS} if (defined ($ENV{EMBPERL_OPTIONS})) ;
+        $ENV{EMBPERL_OPTIONS} = $option if (defined ($option)) ;
+        $ENV{EMBPERL_COMPARTMENT} = $ns if (defined ($ns)) ;
+        @testargs = ( '-o', "$tmppath/out.htm" ,
+                      '-l', "$tmppath/test.log",
+                      '-d', $debug,
+                       $page, $query_info || '') ;
+        unshift (@testargs, 'dbgbreak') if ($dbgbreak) ;
+    
+        $txt = $file . ($debug != $defaultdebug ?"-d $debug ":"") ;
+        formline ('@<<<<<<<<<<<<<<<<<<<<... ', $txt) ;
+        print $^A ;	
+        $^A = '' ;
+    
+    
+        unlink ("$tmppath/out.htm") ;
+        $err = HTML::Embperl::run (@testargs) ;
+        if ($memcheck)
+    	    {
+    	    my $vmsize = GetMem ($$) ;
+    	    $vminitsize = $vmsize if $loopcnt == 2 ;
+    	    print "\#$loopcnt size=$vmsize init=$vminitsize " ;
+    	    print "GROWN! at iteration = $loopcnt  " if ($vmsize > $vmmaxsize) ;
+    	    $vmmaxsize = $vmsize if ($vmsize > $vmmaxsize) ;
+    	    }
+    	    
+        $err = CheckError ($errcnt) if ($err == 0) ;
+    
+        if ($err == 0)
+            {
+            $page =~ /.*\/(.*)$/ ;
+            $org = "$cmppath/$1" ;
+
+            $err = CmpFiles ("$tmppath/out.htm", $org) ;
+            }
 
 	print "ok\n" unless ($err) ;
 	last if $err ;
 	}
-  close STDERR ;
-  open (STDERR, ">&SAVEERR") ;
-  }
+
+    
+    #############
+    #
+    #  Execute
+    #
+    #############
+
+    
+    if ($err == 0)
+        {
+        print "\nTesting Execute function...\n\n" ;
+    
+        
+        HTML::Embperl::Init ("$tmppath/test.log") ;
+        
+        $notseen = 1 ;        
+        $txt = 'div.htm' ;
+        $org = "$cmppath/$txt" ;
+        $src = "$inpath/$txt" ;
+    
+            {
+            local $/ = undef ;
+            open FH, $src or die "Cannot open $src ($!)" ;
+            binmode FH ;
+            $indata = <FH> ;
+            close FH ;
+            }
+
+
+        formline ('@<<<<<<<<<<<<<<<<<<<<... ', "$txt from file") ;
+        print $^A ;	
+        $^A = '' ;
+
+        unlink ("$tmppath/out.htm") ;
+        $err = HTML::Embperl::Execute ({'inputfile'  => $src,
+                                        'mtime'      => 1,
+                                        'outputfile' => "$tmppath/out.htm",
+                                        'debug'      => $defaultdebug,
+                                        }) ;
+    	    
+        $err = CheckError ($errcnt) if ($err == 0) ;
+        $err = CmpFiles ("$tmppath/out.htm", $org)  if ($err == 0) ;
+        print "ok\n" unless ($err) ;
+
+        if ($err == 0)
+            {
+            formline ('@<<<<<<<<<<<<<<<<<<<<... ', "$txt from memory") ;
+            print $^A ;	
+            $^A = '' ;
+
+            unlink ("$tmppath/out.htm") ;
+            $err = HTML::Embperl::Execute ({'input'      => \$indata,
+                                            'inputfile'  => 'i1',
+                                            'mtime'      => 1,
+                                            'outputfile' => "$tmppath/out.htm",
+                                            'debug'      => $defaultdebug,
+                                            }) ;
+    	        
+            $err = CheckError ($errcnt) if ($err == 0) ;
+            $err = CmpFiles ("$tmppath/out.htm", $org)  if ($err == 0) ;
+            print "ok\n" unless ($err) ;
+            }
+
+        if ($err == 0)
+            {
+            formline ('@<<<<<<<<<<<<<<<<<<<<... ', "$txt to memory") ;
+            print $^A ;	
+            $^A = '' ;
+
+            my $outdata ;
+            unlink ("$tmppath/out.htm") ;
+            $err = HTML::Embperl::Execute ({'inputfile'  => $src,
+                                            'mtime'      => 1,
+                                            'output'     => \$outdata,
+                                            'debug'      => $defaultdebug,
+                                            }) ;
+    	        
+            $err = CheckError ($errcnt) if ($err == 0) ;
+            
+            open FH, ">$tmppath/out.htm" or die "Cannot open $tmppath/out.htm ($!)" ;
+            print FH $outdata ;
+            close FH ;
+            $err = CmpFiles ("$tmppath/out.htm", $org)  if ($err == 0) ;
+            print "ok\n" unless ($err) ;
+            }
+
+        if ($err == 0)
+            {
+            formline ('@<<<<<<<<<<<<<<<<<<<<... ', "$txt from/to memory") ;
+            print $^A ;	
+            $^A = '' ;
+
+            my $outdata ;
+            unlink ("$tmppath/out.htm") ;
+            $err = HTML::Embperl::Execute ({'input'      => \$indata,
+                                            'inputfile'  => $src,
+                                            'mtime'      => 1,
+                                            'output'     => \$outdata,
+                                            'debug'      => $defaultdebug,
+                                            }) ;
+    	        
+            $err = CheckError ($errcnt) if ($err == 0) ;
+            
+            open FH, ">$tmppath/out.htm" or die "Cannot open $tmppath/out.htm ($!)" ;
+            print FH $outdata ;
+            close FH ;
+            $err = CmpFiles ("$tmppath/out.htm", $org)  if ($err == 0) ;
+            print "ok\n" unless ($err) ;
+            }
+
+        $txt = 'error.htm' ;
+        $org = "$cmppath/$txt" ;
+        $src = "$inpath/$txt" ;
+
+        $notseen = $seen{"o:$src"}?0:1 ;
+        $seen{"o:$src"} = 1 ;
+
+    
+        if ($err == 0)
+            {
+            formline ('@<<<<<<<<<<<<<<<<<<<<... ', "$txt to memory") ;
+            print $^A ;	
+            $^A = '' ;
+
+            my $outdata ;
+            unlink ("$tmppath/out.htm") ;
+            $err = HTML::Embperl::Execute ({'inputfile'  => $src,
+                                            'mtime'      => 1,
+                                            'output'     => \$outdata,
+                                            'debug'      => $defaultdebug,
+                                            }) ;
+    	        
+            $err = CheckError (5) if ($err == 0) ;
+            
+            open FH, ">$tmppath/out.htm" or die "Cannot open $tmppath/out.htm ($!)" ;
+            print FH $outdata ;
+            close FH ;
+            $err = CmpFiles ("$tmppath/out.htm", $org)  if ($err == 0) ;
+            print "ok\n" unless ($err) ;
+            }
+
+        HTML::Embperl::Term () ;
+        }
+
+        
+
+    close STDERR ;
+    open (STDERR, ">&SAVEERR") ;
+    }
 
 #############
 #
@@ -458,7 +617,6 @@ elsif ($err == 0 && $EPHTTPD eq '')
     }
 
     
-
 while ($loc ne '' && $err == 0)
   {
   if ($loc eq $embploc)
@@ -473,6 +631,8 @@ while ($loc ne '' && $err == 0)
     next if ($file =~ /\// && $loc eq $cgiloc) ;	
     next if ($file eq 'taint.htm' && $loc eq $cgiloc) ;
     next if ($file eq 'reqrec.htm' && $loc eq $cgiloc) ;
+    next if ($file eq 'varerr.htm' && $looptest) ;
+    next if (($file =~ /registry/) && $loc eq $cgiloc) ;
 	
     $debug ||= $defaultdebug ;	
     $errcnt ||= 0 ;
@@ -491,6 +651,7 @@ while ($loc ne '' && $err == 0)
     formline ('@<<<<<<<<<<<<<<<<<<<<... ', $txt) ;
     print $^A ;	
     $^A = '' ;
+    unlink ("$tmppath/out.htm") ;
     $m = GET ($loc, $file, $query_info, "$tmppath/out.htm") ;
     if ($memcheck)
     	{

@@ -183,7 +183,8 @@ void oRollback (struct tBuf *   pBuf)
 /*                                                                              */
 /* ---------------------------------------------------------------------------- */
 
-void oCommit (struct tBuf *   pBuf) 
+void oCommitToMem (struct tBuf *   pBuf,
+                   char *          pOut) 
 
     {
     EPENTRY1N (oCommit, nMarker) ;
@@ -204,14 +205,40 @@ void oCommit (struct tBuf *   pBuf)
         else
             pBuf = pBuf -> pNext ;
         
-        while (pBuf)
+        if (pOut)
             {
-            owrite (pBuf + 1, 1, pBuf -> nSize) ;
-            pBuf = pBuf -> pNext ;
+            while (pBuf)
+                {
+                memmove (pOut, pBuf + 1, pBuf -> nSize) ;
+                pOut += pBuf -> nSize ;
+                pBuf = pBuf -> pNext ;
+                }
+            *pOut = '\0' ;                
+            }
+        else
+            {
+            while (pBuf)
+                {
+                owrite (pBuf + 1, 1, pBuf -> nSize) ;
+                pBuf = pBuf -> pNext ;
+                }
             }
         }
     }
 
+/* ---------------------------------------------------------------------------- */
+/*                                                                              */
+/* commit output transaction (all the output since corresponding begin is vaild)*/
+/*                                                                              */
+/* ---------------------------------------------------------------------------- */
+
+void oCommit (struct tBuf *   pBuf) 
+
+    {
+    EPENTRY1N (oCommit, nMarker) ;
+
+    oCommitToMem (pBuf, NULL) ;
+    }
 
 /* ---------------------------------------------------------------------------- */
 /*                                                                              */
@@ -369,8 +396,7 @@ int OpenInput (/*in*/ const char *  sFilename)
     if ((ifd = PerlIO_open (sFilename, "r")) == NULL)
         {
         strncpy (errdat1, sFilename, sizeof (errdat1) - 1) ;
-        if (errno >= 0 && errno < sys_nerr)
-            strncpy (errdat2, sys_errlist[errno], sizeof (errdat2) - 1) ; 
+        strncpy (errdat2, Strerror(errno), sizeof (errdat2) - 1) ; 
         return rcFileOpenErr ;
         }
 
@@ -474,10 +500,11 @@ char * igets    (/*in*/ char * s,   int    size)
 
 int ReadHTML (/*in*/    char *    sInputfile,
               /*in*/    size_t *  nFileSize,
-              /*out*/   char * *  ppBuf)
+              /*out*/   SV   * *  ppBuf)
 
     {              
-    char * pBuf ;
+    SV   * pBufSV ;
+    char * pData ;
 #ifdef PerlIO
     PerlIO * ifd ;
 #else
@@ -494,23 +521,23 @@ int ReadHTML (/*in*/    char *    sInputfile,
 #endif        
         {
         strncpy (errdat1, sInputfile, sizeof (errdat1) - 1) ;
-        if (errno >= 0 && errno < sys_nerr)
-            strncpy (errdat2, sys_errlist[errno], sizeof (errdat2) - 1) ; 
+        strncpy (errdat2, Strerror(errno), sizeof (errdat2) - 1) ; 
         return rcFileOpenErr ;
         }
 
-    if ((pBuf = _malloc (*nFileSize + 1)) == NULL)
-        {
-        return rcOutOfMemory ;
-        }
+    pBufSV = sv_2mortal (newSV(*nFileSize + 1)) ;
+    pData = SvPVX(pBufSV) ;
 
-    *nFileSize = PerlIO_read (ifd, pBuf, *nFileSize) ;
+    *nFileSize = PerlIO_read (ifd, pData, *nFileSize) ;
 
     PerlIO_close (ifd) ;
     
-    pBuf [*nFileSize] = '\0' ;
+    pData [*nFileSize] = '\0' ;
+    SvCUR_set (pBufSV, *nFileSize) ;
+    SvTEMP_off (pBufSV) ;
+    SvPOK_on   (pBufSV) ;
 
-    *ppBuf = pBuf ;
+    *ppBuf = pBufSV ;
 
     return ok ;
     }
@@ -586,8 +613,7 @@ int OpenOutput (/*in*/ const char *  sFilename)
     if ((ofd = PerlIO_open (sFilename, "w")) == NULL)
         {
         strncpy (errdat1, sFilename, sizeof (errdat1) - 1) ;
-        if (errno >= 0 && errno < sys_nerr)
-            strncpy (errdat2, sys_errlist[errno], sizeof (errdat2) - 1) ; 
+        strncpy (errdat2, Strerror(errno), sizeof (errdat2) - 1) ; 
         return rcFileOpenErr ;
         }
 
@@ -785,8 +811,7 @@ int OpenLog (/*in*/ const char *  sFilename)
     if ((lfd = PerlIO_open (sFilename, "a")) == NULL)
         {
         strncpy (errdat1, sFilename, sizeof (errdat1) - 1) ;
-        if (errno >= 0 && errno < sys_nerr)
-            strncpy (errdat2, sys_errlist[errno], sizeof (errdat2) - 1) ; 
+        strncpy (errdat2, Strerror(errno), sizeof (errdat2) - 1) ; 
         return rcLogFileOpenErr ;
         }
 
@@ -851,7 +876,8 @@ int CloseLog ()
 int FlushLog ()
 
     {
-    PerlIO_flush (lfd) ;
+    if (lfd != NULL)
+        PerlIO_flush (lfd) ;
 
     return ok ;
     }
@@ -901,6 +927,9 @@ int lwrite (/*in*/ const void * ptr, size_t size, size_t nmemb)
     {
     int n ;
 
+    if (lfd == NULL)
+        return 0 ;
+    
     n = PerlIO_write (lfd, (void *)ptr, size * nmemb) ;
 
     if (bDebug & dbgFlushLog)
@@ -925,8 +954,11 @@ void _free (void * p)
     if (bDebug & dbgMem)
         {
         size_t size ;
-        ((size_t *)p)-- ;
-        size = *(size_t *)p ;
+	/* we do it a bit complicted so it compiles also on aix */
+	size_t * ps = (size_t *)p ;
+	ps-- ;
+        size = *ps ;
+        p = ps ;
         nAllocSize -= size ;
         lprintf ("[%d]MEM:  Free %d Bytes at %08x  Allocated so far %d Bytes\n" ,nPid, size, p, nAllocSize) ;
         }
@@ -954,9 +986,12 @@ void * _malloc (size_t  size)
 
     if (bDebug & dbgMem)
         {
+	/* we do it a bit complicted so it compiles also on aix */
+	size_t * ps = (size_t *)p ;
         nAllocSize += size ;
-        *(size_t *)p = size ;
-        ((size_t *)p)++ ;
+        *ps = size ;
+        ps++ ;
+        p = ps ;
         lprintf ("[%d]MEM:  Alloc %d Bytes at %08x   Allocated so far %d Bytes\n" ,nPid, size, p, nAllocSize) ;
         }
 

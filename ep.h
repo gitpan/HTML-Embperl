@@ -40,13 +40,6 @@
 #include "embperl.h"
 
 
-/* declare error information here, since it's not on all systems in stdlib.h */
-
-#if !defined(__FreeBSD__) && !defined(WIN32)
-extern int errno;
-extern int sys_nerr;
-extern char *sys_errlist[];
-#endif
 
 /* ---- from epmain.c ----- */
 
@@ -68,13 +61,9 @@ extern char lastwarn [ERRDATLEN]  ;
 extern request_rec * pReq ;
 #endif
 
-#ifndef pid_t
-#define pid_t int
-#endif
 
 
 
-extern pid_t nPid ;
 
 extern HV *    pCacheHash ; /* Hash containing CVs to precompiled subs */
 extern HV *    pFormHash ;  /* Formular data */
@@ -108,8 +97,9 @@ int iembperl_req  (/*in*/ char *  sInputfile,
                    /*in*/ int     bDebugFlags,
                    /*in*/ int     bOptionFlags,
                    /*in*/ int     nFileSize,
-                   /*in*/ HV *    pCache) ;
-
+                   /*in*/ HV *    pCache,
+                   /*in*/ SV *    pInData,
+                   /*in*/ SV *    pOutData) ;
 int ScanCmdEvalsInString (/*in*/  char *   pIn,
                           /*out*/ char * * pOut,
                           /*in*/  size_t   nSize) ;
@@ -157,6 +147,8 @@ void OutputToStd () ;
 struct tBuf *   oBegin () ;
 void oRollback (struct tBuf *   pBuf) ;
 void oCommit (struct tBuf *   pBuf) ;
+void oCommitToMem (struct tBuf *   pBuf,
+                   char *          pOut) ;
 
 int GetContentLength () ;
 
@@ -195,13 +187,6 @@ extern struct tCharTrans Html2Char [] ;
 extern int sizeHtml2Char ;
 extern struct tCharTrans * pCurrEscape ;
 extern int bEscMode ;
-
-enum tEscMode
-    {
-    escNone = 0,
-    escHtml = 1,
-    escUrl  = 2
-    } ;
 
 /* ---- from epcmd.c ----- */
 
@@ -312,6 +297,7 @@ extern int nTabMaxCol  ;    /* maximum columns for next table (only takes affect
 
 
 int  SearchCmd          (/*in*/  const char *    sCmdName,
+                         /*in*/  int             nCmdLen,
                          /*in*/  const char *    sArg,
                          /*in*/  int             bIgnore,
                          /*out*/ struct tCmd * * ppCmd) ;
@@ -367,3 +353,7 @@ int Eval (/*in*/  const char *  sArg,
 int EvalTrans (/*in*/  char *   sArg,
                /*in*/  int      nFilepos,
                /*out*/ SV **    pRet) ;
+
+int EvalTransOnFirstCall (/*in*/  char *   sArg,
+                          /*in*/  int      nFilepos,
+                          /*out*/ SV **    pRet) ;            

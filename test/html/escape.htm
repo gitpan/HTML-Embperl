@@ -62,16 +62,19 @@ Now a Url: <A HREF="http://localhost/tests?id=[+$id+]&text=[+$text+]">Here it go
 
 What is the EscMode? [+ $escmode +]
 
-[-
-    $name[0] = 'abcd' ;
-    $data[0] = 'xyz' ;
-    
+[!
     sub foo($)
         {
-            my $bar = $_[0];
-            return "file.html?name=$name[$bar]&data=$data[$bar]";
+    	my @name ;
+    	my @data ;
+    
+    	$name[0] = 'abcd' ;
+    	$data[0] = 'xyz' ;
+    
+        my $bar = $_[0];
+        return "file.html?name=$name[$bar]&data=$data[$bar]";
         }
--]
+!]
 
 
 [+ foo (0) +]

@@ -87,12 +87,14 @@ static int constants()
         PERLCONST(rcNotFound)
         PERLCONST(rcUnknownVarType)
         PERLCONST(rcPerlWarn)
-
+        PERLCONST(rcVirtLogNotSet)
+        
         PERLCONST(optDisableVarCleanup)
         PERLCONST(optDisableEmbperlErrorPage)
         PERLCONST(optSafeNamespace)
         PERLCONST(optOpcodeMask)
         PERLCONST(optRawInput)
+        PERLCONST(optSendHttpHeader)
 
         PERLCONST(dbgStd)
         PERLCONST(dbgMem)
@@ -116,6 +118,11 @@ static int constants()
         PERLCONST(dbgShowCleanup)
         PERLCONST(dbgAll)
      
+        PERLCONST(escNone)
+        PERLCONST(escHtml)
+        PERLCONST(escUrl)
+        PERLCONST(escStd)
+
     return ok;
 }
 
@@ -163,17 +170,19 @@ CODE:
 
 
 int
-embperl_req(sInputfile, sOutputfile, bDebugFlags, bOptionFlags, nFileSize, pCache)
+embperl_req(sInputfile, sOutputfile, bDebugFlags, bOptionFlags, nFileSize, pCache, pInData, pOutData)
     char * sInputfile
     char * sOutputfile
     int bDebugFlags
     int bOptionFlags
     int    nFileSize
-    HV   * pCache = NO_INIT ;
+    HV   * pCache = NO_INIT 
+    SV   * pInData 
+    SV   * pOutData 
 INIT:
     pCache = (HV *)SvRV((SvRV(ST(5))));
 CODE:
-    RETVAL = iembperl_req(sInputfile, sOutputfile, bDebugFlags, bOptionFlags, nFileSize, pCache) ; 
+    RETVAL = iembperl_req(sInputfile, sOutputfile, bDebugFlags, bOptionFlags, nFileSize, pCache, pInData, pOutData) ; 
 OUTPUT:
     RETVAL
 
@@ -243,3 +252,11 @@ CODE:
     RETVAL = GetLineNo () ;
 OUTPUT:
     RETVAL
+
+
+void
+log_svs(sText)
+    char * sText
+CODE:
+        lprintf ("[%d]MEM:  %s: SVs: %d OBJs: %d\n", nPid, sText, sv_count, sv_objcount) ;
+

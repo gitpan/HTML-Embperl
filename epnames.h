@@ -22,6 +22,7 @@
 #define oBegin                 EMBPERL_oBegin            
 #define oRollback              EMBPERL_oRollback         
 #define oCommit                EMBPERL_oCommit           
+#define oCommitToMem           EMBPERL_oCommitToMem
 #define OpenInput              EMBPERL_OpenInput         
 #define CloseInput             EMBPERL_CloseInput        
 #define iread                  EMBPERL_iread             
@@ -94,6 +95,7 @@
 #define Char2Url               EMBPERL_Char2Url            
 #define CmdTab                 EMBPERL_CmdTab              
 #define EvalTrans              EMBPERL_EvalTrans           
+#define EvalTransOnFirstCall   EMBPERL_EvalTransOnFirstCall           
 #define GetContentLength       EMBPERL_GetContentLength    
 #define GetLogFilePos          EMBPERL_GetLogFilePos       
 #define ReadHTML               EMBPERL_ReadHTML            
@@ -117,4 +119,5 @@
 #define GetLineNo              EMBPERL_GetLineNo
 #define pLineNoCurrPos         EMBPERL_pLineNoCurrPos
 #define bError                 EMBPERL_bError
+#define lastwarn               EMBPERL_lastwarn
 #define lastwarn               EMBPERL_lastwarn

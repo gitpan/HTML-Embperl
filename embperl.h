@@ -15,6 +15,7 @@
 ###################################################################################*/
 
 
+
 /*
     Errors and Return Codes
 */
@@ -54,6 +55,8 @@ enum tRc
     rcNotFound,
     rcUnknownVarType,
     rcPerlWarn,
+    rcVirtLogNotSet,
+    rcMissingInput,
     } ;
 
 
@@ -84,7 +87,7 @@ enum dbg
     dbgHeadersIn        = 0x40000,
     dbgShowCleanup      = 0x80000,
     
-    dbgAll  = 0xffffffff
+    dbgAll  = -1
     } ;
 
 /*
@@ -98,6 +101,7 @@ enum opt
     optSafeNamespace           = 4,
     optOpcodeMask              = 8,
     optRawInput                = 16,
+    optSendHttpHeader          = 32,
     } ;
 
 /*
@@ -132,3 +136,24 @@ enum epIO
 
 extern char errdat1 [ERRDATLEN]  ;
 extern char errdat2 [ERRDATLEN]  ;
+
+/*
+    Escape modes
+*/
+
+
+enum tEscMode
+    {
+    escNone = 0,
+    escHtml = 1,
+    escUrl  = 2,
+    escStd  = 3
+    } ;
+
+
+#if !defined (pid_t) && defined (WIN32)
+#define pid_t int
+#endif
+
+extern pid_t nPid ;
+
