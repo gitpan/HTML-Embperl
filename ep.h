@@ -1,6 +1,6 @@
 /*###################################################################################
 #
-#   Embperl - Copyright (c) 1997-2001 Gerald Richter / ECOS
+#   Embperl - Copyright (c) 1997-1999 Gerald Richter / ECOS
 #
 #   You may distribute under the terms of either the GNU General Public
 #   License or the Artistic License, as specified in the Perl README file.
@@ -9,8 +9,6 @@
 #   THIS PACKAGE IS PROVIDED "AS IS" AND WITHOUT ANY EXPRESS OR
 #   IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 #   WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
-#   
-#   $Id: ep.h,v 1.33 2001/02/13 05:39:17 richter Exp $
 #
 ###################################################################################*/
 
@@ -144,6 +142,11 @@ extern "C" {
 #elif MODULE_MAGIC_NUMBER >= 19980413
 #include "compat.h"
 #endif
+
+
+module MODULE_VAR_EXPORT embperl_module;
+
+
 #endif
 
 struct tReq ;
@@ -203,7 +206,8 @@ tReq * SetupRequest (/*in*/ SV *    pApacheReqSV,
                      /*in*/ SV *    pOut,
     		     /*in*/ char *  sSubName,
 		     /*in*/ char *  sImport,
-		     /*in*/ int	    nSessionMgnt) ;
+		     /*in*/ int	    nSessionMgnt,
+                     /*in*/ tTokenTable * pTokenTable) ;
 
 void FreeRequest (/*i/o*/ register req * r) ;
                    
@@ -395,6 +399,9 @@ SV * SplitFdat     (/*i/o*/ register req * r,
 
 /* ---- from eputil.c ----- */
 
+const char * strnstr (/*in*/ const char *   pString,
+                             /*in*/ const char *   pSubString,
+			     /*in*/ int            nMax) ;
 
 char * GetHashValue (/*in*/  HV *           pHash,
                      /*in*/  const char *   sKey,
@@ -446,6 +453,7 @@ int GetLineNoOf (/*i/o*/ register req * r,
 
 #ifndef WIN32
 #define strnicmp strncasecmp
+#define stricmp strcasecmp
 #endif
 
 void Dirname (/*in*/ const char * filename,
@@ -461,6 +469,14 @@ int SetSubTextPos (/*i/o*/ register req * r,
 
 int GetSubTextPos (/*i/o*/ register req * r,
 		   /*in*/  const char *   sName) ;
+
+
+void ClearSymtab (/*i/o*/ register req * r,
+		  /*in*/  const char *    sPackage) ;
+
+void UndefSub    (/*i/o*/ register req * r,
+		  /*in*/  const char *    sName, 
+		  /*in*/  const char *    sPackage) ;
 
 
 

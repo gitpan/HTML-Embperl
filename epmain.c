@@ -10,7 +10,7 @@
 #   IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 #   WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 #
-#   $Id: epmain.c,v 1.94 2001/02/13 05:39:23 richter Exp $
+#   $Id: epmain.c,v 1.100 2001/05/11 04:06:51 richter Exp $
 #
 ###################################################################################*/
 
@@ -330,7 +330,7 @@ INTMG (TabMaxCol, pCurrReq -> nTabMaxCol, notused, ;)
 INTMG (TabMode, pCurrReq -> nTabMode, notused, ;) 
 INTMG (EscMode, pCurrReq -> nEscMode, notused, NewEscMode (pCurrReq, pSV)) 
 #ifdef EP2
-INTMG (CurrNode, pCurrReq -> xCurrNode, notused, ;) 
+INTMGshort (CurrNode, pCurrReq -> xCurrNode) 
 #endif
 
 OPTMGRD (optDisableVarCleanup      , pCurrReq -> bOptions) ;
@@ -467,6 +467,7 @@ static int GetFormData (/*i/o*/ register req * r,
                 pQueryString++ ;
                 nLen-- ;
                 break ;
+            case ';':
             case '&':
                 pQueryString++ ;
                 nLen-- ;
@@ -539,6 +540,8 @@ static int GetInputData_CGIProcess (/*i/o*/ register req * r)
     int  len   = 0 ;
     char sLine [1024] ;
     SV * pSVE ;
+    int  savewarn = dowarn ;
+    dowarn = 0 ; /* no warnings here */
     
     EPENTRY (GetInputData_CGIProcess) ;
 
@@ -550,6 +553,7 @@ static int GetInputData_CGIProcess (/*i/o*/ register req * r)
 
     if ((rc = OpenInput (r, sCmdFifo)) != ok)
         {
+        dowarn = savewarn ;
         return rc ;
         }
 
@@ -579,6 +583,7 @@ static int GetInputData_CGIProcess (/*i/o*/ register req * r)
 
             if (hv_store (r -> pEnvHash, sLine, strlen (sLine), pSVE, 0) == NULL)
                 {
+                dowarn = savewarn ;
                 return rcHashError ;
                 }
             if (r -> bDebug & dbgEnv)
@@ -588,7 +593,10 @@ static int GetInputData_CGIProcess (/*i/o*/ register req * r)
             {
             len = atoi (sLine) ;
             if ((p = _malloc (len + 1)) == NULL)
+                {
+                dowarn = savewarn ;
                 return rcOutOfMemory ;
+                }
             iread (p, len) ;
             p[len] = '\0' ;
             rc = GetFormData (p, len) ;
@@ -602,6 +610,7 @@ static int GetInputData_CGIProcess (/*i/o*/ register req * r)
         
     CloseInput () ;
     
+    dowarn = savewarn ;
     return rc ;
     }
                         
@@ -647,6 +656,8 @@ static int GetInputData_CGIScript (/*i/o*/ register req * r)
         HE *   pEntry ;
         char * pKey ;
         I32    l ;
+        int  savewarn = dowarn ;
+        dowarn = 0 ; /* no warnings here */
         
         hv_iterinit (r -> pEnvHash) ;
         while ((pEntry = hv_iternext (r -> pEnvHash)))
@@ -656,6 +667,7 @@ static int GetInputData_CGIScript (/*i/o*/ register req * r)
 
                 lprintf (r,  "[%d]ENV:  %s=%s\n", r -> nPid, pKey, SvPV (psv, na)) ; 
             }
+        dowarn = savewarn ;
         }
 
     sLen [0] = '\0' ;
@@ -843,7 +855,6 @@ static int ScanCmdEvals (/*i/o*/ register req * r,
 				else if (i < f)
 				    oputs (r, "&amp;") ;
 				}
-			
 			    }
 			else if (SvTYPE(pAV) == SVt_PVHV)
 			    { /* Hash reference inside URL */
@@ -1274,6 +1285,7 @@ static int AddMagic (/*i/o*/ register req * r,
     
     pSV = perl_get_sv (sVarName, TRUE) ;
     sv_magic (pSV, NULL, 0, sVarName, strlen (sVarName)) ;
+    sv_setiv (pSV, 0) ;
     pMagic = mg_find (pSV, 0) ;
 
     if (pMagic)
@@ -1350,6 +1362,10 @@ int Init        (/*in*/ int           _nIOType,
 
 #ifdef APACHE
     r -> pApacheReq = NULL ;
+    if (_nIOType == epIOMod_Perl)
+	{
+	ap_add_module (&embperl_module) ;
+	}
 #endif
     r -> bReqRunning = 0 ;
     
@@ -1580,24 +1596,9 @@ int Init        (/*in*/ int           _nIOType,
     ADDOPTMG   (dbgImport      ) ;
    
 #ifdef EP2
-
     DomInit () ;
-    embperl_CompileInit () ;    
-
-
-    if ((pTokenHash = perl_get_hv (sTokenHashName, TRUE)) == NULL)
-        {
-        return rcHashError ;
-        }
-    r -> pTokenTable = &DefaultTokenTable ;
-    if (rc = BuildTokenTable (r, pTokenHash , "", r -> pTokenTable))
-	{
-	LogError (r, rc) ;
-	return rc ;
-	}
 #endif    
     
-
     bInitDone = 1 ;
 
     return rc ;
@@ -1828,7 +1829,7 @@ tFile * SetupFileData   (/*i/o*/ register req * r,
     char	txt [sizeof (sDefaultPackageName) + 50] ;
     char *	cache_key;
     int		cache_key_len;
-    char	olddir[PATH_MAX] = "" ;
+    char olddir[PATH_MAX] = "" ;
     char *      pNew ;
 
     EPENTRY (SetupFileData) ;
@@ -1875,7 +1876,10 @@ tFile * SetupFileData   (/*i/o*/ register req * r,
         if (mtime == 0 || f -> mtime != mtime)
             {
             hv_clear (f -> pCacheHash) ;
-        
+
+#ifdef EP2	
+	    UndefSub (r, EPMAINSUB, f -> sCurrPackage) ;
+#endif
             if (r -> bDebug)
                 lprintf (r, "[%d]MEM: Reload %s in %s\n", r -> nPid,  sSourcefile, f -> sCurrPackage) ;
 
@@ -1925,7 +1929,6 @@ tFile * SetupFileData   (/*i/o*/ register req * r,
             lprintf (r, "[%d]MEM: Load %s in %s\n", r -> nPid,  sSourcefile, f -> sCurrPackage) ;
         pNew = "New" ;
         }
-
     if (r -> bDebug)
         lprintf (r, "[%d]CACHE: %s File for '%s' (%x) in '%s' hash cache-key '%s'\n", r -> nPid,  pNew, f -> sSourcefile, f, f -> sCurrPackage, cache_key) ;
     
@@ -1997,6 +2000,9 @@ tFile * GetFileData     (/*in*/  char *  sSourcefile,
         if (mtime == 0 || f -> mtime != mtime)
             {
             hv_clear (f -> pCacheHash) ;
+#ifdef EP2	
+	    UndefSub (pCurrReq, f -> sCurrPackage, EPMAINSUB) ;
+#endif
         
             f -> mtime       = -1 ;	 /* reset last modification time of file */
 	    if (f -> pExportHash)
@@ -2005,9 +2011,8 @@ tFile * GetFileData     (/*in*/  char *  sSourcefile,
 		f -> pExportHash = NULL ;
 		}
 	    }
-
         pNew = "Found " ;
-	}
+        }
     else
         { /* create new file structure */
         if ((f = malloc (sizeof (*f))) == NULL)
@@ -2039,12 +2044,11 @@ tFile * GetFileData     (/*in*/  char *  sSourcefile,
         hv_store(pCacheHash, cache_key, cache_key_len, newRV_noinc (newSViv ((IV)f)), 0) ;  
     
         pNew = "New " ;
-	}
+        }
 
     if (pCurrReq -> bDebug)
         lprintf (pCurrReq, "[%d]CACHE: %s File for %s (%x) in %s hash cache-key %s\n", pCurrReq -> nPid,  pNew, f -> sSourcefile, f, f -> sCurrPackage, cache_key) ;
     
-
     free(cache_key);
 
     return f ;
@@ -2093,7 +2097,8 @@ tReq * SetupRequest (/*in*/ SV *    pApacheReqSV,
                      /*in*/ SV *    pOut,
 		     /*in*/ char *  sSubName,
 		     /*in*/ char *  sImport,
-		     /*in*/ int	    nSessionMgnt)
+		     /*in*/ int	    nSessionMgnt,
+                     /*in*/ tTokenTable * pTokenTable)
 
     {
     int     rc ;
@@ -2179,6 +2184,7 @@ tReq * SetupRequest (/*in*/ SV *    pApacheReqSV,
     if (ppSV)
         r -> sPathInfo = SvPV (*ppSV ,len) ;
 #endif
+    r -> pTokenTable = pTokenTable ;    
     if (rc != ok)
         r -> bDebug = 0 ; /* Turn debbuging off, only errors will go to stderr if logfile not open */
     r -> bOptions        = pConf -> bOptions ;
@@ -2221,6 +2227,9 @@ tReq * SetupRequest (/*in*/ SV *    pApacheReqSV,
     r -> bReqRunning     = 1 ;
 
     r -> Buf.pFile = pFile ;
+
+    r -> pOutData        = pOut ;
+    r -> pInData         = pIn ;
 
     
     r -> CmdStack.State.nCmdType      = cmdNorm ;
@@ -2680,29 +2689,86 @@ static int EndOutput (/*i/o*/ register req * r,
 		HE *   pEntry ;
 		char * pKey ;
 		I32    l ;
+
+ 
+ 		I32	i;
+ 		I32	len;
+ 		AV	*arr;
+ 		SV	**svp;
+
+		/* loc = 0  =>  no location header found
+		 * loc = 1  =>  location header found
+		 * loc = 2  =>  location header + value found
+		 */
+ 		I32	loc;
         
 		hv_iterinit (r -> pHeaderHash) ;
 		while ((pEntry = hv_iternext (r -> pHeaderHash)))
 		    {
 		    pKey     = hv_iterkey (pEntry, &l) ;
 		    pHeader  = hv_iterval (r -> pHeaderHash, pEntry) ;
-
+ 		    loc = 0;
 		    if (pHeader && pKey)
 			{			    
-			p = SvPV (pHeader, ldummy) ;
-			if (strnicmp (pKey, "location", 8) == 0)
-			    r -> pApacheReq->status = 301;
-			if (strnicmp (pKey, "content-type", 12) == 0)
-			    r -> pApacheReq->content_type = pstrdup(r -> pApacheReq->pool, p);
-			else
+
+			if (stricmp (pKey, "location") == 0)
+			    loc = 1;
+ 			if (stricmp (pKey, "content-type") == 0)  
+ 			    {
+ 			    p = NULL;
+ 			    if ( SvROK(pHeader) && SvTYPE(SvRV(pHeader)) == SVt_PVAV ) 
+ 				{
+ 				arr = (AV *)SvRV(pHeader);
+ 				if (av_len(arr) >= 0) 
+ 				    {
+ 				    svp = av_fetch(arr, 0, 0);
+				    p = SvPV(*svp, ldummy);
+			    	    }
+ 				} 
+ 			    else 
+ 		 		{
+ 				p = SvPV(pHeader, ldummy);
+ 				}
+ 			    if (p) 
+				r->pApacheReq->content_type = pstrdup(r->pApacheReq->pool, p);
+			    } 
+  			else if (SvROK(pHeader)  && SvTYPE(SvRV(pHeader)) == SVt_PVAV ) 
+ 			    {
+ 			    arr = (AV *)SvRV(pHeader);
+ 			    len = av_len(arr);
+ 			    for (i = 0; i <= len; i++) 
+ 				{
+ 				svp = av_fetch(arr, i, 0);
+ 				p = SvPV(*svp, ldummy);
+ 				table_add( r->pApacheReq->headers_out, pstrdup(r->pApacheReq->pool, pKey),
+ 					   pstrdup(r->pApacheReq->pool, p ) );
+ 				if (loc == 1) 
+				    {
+				    loc = 2;
+				    break;
+ 				    }
+				}
+ 			    } 
+ 			else 
+ 			    {
+ 			    p = SvPV(pHeader, ldummy);
 			    table_set(r -> pApacheReq->headers_out, pstrdup(r -> pApacheReq->pool, pKey), pstrdup(r -> pApacheReq->pool, p)) ;
+			    if (loc == 1) loc = 2;
+			    }
+
+			if (loc == 2) r->pApacheReq->status = 301;
 			}
 		    }
+
+
 		if (pCookie)
 		    {
 		    table_add(r -> pApacheReq->headers_out, sSetCookie, pstrdup(r -> pApacheReq->pool, SvPV(pCookie, ldummy))) ;
 		    SvREFCNT_dec (pCookie) ;
 		    }
+#ifdef EP2
+	        if (r -> bEP1Compat)  /*  Embperl 2 currently cannot calc Content Length */
+#endif
 		set_content_length (r -> pApacheReq, GetContentLength (r) + (r -> pCurrEscape?2:0)) ;
 		send_http_header (r -> pApacheReq) ;
 #ifndef WIN32
@@ -2748,18 +2814,39 @@ static int EndOutput (/*i/o*/ register req * r,
 
 			if (pHeader && pKey)
 			    {			    
-			    p = SvPV (pHeader, na) ;
-			    if (strnicmp (pKey, "content-type", 12) == 0)
-				pContentType = p ;
+ 			    if (SvROK(pHeader)  && SvTYPE(SvRV(pHeader)) == SVt_PVAV ) 
+ 				{
+ 				AV * arr = (AV *)SvRV(pHeader);
+ 				I32 len = av_len(arr);
+				int i ;
+
+ 				for (i = 0; i <= len; i++) 
+ 				    {
+ 				    SV ** svp = av_fetch(arr, i, 0);
+ 				    p = SvPV(*svp, ldummy);
+				    oputs (r, pKey) ;
+				    oputs (r, ": ") ;
+				    oputs (r, p) ;
+				    oputs (r, "\n") ;
+				    if (r -> bDebug & dbgHeadersIn)
+                			lprintf (r,  "[%d]HDR:  %s: %s\n", r -> nPid, pKey, p) ; 
+				    }
+ 				} 
 			    else
-				{
-				oputs (r, pKey) ;
-				oputs (r, ": ") ;
-				oputs (r, p) ;
-				oputs (r, "\n") ;
+				{				    
+				p = SvPV (pHeader, na) ;
+				if (stricmp (pKey, "content-type") == 0)
+				    pContentType = p ;
+				else
+				    {
+				    oputs (r, pKey) ;
+				    oputs (r, ": ") ;
+				    oputs (r, p) ;
+				    oputs (r, "\n") ;
+				    }
+				if (r -> bDebug & dbgHeadersIn)
+                		    lprintf (r,  "[%d]HDR:  %s: %s\n", r -> nPid, pKey, p) ; 
 				}
-			    if (r -> bDebug & dbgHeadersIn)
-                		lprintf (r,  "[%d]HDR:  %s: %s\n", r -> nPid, pKey, p) ; 
 			    }
 			}
 		    
@@ -2850,7 +2937,7 @@ static int EndOutput (/*i/o*/ register req * r,
 		    if (!bError && !r -> pImportStash)
 			{
 			tDomTree * pDomTree = DomTree_self (r -> xCurrDomTree) ;
-    			Node_replaceChildWithNode (pDomTree, pDomTree -> xDocument, DomTree_self (l -> xCurrDomTree), l -> xCurrNode) ;
+    			l -> xCurrNode = Node_insertAfter (pDomTree, pDomTree -> xDocument, DomTree_self (l -> xCurrDomTree), l -> xCurrNode) ;
 			}
 		    }
 #endif
@@ -2966,9 +3053,6 @@ static int ProcessFile (/*i/o*/ register req * r,
     r -> Buf.pSourcelinePos = r -> Buf.pCurrPos = r -> Buf.pBuf ;
     r -> Buf.pEndPos  = r -> Buf.pBuf + nFileSize ;
 
-    /*xxx lprintf (r, "ProcessFile  r -> Buf.pFile=%x\n", r -> Buf.pFile) ; */
-
-
 #ifdef EP2
     if (!r -> bEP1Compat)
 	{
@@ -3051,11 +3135,17 @@ int ProcessBlock	(/*i/o*/ register req * r,
     char *  p ;
     int     n ;
 
-    /*xxx lprintf (r, "ProcessBlock nBlockStart=%d nBlockNo=%d  r -> Buf.pFile=%x\n", nBlockStart, nBlockNo, r -> Buf.pFile) ; */
 
     r -> Buf.pCurrPos = r -> Buf.pBuf + nBlockStart ;
     r -> Buf.pEndPos  = r -> Buf.pCurrPos + nBlockSize ;
     r -> Buf.nBlockNo = nBlockNo ;
+
+
+    if (r -> pTokenTable && strcmp ((char *)r -> pTokenTable, "Text") == 0)
+	{ /* --- emulate Embperl 2  syntax => 'Text' --- */	    
+	owrite (r, r -> Buf.pCurrPos, r -> Buf.pEndPos - r -> Buf.pCurrPos) ;
+	return r -> Buf.nBlockNo ;
+	}
 
     rc = ok ;
     p = r -> Buf.pCurrPos ;
@@ -3166,30 +3256,23 @@ int ReadInputFile	(/*i/o*/ register req * r)
     SV *    pBufSV = NULL ;
     req *   pMain = r ;
 
-#ifdef xxxEP2
+#ifdef EP2
     if (!r -> bEP1Compat)
     	{
-    	r -> Buf.pBuf		    = NULL ;
-	r -> Buf.pFile -> nFilesize     = 1 ;
-	return ok ;
-/*
     	SV * * ppSV ;
     	
-    	ppSV = hv_fetch (r -> Buf.pFile -> pCacheHash, "SRCDOM", 6, 0) ;
+    	ppSV = hv_fetch (r -> Buf.pFile -> pCacheHash, "P-1----", 7, 0) ;
     	if (ppSV && *ppSV)
     	    {
 	    r -> Buf.pBuf		    = NULL ;
 	    r -> Buf.pFile -> nFilesize     = 1 ;
 	    return ok ;  /* source already parsed */
 	    }
-*/
 	}
 #endif
 
     if ((pBufSV = r -> Buf.pFile -> pBufSV) == NULL || !SvPOK (pBufSV))
 	{
-	/*xxx lprintf (r, "ReadInputFile r -> pInData=%x rok=%d\n", r -> pInData, SvROK(r -> pInData)) ; */
-
 	if (SvROK(r -> pInData))
 	    { /* --- get input from memory --- */
 	    STRLEN n ;
@@ -3261,14 +3344,12 @@ int ProcessSub		(/*i/o*/ register req * r,
     
     memcpy (&Buf, &r -> Buf, sizeof (Buf)) ;
 
-    /*xxx lprintf (r, "ProcessSub pFile=%x nBlockStart=%d nBlockNo=%d  r -> Buf.pFile=%x\n", pFile, nBlockStart, nBlockNo, r -> Buf.pFile) ; */
     
     if (pFile != r -> Buf.pFile)
 	{ /* get other file */
 	r -> Buf.pFile = pFile ;
 	r -> pInData = &sv_undef ;
 
-	/*xxx lprintf (r, "ProcessSub call ReadInputFile\n") ; */
 	if ((rc = ReadInputFile (r)) != ok)
 	    {
 	    LogError (r, rc) ;
@@ -3290,7 +3371,7 @@ int ProcessSub		(/*i/o*/ register req * r,
     r -> Buf.sEvalPackage = sEvalPackage ; 
     r -> Buf.nEvalPackage = nEvalPackage ; 
     r -> pInData          = pInData ;  
-    
+
     if (rc != ok)
 	LogError (r, rc) ;
 
@@ -3344,7 +3425,7 @@ int ExecuteReq (/*i/o*/ register req * r,
         rc = StartOutput (r) ;
 
     /* --- read input file or get input file from memory --- */
-#ifdef EP2
+#ifdef xxxEP2
     if (rc == ok && r -> bEP1Compat)
 #else
     if (rc == ok)

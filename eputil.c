@@ -9,8 +9,8 @@
 #   THIS PACKAGE IS PROVIDED "AS IS" AND WITHOUT ANY EXPRESS OR
 #   IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 #   WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
-#   
-#   $Id: eputil.c,v 1.17 2001/02/13 05:39:25 richter Exp $
+#
+#   $Id: eputil.c,v 1.21 2001/05/10 19:08:17 richter Exp $
 #
 ###################################################################################*/
 
@@ -167,6 +167,8 @@ static const char * stristr (/*in*/ const char *   pString,
     while (TRUE) ;
     }
 
+
+
 /* ---------------------------------------------------------------------------- */
 /* make string lower case */
 /* */
@@ -190,6 +192,43 @@ static char * strlower (/*in*/ char *   pString)
     }
 
 #endif
+
+
+/* ---------------------------------------------------------------------------- */
+/* find substring with max len                                                  */
+/*                                                                              */
+/* in  pSring  = string to search in						*/
+/* in  pSubStr = string to search for						*/
+/*                                                                              */
+/* out ret  = pointer to pSubStr in pStringvalue or NULL if not found           */
+/*                                                                              */
+/* ---------------------------------------------------------------------------- */
+
+
+ 
+const char * strnstr (/*in*/ const char *   pString,
+                             /*in*/ const char *   pSubString,
+			     /*in*/ int            nMax)
+
+    {
+    char c = *pSubString ;
+    int  l = strlen (pSubString) ;
+    
+    while (nMax-- > 0)
+        {
+        while (*pString && *pString != c)
+            pString++ ;
+
+        if (*pString == '\0')
+            return NULL ;
+
+        if (strncmp (pString, pSubString, l) == 0)
+            return pString ;
+        pString++ ;
+        }
+    }
+
+
 
 /* ---------------------------------------------------------------------------- */
 /* save strdup                                                                  */
@@ -825,3 +864,216 @@ int SetSubTextPos (/*i/o*/ register req * r,
     
     return ok ;
     }
+
+
+#ifdef EP2
+
+/* ------------------------------------------------------------------------- */
+/*                                                                           */
+/* ClearSymtab								     */
+/*                                                                           */
+/*                                                                           */
+/* in	sPackage = package which symtab should be cleared                    */
+/*                                                                           */
+/* ------------------------------------------------------------------------- */
+
+
+
+void ClearSymtab (/*i/o*/ register req * r,
+		  /*in*/  const char *    sPackage) 
+
+    {
+    SV *	val;
+    char *	key;
+    I32		klen;
+    int		bDebug = 1 ;
+    SV *	sv;
+    HV *	hv;
+    AV *	av;
+    struct io *	io ;
+    HV *	symtab ;
+    STRLEN	l ;
+    CV *	pCV ;
+    SV *	pSV ;
+    SV * *	ppSV ;
+    SV *	pSVErr ;
+    HV *	pCleanupHV ;
+    char *      s ;
+    GV *	pFileGV ;
+    /*
+    GV *	symtabgv ;
+    GV *	symtabfilegv ;
+    */
+
+    dTHR;
+
+    if ((symtab = gv_stashpv ((char *)sPackage, 0)) == NULL)
+	return ;
+
+    ppSV = hv_fetch (symtab, EPMAINSUB, sizeof (EPMAINSUB) - 1, 0) ;
+    if (!ppSV || !*ppSV)
+	{
+	if (bDebug)
+	    lprintf (r, "[%d]CUP: No Perl code in %s\n", r -> nPid, sPackage) ;
+	return ;
+	}
+
+    /*
+    symtabgv = (GV *)*ppSV ;
+    symtabfilegv = (GV *)GvFILEGV (symtabgv) ;
+    */
+
+    pSV = newSVpvf ("%s::CLEANUP", sPackage) ;
+    s   = SvPV (pSV, l) ;
+    pCV = perl_get_cv (s, 0) ;
+    if (pCV)
+	{
+	if (bDebug)
+	    lprintf (r, "[%d]CUP: Call &%s::CLEANUP\n", r -> nPid, sPackage) ;
+	perl_call_sv ((SV *)pCV, G_EVAL | G_NOARGS | G_DISCARD) ;
+	pSVErr = ERRSV ;
+	if (SvTRUE (pSVErr))
+	    {
+	    STRLEN l ;
+	    char * p = SvPV (pSVErr, l) ;
+	    if (l > sizeof (r -> errdat1) - 1)
+		l = sizeof (r -> errdat1) - 1 ;
+	    strncpy (r -> errdat1, p, l) ;
+	    if (l > 0 && r -> errdat1[l-1] == '\n')
+		l-- ;
+	    r -> errdat1[l] = '\0' ;
+     
+	    LogError (r, rcEvalErr) ;
+
+	    sv_setpv(pSVErr,"");
+	    }
+	}
+    
+    
+    pCleanupHV = perl_get_hv (s, 1) ;
+    
+    SvREFCNT_dec(pSV) ;
+
+    (void)hv_iterinit(symtab);
+    while ((val = hv_iternextsv(symtab, &key, &klen))) 
+	{
+	if(SvTYPE(val) != SVt_PVGV)
+	    {
+	    if (bDebug)
+	        lprintf (r, "[%d]CUP: Ignore ??? because it's no gv\n", r -> nPid) ;
+	    
+	    continue;
+	    }
+
+	s = GvNAME((GV *)val) ;
+	l = strlen (s) ;
+
+	ppSV = hv_fetch (pCleanupHV, s, l, 0) ;
+
+	if (ppSV && *ppSV && SvIV (*ppSV) == 0)
+	    {
+	    if (bDebug)
+	        lprintf (r, "[%d]CUP: Ignore %s because it's in %%CLEANUP\n", r -> nPid, s) ;
+	    continue ;
+	    }
+
+	
+	if (!(ppSV && *ppSV && SvTRUE (*ppSV)))
+	    {
+	    if(GvIMPORTED((GV*)val))
+		{
+		if (bDebug)
+		    lprintf (r, "[%d]CUP: Ignore %s because it's imported\n", r -> nPid, s) ;
+		continue ;
+		}
+	    
+	    if (s[0] == ':' && s[1] == ':')
+		{
+		if (bDebug)
+		    lprintf (r, "[%d]CUP: Ignore %s because it's special\n", r -> nPid, s) ;
+		continue ;
+		}
+	    
+	    /*
+	    pFileGV = GvFILEGV ((GV *)val) ;
+	    if (pFileGV != symtabfilegv)
+		{
+		if (bDebug)
+		    lprintf (r, "[%d]CUP: Ignore %s because it's defined in another source file (%s)\n", r -> nPid, s, GvFILE((GV *)val)) ;
+		continue ;
+		}
+	    */
+	    }
+	
+	
+	if((sv = GvSV((GV*)val)) && SvOK (sv))
+	    {
+	    if (bDebug)
+	        lprintf (r, "[%d]CUP: $%s = %s\n", r -> nPid, s, SvPV (sv, l)) ;
+	
+	    sv_unmagic (sv, 'q') ; /* untie */
+	    sv_setsv(sv, &sv_undef);
+	    }
+	if((hv = GvHV((GV*)val)))
+	    {
+	    if (bDebug)
+	        lprintf (r, "[%d]CUP: %%%s = ...\n", r -> nPid, s) ;
+	    sv_unmagic ((SV *)hv, 'P') ; /* untie */
+	    hv_clear(hv);
+	    }
+	if((av = GvAV((GV*)val)))
+	    {
+	    if (bDebug)
+	        lprintf (r, "[%d]CUP: @%s = ...\n", r -> nPid, s) ;
+	    sv_unmagic ((SV *)av, 'P') ; /* untie */
+	    av_clear(av);
+	    }
+	if((io = GvIO((GV*)val)))
+	    {
+	    if (bDebug)
+	        lprintf (r, "[%d]CUP: IO %s = ...\n", r -> nPid, s) ;
+	    /* sv_unmagic ((SV *)io, 'q') ; */ /* untie */
+	    /* do_close((GV *)val, 0); */
+	    }
+	}
+    }
+
+#endif
+
+
+/* ------------------------------------------------------------------------- */
+/*                                                                           */
+/* UndefSub 								     */
+/*                                                                           */
+/*                                                                           */
+/* in	sName = name of sub                                                  */
+/* in   sPackage = package name						     */
+/*                                                                           */
+/* ------------------------------------------------------------------------- */
+
+
+
+void UndefSub    (/*i/o*/ register req * r,
+		  /*in*/  const char *    sName, 
+		  /*in*/  const char *    sPackage) 
+
+
+    {
+    CV * pCV ;
+    int    l = strlen (sName) + strlen (sPackage) ;
+    char * sFullname = _malloc (r, l + 3) ;
+
+    strcpy (sFullname, sPackage) ; 
+    strcat (sFullname, "::") ; 
+    strcat (sFullname, sName) ; 
+
+    if (!(pCV = perl_get_cv (sFullname, FALSE)))
+	{
+	_free (r, sFullname) ;
+	return ;
+	}
+
+    _free (r, sFullname) ;
+    cv_undef (pCV) ;
+    }
+

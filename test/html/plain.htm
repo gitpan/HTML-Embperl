@@ -4,6 +4,8 @@
 <title>Some Plain tests for Embperl</title>
 </head>
 
+<!-- Here is a comment -->
+
 <body>
 
 Here it starts with some HTML Text<P>
@@ -16,10 +18,10 @@ $c = [+ $c || '' +] <BR>
 $d = [+ $d || '' +] <BR>
 $e = [+ $e || '' +] <BR>
 
-ARRAY @d = [+ my @tmp1 = @d; "@tmp1" +] num = [+ @d +] <BR>
-ARRAY @x = [+ my @tmp1 = %x; "@tmp1" +] num = [+ @x +]  <BR>
-HASH  %a = [+ my @tmp1 = %a; my @tmp11 = sort @tmp1 ; "@tmp11" +]  num = [+ keys %a +] <BR>
-HASH  %y = [+ my @tmp2 = %y; my @tmp21 = sort @tmp2 ; "@tmp21" +]  num = [+ keys %y +] <BR>
+ARRAY @d = [+ do { my @tmp1 = @d; "@tmp1" } +] num = [+ @d +] <BR>
+ARRAY @x = [+ do { my @tmp1 = %x; "@tmp1" } +] num = [+ @x +]  <BR>
+HASH  %a = [+ do { my @tmp1 = %a; my @tmp11 = sort @tmp1 ; "@tmp11" } +]  num = [+ keys %a +] <BR>
+HASH  %y = [+ do { my @tmp2 = %y; my @tmp21 = sort @tmp2 ; "@tmp21" } +]  num = [+ keys %y +] <BR>
 
 
 First of all assign a value:
@@ -38,8 +40,8 @@ Now lets look what we are getting from this:<BR>
 
 ARRAY @d = [+ "@d" +] num = [+ @d +] <BR>
 ARRAY @x = [+ "@x" +] num = [+ @x +]  <BR>
-HASH  %a = [+ my @tmp1 = %a; my @tmp11 = sort @tmp1 ; "@tmp11" +]  num = [+ keys %a +] <BR>
-HASH  %y = [+ my @tmp2 = %y; my @tmp21 = sort @tmp2 ; "@tmp21" +]  num = [+ keys %y +] <BR>
+HASH  %a = [+ do { my @tmp1 = %a; my @tmp11 = sort @tmp1 ; "@tmp11" } +]  num = [+ keys %a +] <BR>
+HASH  %y = [+ do { my @tmp2 = %y; my @tmp21 = sort @tmp2 ; "@tmp21" } +]  num = [+ keys %y +] <BR>
 
 And now a and b together: [+ "$a$b" +]<P>
 
@@ -55,7 +57,7 @@ a character, Embperl does not change them!<BR>
 
 Embperl will also translate HMTL escapes to the right characters i.e. $a &amp;lt; 6 will get the perl expression $a &lt; 6: <BR>
 
-[- $e = 2 -]
+[- $e = 2 # here is a perl comment -]
 [+ $d = $e &lt; 6 +]
 
 Now they should have a value
@@ -67,6 +69,23 @@ $d = [+ $d +] <BR>
 $e = [+ $e +] <BR>
 
 Input Separator = [+ ord($/) +]<br>
+
+[-=pod
+
+blabla
+
+=cut-]
+
+[-
+=pod
+
+blabla
+
+=cut
+-]
+
+
+
 
 <P>Ok.<P>
 

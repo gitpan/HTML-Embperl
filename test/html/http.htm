@@ -9,9 +9,12 @@
 
 <meta http-equiv="Formatter" content="Embperl">
 
-[# 
-$http_headers_out{'Location'} = "http://www.ecos.de/embperl/" ;
-#]
+[- 
+$http_headers_out{'Locationx'} = "http://www.ecos.de/embperl/" ;
+$http_headers_out{'h1'} = "v0" ;
+$http_headers_out{'h2'} = ['v1', 'v2'] ;
+-]
+
 
 [- @ks = sort keys %http_headers_out -]
 <table>

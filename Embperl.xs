@@ -33,14 +33,6 @@ CODE:
 OUTPUT:
     RETVAL
 
-int
-embperl_XS_Test(n)
-    int n
-CODE:
-    RETVAL = n ;
-OUTPUT:
-    RETVAL
-
 
 
 
@@ -93,14 +85,23 @@ char *
 embperl_GVFile(gv)
     SV * gv
 CODE:
+    char buf[20] ;
     RETVAL = "" ;
 #ifdef GvFILE
     if (gv && SvTYPE(gv) == SVt_PVGV && GvGP (gv))
 	{
+	/*
 	char * name = GvFILE (gv) ;
 	if (name)
 	    RETVAL = name ;
-	}
+        */
+        /* workaround for not working GvFILE in Perl 5.6.1+ with threads */
+	if(GvIMPORTED(gv))
+            RETVAL = "i" ;
+        else
+            RETVAL = "" ;
+       
+        }
 #else
     if (gv && SvTYPE(gv) == SVt_PVGV && GvGP (gv))
 	{
@@ -145,7 +146,7 @@ OUTPUT:
 # /* ----- Request data ----- */
 
 tReq *
-embperl_SetupRequest(req_rec,sInputfile,mtime,filesize,nFirstLine,sOutputfile,pConf,nIOtype,pIn,pOut,sSubName,sImport,nSessionMgnt) 
+embperl_SetupRequest(req_rec,sInputfile,mtime,filesize,nFirstLine,sOutputfile,pConf,nIOtype,pIn,pOut,sSubName,sImport,nSessionMgnt,pTokenTable) 
     SV *    req_rec
     char *  sInputfile
     double  mtime
@@ -159,13 +160,14 @@ embperl_SetupRequest(req_rec,sInputfile,mtime,filesize,nFirstLine,sOutputfile,pC
     char *  sSubName 
     char *  sImport
     int     nSessionMgnt
+    tTokenTable *    pTokenTable ;
 INIT:
     if (SvOK(ST(5)))
         sOutputfile = SvPV(ST(5), na);
     else
         sOutputfile = "\1" ; 
 CODE:        
-    RETVAL = SetupRequest(req_rec,sInputfile,mtime,filesize,nFirstLine,sOutputfile,pConf,nIOtype,pIn,pOut,sSubName,sImport,nSessionMgnt) ;
+    RETVAL = SetupRequest(req_rec,sInputfile,mtime,filesize,nFirstLine,sOutputfile,pConf,nIOtype,pIn,pOut,sSubName,sImport,nSessionMgnt,pTokenTable) ;
 OUTPUT:
     RETVAL
 
@@ -245,6 +247,15 @@ INIT:
     STRLEN l ;
     tReq * r = pCurrReq ;
 CODE:
+#ifdef EP2
+    if (!r->bEP1Compat)
+	{
+	char * p = SvPV (sText, l) ;
+        /* Node_appendChild (DomTree_self (r -> xCurrDomTree), ntypCDATA, 0, p, l, r -> xCurrNode, 0, 0) ; */
+        r -> xCurrNode = Node_insertAfter_CDATA (p, l, (r -> nCurrEscMode & 3)== 3?1 + (r -> nCurrEscMode & 4):r -> nCurrEscMode, DomTree_self (r -> xCurrDomTree), r -> xCurrNode) ; 
+        }
+    else
+#endif
     if (r -> pCurrEscape == NULL)
 	{
 	char * p = SvPV (sText, l) ;
@@ -328,6 +339,16 @@ CODE:
 	sv_unmagic(ERRSV, 'U');
 
 
+#ifdef EP2
+
+void 
+embperl_ClearSymtab(sPackage)
+    char * sPackage
+CODE:
+    ClearSymtab (pCurrReq, sPackage) ;
+
+#endif
+
 ################################################################################
 
 MODULE = HTML::Embperl      PACKAGE = HTML::Embperl::Req     PREFIX = embperl_
@@ -389,6 +410,7 @@ CODE:
 OUTPUT:
     RETVAL
 
+
 int
 embperl_PathNdx(r,nNdx=-1)
     tReq * r
@@ -399,6 +421,7 @@ CODE:
     RETVAL = r -> nPathNdx ;
 OUTPUT:
     RETVAL
+
 
 char *
 embperl_ReqFilename(r)
@@ -694,14 +717,54 @@ CODE:
 
 #ifdef EP2
 
+
+char *
+embperl_SyntaxName(r)
+    tReq * r
+CODE:
+    if (r && r -> pTokenTable && r -> pTokenTable -> sName)
+        RETVAL = (char *)r -> pTokenTable -> sName ;
+    else
+        RETVAL = "" ;
+OUTPUT:
+    RETVAL               
+ 
+
+void
+embperl_Syntax(r, pSyntaxObj)
+    tReq * r
+    tTokenTable *    pSyntaxObj ;
+CODE:
+    r -> pTokenTable = pSyntaxObj ;
+
+SV *
+embperl_Code(r,...)
+    tReq * r
+CODE:
+    RETVAL = r -> pCodeSV ;
+    if (items > 1)
+        {
+        r -> pCodeSV = ST(1) ;
+        SvREFCNT_inc (ST(1)) ;
+        }
+OUTPUT:
+    RETVAL
+
+
+
 INCLUDE: Cmd.xs
 
 INCLUDE: DOM.xs
 
+INCLUDE: Syntax.xs
+
 #endif
 
-# Reste Module, so we get the correct boot function
+# Reset Module, so we get the correct boot function
 
 MODULE = HTML::Embperl      PACKAGE = HTML::Embperl     PREFIX = embperl_
+
+
+
 
 

@@ -1,5 +1,48 @@
 =pod
 
+=head1 1.3.2 (RELEASE)   16 May. 2001 
+
+   - Emulate the syntax => Text parameter of Embperl 2.0, which allows 
+     to include pure text files any without interpretation. Requested
+     by Kee Hinckley.
+   - Fixed problem with corrupted @ISA, that had occured when a page was
+     first requested without EmbperlObject and then with EmbperlObject.
+   - Catch exceptions inside of Embperl.pm and correctly cleanup the
+     request. This avoids problems in further request in case anything
+     was really going wrong.
+   - If the base template in an EmbperlObject request is requested
+     directly the Execute ('*') does nothing, to avoid
+     endless recursion.
+   - Fixed bug in SetSessionCookie which had called undefined method 
+     getinitalid.  Spotted by Sun Choi.
+   - Removed wrong expire setting from SetSessionCookie, spotted 
+     by Michael Stevens.
+   - Additions to IntroEmbperlObject.pod by Neil Gunton.
+   - ';' is now accepcted as separator for query strings addtionaly
+     to the '&' character. Patch from Brent A. Ellingson.
+   - ';' is now escaped to %3B when outputed inside a URL.
+   - Embperl is now added to the Serversoftware identification when 
+     preloaded under mod_perl.
+   - adapted make test to Perl 5.6.1 and 5.7.1 so now it passes sucessfully.
+   - fixed problem with cleanup in threaded Perl 5.6.1 and higher
+   - added pod documentation to embperl.pl. Patch from Angus Lees.
+   - %http_headers_out can take now array refs as elements to set multiple
+     headers of the same value. Patch from Maxwell Krohn.
+   - Non module-documenations (like Intro.pod Faq.pod etc) now gets copied under
+     the correct directory and man pages are generated with the correct name
+     (e.g. perldoc HTML::Embperl::Intro works now after installation). Based
+     on an idea from Angus Lees.
+   - Makefile.PL enhancements for Apache/ActiveState binary distribution
+   - quote pathnames in Makefile to allow directories like "Program Files".
+     Spotted by Lukas Zapletal.
+   - Added epocgi.pl which allow use of EmbperlObject as CGI script.
+   - Added a dTHR to function CmdVar to make Embperl compile with threaded
+     Perl 5.005. Patch from Michael George III.
+   - EMBPERL_SESSION_ARGS can now accept pathes with spaces inside by quoteing
+     an argument e.g. PerlSetEnv EMBPERL_SESSION_ARGS "'Directory=/Session Files/'".
+     Spotted by Lukas Zapletal.
+   - Perl search path (@INC) in make test is set to abosulte paths to be independend
+     of directory changes that Apache might issue. Spotted by Randy Korbes.
 
 
 =head1 1.3.1 (RELEASE)   13 Feb. 2001

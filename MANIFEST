@@ -3,6 +3,7 @@ Embperl.pm
 Embperl.xs
 Cmd.xs
 DOM.xs
+Syntax.xs
 EmbperlObject.pm
 MANIFEST
 Makefile.PL
@@ -41,6 +42,9 @@ embpexec.bat.templ
 embpcgi.pl.templ
 embpcgi.bat.templ
 embpcgi.test.pl.templ
+epocgi.pl.templ
+epocgi.bat.templ
+epocgi.test.pl.templ
 ep.h
 epdat.h
 epio.c
@@ -53,7 +57,7 @@ epcmd.c
 eputil.c
 epnames.h
 epmacro.h
-epdbg.c
+epapinit.c
 test.pl
 test/html/ascii
 test/html/binary.htm
@@ -155,6 +159,7 @@ test/html/EmbperlObject/epohead.htm
 test/html/EmbperlObject/epofoot.htm
 test/html/EmbperlObject/epopage1.htm
 test/html/EmbperlObject/epodiv.htm
+test/html/EmbperlObject/epoincdiv.htm
 test/html/EmbperlObject/sub/subsub/eposubsub.htm
 test/html/EmbperlObject/sub/subsub/subsubsub/eposubsub.htm
 test/html/EmbperlObject/eposubsub2.htm
@@ -182,6 +187,8 @@ test/html/EmbperlObject/base2/epostopdir.htm
 test/html/EmbperlObject/base3/epobaselib.htm
 test/html/EmbperlObject/lib/epobase3.htm
 test/html/EmbperlObject/lib/epolib.htm
+test/html/inctext.htm
+test/html/SSIEP/ssiep.htm
 test/cmp/ascii
 test/cmp/binary.htm
 test/cmp/pure.htm
@@ -233,6 +240,7 @@ test/cmp/taint.htm
 test/cmp/reqrec.htm
 test/cmp/opmask.htm
 test/cmp/opmasktrap.htm
+test/cmp/opmasktrap.htm.561
 test/cmp/rawinput.htm
 test/cmp/chdir.htm
 test/cmp/nochdir.htm
@@ -261,6 +269,7 @@ test/cmp/errdoc2.htm
 test/cmp/clearsess.htm
 test/cmp/epopage1.htm
 test/cmp/epodiv.htm
+test/cmp/epoincdiv.htm
 test/cmp/epopage2.htm
 test/cmp/eposubsub.htm
 test/cmp/eposubsub2.htm
@@ -275,11 +284,13 @@ test/cmp/epobaselib.htm
 test/cmp/epobless.htm
 test/cmp/epobless2.htm
 test/cmp/epobless3.htm
+test/cmp/epobase.htm
 test/cmp/getbsess.htm
 test/cmp/delrdsess.htm     
 test/cmp/delwrsess.htm
 test/cmp/setbadsess.htm
 test/cmp/setunknownsess.htm
+test/cmp/inctext.htm
 test/conf/httpd.conf.src
 test/conf/startup.pl
 test/conf/startup_dso.pl
@@ -289,3 +300,4 @@ Embperl/Module.pm
 Embperl/Session.pm
 Embperl/Mail.pm
 EmbperlLogo.gif
+

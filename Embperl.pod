@@ -1,7 +1,7 @@
 
 =head1 NAME
 
-HTML::Embperl - Perl extension for embedding Perl code in HTML documents
+HTML::Embperl - Building dynamic Websites with Perl
 
 
 =head1 SYNOPSIS
@@ -15,7 +15,7 @@ includes for shell commands).
 
 If building more than a single page, you may also want to take a look
 at L<"perldoc EmbperlObject"|"EmbperlObject.pod">  which 
-lets you build your website out of small objects.
+lets you build your website out of small reusable objects.
 Additionally, L<"perldoc HTML::Embperl::Mail"|"Mail.pod"> allows
 you to send the resulting page via email.
 
@@ -412,6 +412,11 @@ between Embperl documents. Is is also usefull within I<EmbperlObject>.
 
     [! Execute ({'isa' => '../eposubs.htm'}) !]
 
+=item B<syntax>  (1.3.2 and above)
+
+In 1.3.x the only value that is accepted is 'Text', this emulates the
+Embperl 2.0 behaviour of simply passing the whole text thru, without
+doing any processing.
 
 =back
 
@@ -1054,9 +1059,10 @@ for Apache::Session (see L<"Session handling">)
 =head2 EMBPERL_SESSION_ARGS
 
 List of arguments for Apache::Session classes (see L<"Session handling">)
+Arguments that contains spaces can be quoted.
 Example:
 
-  PerlSetEnv EMBPERL_SESSION_ARGS "DataSource=dbi:mysql:session UserName=www Password=secret"
+  PerlSetEnv EMBPERL_SESSION_ARGS "DataSource=dbi:mysql:session UserName=www 'Password=secret word'"
 
 =head2 EMBPERL_SESSION_HANDLER_CLASS (1.3b3 and higher)
 
@@ -1856,6 +1862,21 @@ Embperl will automaticly set the status to 301 (Redirect). Example:
 
   [- $http_headers_out{'Location'} = "http://www.ecos.de/embperl/" -]
 
+Starting with version 1.3.2 all headers with the exception "Location" and 
+"Content-Type" can take multiple values.
+For instance, if you wanted to set two cookies, you can proceed as follows:
+
+  [- $http_headers_out{'Set-Cookie'} = 
+      ['name=cook1;value=2;','name=cook2;value=b'] ; -]
+
+If you supply multiple values for "Location" or "Content-Type" via an array
+reference, then Embperl will simply use the first in the list.  Empty arrays
+will be ignored.  For instance, the following will neither change the status
+to 301 nor create a Location: line in the HTTP headers:
+
+  [- $http_headers_out{'Location'} = [] ; -]
+
+
 see also META HTTP-EQUIV=
 
 =head2 $optXXX $dbgXXX
@@ -2536,7 +2557,11 @@ I have tested Embperl successfully
 
 =item perl5.6.0
 
-=item apache_1.3.0 - apache_1.3.17
+=item perl5.6.1
+
+=item perl5.7.1
+
+=item apache_1.3.0 - apache_1.3.19
 
 =item apache_ssl (Ben SSL)
 
@@ -2560,7 +2585,7 @@ I know from other people that it works on many other UNIX systems
 
 =item perl5.6.0
 
-=item apache_1.3.0 - apache_1.3.17
+=item apache_1.3.0 - apache_1.3.19
 
 =back
 

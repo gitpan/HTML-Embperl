@@ -1,6 +1,6 @@
 /*###################################################################################
 #
-#   Embperl - Copyright (c) 1997-2001 Gerald Richter / ECOS
+#   Embperl - Copyright (c) 1997-1999 Gerald Richter / ECOS
 #
 #   You may distribute under the terms of either the GNU General Public
 #   License or the Artistic License, as specified in the Perl README file.
@@ -9,8 +9,6 @@
 #   THIS PACKAGE IS PROVIDED "AS IS" AND WITHOUT ANY EXPRESS OR
 #   IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 #   WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
-#
-#   $Id: epmacro.h,v 1.8 2001/02/13 05:39:22 richter Exp $
 #
 ###################################################################################*/
 
@@ -47,6 +45,44 @@ int EMBPERL_mgGet##name (pTHX_ SV * pSV, MAGIC * mg) \
         lprintf (pCurrReq, "[%d]TAB:  set %s = %d, Used = %d\n", pCurrReq -> nPid, #name, var, used) ; \
     sub ; \
     return 0 ; \
+    } \
+    \
+    MGVTBL EMBPERL_mvtTab##name = { EMBPERL_mgGet##name, EMBPERL_mgSet##name, NULL, NULL, NULL } ;
+
+#define INTMGshort(name,var) \
+    \
+int EMBPERL_mgGet##name (pTHX_ SV * pSV, MAGIC * mg) \
+\
+    { \
+    sv_setiv (pSV, var) ; \
+    return 0 ; \
+    } \
+\
+    int EMBPERL_mgSet##name (pTHX_ SV * pSV, MAGIC * mg) \
+\
+    { \
+    var = SvIV (pSV) ; \
+    return 0 ; \
+    } \
+    \
+    MGVTBL EMBPERL_mvtTab##name = { EMBPERL_mgGet##name, EMBPERL_mgSet##name, NULL, NULL, NULL } ;
+
+
+
+#define INTMGcall(name,var,sub) \
+    \
+void EMBPERL_mgGet##name (pTHX_ SV * pSV, MAGIC * mg) \
+\
+    { \
+    sv_setiv (pSV, var) ; \
+    sub ; \
+    } \
+\
+    void EMBPERL_mgSet##name (pTHX_ SV * pSV, MAGIC * mg) \
+\
+    { \
+    var = SvIV (pSV) ; \
+    sub ; \
     } \
     \
     MGVTBL EMBPERL_mvtTab##name = { EMBPERL_mgGet##name, EMBPERL_mgSet##name, NULL, NULL, NULL } ;

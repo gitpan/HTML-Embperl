@@ -10,7 +10,7 @@
 #   IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 #   WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 #
-#   $Id: epcmd.c,v 1.40 2001/02/13 05:39:19 richter Exp $
+#   $Id: epcmd.c,v 1.41 2001/05/16 03:56:54 richter Exp $
 #
 ###################################################################################*/
 
@@ -857,6 +857,7 @@ static int CmdVar (/*i/o*/ register req * r,
     int    nFilepos = (sArg - r -> Buf.pBuf) ;
     SV *   pSV ;
 
+    dTHR ;
 
     EPENTRY (CmdVar) ;
     

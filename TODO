@@ -66,12 +66,15 @@ Features
 
 - discard output [ Roman Maeder 28.11.00]
 
+- patch for multiple headers [Maxwell Krohn 15.3.01]
 
 Test
 ----
 - test FORBIDDEN
 
 - test Embperl_debug 0
+
+- Perl 5.6.1 [Gary Ashton-Jones 16.3.01]
 
 Bugs
 ----
@@ -87,6 +90,8 @@ Bugs
 - using outputfile inside a outputfile crashs
 
 - errdoc2 sv count (-> loop)
+
+
 
 Docs
 ----

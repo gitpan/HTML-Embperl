@@ -3,9 +3,9 @@ print OFH <<EOD ;
 # Testconfig for HTML::Embperl make test
 #
 
-ServerRoot $EPPATH/test
+ServerRoot \"$EPPATH/test\"
 ServerName localhost
-DocumentRoot $EPPATH/test
+DocumentRoot \"$EPPATH/test\"
 Port $EPPORT
 EOD
 
@@ -44,9 +44,11 @@ PerlWarn On
 
 SetEnv EMBPERL_DEBUG $EPDEBUG
 SetEnv EMBPERL_VIRTLOG /embperl/log
-PerlSetEnv EMBPERL_LOG $EPPATH/test/tmp/test.log
-SetEnv EMBPERL_LOG $EPPATH/test/tmp/test.log
+PerlSetEnv EMBPERL_LOG \"$EPPATH/test/tmp/test.log\"
+SetEnv EMBPERL_LOG \"$EPPATH/test/tmp/test.log\"
 
+PerlSetEnv EMBPERL_SRC \"$EPPATH\"
+SetEnv EMBPERL_SRC \"$EPPATH\"
 
 EOD
 
@@ -63,7 +65,7 @@ print OFH <<EOD ;
 
 PerlSetEnv EMBPERL_SESSION_CLASS $EPSESSIONCLASS
 SetEnv EMBPERL_SESSION_CLASS $EPSESSIONCLASS
-PerlSetEnv SESSION_FILE_DIRECTORY $EPPATH/test/tmp
+PerlSetEnv SESSION_FILE_DIRECTORY \"$EPPATH/test/tmp\"
 PerlSetEnv SESSION_DBI_DATASOURCE $EPSESSIONDS
 
 PerlSetEnv EMBPERL_MAILDEBUG 1
@@ -75,10 +77,11 @@ if ($EPSESSIONVERSION && ($EPSESSIONVERSION =~ /^1\.0\d$/))
 	{
 print OFH <<EOD ;
 
+#PerlSetEnv EMBPERL_SESSION_CLASSES "MemoryStore NullLocker"
 PerlSetEnv EMBPERL_SESSION_CLASSES "FileStore NullLocker"
-PerlSetEnv EMBPERL_SESSION_ARGS "Directory=$EPPATH/test/tmp"
+PerlSetEnv EMBPERL_SESSION_ARGS "'Directory=$EPPATH/test/tmp'"
 SetEnv EMBPERL_SESSION_CLASSES "FileStore NullLocker"
-SetEnv EMBPERL_SESSION_ARGS "Directory=$EPPATH/test/tmp"
+SetEnv EMBPERL_SESSION_ARGS "'Directory=$EPPATH/test/tmp'"
 EOD
 	}
 elsif ($EPSESSIONVERSION && ($EPSESSIONVERSION > 1))
@@ -86,9 +89,9 @@ elsif ($EPSESSIONVERSION && ($EPSESSIONVERSION > 1))
 print OFH <<EOD ;
 
 PerlSetEnv EMBPERL_SESSION_CLASSES "File Null"
-PerlSetEnv EMBPERL_SESSION_ARGS "Directory=$EPPATH/test/tmp"
+PerlSetEnv EMBPERL_SESSION_ARGS "'Directory=$EPPATH/test/tmp'"
 SetEnv EMBPERL_SESSION_CLASSES "File Null"
-SetEnv EMBPERL_SESSION_ARGS "Directory=$EPPATH/test/tmp"
+SetEnv EMBPERL_SESSION_ARGS "'Directory=$EPPATH/test/tmp'"
 EOD
 	}
 
@@ -98,7 +101,7 @@ print OFH <<EOD ;
 
 SetEnv EMBPERL_ALLOW asc|\\.htm\$
 
-PerlScript $EPPATH/test/conf/$EPSTARTUP
+PerlScript \"$EPPATH/test/conf/$EPSTARTUP\"
 
 <Location /embperl/log>
 SetHandler perl-script
@@ -111,10 +114,12 @@ AddType text/html .html
 AddType text/html .htm
 AddType text/html .xhtm
 
-Alias /embperl/sub/ $EPPATH/test/html/
-Alias /embperl/ $EPPATH/test/html/
-Alias /embperl2/ $EPPATH/test/html2/
-Alias /eg/ $EPPATH/eg/
+Alias /embperl/sub/ \"$EPPATH/test/html/\"
+Alias /embperl/ \"$EPPATH/test/html/\"
+Alias /embperl2/ \"$EPPATH/test/html2/\"
+Alias /eg/ \"$EPPATH/eg/\"
+Alias /embperldbg/ \"$EPPATH/test/html/\"
+Alias /registrydbg/ \"$EPPATH/test/html/registry/\"
 
 <Location /embperl/sub>
 SetHandler perl-script
@@ -285,14 +290,24 @@ PerlSetEnv EMBPERL_OUTPUT_FUNC \"LogOutput, $EPPATH/test/tmp/log.out\"
 </Location>
 
 
-Alias /cgi-bin/ $EPPATH/test/html/
-Alias /cgi-bin-32/ $EPPATH/test/html/
-ScriptAlias /cgi/ $EPPATH/
+Alias /cgi-bin/ \"$EPPATH/test/html/\"
+Alias /cgi-bin-32/ \"$EPPATH/test/html/\"
+ScriptAlias /cgi/ \"$EPPATH/\"
 
 <Location /cgi-bin>
 Action text/html /cgi/embpcgi.test.pl
 Options ExecCGI
 </Location>
+
+
+SetEnv CGIEMBPERL_OBJECT_BASE epobase.htm
+SetEnv CGIEMBPERL_OBJECT_FALLBACK epofallback.htm
+
+<Location /cgi-bin/EmbperlObject>
+Action text/html /cgi/epocgi.test.pl
+Options ExecCGI
+</Location>
+
 
 <Location /cgi-bin-32>
 Action text/html /cgi/embpcgi.test.bat
@@ -310,10 +325,26 @@ PerlHandler Apache::Registry
 Options ExecCGI
 </Location>
 
+<Location /registrydbg/>
+PerlFixupHandler Apache::DB
+SetHandler perl-script
+PerlHandler Apache::Registry
+Options ExecCGI
+</Location>
+
+<Location /embperldbg/>
+PerlFixupHandler Apache::DB
+SetHandler perl-script
+PerlHandler HTML::Embperl
+Options ExecCGI
+</Location>
+
+
+
 <Location /embperl/EmbperlObject/base3>
 PerlSetEnv EMBPERL_OBJECT_BASE epobase3.htm
-PerlSetEnv EMBPERL_OBJECT_STOPDIR $EPPATH/test/html/EmbperlObject
-PerlSetEnv EMBPERL_OBJECT_ADDPATH $EPPATH/test/html/EmbperlObject/lib
+PerlSetEnv EMBPERL_OBJECT_STOPDIR \"$EPPATH/test/html/EmbperlObject\"
+PerlSetEnv EMBPERL_OBJECT_ADDPATH \"$EPPATH/test/html/EmbperlObject/lib\"
 PerlSetEnv EMBPERL_OBJECT_FALLBACK epofallback.htm
 PerlSetEnv EMBPERL_FILESMATCH \"\\.htm.?\$|\\.epl\$\"
 SetHandler perl-script
@@ -323,8 +354,8 @@ Options ExecCGI
 
 <Location /embperl/EmbperlObject/base2>
 PerlSetEnv EMBPERL_OBJECT_BASE epobase2.htm
-PerlSetEnv EMBPERL_OBJECT_STOPDIR $EPPATH/test/html/EmbperlObject
-PerlSetEnv EMBPERL_OBJECT_ADDPATH $EPPATH/test/html/EmbperlObject/lib
+PerlSetEnv EMBPERL_OBJECT_STOPDIR \"$EPPATH/test/html/EmbperlObject\"
+PerlSetEnv EMBPERL_OBJECT_ADDPATH \"$EPPATH/test/html/EmbperlObject/lib\"
 PerlSetEnv EMBPERL_OBJECT_FALLBACK epofallback.htm
 PerlSetEnv EMBPERL_FILESMATCH \"\\.htm.?\$|\\.epl\$\"
 SetHandler perl-script
@@ -341,6 +372,14 @@ PerlHandler HTML::EmbperlObject
 Options ExecCGI
 </Location>
 
+
+<Location /embperl/SSI/>
+PerlSetEnv EMBPERL_SYNTAX SSI
+</Location>
+
+<Location /embperl/SSIEP/>
+PerlSetEnv EMBPERL_SYNTAX "Embperl SSI"
+</Location>
 
 <Location /eg>
 SetHandler perl-script
@@ -366,7 +405,7 @@ LockFile tmp/httpd.lock
 <IfModule apache_ssl.c>
 SSLDisable
 SSLCacheServerPort gcache_port
-SSLCacheServerPath $EPAPACHESRC/modules/ssl/gcache
+SSLCacheServerPath \"$EPAPACHESRC/modules/ssl/gcache\"
 </IfModule>
 
 
@@ -398,16 +437,14 @@ print OFH <<EOD ;
 SetHandler perl-script
 PerlHandler HTML::Embperl
 Options ExecCGI
-#PerlSetEnv EMBPERL_OPTIONS 8083
-#PerlSetEnv EMBPERL_OPTIONS 8147
-PerlSetEnv EMBPERL_OPTIONS 209
+PerlSetEnv EMBPERL_OPTIONS 8083
 PerlSetEnv EMBPERL_DEBUG 0
 </Location>
 
 <Location /embperl/asp>
 SetHandler perl-script
 PerlHandler Apache::ASP
-PerlSetVar Global  $EPPATH/test/tmp
+PerlSetVar Global  \"$EPPATH/test/tmp\"
 PerlSetVar Debug  0
 PerlSetVar CookiePath  /
 PerlSetVar NoState 1

@@ -1,11 +1,46 @@
 #!/usr/bin/perl --
+
+###################################################################################
+#
+#   Embperl - Copyright (c) 1997-2001 Gerald Richter / ECOS
+#
+#   You may distribute under the terms of either the GNU General Public
+#   License or the Artistic License, as specified in the Perl README file.
+#
+#   THIS PACKAGE IS PROVIDED "AS IS" AND WITHOUT ANY EXPRESS OR
+#   IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
+#   WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+#
+#   $Id: test.pl,v 1.107 2001/05/15 10:41:27 richter Exp $
+#
+###################################################################################
+
 # Before `make install' is performed this script should be runnable with
 # `make test'. After `make install' it should work as `perl test.pl'
 
+# version =>
+# errors  =>
+# query_string =>
+# repeat =>
+# cmpext =>
+# option =>
+# debug =>
+# cgi =>
+# offline =>
+# modperl =>
+# package =>
+# compartment =>
+# cookie =>
+# condition =>
+# param =>
+# reqbody =>
+# respheader => \%
 
 @testdata = (
     'ascii' => { },
-    'pure.htm' => { },
+    'pure.htm' => {
+#        'noloop'     => 1,
+     },
     'plain.htm' => {
         repeat => 3,
         },
@@ -19,7 +54,7 @@
         },
     'error.htm' => { 
         'repeat'     => 3,
-        'errors'     => 7,
+        'errors'     => 6,
         'version'    => 2,
         },
     'errormismatch.htm' => { 
@@ -53,7 +88,7 @@
         },
     'errdoc/errdoc.htm' => { 
         'option'     => '262144',
-        'errors'     => 7,
+        'errors'     => 6,
         'version'    => 2,
         'cgi'        => 0,
         },
@@ -66,9 +101,10 @@
         },
     'errdoc/epl/errdoc2.htm' => { 
         'option'     => '262144',
-        'errors'     => 7,
+        'errors'     => 6,
         'version'    => 2,
         'cgi'        => 0,
+        'noloop'     => 1,
         },
     'rawinput/rawinput.htm' => { 
         'option'     => '16',
@@ -78,11 +114,34 @@
     'varerr.htm' => { 
         'errors'     => -1,
         'noloop'     => 1,
+        'condition'  => '$] < 5.006000', 
+        },
+    'varerr.htm' => { 
+        'errors'     => 7,
+        'noloop'     => 1,
+        'condition'  => '$] >= 5.006000', 
+        'cmpext'     => '56',
+        'version'    => 1,
+        },
+    'varerr.htm' => { 
+        'errors'     => 8,
+        'noloop'     => 1,
+        'condition'  => '$] >= 5.006000', 
+        'cmpext'     => '56',
+        'version'    => 2,
         },
     'varerr.htm' => { 
         'errors'     => 2,
         'version'    => 1,
         'cgi'        => 0,
+        'condition'  => '$] < 5.006000', 
+        },
+    'varerr.htm' => { 
+        'errors'     => 7,
+        'version'    => 1,
+        'cgi'        => 0,
+        'condition'  => '$] >= 5.006000', 
+        'cmpext'     => '56',
         },
     'varepvar.htm' => {
 	'query_info' => 'a=1&b=2',
@@ -149,13 +208,19 @@
         },
     'java.htm' => { },
     'inputjava.htm' => { },
+    'inputjs2.htm' => {
+        'version'    => 2,
+     },
     'heredoc.htm' => { },
     'post.htm' => {
         'offline'    => 0,
+        'reqbody'    => "f1=abc1&f2=1234567890&f3=" . 'X' x 8192,
         },
     'upload.htm' => { 
         'query_info' => 'multval=A&multval=B&multval=C&single=S',
         'offline'    => 0,
+#        'noloop'     => 1,
+        'reqbody'    => "Hi there!",
         },
     'reqrec.htm' => {
         'offline'    => 0,
@@ -178,6 +243,9 @@
         },
     'includeerr2.htm' => { 
         'errors'     => 1,
+        'version'    => 2,
+        },
+    'incif.htm' => { 
         'version'    => 2,
         },
     'registry/Execute.htm' => {
@@ -203,6 +271,17 @@
         'version'    => 2,
         'repeat'     => 2,
         },
+    'execfirst.htm' => { 
+        'version'    => 2,
+        },
+    'execsecond.htm' => { 
+        'version'    => 2,
+        },
+    'execprint.htm' => { 
+        'version'    => 2,
+        },
+#    'execinside.htm' => { 
+#        },
     'importsub.htm' => { 
         'repeat'     => 2,
         },
@@ -227,6 +306,9 @@
         },
     'sub.htm' => { },
     'sub.htm' => { },
+    'subtab.htm' => {
+            'version'    => 2,
+        },
     'exit.htm' => { 
         'version'    => 1,
         'offline'    => 0,
@@ -270,8 +352,12 @@
     'http.htm' => { 
         'offline'    => 0,
         'version'    => 1,
+        'reqbody'    => "a=b",  # Force POST, so no redirect happens
+        'respheader' => { 'locationx' => 'http://www.ecos.de/embperl/', 'h1' => 'v0', h2 => [ 'v1', 'v2'] },
         },
-    'div.htm' => { },
+    'div.htm' => { 
+        'repeat'    => 2,
+        },
     'taint.htm' => { 
         'offline'    => 0,
         'cgi'        => 0,
@@ -310,6 +396,16 @@
         'compartment'=> 'TEST',
         'version'    => 1,
         'cgi'        => 0,
+        'condition'  => '$] < 5.006001', 
+        },
+    'opmask/opmasktrap.htm' => { 
+        'option'     => '12',
+        'errors'     => '1',
+        'compartment'=> 'TEST',
+        'version'    => 1,
+        'cgi'        => 0,
+        'condition'  => '$] >= 5.006001', 
+        'cmpext'     => '.561',
         },
     'mdatsess.htm' => { 
         'offline'    => 0,
@@ -403,67 +499,57 @@
         },
     'EmbperlObject/epopage1.htm' => {
         'offline'    => 0,
-        'cgi'        => 0,
+        'repeat'     => 2,
+        },
+    'EmbperlObject/epoincdiv.htm' => { 
+        'offline'    => 0,
         },
     'EmbperlObject/epodiv.htm' => { 
         'offline'    => 0,
-        'cgi'        => 0,
         },
     'EmbperlObject/sub/epopage2.htm' => { 
         'offline'    => 0,
-        'cgi'        => 0,
         },
     'EmbperlObject/sub/epopage2.htm' => { 
         'offline'    => 0,
-        'cgi'        => 0,
         },
     'EmbperlObject/sub/subsub/eposubsub.htm' => { 
         'offline'    => 0,
-        'cgi'        => 0,
         },
     'EmbperlObject/sub/subsub/subsubsub/eposubsub.htm' => { 
         'offline'    => 0,
-        'cgi'        => 0,
         'cmpext'     => '3',      
         },
     'EmbperlObject/sub/subsub/subsubsub/eposubsub2.htm' => { 
         'offline'    => 0,
-        'cgi'        => 0,
         },
     'EmbperlObject/sub/eponotfound.htm' => { 
         'offline'    => 0,
-        'cgi'        => 0,
+	'cgi'	     => 0,
         },
     'EmbperlObject/sub/epobless.htm' => { 
         'offline'    => 0,
-        'cgi'        => 0,
         'repeat'     => 2,
         },
     'EmbperlObject/sub/epobless2.htm' => { 
         'offline'    => 0,
-        'cgi'        => 0,
         'repeat'     => 2,
         },
     'EmbperlObject/sub/epobless3.htm' => { 
         'offline'    => 0,
-        'cgi'        => 0,
         'repeat'     => 2,
         },
     'EmbperlObject/obj/epoobj1.htm' => { 
         'offline'    => 0,
-        'cgi'        => 0,
         },
     'EmbperlObject/obj/epoobj2.htm' => { 
         'offline'    => 0,
-        'cgi'        => 0,
         },
     'EmbperlObject/obj/epoobj3.htm' => { 
         'offline'    => 0,
-        'cgi'        => 0,
         },
     'EmbperlObject/obj/epoobj4.htm' => { 
         'offline'    => 0,
-        'cgi'        => 0,
         'version'    => 1,
         },
     'EmbperlObject/base2/epostopdir.htm' => { 
@@ -473,6 +559,57 @@
     'EmbperlObject/base3/epobaselib.htm' => { 
         'offline'    => 0,
         'cgi'        => 0,
+        },
+    'EmbperlObject/epobase.htm' => {
+        'offline'    => 0,
+        'cgi'        => 0,
+        'errors'     => 1,
+        },
+    'SSI/ssibasic.htm' => { 
+        'version'    => 2,
+        'syntax'     => 'SSI',
+        },
+    'SSIEP/ssiep.htm' => { 
+        'version'    => 2,
+        'syntax'     => 'Embperl SSI',
+        },
+    'inctext.htm' => { 
+        'ep1compat'    => 0,
+#	'version'      => 2,
+        },
+    'incperl.htm' => { 
+        'version'    => 2,
+        },
+    'asp.htm' => { 
+        'version'    => 2,
+        },
+    'syntax.htm' => { 
+        'version'    => 2,
+        'repeat'     => 2,
+        },
+    'rtf/rtfbasic.asc' => { 
+        'version'    => 2,
+        'syntax'     => 'RTF',
+        'offline'    => 1,
+        'param'      => { one => 1, hash => { a => 111, b => 222, c => [1111,2222,3333,4444]}, array => [11,22,33] },
+        },
+    'rtf/rtffull.asc' => { 
+        'version'    => 2,
+        'syntax'     => 'RTF',
+        'offline'    => 1,
+        'param'      => { 'Nachname' => 'Richter', Vorname => 'Gerald' },
+        },
+    'rtf/rtfloop.asc' => { 
+        'version'    => 2,
+        'syntax'     => 'RTF',
+        'offline'    => 1,
+        'param'      => [
+                        { 'Kunde' => 'blabla', Kurs => 'blubblub', 'Nachname' => 'Richter', Vorname => 'Gerald' },
+                        { 'Kunde' => 'blabla', Kurs => 'blubblub', 'Nachname' => 'Richter2', Vorname => 'Gerald2' },
+                        { 'Kunde' => 'blabla', Kurs => 'blubblub', 'Nachname' => 'Richter3', Vorname => 'Gerald3' },
+                        { 'Kunde' => 'blabla', Kurs => 'blubblub', 'Nachname' => 'Richter4', Vorname => 'Gerald4' },
+                        { 'Kunde' => 'blabla', Kurs => 'blubblub', 'Nachname' => 'Richter5', Vorname => 'Gerald5' },
+                        ]
         },
 ) ;
 
@@ -487,12 +624,12 @@ for ($i = 0 ; $i < @testdata; $i += 2)
 # avoid some warnings:
 
 use vars qw ($httpconfsrc $httpconf $EPPORT $EPPORT2 *SAVEERR *ERR $EPHTTPDDLL $EPSTARTUP $EPDEBUG
-             $EPSESSIONDS $EPSESSIONCLASS $EPSESSIONVERSION $EP1COMPAT
-            $testshare
+             $testshare
+            $EPSESSIONDS $EPSESSIONCLASS $EPSESSIONVERSION $EP1COMPAT $EPAPACHEVERSION
             $opt_offline $opt_ep1 $opt_cgi $opt_modperl $opt_execute $opt_nokill $opt_loop
             $opt_multchild $opt_memcheck $opt_exitonmem $opt_exitonsv $opt_config $opt_nostart $opt_uniquefn
             $opt_quite $opt_qq $opt_ignoreerror $opt_tests $opt_blib $opt_help $opt_dbgbreak $opt_finderr
-            $opt_ddd $opt_gdb $opt_ab $opt_abpre $opt_abverbose $opt_start $opt_kill $opt_showcookie $opt_cache) ;
+            $opt_ddd $opt_gdb $opt_ab $opt_abpre $opt_abverbose $opt_start $opt_startinter $opt_kill $opt_showcookie $opt_cache) ;
 
     {
     local $^W = 0 ;
@@ -501,6 +638,8 @@ use vars qw ($httpconfsrc $httpconf $EPPORT $EPPORT2 *SAVEERR *ERR $EPHTTPDDLL $
     eval " use Win32; " ;
     $win32loaderr ||= $@ ;
     }
+
+use File::Spec ;
 
 BEGIN 
     { 
@@ -513,6 +652,15 @@ BEGIN
         eval 'use ExtUtils::testlib' ;
         shift @ARGV ;
         $opt_testlib = 1 ;
+        }
+
+    if ($INC[0] =~ /^(\.\/)?blib/)
+        {
+        my $i = 0 ;
+        foreach (@INC)
+            {
+            $INC[$i++] = File::Spec -> rel2abs ($_) ;
+            }
         }
 
     #### install handler which kill httpd when terminating ####
@@ -533,7 +681,7 @@ BEGIN
     print "\nloading...                    ";
     
 
-    $defaultdebug = 0x7f85ffd ;
+    $defaultdebug = 0x7fc5ffd ;
     #$defaultdebug = 1 ;
 
     #### setup paths #####
@@ -566,8 +714,8 @@ eval { Getopt::Long::Configure ('bundling') } ;
 $@ = "" ;
 $ret = GetOptions ("offline|o", "ep1|1", "cgi|c", "cache|a", "modperl|httpd|h", "execute|e", "nokill|r", "loop|l:i",
             "multchild|m", "memcheck|v", "exitonmem|g", "exitonsv", "config|f=s", "nostart|x", "uniquefn|u",
-            "quite|q", "qq", "ignoreerror|i", "tests|t", "blib|b", "help", "dbgbreak", "finderr",
-	    "ddd", "gdb", "ab:s", "abverbose", "abpre", "start", "kill", "showcookie") ;
+            "quite|q",  "qq", "ignoreerror|i", "tests|t", "blib|b", "help", "dbgbreak", "finderr",
+	    "ddd", "gdb", "ab:s", "abverbose", "abpre", "start", "startinter", "kill", "showcookie") ;
 
 $opt_help = 1 if ($ret == 0) ;
 
@@ -637,6 +785,7 @@ if ($opt_help)
     print "--abverbose   show whole ab output\n" ;
     print "--abpre       prefetch first request\n" ;
     print "--start  start apache only\n" ;
+    print "--startinter  start apache only for interactive session\n" ;
     print "--kill   kill apache only\n" ;
     print "--showcookie  shows sent and received cookies\n" ;
     print "\n\n" ;
@@ -727,7 +876,7 @@ sub CmpInMem
 sub CmpFiles 
     {
     my ($f1, $f2, $errin) = @_ ;
-    my $line = 1 ;
+    my $line = 0 ;
     my $err  = 0 ;
 
     open F1, $f1 || die "***Cannot open $f1" ; 
@@ -738,9 +887,13 @@ sub CmpFiles
 
     while (defined ($l1 = <F1>))
 	{
-	chompcr ($l1) ;
+	$line++ ;
+        chompcr ($l1) ;
         while (($l1 =~ /^\s*$/) && defined ($l1 = <F1>))
-            { chompcr ($l1) ; } 
+            { 
+	    $line++ ;
+            chompcr ($l1) ; 
+            } 
 
 
 	if (!$errin) 
@@ -793,7 +946,6 @@ sub CmpFiles
 	    print "\nError in Line $line\nIs:\t>$l1<\nShould:\t>$l2<\n" ;
 	    return $line ;
 	    }
-	$line++ ;
 	}
 
     if (!$errin)
@@ -824,7 +976,7 @@ sub CmpFiles
 sub REQ
 
     {
-    my ($loc, $file, $query, $ofile, $content, $upload, $cookieaction) = @_ ;
+    my ($loc, $file, $query, $ofile, $content, $upload, $cookieaction, $respheader) = @_ ;
 	
     eval 'require LWP::UserAgent' ;
     
@@ -898,7 +1050,7 @@ sub REQ
     
     #print $response -> headers -> as_string () ;
 
-    return $response -> message if (!$response->is_success) ;
+    return $response -> message if (!($response->is_success || ($response->is_redirect && $respheader && $respheader ->{location}) )) ;
 
     my $m = 'ok' ;
     print "\nExpected new cookie:  Sent: $sendcookie, Got: " , ($c||''), "\n", $m = '' if (($cookieaction =~ /expectnew/) && ($sendcookie eq $c || !$c)) ;
@@ -906,6 +1058,38 @@ sub REQ
     print "\nExpected no cookie:   Sent: $sendcookie, Got: " , ($c||''), "\n", $m = ''  if (($cookieaction =~ /expectno/) && $c) ;
     print "\nExpected expire cookie: Sent: $sendcookie, Got: " , ($c||''), "\n", $m = ''  if (($cookieaction =~ /expectexpire/) && !($c =~ /^EMBPERL_UID=; expires=/)) ;
     
+
+    if ($respheader)
+        {
+        local $^W = 0 ;
+        while (my ($k, $v) = each (%$respheader))
+            {
+            my @x ;
+            my $i ;
+        
+            if (ref ($v) eq 'ARRAY')
+                {
+                @x = split (/\s*,\s*/, $response -> header ($k)) ;
+                $i = 0 ;
+                foreach (@$v)
+                    {
+                    if ($x[$i] ne $_)
+                        {
+                        print "\nExpected HTTP header #$i $k: $_, Got value $x[$i]" ;
+                        $m = 'header missing' ;
+                        }
+                    $i++ ;
+                    }                
+                } 
+            elsif (($x = $response -> header ($k)) ne $v)
+                {
+                print "\nExpected HTTP header $k: $v, Got value $x" ;
+                $m = 'header missing' ;
+                }
+            }
+        }
+
+
     return $m ;
     }
 
@@ -990,7 +1174,7 @@ sub CheckSVs
     
     open SVLOG, $logfile or die "Cannot open $logfile ($!)" ;
 
-    seek SVLOG, -3000, 2 ;
+    seek SVLOG, ($EP2?-10000:-3000), 2 ;
 
     while (<SVLOG>)
 	{
@@ -1005,7 +1189,7 @@ sub CheckSVs
 		$max_sv = $num_sv ;
 		
 		}
-	    die "\n\nMemory problem (SVs)" if ($opt_exitonsv && $loopcnt > 2 &&
+	    die "\n\nMemory problem (SVs)" if ($opt_exitonsv && $loopcnt > 3 &&
 					       $testnum == $startnumber && 
                                                $last_sv[$n] < $num_sv && 
                                                $last_sv[$n] != 0 && 
@@ -1038,7 +1222,7 @@ print "ok\n";
 
 #### check commandline options #####
 
-if (!$opt_modperl && !$opt_cgi && !$opt_offline && !$opt_execute && !$opt_cache)
+if (!$opt_modperl && !$opt_cgi && !$opt_offline && !$opt_execute && !$opt_cache && !$opt_ep1)
     {
     if (defined ($opt_ab))
 	{
@@ -1052,9 +1236,9 @@ if (!$opt_modperl && !$opt_cgi && !$opt_offline && !$opt_execute && !$opt_cache)
     }
 
 
-$opt_modperl = $opt_cgi = $opt_offline = $opt_execute = 0 if ($opt_start || $opt_kill) ;
+$opt_modperl = $opt_cgi = $opt_offline = $opt_execute = $opt_cache = 0 if ($opt_start || $opt_startinter || $opt_kill) ;
 
-$opt_nokill = 1 if ($opt_nostart || $opt_start) ;
+$opt_nokill = 1 if ($opt_nostart || $opt_start || $opt_startinter) ;
 $looptest  = defined ($opt_loop)?1:0 ; # endless loop tests
 
 $outfile .= ".$$" if ($opt_uniquefn) ;
@@ -1135,14 +1319,15 @@ $testshare = "Shared Data" ;
 $cp = HTML::Embperl::AddCompartment ('TEST') ;
 
 $cp -> deny (':base_loop') ;
-
 $cp -> share ('$testshare') ;
 
 $ENV{EMBPERL_ALLOW} = 'asc|\\.htm$|\\.htm-1$' ;
 
+#HTML::Embperl::log ("Start testing...\n") ; # force logfile open
+
 do  
     {
-    if ($opt_offline || $opt_execute || $opt_cache)
+    if ($opt_offline || $opt_ep1 || $opt_execute || $opt_cache)
         {   
         open (SAVEERR, ">&STDERR")  || die "Cannot save stderr" ;  
         open (STDERR, ">$offlineerr") || die "Cannot redirect stderr" ;  
@@ -1155,19 +1340,19 @@ do
     #
     #############
 
-    if ($opt_offline) # || $opt_ep1)
+    if ($opt_offline || $opt_ep1)
 	{
 	print "\nTesting offline mode...\n\n" ;
 
 	$n = 0 ;
 	$t_offline = 0 ;
 	$n_offline = 0 ;
-        foreach $ep1compat (($version == 2 && $opt_ep1)?(0, 1):(0))
+        foreach $ep1compat (($version == 2 && $opt_ep1 && $opt_offline)?(0, 1):(($version == 2 && $opt_ep1)?1:0))
             {
 	    $testnum = -1 + $startnumber ;
             #next if (($ep1compat && !($opt_ep1))  || (!$ep1compat && !($opt_offline)));
 
-            $ENV{EMBPERL_EP1COMPAT} = $ep1compat ;
+            $ENV{EMBPERL_EP1COMPAT} = $ep1compat?1:0 ;
 	    print "\nTesting Embperl 1.x compatibility mode...\n\n" if ($ep1compat) ;
             
             foreach $testno (@tests)
@@ -1181,16 +1366,21 @@ do
                 next if ($test->{version} && $testversion != $test->{version}) ;
                 next if ((defined ($test -> {offline}) && $test -> {offline} == 0) ||
                               (!$test -> {offline} && ($test -> {modperl} || $test -> {cgi} || $test -> {http}))) ;
+                next if ($version == 2 && $ep1compat && defined ($test -> {ep1compat}) && !$test -> {ep1compat}) ;
 
 	        next if ($DProf && ($file =~ /safe/)) ;
 	        next if ($DProf && ($file =~ /opmask/)) ;
+
+                if (exists ($test -> {condition}))
+                    {
+                    next if (!eval ($test -> {condition})) ;
+                    }
                 
                 $errcnt = $test -> {errors} || 0 ;
-                $errcnt = 7 if ($file eq 'varerr.htm' && $^V && $^V ge v5.6.0) ;
 
                 $debug = $test -> {debug} || $defaultdebug ;  
 	        $debug = 0 if ($opt_qq) ;
-		$page = "$inpath/$file" ;
+	        $page = "$inpath/$file" ;
 	        $page = "$inpath$testversion/$file" if (-e "$inpath$testversion/$file") ;
                 #$page .= '-1' if ($ep1compat && -e "$page-1") ;
     
@@ -1198,7 +1388,9 @@ do
 	        $seen{"o:$page"} = 1 ;
     
 	        delete $ENV{EMBPERL_OPTIONS} if (defined ($ENV{EMBPERL_OPTIONS})) ;
-	        $ENV{EMBPERL_OPTIONS}     = $test -> {option} if (defined ($test -> {option})) ;
+	        $ENV{EMBPERL_OPTIONS} = $test -> {option} if (defined ($test -> {option})) ;
+	        delete $ENV{EMBPERL_SYNTAX} ;
+                $ENV{EMBPERL_SYNTAX} = $test -> {syntax} if (defined ($test -> {syntax})) ;
 	        delete $ENV{EMBPERL_COMPARTMENT} if (defined ($ENV{EMBPERL_COMPARTMENT})) ;
 	        $ENV{EMBPERL_COMPARTMENT} = $test -> {compartment} if (defined ($test -> {compartment})) ;
 	        delete $ENV{EMBPERL_PACKAGE}  if (defined (delete $ENV{EMBPERL_PACKAGE})) ;
@@ -1206,6 +1398,7 @@ do
 	        @testargs = ( '-o', $outfile ,
 			      '-l', $logfile,
 			      '-d', $debug,
+			      ($test->{param}?(ref ($test->{param}) eq 'ARRAY'?map { ('-p', $_) } @{$test->{param}}:('-p', $test->{param})):()),
 			       $page, $test -> {query_info} || '') ;
 	        unshift (@testargs, 'dbgbreak') if ($opt_dbgbreak) ;
     
@@ -1240,8 +1433,7 @@ do
 		    $page =~ /.*\/(.*)$/ ;
 		    $org = "$cmppath/$1" ;
 		    $org = "$cmppath$testversion/$1" if (-e "$cmppath$testversion/$1") ;
-                    $org .= '56' if ($file eq 'varerr.htm' && $^V && $^V ge v5.6.0) ;
-                    #$org .= '-1' if ($ep1compat && -e "$org-1") ;
+                    $org .= $test -> {cmpext} if ($test -> {cmpext}) ;
 
 		    $err = CmpFiles ($outfile, $org, $errin) ;
 		    }
@@ -1262,6 +1454,8 @@ do
 	#  Execute
 	#
 	#############
+
+        $ENV{EMBPERL_EP1COMPAT} = 0 ;
 
 	if ($err == 0)
 	    {
@@ -1412,7 +1606,7 @@ do
                 				}) ;
 		$t_exec += HTML::Embperl::Clock () - $t1 ; 
 		    
-                $err = CheckError ($EP2?7:8) if ($err == 0) ;
+                $err = CheckError ($EP2?6:8) if ($err == 0) ;
 
                 if (@errors != ($EP2?2:12))
                     {
@@ -1671,7 +1865,7 @@ do
 
 
 
-    if ((($opt_execute) || ($opt_offline)  || ($opt_cache)) && $looptest == 0)
+    if ((($opt_execute) || ($opt_offline)   || ($opt_ep1)  || ($opt_cache)) && $looptest == 0)
 	{
 	close STDERR ;
 	open (STDERR, ">&SAVEERR") ;
@@ -1693,7 +1887,7 @@ do
 	{ $loc = '' ; }
 
 
-    if (($loc ne '' && $err == 0 && $loopcnt == 0 && !$opt_nostart) || $opt_start)
+    if (($loc ne '' && $err == 0 && $loopcnt == 0 && !$opt_nostart) || $opt_start || $opt_startinter)
 	{
 	#### Configure httpd conf file
 	$EPDEBUG = $defaultdebug ;
@@ -1724,8 +1918,12 @@ do
 	    $ENV{PATH} .= ";$EPHTTPDDLL" if ($EPWIN32) ;
 	    $ENV{PERL_STARTUP_DONE} = 1 ;
 
+            $EPAPACHEVERSION =~ m#Apache/1\.3\.(\d+) # ;
+
+            $XX .= ' -s ' if ($1 < 13) ;
+
 	    Win32::Process::Create($HttpdObj, $EPHTTPD,
-				   "Apache -s $XX -f $EPPATH/$httpdconf ", 0,
+				   "Apache $XX -f $EPPATH/$httpdconf ", 0,
 				   # NORMAL_PRIORITY_CLASS,
 				   0,
 				    ".") or die "***Cannot start $EPHTTPD" ;
@@ -1739,11 +1937,11 @@ do
 		print FH "r\n" ;
 		print FH "BT\n" if ($opt_gdb) ;
 		close FH ;
-	        system (($opt_ddd?'ddd':'gdb') . " -x dbinitembperlapache $EPHTTPD &") and die "***Cannot start $EPHTTPD" ;
+	        system (($opt_ddd?'ddd':'gdb') . " -x dbinitembperlapache $EPHTTPD " . ($opt_startinter?'':'&')) and die "***Cannot start $EPHTTPD" ;
 		}			
 	    else
 	        {
-		system ("$EPHTTPD $XX -f $EPPATH/$httpdconf &") and die "***Cannot start $EPHTTPD" ;
+		system ("$EPHTTPD $XX -f $EPPATH/$httpdconf " . ($opt_startinter?'':'&')) and die "***Cannot start $EPHTTPD" ;
 		}
 	    }
 	sleep (3) ;
@@ -1814,22 +2012,12 @@ do
             
 
 	    next if (defined ($opt_ab) && $test -> {'errors'}) ;
+            if (exists ($test -> {condition}))
+                {
+                next if (!eval ($test -> {condition})) ;
+                }
+                
  
-=pod
-	    next if ($file =~ /\// && $loc eq $cgiloc) ;        
-	    next if ($file eq 'taint.htm' && $loc eq $cgiloc) ;
-	    next if ($file eq 'reqrec.htm' && $loc eq $cgiloc) ;
-	    next if (($file =~ /^exit.htm/) && $loc eq $cgiloc) ;
-	    #next if ($file eq 'error.htm' && $loc eq $cgiloc && $errcnt < 16) ;
-	    next if ($file eq 'varerr.htm' && $loc eq $cgiloc && $errcnt > 0) ;
-	    next if ($file eq 'varerr.htm' && $looptest) ;
-	    next if (($file =~ /registry/) && $loc eq $cgiloc) ;
-	    next if (($file =~ /match/) && $loc eq $cgiloc) ;
-	    #next if ($file eq 'http.htm' && $loc eq $cgiloc) ;
-	    #next if ($file eq 'notallow.xhtm' && $loc eq $cgiloc && $EPWIN32) ;
-	    next if ($file eq 'clearsess.htm' && !$looptest) ;
-	    next if (($file =~ /EmbperlObject/) && $loc eq $cgiloc) ;
-=cut
 	    next if ($file eq 'chdir.htm' && $EPWIN32) ;
 	    next if ($file eq 'notfound.htm' && $loc eq $cgiloc && $EPWIN32) ;
 	    next if ($file =~ /opmask/ && $EPSTARTUP =~ /_dso/) ;
@@ -1846,7 +2034,6 @@ do
                 }
      
             $errcnt = $test -> {errors} || 0 ;
-            $errcnt = 7 if ($file eq 'varerr.htm' && $^V && $^V ge v5.6.0) ;
 	    $errcnt = -1 if ($EPWIN32 && $loc eq $cgiloc) ;
 
 	    $debug = $test -> {debug} || $defaultdebug ;  
@@ -1877,13 +2064,11 @@ do
 	    print $txt ; 
 	    unlink ($outfile) ;
 	    
-	    $content = undef ;
-	    $content = "f1=abc1&f2=1234567890&f3=" . 'X' x 8192 if ($file eq 'post.htm') ;
+	    $content = $test -> {reqbody} || undef ;
 	    $upload = undef ;
 	    if ($file eq 'upload.htm') 
 		{
 		$upload = "f1=abc1\r\n&f2=1234567890&f3=" . 'X' x 8192 ;
-		$content = "Hi there!" ;
 		}
 
             if (!$EPWIN32 && $loc eq $embploc && !($file =~ /notfound\.htm/))
@@ -1898,7 +2083,7 @@ do
             $file .= '-1' if ($opt_ep1 && -e "$page-1") ;
             if (defined ($opt_ab))
 		{
-	        $m = REQ ("$loc$locver", $file, $test -> {query_info}, $outfile, $content, $upload, $test -> {cookie}) if ($opt_abpre) ;
+	        $m = REQ ("$loc$locver", $file, $test -> {query_info}, $outfile, $content, $upload, $test -> {cookie}, $test -> {respheader}) if ($opt_abpre) ;
 		$locver ||= '' ;
 		$opt_ab = 10 if (!$opt_ab) ;
 		my $cmd = "ab -n $opt_ab 'http://$host:$port/$loc$locver/$file" . ($test->{query_info}?"?$test->{query_info}'":"'") ;
@@ -1913,7 +2098,7 @@ do
 		}
 	    else
 		{				
-	        $m = REQ ("$loc$locver", $file, $test -> {query_info}, $outfile, $content, $upload, $test -> {cookie}) ;
+	        $m = REQ ("$loc$locver", $file, $test -> {query_info}, $outfile, $content, $upload, $test -> {cookie}, $test -> {respheader}) ;
 		}
 	    $t_req += HTML::Embperl::Clock () - $t1 ; 
 
@@ -1942,9 +2127,7 @@ do
 		$page =~ /.*\/(.*)$/ ;
 		$org = "$cmppath/$1" ;
 	        $org = "$cmppath$testversion/$1" if (-e "$cmppath$testversion/$1") ;
-                $org .= '56' if ($file eq 'varerr.htm' && $^V && $^V ge v5.6.0) ;
                 $org .= $test -> {cmpext} if ($test -> {cmpext}) ;
-                #$org .= '-1' if ($opt_ep1 && -e "$org-1") ;
 
 		#print "Compare $page with $org\n" ;
 		$err = CmpFiles ($outfile, $org) ;

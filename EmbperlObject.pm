@@ -10,7 +10,7 @@
 #   IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 #   WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 #
-#   $Id: EmbperlObject.pm,v 1.42 2001/02/13 05:39:10 richter Exp $
+#   $Id: EmbperlObject.pm,v 1.44 2001/05/15 04:50:06 richter Exp $
 #
 ###################################################################################
 
@@ -292,16 +292,19 @@ sub Execute
                 $package = $HTML::Embperl::evalpackage ;
                 print HTML::Embperl::LOG "[$$]EmbperlObject new file: $filename, package = $package\n"  if ($debug);
                 }
-
-            no strict ;
-            @{"$package\:\:ISA"} = ($basepackage) if ($package ne $basepackage) ;
-            use strict ;
             }
+
+        no strict ;
+        if (!@{"$package\:\:ISA"})
+            {
+            @{"$package\:\:ISA"} = ($basepackage) if ($package ne $basepackage) ;
+            }
+        use strict ;
 
         $req -> {'inputfile'} = $ENV{PATH_TRANSLATED} = $fn ;
         $req -> {'bless'}     = $package ;
         $req -> {'path'}      = $searchpath ;
-        $req -> {'reqfilename'} = $filename ;
+        $req -> {'reqfilename'} = $filename if ($filename ne $fn) ;
         return HTML::Embperl::Execute ($req) ;
         }
 
@@ -387,7 +390,13 @@ Methods can be ordinary Perl sub's (defined with [! sub foo { ... } !] ) or Embp
 
 The runtime configuration is done by setting environment variables,
 in your web
-server's configuration file. 
+server's configuration file. Basicly the configuration is the same as
+for normal Embperl. All Embperl configuration directives also applies
+to EmbperlObject. There are a few addtional configuration directives
+listed below. Addtionaly you have to set the C<PerlHandler> to
+C<HTML::EmbperlObject> when running under mod_perl or use C<epocgi.pl>
+instead of C<embpcgi.pl> when running as CGI Script.
+
 
 =head2 EMBPERL_DECLINE
 

@@ -1,6 +1,6 @@
 /*###################################################################################
 #
-#   Embperl - Copyright (c) 1997-2001 Gerald Richter / ECOS
+#   Embperl - Copyright (c) 1997-1999 Gerald Richter / ECOS
 #
 #   You may distribute under the terms of either the GNU General Public
 #   License or the Artistic License, as specified in the Perl README file.
@@ -9,8 +9,6 @@
 #   THIS PACKAGE IS PROVIDED "AS IS" AND WITHOUT ANY EXPRESS OR
 #   IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 #   WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
-#
-#   $Id: epdat.h,v 1.28 2001/02/13 05:39:20 richter Exp $
 #
 ###################################################################################*/
 
@@ -92,6 +90,51 @@ typedef enum
     phTerm
     } tPhase ;
     
+/*-----------------------------------------------------------------*/
+/*								   */
+/*  Parser data structures 	            			   */
+/*								   */
+/*-----------------------------------------------------------------*/
+
+typedef   unsigned char tCharMap [256/(sizeof(unsigned char)*8)]   ;
+
+struct tToken
+    {
+    const char *	    sText ;	/* string of token (MUST be first item!) */
+    const char *	    sName ;	/* name of token (only for description) */
+    int			    nTextLen ;	/* len of string */
+    const char *	    sEndText ;	/* string which ends the block */
+    const char *	    sNodeName;	/* name of the node to create */
+    int			    nNodeName ;	/* index in string table of node name */
+    enum tNodeType	    nNodeType ;	/* type of the node that should be created */
+    enum tNodeType	    nCDataType ;/* type for sub nodes that contains text */
+    enum tNodeType	    nForceType ;/* force this type for sub nodes */
+    int			    bUnescape ;	/* translate input?  */
+    unsigned char *	    pContains ;	/* chars that could be contained in the string */
+    struct tTokenTable *    pFollowedBy;/* table of tokens that can follow this one */
+    struct tTokenTable *    pInside ;	/* table of tokens that can apear inside this one */
+    struct tToken      *    pStartTag ;	/* token that contains definition for the start of the current token */
+    struct tToken      *    pEndTag ;	/* token that contains definition for the end of the current token */
+    const char *	    sParseTimePerlCode ; /* perl code that is executed when this token is parsed, %% is replaced by the value of the current attribute */
+    } ;        
+
+struct tTokenTable
+    {
+    void *	    pCompilerInfo ; /* stores tables of the compiler , must be first item */
+    const char *    sName ;	    /* name of syntax */
+    tCharMap	    cStartChars ;   /* for every vaild start char there is one bit set */
+    tCharMap	    cAllChars   ;   /* for every vaild char there is one bit set */
+    struct tToken * pTokens ;	    /* table with all tokens */
+    int             numTokens ;	    /* number of tokens in above table */
+    int		    bLSearch ;	    /* when set perform a linear, instead of a binary search */
+    struct tToken * pContainsToken ;/* pointer to the token that has a pContains defined (could be only one per table) */
+    } ;
+
+typedef struct tTokenTable tTokenTable ;
+    
+#else
+
+typedef void * tTokenTable ;
 
 
 #endif
@@ -366,9 +409,9 @@ struct tReq
     tNode	xDocument ;
     tNode	xCurrNode ;
     tIndex	xCurrDomTree ;
-    struct tTokenTable *  pTokenTable ;
-
 #endif
+    tTokenTable *  pTokenTable ;
+
 
     /* --- Source in memory --- */
 
@@ -503,9 +546,12 @@ struct tReq
     char * pProgRun ;           /* pointer into currently compiled run code */
     char * pProgDef ;           /* pointer into currently compiled define code */
 
+    SV *   pCodeSV ;		/* contains currently compiled line */
 #endif
 
     } ;
 
 
 
+
+#define EPMAINSUB   "_ep_main"

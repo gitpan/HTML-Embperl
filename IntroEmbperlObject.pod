@@ -103,23 +103,27 @@ up). Obviously, substitute your own IP address and domain name.
 		PerlSetEnv EMBPERL_ESCMODE 0
 		PerlSetEnv EMBPERL_OPTIONS 16
 		PerlSetEnv EMBPERL_MAILHOST mail.mydomain.com
-		PerlSetEnv EMBPERL_OBJECT_BASE base.html
+		PerlSetEnv EMBPERL_OBJECT_BASE base.epl
 		PerlSetEnv EMBPERL_OBJECT_FALLBACK notfound.html
 		PerlSetEnv EMBPERL_DEBUG 0
 	</VirtualHost>
 
 	# Set EmbPerl handler for main directory
 	<Directory "/www/mydomain/com/htdocs/">
-		<FilesMatch ".*\.(html)$">
+		<FilesMatch ".*\.html$">
 			SetHandler  perl-script
 			PerlHandler HTML::EmbperlObject
 			Options     ExecCGI
 		</FilesMatch>
+		<FilesMatch ".*\.epl$">
+			Order allow,deny
+			Deny From all
+		</FilesMatch>
 	</Directory>
 
-Note that you can change the file extension in the FilesMatch
-directive, for example if you like .epl as a file
-extension. Personally, I use .html simply because I can edit files
+Note that you could change the .html file extension in the FilesMatch
+directive; this is a personal preference issue. Personally, I use
+.html for the main document files simply because I can edit files
 using my favorite editor (emacs) and it will automatically load html
 mode. Plus, this may be a minor thing - but using .html rather than a
 special extension such as .epl adds a small amount of security to your
@@ -128,33 +132,51 @@ you're careful about the handling of error messages, then there never
 be any indication of this. These days, the less the script kiddies can
 deduce about you, the better...
 
-So how does all this translate into a real website?
+Also, note that we have added a second FilesMatch directive, which
+denies direct access to files with .epl extensions (again, you could
+change this extension to another if you like, for example .obj). This
+can be helpful for cases where you have Embperl files which contain
+fragments of code or HTML; you want those files to be in the Apache
+document tree, but you don't want people to be able to request them
+directly - these files should only included directly into other
+documents from within Embperl, using Execute(). This is really a
+security issue. In the examples that follow, we name files which are
+not intended to be requested directly with the .epl extension. Files
+which are intended to be directly requested are named with the
+standard .html extension. This can also be helpful when scanning a
+directory, to see which are the main document files and which are the
+modules. Finally, note that using the Apache FilesMatch directive to
+restrict access does not prevent us from accessing these files (via
+Execute) in Embperl.
+
+So how does all this translate into a real website? Let's have a look
+at the classic first example, Hello World.
 
 
 =head1 Hello World
 
 The file specified by the EMBPERL_OBJECT_BASE apache directive
-(usually called F<base.html>) is the lynchpin of how EmbperlObject
+(usually called F<base.epl>) is the lynchpin of how EmbperlObject
 operates. Whenever a request comes in for any page on this website,
-Emperl will look for F<base.html> - first in the same directory as the
+Emperl will look for F<base.epl> - first in the same directory as the
 request, and if not found there then working up the directory tree to
 the root dir of the website. For example, if a request comes in for
 http://www.yoursite.com/foo/bar/file.html, then Embperl first looks
-for F</foo/bar/base.html>. If it doesn't find F<base.html> there, then
-it looks in F</foo/base.html>. If no luck, then finally
-F</base.html>. (These paths are all relative to the document root for
+for F</foo/bar/base.epl>. If it doesn't find F<base.epl> there, then
+it looks in F</foo/base.epl>. If no luck, then finally
+F</base.epl>. (These paths are all relative to the document root for
 the website). What is the point of all this?
 
-In a nutshell, F<base.html> is a template for giving a common
+In a nutshell, F<base.epl> is a template for giving a common
 look-and-feel to your web pages. This file is what is actually used to
 build the response to any request, regardless of the actual filename
 which was asked for. So even if F<file.html> was requested,
-F<base.html> is what is actually executed. F<base.html> is a normal
+F<base.epl> is what is actually executed. F<base.epl> is a normal
 file containing valid HTML mixed with Perl code, but with a couple of
 small differences. Here's a simple 'Hello World' example of this
 approach:
 
-F</base.html>
+F</base.epl>
 
 	<HTML>
 	<HEAD>
@@ -172,10 +194,10 @@ F</hello.html>
 	Hello world!
 
 Now, if the file http://www.yoursite.com/hello.html is requested, then
-F<base.html> is what will actually get executed initially. So where
+F<base.epl> is what will actually get executed initially. So where
 does the file F<hello.html> get into the picture? Well, the key is the
 '*' parameter in the call to Execute(). '*' is a special filename,
-only used in F<base.html>. It means, literally, "the filename which
+only used in F<base.epl>. It means, literally, "the filename which
 was actually requested".
 
 What you will see if you try this example is something like this:
@@ -184,15 +206,15 @@ What you will see if you try this example is something like this:
 
 	Hello world!
 
-As you can see here, the text "Joe's Website" is from F<base.html> and
+As you can see here, the text "Joe's Website" is from F<base.epl> and
 the "Hello world!" is from F<hello.html>.
 
-This architecture also means that only F<base.html> has to have the
+This architecture also means that only F<base.epl> has to have the
 boilerplate code which every HTML file normally needs to contain -
 namely the <HTML> <BODY>, </HTML> and so on. Since the '*' file is
 simply inserted into the code, all it needs to contain is the actual
 content which is specific to that file. Nothing else is necessary,
-because F<base.html> has all the standard HTML trappings. Of course,
+because F<base.epl> has all the standard HTML trappings. Of course,
 you'll probably have more interesting content, but you get the point.
 
 
@@ -216,9 +238,9 @@ store data between requests. The idea is that you can store variables
 which are local to the current request, and shared between all
 documents on the current website; plus, as we'll see later, we can
 also use it to call object methods. For example, Let's say you set up
-some variables in F<base.html>, and then use them in F<file.html>:
+some variables in F<base.epl>, and then use them in F<file.html>:
 
-F</base.html>
+F</base.epl>
 
 	<HTML>
 	<HEAD>
@@ -240,10 +262,10 @@ F</file.html>
 
 You can see that EmbperlObject is allowing us to set up global
 variables in one place, and share them throughout the website. If you
-place F<base.html> in the root document directory, you can have any
+place F<base.epl> in the root document directory, you can have any
 number of other files in this and subdirectories, and they will all
 get these variables whenever they are executed. No matter which file
-is requested, F</base.html> is executed first, and then the requested
+is requested, F</base.epl> is executed first, and then the requested
 file.
 
 You don't even need to include the requested '*' file, but the usual
@@ -254,32 +276,32 @@ the requested file!
 =head1 Modular Files
 
 The previous example is nice, it demonstrates the basic ability to
-have website-wide variables set up in F<base.html> and then
+have website-wide variables set up in F<base.epl> and then
 automatically shared by all other files. Leading on from this, we
 probably want to split up our files, for both maintainability and
 readability. For example, a non-trivial website will probably define
 some website-wide constants, perhaps some global variables, and maybe
 also have some kind of initialization code which has to be executed
 for every page (e.g. setting up a database connection). We could put
-all of this in F<base.html>, but this file would quickly begin to look
+all of this in F<base.epl>, but this file would quickly begin to look
 really messy. It would be nice to split this stuff out into other
 files. For example:
 
-F</base.html>
+F</base.epl>
 
    	<HTML>
-	[- Execute ('constants.html')-]
-	[- Execute ('init.html')-]
+	[- Execute ('constants.epl')-]
+	[- Execute ('init.epl')-]
    	<HEAD>
 		<TITLE>Some title</TITLE>
 	</HEAD>
 	<BODY>
 	[- Execute ('*') -]
 	</BODY>
-	[- Execute ('cleanup.html') -]
+	[- Execute ('cleanup.epl') -]
 	</HTML>
 
-F</constants.html>
+F</constants.epl>
 
 	[-
 		$req = shift;
@@ -288,7 +310,7 @@ F</constants.html>
 		$req->{website_database} = "mydatabase";
 	-]
 
-F</init.html>
+F</init.epl>
 
 	[-
 		$req = shift;
@@ -299,7 +321,7 @@ F</init.html>
 		$req->{dbh} = DBI->connect ($dsn);
 	-]
 
-F</cleanup.html>
+F</cleanup.epl>
 
 	[-
 		$req = shift;
@@ -309,7 +331,7 @@ F</cleanup.html>
 
 You can see how this would be useful, since every page on your site
 now has available a database connection, in $req->{dbh}. Also notice
-that we have a F<cleanup.html> file which is always executed at the
+that we have a F<cleanup.epl> file which is always executed at the
 end - this is very useful for cleaning up, shutting down connections
 and so on.
 
@@ -318,7 +340,7 @@ and so on.
 
 To recap, we have seen how we can break our site into modules which
 are common across multiple files, because they are automatically
-included by F<base.html>. Inheritance is a way in which we can make
+included by F<base.epl>. Inheritance is a way in which we can make
 our websites even more modular.
 
 Although the concept of inheritance is one that stems from the
@@ -330,8 +352,8 @@ Say you wanted different parts of your website to have different
 <TITLE> tags. You could set the title in each page manually, but if
 you had a number of different pages in each section, then this would
 quickly get tiresome. Now we could split off the <HEAD> section into
-its own file, just like F<constants.html> and F<init.html>, right? But
-so far, it looks like we are stuck with a single F<head.html> file for
+its own file, just like F<constants.epl> and F<init.epl>, right? But
+so far, it looks like we are stuck with a single F<head.epl> file for
 the entire website, which doesn't really help much.
 
 The answer lies in subdirectories. This is the key to unlocking
@@ -340,74 +362,74 @@ EmbperlObject. You may use subdirectories currently in your website
 design, maybe for purposes of organization and maintenance. But here,
 subdirectories actually enable you to override files from upper
 directories. This is best demonstrated by example (simplified to make
-this specific point clearer - assume F<constants.html>, F<init.html>
-and F<cleanup.html> are the same as in the previous example):
+this specific point clearer - assume F<constants.epl>, F<init.epl>
+and F<cleanup.epl> are the same as in the previous example):
 
-F</base.html>
+F</base.epl>
 
    	<HTML>
-	[- Execute ('constants.html')-]
-	[- Execute ('init.html')-]
+	[- Execute ('constants.epl')-]
+	[- Execute ('init.epl')-]
    	<HEAD>
-	[- Execute ('head.html')-]
+	[- Execute ('head.epl')-]
 	</HEAD>
 	<BODY>
 	[- Execute ('*') -]
 	</BODY>
-	[- Execute ('cleanup.html') -]
+	[- Execute ('cleanup.epl') -]
 	</HTML>
 
-F</head.html>
+F</head.epl>
 
 	<TITLE>Joe's Website</TITLE>
 
-F</contact/head.html>
+F</contact/head.epl>
 
 	<TITLE>Contacting Joe</TITLE>
 
 Assume here that we have an F<index.html> file in each directory that
 does something useful. The main thing to focus on here is
-F<head.html>. You can see that we have one instance of this file in
+F<head.epl>. You can see that we have one instance of this file in
 the root directory, and one in a subdirectory, namely
-F</contact/head.html>. Here's the neat part: When a page is requested
+F</contact/head.epl>. Here's the neat part: When a page is requested
 from your website, EmbperlObject will search automatically for
-F<base.html> first in the same directory as the requested page. If it
+F<base.epl> first in the same directory as the requested page. If it
 doesn't find it there, then it tracks back up the directory tree until
-it does find the file. But then, when executing F<base.html>, any
-files which are Executed (such as F<head.html>) are first looked for
+it does find the file. But then, when executing F<base.epl>, any
+files which are Executed (such as F<head.epl>) are first looked for
 in the B<original directory> of the requested file. Again, if the file
 is not found there, then EmbperlObject tracks back up the directory
 tree.
 
 So what does this mean exactly? Well, if we have a subdirectory, then
 we can if we want just have the usual F<index.html> file and nothing
-else. In that case, all the files included by F<base.html> will be
-found in the root document directory. But if we redefine F<head.html>,
+else. In that case, all the files included by F<base.epl> will be
+found in the root document directory. But if we redefine F<head.epl>,
 as in our example, then EmbperlObject will pick up that version of the
 file whenever we are in the /contact/ subdirectory.
 
 That is inheritance in action. In a nutshell, subdirectories inherit
-files such as F<head.html>, F<constants.html> and so on from upper,
+files such as F<head.epl>, F<constants.epl> and so on from upper,
 "parent" directories. But if we want, we can redefine any of these
 files in our subdirectories, thus specializing that functionality for
 that part of our website. If we had 20 .html files in /contact/, then
 loading any one of them would automatically get
-F</contact/head.html>.
+F</contact/head.epl>.
 
 This is all very cool, but there is one more wrinkle. Let's say we
-want to redefine F<init.html>, because there is some initialization
+want to redefine F<init.epl>, because there is some initialization
 which is specific to the /contact/ subdirectory. That's fine, we could
-create F</contact/init.html> and that file would be loaded instead of
-F</init.html> whenever a file is requested from the /contact/
+create F</contact/init.epl> and that file would be loaded instead of
+F</init.epl> whenever a file is requested from the /contact/
 subdir. But this also means that the initialization code which is in
-F</init.html> would never get executed, right? That's bad, because the
+F</init.epl> would never get executed, right? That's bad, because the
 base version of the file does a lot of useful set up. The answer is
 simple: For cases like this, we just make sure and call the parent
 version of the file at the start. For example:
 
-F</contact/init.html>
+F</contact/init.epl>
 
-	[- Execute ('../init.html') -]
+	[- Execute ('../init.epl') -]
 
 	[-
 		# Do some setup specific to this subdirectory
@@ -420,19 +442,19 @@ initialization which every page should receive.
 
 EmbperlObject is very smart about this process. Say, for example, we
 have a situation where we have several levels of subdirectory; then,
-say we only redefine F<init.html> in one of the deeper levels, say
-F</sub/sub/sub/init.html>. Now, if this file tries to Execute
-F<../init.html>, there may not be any such file in the immediate
+say we only redefine F<init.epl> in one of the deeper levels, say
+F</sub/sub/sub/init.epl>. Now, if this file tries to Execute
+F<../init.epl>, there may not be any such file in the immediate
 parent directory - so EmbperlObject automatically tracks back up the
-directories until it finds the base version, F</init.html>. So, for
+directories until it finds the base version, F</init.epl>. So, for
 any subdirectory level in your website, you only have to redefine
 those files which are specific to this particular area. This results
 in a much cleaner website.
 
 You may break your files up into whatever level of granularity you
 want, depending on your needs. For instance, instead of just
-F<head.html> you might break it down into F<title.html>,
-F<metatags.html> and so on. It's up to you. The more you split it up,
+F<head.epl> you might break it down into F<title.epl>,
+F<metatags.epl> and so on. It's up to you. The more you split it up,
 the more you can specialize in each of the subdirectories. There is a
 balance however, because splitting things up too much results in an
 overly fragmented site that can be harder to maintain. Moderation is
@@ -484,7 +506,7 @@ Conway (Manning).)
 A simple use of methods can be demonstrated using the following
 example:
 
-F</base.html>
+F</base.epl>
 
 	[! sub title {'Joe's Website'} !]
 	[- $req = shift -]
@@ -504,17 +526,17 @@ F</contact/index.html>
 
 This is an alternative way of implementing the previous "contact"
 example, which still uses inheritance - but instead of placing the
-<TITLE> tag in a separate file (F<head.html>), we use a method
+<TITLE> tag in a separate file (F<head.epl>), we use a method
 (title()). You can see that we define this method in
-F</base.html>, so any page which is requested from the root directory
+F</base.epl>, so any page which is requested from the root directory
 will get the title "Joe's Website". This is a pretty good default
 title. Then, in F</foo/index.html> we redefine the title() method
 to return "Contacting Joe". Inheritance insures that when the call to
-title() occurs in F</base.html>, the correct version of the method
+title() occurs in F</base.epl>, the correct version of the method
 will be executed. Since F</foo/index.html> has its own version of that
 method, it will automatically be called instead of the base
 version. This allows every file to potentially redefine methods
-which were defined in F</base.html>, and it works well. But, as your
+which were defined in F</base.epl>, and it works well. But, as your
 websites get bigger, you will probably want to split off some routines
 into their own files.
 
@@ -524,27 +546,28 @@ us, so that the Perl object methods will work as expected. To do this,
 we need to access our methods through a specially created object
 rather than directly through the Request object (usually called $r or
 $req). This is best illustrated by the following example, which
-demonstrates the code that needs to be added to F<base.html> and also
+demonstrates the code that needs to be added to F<base.epl> and also
 shows how we implement inheritance via a subdirectory. Once again,
-assume that missing files such as F<constants.html> are the same as
-previously.
+assume that missing files such as F<constants.epl> are the same as
+previously (Note that the 'object' parameter to Execute only works in
+1.3.1 and above).
 
-F</base.html>
+F</base.epl>
 
    	<HTML>
-	[- $subs = Execute ({object => 'subs.html'}); -]
-	[- Execute ('constants.html') -]
-	[- Execute ('init.html') -]
+	[- $subs = Execute ({object => 'subs.epl'}); -]
+	[- Execute ('constants.epl') -]
+	[- Execute ('init.epl') -]
    	<HEAD>
-	[- Execute ('head.html') -]
+	[- Execute ('head.epl') -]
 	</HEAD>
 	<BODY>
 	[- Execute ('*', $subs) -]
 	</BODY>
-	[- Execute ('cleanup.html') -]
+	[- Execute ('cleanup.epl') -]
 	</HTML>
 
-F</subs.html>
+F</subs.epl>
 
 	[!
 		sub hello
@@ -557,13 +580,13 @@ F</subs.html>
 F</insult/index.html>
 
 	[-
-		$subs = param[0];
+		$subs = $param[0];
 		$subs->hello ("Joe");
 	-]
 
-F</insult/subs.html>
+F</insult/subs.epl>
 
-	[! Execute ({isa => '../subs.html'}) !]
+	[! Execute ({isa => '../subs.epl'}) !]
 
 	[!
 		sub hello
@@ -580,23 +603,23 @@ something like
 	Hello, Joe, you schmuck
 
 So what is happening here? First of all, note that we create a $subs
-object in F<base.html>, using a special call to Execute(). We then
+object in F<base.epl>, using a special call to Execute(). We then
 pass this object to files which will need it, via an Execute()
 parameter. This can be seen with the '*' file.
 
-Next, we have two versions of F<subs.html>. The first, F</subs.html>,
+Next, we have two versions of F<subs.epl>. The first, F</subs.epl>,
 is pretty straightforward. All we need to do is remember that all of
 these subroutines are now object methods, and so take the extra
 parameter ($self). The basic hello() method simply says Hello to the
 name of the person passed in.
 
 Then we have a subdirectory, called /insult/. Here we have another
-instance of F<subs.html>, and we redefine hello(). We call the parent
+instance of F<subs.epl>, and we redefine hello(). We call the parent
 version of the function, and then add the insult ("you schmuck"). You
 don't have to call the parent version of methods you define, of
 course, but it's a useful demonstration of the possibilities.
 
-The file F</insult/subs.html> has to have a call to Execute() which
+The file F</insult/subs.epl> has to have a call to Execute() which
 sets up @ISA. This is the first line. You might ask why EmbperlObject
 doesn't do this automatically; it is mainly for reasons of
 efficiency. Not every file is going to contain methods which need

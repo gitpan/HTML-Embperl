@@ -10,7 +10,7 @@
 #   IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 #   WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 #
-#   $Id: epnames.h,v 1.24 2001/02/13 05:39:24 richter Exp $
+#   $Id: epnames.h,v 1.27 2001/05/02 04:08:56 richter Exp $
 #
 ###################################################################################*/
 
@@ -101,6 +101,9 @@
 #define SetupRequest           EMBPERL_SetupRequest   
 #define Term                   EMBPERL_Term           
 #define sstrdup                EMBPERL_sstrdup        
+#define strnstr                EMBPERL_strnstr
+#define ClearSymtab	       EMBPERL_ClearSymtab
+#define UndefSub	       EMBPERL_UndefSub
 #define _ep_memdup             EMBPERL__ep_memdup
 #define ProcessBlock           EMBPERL_ProcessBlock
 #define NewEscMode             EMBPERL_NewEscMode
@@ -190,6 +193,9 @@
 #ifndef warnhook
 #define warnhook PL_warnhook
 #endif
+#ifndef dowarn
+#define dowarn PL_dowarn
+#endif
 #ifndef diehook
 #define diehook PL_diehook
 #endif
@@ -209,6 +215,7 @@
 #define maxo PL_maxo
 #endif
 
+
 #if PERL_SUBVERSION >= 50 || PERL_VERSION >= 6
 
 #ifndef na
@@ -223,6 +230,8 @@
 
 #endif
 
+#define SvGETMAGIC_P4(x)
+
 
 #else  /* PERL_VERSION > 5 */
 
@@ -234,6 +243,8 @@
 #define dTHR
 #endif
 
+#define SvGETMAGIC(x) STMT_START { if (SvGMAGICAL(x)) mg_get(x); } STMT_END
+#define SvGETMAGIC_P4(x) SvGETMAGIC(x)
 
 #endif /* PERL_VERSION > 5 */
 
@@ -303,4 +314,3 @@
 #endif /* endif WIN32 */
 
 #endif /* APACHE */
-

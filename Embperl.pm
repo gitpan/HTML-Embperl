@@ -10,7 +10,7 @@
 #   IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 #   WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 #
-#   $Id: Embperl.pm,v 1.142 2001/02/13 05:39:09 richter Exp $
+#   $Id: Embperl.pm,v 1.152 2001/05/16 03:56:54 richter Exp $
 #
 ###################################################################################
 
@@ -51,6 +51,16 @@ use vars qw(
     %udat
     %mdat
     @ffld
+    %fsplitdat
+    %idat
+
+    $tabmode
+    $escmode
+    $row
+    $cnt
+    $col
+    $maxrow
+    $maxcol
 
     $evalpackage
 
@@ -74,14 +84,13 @@ use vars qw(
     %http_headers_out
 
     $pathsplit
-    $multiplicity
     ) ;
 
 
 @ISA = qw(Exporter DynaLoader);
 
 
-$VERSION = '1.3.1';
+$VERSION = '1.3.2';
 
 # HTML::Embperl cannot be bootstrapped in nonlazy mode except
 # under mod_perl, because its dependencies import symbols like ap_palloc
@@ -112,8 +121,6 @@ $DefaultLog = '/tmp/embperl.log' ;
 %cache    = () ;    # cache for evaled code
 %filepack = () ;    # translate filename to packagename
 $packno   = 1 ;     # for assigning unique packagenames
-
-$multiplicity = Multiplicity () ;
 
 @cleanups = () ;    # packages which need a cleanup
 $LogOutputFileno = 0 ;
@@ -351,6 +358,8 @@ tie *OUT, 'HTML::Embperl::Out' ;
 # Setup Sessionhandling
 #
 
+use Text::ParseWords ;
+
 $SessionMgnt = 0 ;
 if (defined ($ENV{EMBPERL_SESSION_CLASSES}))
     { # Apache::Session 1.xx
@@ -366,7 +375,7 @@ if (defined ($ENV{EMBPERL_SESSION_CLASSES}))
         my @args  ;
         if (defined ($ENV{EMBPERL_SESSION_ARGS}))
             {
-	    my @arglist = split /\s+/, $ENV{EMBPERL_SESSION_ARGS} ;
+	    my @arglist = quotewords ('\s+', 0, $ENV{EMBPERL_SESSION_ARGS}) ;
 	    foreach (@arglist)
 		{
 		/^(.*?)\s*=\s*(.*?)$/ ;
@@ -561,6 +570,12 @@ sub CheckFile
 
     my $path = $$pathref ;
     my $pathndx = $$pathndxref ;
+
+    if ($filename eq '')
+        {
+        logerror (rcNotFound, '<no filename>');
+	return &NOT_FOUND ;
+        }
 
     if (-d $filename)
         {
@@ -837,180 +852,192 @@ use strict ;
 	}
 
 
+    my $package ;
     my $ar  ;
     $ar = Apache->request if (defined ($req_rec)) ; # workaround that Apache::Request has another C Interface, than Apache
     my $r = SetupRequest ($ar, $Inputfile, $mtime, $filesize, ($$req{firstline} || 1), $Outputfile, $conf,
-                          &epIOMod_Perl, $In, $Out, $Sub, defined ($import)?scalar(caller ($import > 0?$import - 1:0)):'',$SessionMgnt) ;
+                          &epIOMod_Perl, $In, $Out, $Sub, 
+			   defined ($import)?scalar(caller ($import > 0?$import - 1:0)):'',
+                          $SessionMgnt, $req -> {'syntax'} || '') ;
     
-    if (exists ($$req{'bless'})) 
+    eval
         {
-        bless $r, $$req{'bless'} ;
-        warn "\@ISA corrupted HTML::Embperl::Req must be a base class of $$req{'bless'}" if (!$r -> isa ('HTML::Embperl::Req')) ; 
-        }
+        if (exists ($$req{'bless'})) 
+            {
+            bless $r, $$req{'bless'} ;
+            warn "\@ISA corrupted HTML::Embperl::Req must be a base class of $$req{'bless'}" if (!$r -> isa ('HTML::Embperl::Req')) ; 
+            }
 
-    $r -> Path ($req->{path}) if ($req->{path}) ;
-    $r -> PathNdx ($pathndx) ;
+        $r -> Path ($req->{path}) if ($req->{path}) ;
+        $r -> PathNdx ($pathndx) ;
 
-    my $package = $r -> CurrPackage ;
-    $evalpackage = $package ;   
-    my $exports ;
+        $package = $r -> CurrPackage ;
+        $evalpackage = $package ;   
+        my $exports ;
 
-    $r -> CreateAliases () ;
+        $r -> CreateAliases () ;
 
-    if (defined ($import) && ($exports = $r -> ExportHash))
-    	{
-        $r -> Export ($exports, caller ($import - 1)) if ($import) ;
-	$rc = 0 ;
-	}
-    else
-	{
-	#local $^W = 0 ;
-	@ffld = @{$$req{'ffld'}} if (defined ($$req{'ffld'})) ;
-	if (defined ($$req{'fdat'})) 
-	    {
-	    %fdat = %{$$req{'fdat'}} ;
-	    @ffld = keys %fdat if (!defined ($$req{'ffld'})) ;
+        if (defined ($import) && ($exports = $r -> ExportHash))
+    	    {
+            $r -> Export ($exports, caller ($import - 0)) if ($import) ;
+	    $rc = 0 ;
 	    }
-	elsif (!($optDisableFormData) &&
-	       !($r -> SubReq) &&
-	       defined($ENV{'CONTENT_TYPE'}) &&
-	       $ENV{'CONTENT_TYPE'}=~m|^multipart/form-data|)
-	    { # just let CGI.pm read the multipart form data, see cgi docu
-	    #eval 'require CGI' ;
-	    #die "require CGI failed: $@" if ($@); 
-	    require CGI ;
-
-	    my $cgi ;
-	    #$cgi = new CGI  ;
-	    eval { $cgi = new CGI } ;
-	    if ($@ || !$cgi)
-                {
-                $r -> logerror (rcCGIError, $@)  ;
-                $@ = '' ;
-                }
-            else
-                {
-	        @ffld = $cgi->param;
-    
-	        my $params ;
-    	        foreach ( @ffld )
-		    {
-    		    # the param_fetch needs CGI.pm 2.43
-		    #$params = $cgi->param_fetch( $_ ) ;
-    		    $params = $cgi->{$_} ;
-		    if ($#$params > 0)
-		        {
-		        $fdat{ $_ } = join ("\t", @$params) ;
-		        }
-		    else
-		        {
-		        $fdat{ $_ } = $params -> [0] ;
-		        }
-		    
-		    ##print LOG "[$$]FORM: $_=" . (ref ($fdat{$_})?ref ($fdat{$_}):$fdat{$_}) . "\n" if ($dbgForm) ; 
-		    print LOG "[$$]FORM: $_=$fdat{$_}\n" if ($dbgForm) ; 
-
-		    if (ref($fdat{$_}) eq 'Fh') 
-		        {
-		        $fdat{"-$_"} = $cgi -> uploadInfo($fdat{$_}) ;
-		        }
-            	    }
-                }
-	    }
-
-	my $saved_param = undef;
-	if ( ref $$req{'param'} eq 'ARRAY') {
-	    no strict 'refs';
-	    # pass parameters via @param
-	    $saved_param = \@{"$package\:\:param"} 
-		if defined @{"$package\:\:param"};
-	    *{"$package\:\:param"}   = $$req{'param'};
-	}
-
-
-        $r -> SetupSession ($req_rec, $Inputfile) ;
-
+        else
 	    {
-	    local $SIG{__WARN__} = \&Warn ;
-	    local *0 = \$Inputfile;
-	    my $oldfh = select (OUT) if ($optRedirectStdout) ;
-	    my $saver = $r ;
-        
+	    #local $^W = 0 ;
+	    @ffld = @{$$req{'ffld'}} if (defined ($$req{'ffld'})) ;
+	    if (defined ($$req{'fdat'})) 
+	        {
+	        %fdat = %{$$req{'fdat'}} ;
+	        @ffld = keys %fdat if (!defined ($$req{'ffld'})) ;
+	        }
+	    elsif (!($optDisableFormData) &&
+	           !($r -> SubReq) &&
+	           defined($ENV{'CONTENT_TYPE'}) &&
+	           $ENV{'CONTENT_TYPE'}=~m|^multipart/form-data|)
+	        { # just let CGI.pm read the multipart form data, see cgi docu
+	        #eval 'require CGI' ;
+	        #die "require CGI failed: $@" if ($@); 
+	        require CGI ;
 
-	    $@ = undef ;
-            $rc = CleanCallExecuteReq ($r, $$req{'param'}) ;
-	    #$rc = $r -> ExecuteReq ($$req{'param'}) ;
-        
-	    $r = $saver ;
-	    select ($oldfh) if ($optRedirectStdout) ;
-        
-	    if (exists $$req{'output_func'}) 
-		{
-		my @p ;
-                my $ofreq = $$req{'output_func'} ;
-                if (ref $ofreq)
+	        my $cgi ;
+	        #$cgi = new CGI  ;
+	        eval { $cgi = new CGI } ;
+	        if ($@ || !$cgi)
                     {
-                    @p = (ref ($ofreq) eq 'ARRAY')?@$ofreq:($$ofreq) ;
+                    $r -> logerror (rcCGIError, $@)  ;
+                    $@ = '' ;
                     }
                 else
                     {
-                    @p = split (/\s*\,\s*/, $ofreq) ;
+	            @ffld = $cgi->param;
+    
+	            my $params ;
+    	            foreach ( @ffld )
+		        {
+    		        # the param_fetch needs CGI.pm 2.43
+		        #$params = $cgi->param_fetch( $_ ) ;
+    		        $params = $cgi->{$_} ;
+		        if ($#$params > 0)
+		            {
+		            $fdat{ $_ } = join ("\t", @$params) ;
+		            }
+		        else
+		            {
+		            $fdat{ $_ } = $params -> [0] ;
+		            }
+		        
+		        ##print LOG "[$$]FORM: $_=" . (ref ($fdat{$_})?ref ($fdat{$_}):$fdat{$_}) . "\n" if ($dbgForm) ; 
+		        print LOG "[$$]FORM: $_=$fdat{$_}\n" if ($dbgForm) ; 
+
+		        if (ref($fdat{$_}) eq 'Fh') 
+		            {
+		            $fdat{"-$_"} = $cgi -> uploadInfo($fdat{$_}) ;
+		            }
+            	        }
                     }
+	        }
 
-                my $OutFunc = shift @p ;
-    no strict ;
-		eval { &$OutFunc ($req_rec, $Out,@p) } ;
-    use strict ;
-		$r -> logerror (rcCallOutputFuncFailed, $@) if ($@) ;
-		}
+	    my $saved_param = undef;
+	    if ( ref $$req{'param'} eq 'ARRAY') {
+	        no strict 'refs';
+	        # pass parameters via @param
+	        $saved_param = \@{"$package\:\:param"} 
+		    if defined @{"$package\:\:param"};
+	        *{"$package\:\:param"}   = $$req{'param'};
 	    }
 
 
+            $r -> SetupSession ($req_rec, $Inputfile) ;
 
-	if ( defined $saved_param ) {
-	    no strict 'refs';
-	    *{"$package\:\:param"} = $saved_param;
-	}
-
-
-        $r -> CleanupSession ;
-
-        $r -> Export ($exports, caller ($import - 1)) if ($import && ($exports = $r -> ExportHash)) ;
-
-	my $cleanup    = $$req{'cleanup'}    || ($optDisableVarCleanup?-1:0) ;
-
-	if ($cleanup == -1)
-	    { ; } 
-	elsif ($cleanup == 0)
-	    {
-	    if ($#cleanups == -1) 
-		{
-		push @cleanups, 'dbgShowCleanup' if ($dbgShowCleanup) ;
-		$req_rec -> register_cleanup(\&HTML::Embperl::cleanup) if (defined ($req_rec)) ;
-		}
-	    push @cleanups, $package ;
+	        {
+	        local $SIG{__WARN__} = \&Warn ;
+	        local *0 = \$Inputfile;
+	        my $oldfh = select (OUT) if ($optRedirectStdout) ;
+	        my $saver = $r ;
         
-	    cleanup () if (!$r -> SubReq () && !$req_rec) ;
-	    }
-	else
-	    {
-	    push @cleanups, 'dbgShowCleanup' if ($dbgShowCleanup) ;
-	    push @cleanups, $package ;
-	    cleanup () ;
-	    }
+	        $@ = undef ;
+                $rc = CleanCallExecuteReq ($r, $$req{'param'}) ;
+        
+	        $r = $saver ;
+	        select ($oldfh) if ($optRedirectStdout) ;
+        
+	        if (exists $$req{'output_func'}) 
+		    {
+		    my @p ;
+                    my $ofreq = $$req{'output_func'} ;
+                    if (ref $ofreq)
+                        {
+                        @p = (ref ($ofreq) eq 'ARRAY')?@$ofreq:($$ofreq) ;
+                        }
+                    else
+                        {
+                        @p = split (/\s*\,\s*/, $ofreq) ;
+                        }
 
-	$rc = $r -> Error?500:0 ;
-	}
-
-    if ($req -> {'isa'})
-        {
+                    my $OutFunc = shift @p ;
         no strict ;
-        my $callerisa = \@{caller () . '::ISA'} ;
-        push @$callerisa, $package  if (!grep ($_ eq $package, @$callerisa)) ;
+		    eval { &$OutFunc ($req_rec, $Out,@p) } ;
         use strict ;
-        }
+		    $r -> logerror (rcCallOutputFuncFailed, $@) if ($@) ;
+		    }
+	        }
 
-    @{$req -> {errors}} = @{$r -> ErrArray()} if (ref ($req -> {errors}) eq 'ARRAY')  ;
+
+
+	    if ( defined $saved_param ) {
+	        no strict 'refs';
+	        *{"$package\:\:param"} = $saved_param;
+	    }
+
+
+            $r -> CleanupSession ;
+
+            $r -> Export ($exports, caller ($import - 0)) if ($import && ($exports = $r -> ExportHash)) ;
+
+	    my $cleanup    = $$req{'cleanup'}    || ($optDisableVarCleanup?-1:0) ;
+
+	    if ($cleanup == -1)
+	        { ; } 
+	    elsif ($cleanup == 0)
+	        {
+	        if ($#cleanups == -1) 
+		    {
+		    push @cleanups, 'dbgShowCleanup' if ($dbgShowCleanup) ;
+		    $req_rec -> register_cleanup(\&HTML::Embperl::cleanup) if (defined ($req_rec)) ;
+		    }
+	        push @cleanups, $package ;
+        
+	        cleanup () if (!$r -> SubReq () && !$req_rec) ;
+	        }
+	    else
+	        {
+	        push @cleanups, 'dbgShowCleanup' if ($dbgShowCleanup) ;
+	        push @cleanups, $package ;
+	        cleanup () ;
+	        }
+
+	    $rc = $r -> Error?500:0 ;
+	    }
+
+        if ($req -> {'isa'})
+            {
+            no strict ;
+            my $callerisa = \@{caller (1) . '::ISA'} ;
+            push @$callerisa, $package  if (!grep ($_ eq $package, @$callerisa)) ;
+            use strict ;
+            }
+
+        @{$req -> {errors}} = @{$r -> ErrArray()} if (ref ($req -> {errors}) eq 'ARRAY')  ;
+    } ; # eval
+    if ($@)
+	{
+	my $err = $@ ;
+        #require Devel::Symdump ;
+	#warn "[$$] " . scalar (localtime) .  Devel::Symdump -> isa_tree ;
+	HTML::Embperl::Req::FreeRequest ($r) ; # try to Free the Request data ($r may not be an objectref!)
+	die $err ;
+	}
 
     $r -> FreeRequest () ;
     
@@ -1252,7 +1279,6 @@ sub cleanup
     my $packfile ;
     my %addcleanup ;
     my $varfile ;
-    my %revinc = map { ($_ => 1) } values (%INC) if ($multiplicity) ;
     my ($k, $v) ;
     
     $seen{''}      = 1 ;
@@ -1266,17 +1292,13 @@ sub cleanup
         
         #print LOG "GVFile $package\::__ANON__\n" ;
 	$packfile = GVFile (*{"$package\::__ANON__"}) ;
-	if ($multiplicity && !$revinc{$packfile})
-            {
-            print LOG "$packfile -> -- eval --\n" ;
-            $packfile = "-- eval --" ;
-            }
         $packfile = '-> No Perl in Source <-' if ($packfile eq ('_<' . __FILE__) || $packfile eq __FILE__) ;
 	$addcleanup = \%{"$package\:\:CLEANUP"} ;
 	$addcleanup -> {'CLEANUP'} = 0 ;
+	$addcleanup -> {'ISA'} = 0 ;
 	if ($Debugflags & dbgShowCleanup)
 	    {
-	    print LOG "[$$]CUP:  ***** Cleanup package: $package *****\n" ;
+	    print LOG "[$$]CUP:  ***** Cleanup package: $package  *****\n" ;
 	    print LOG "[$$]CUP:  Source $packfile\n" ;
 	    }
 	if (defined (&{"$package\:\:CLEANUP"}))
@@ -1295,16 +1317,11 @@ sub cleanup
             my $cleanfile = \%{"$package\:\:CLEANUPFILE"} ;
 	    foreach $key (@vars)
 		{
+                next if ($key =~ /^::/) ;
 		$val =  ${*{"$package\::"}}{$key} ;
 		local(*ENTRY) = $val;
 		#print LOG "$key = " . GVFile (*ENTRY) . "\n" ;
 		$varfile = GVFile (*ENTRY) ;
-	        if ($multiplicity && !$revinc{$varfile})
-                    {
-                    print LOG "$varfile -> -- eval --\n" ;
-                    $varfile = "-- eval --" ;
-                    }
-                
                 $glob = $package.'::'.$key ;
 		if (defined (*ENTRY{SCALAR}) && defined (${$glob}) && ref (${$glob}) eq 'DBIx::Recordset')
 		    {
@@ -1382,6 +1399,7 @@ sub cleanup
             my $cleanfile = \%{"$package\:\:CLEANUPFILE"} ;
             while (($key,$val) = each(%{*{"$package\::"}}))
                 {
+                next if ($key =~ /^::/) ;
 	        local(*ENTRY) = $val;
 	        $glob = $package.'::'.$key ;
 		if (defined (*ENTRY{SCALAR}) && defined (${$glob}) && ref (${$glob}) eq 'DBIx::Recordset')
@@ -1392,12 +1410,6 @@ sub cleanup
 		else
                     {
 		    $varfile = GVFile (*ENTRY) ;
-	            if ($multiplicity && !$revinc{$varfile})
-                        {
-                        print LOG "$varfile -> -- eval --\n" ;
-                        $varfile = "-- eval --" ;
-                        }
-
                     if (($packfile eq $varfile || $addcleanup -> {$key} || 
                         $cleanfile->{$varfile}) &&  
 		         (!($key =~ /\:\:$/) && !(defined ($addcleanup -> {$key}) && $addcleanup -> {$key} == 0)))
@@ -1619,9 +1631,15 @@ sub LogOutput
 
 package HTML::Embperl::Req ; 
 
+
 #######################################################################################
 
 use strict ;
+use vars qw {
+            @AliasScalar
+            @AliasHash
+            @AliasArray
+            } ;
 
 
 if (defined ($ENV{MOD_PERL}))
@@ -1794,14 +1812,12 @@ sub SetSessionCookie
     if ($HTML::Embperl::SessionMgnt)
         {
         my $udat   = tied (%HTML::Embperl::udat) ;
-        my $id     = $udat -> getid ;
-        my $initialid     = $udat -> getinitialid ;
+        my ($initialid, $id, $modified)  = $udat -> getids ;
         
         my $name   = $ENV{EMBPERL_COOKIE_NAME} || 'EMBPERL_UID' ;
         my $domain = "; domain=$ENV{EMBPERL_COOKIE_DOMAIN}" if (exists ($ENV{EMBPERL_COOKIE_DOMAIN})) ;
         my $path   = "; path=$ENV{EMBPERL_COOKIE_PATH}" if (exists ($ENV{EMBPERL_COOKIE_PATH})) ;
         my $expires = "; expires=$ENV{EMBPERL_COOKIE_EXPIRES}" if (exists ($ENV{EMBPERL_COOKIE_EXPIRES})) ;
-        $expires = "; expires=Thu, 1-Jan-1970 00:00:01 GMT" if ($id && !$initialid) ;
                         
         if ($id || $initialid)
             {    
@@ -1815,12 +1831,32 @@ sub SetSessionCookie
 
 #######################################################################################
 
+@AliasScalar = qw{row col cnt maxrow maxcol tabmode escmode req_rec  
+                    dbgAll            dbgAllCmds        dbgCmd            dbgDefEval        dbgEarlyHttpHeader
+                    dbgEnv            dbgEval           dbgFlushLog       dbgFlushOutput    dbgForm           
+                    dbgFunc           dbgHeadersIn      dbgImport         dbgInput          dbgLogLink        
+                    dbgMem            dbgProfile        dbgShowCleanup    dbgSource         dbgStd            
+                    dbgSession        dbgTab            dbgWatchScalar    dbgParse          dbgObjectSearch   
+                    optDisableChdir           optDisableEmbperlErrorPage    optReturnError	       optDisableFormData        
+                    optDisableHtmlScan        optDisableInputScan       optDisableMetaScan        optDisableTableScan       
+                    optDisableSelectScan      optDisableVarCleanup      optEarlyHttpHeader        optOpcodeMask             
+                    optRawInput               optSafeNamespace          optSendHttpHeader         optAllFormData            
+                    optRedirectStdout         optUndefToEmptyValue      optNoHiddenEmptyValue     optAllowZeroFilesize      
+                    optKeepSrcInMemory        optKeepSpaces	       optOpenLogEarly           optNoUncloseWarn	       
+                    } ;
+@AliasHash   = qw{fdat udat mdat idat http_headers_out fsplitfdat} ;
+@AliasArray  = qw{ffld} ;
+
+#######################################################################################
+
 sub CreateAliases
 
     {
     my ($self) = @_ ;
     
     my $package = $self -> CurrPackage ;
+
+    my $dummy ;
     
     no strict ;
 
@@ -1828,21 +1864,23 @@ sub CreateAliases
     if (!defined(${"$package\:\:row"}))
         { # create new aliases for Embperl magic vars
 
-        *{"$package\:\:fdat"}    = \%HTML::Embperl::fdat ;
-        *{"$package\:\:udat"}    = \%HTML::Embperl::udat ;
-        *{"$package\:\:mdat"}    = \%HTML::Embperl::mdat ;
-        *{"$package\:\:fsplitdat"}    = \%HTML::Embperl::fsplitdat ;
-        *{"$package\:\:ffld"}    = \@HTML::Embperl::ffld ;
-        *{"$package\:\:idat"}    = \%HTML::Embperl::idat ;
-        *{"$package\:\:cnt"}     = \$HTML::Embperl::cnt ;
-        *{"$package\:\:row"}     = \$HTML::Embperl::row ;
-        *{"$package\:\:col"}     = \$HTML::Embperl::col ;
-        *{"$package\:\:maxrow"}  = \$HTML::Embperl::maxrow ;
-        *{"$package\:\:maxcol"}  = \$HTML::Embperl::maxcol ;
-        *{"$package\:\:tabmode"} = \$HTML::Embperl::tabmode ;
-        *{"$package\:\:escmode"} = \$HTML::Embperl::escmode ;
-        *{"$package\:\:http_headers_out"} = \%HTML::Embperl::http_headers_out ;
-    	*{"$package\:\:req_rec"} = \$HTML::Embperl::req_rec ; 
+        foreach (@AliasScalar)
+            {
+            *{"$package\:\:$_"}    = \${"HTML::Embperl\:\:$_"} ;
+            $dummy = ${"$package\:\:$_"} ; # necessary to make sure variable exists!
+            $dummy = ${"HTML::Embperl\:\:$_"} ; # necessary to make sure variable exists!
+            $dummy = ${"HTML::Embperl\:\:$_"} ; # necessary to make sure variable exists!
+            }
+
+        foreach (@AliasHash)
+            {
+            *{"$package\:\:$_"}    = \%{"HTML::Embperl\:\:$_"} ;
+            }
+        foreach (@AliasArray)
+            {
+            *{"$package\:\:$_"}    = \@{"HTML::Embperl\:\:$_"} ;
+            }
+
     	if (defined (&Apache::exit))
             {
             *{"$package\:\:exit"}    = \&Apache::exit 
@@ -1859,57 +1897,11 @@ sub CreateAliases
         tie *{"$package\:\:LOG"}, 'HTML::Embperl::Log' ;
         tie *{"$package\:\:OUT"}, 'HTML::Embperl::Out' ;
 
-        *{"$package\:\:optDisableChdir"}                = \$HTML::Embperl::optDisableChdir                   ;
-        *{"$package\:\:optDisableEmbperlErrorPage"}     = \$HTML::Embperl::optDisableEmbperlErrorPage ;
-        *{"$package\:\:optDisableFormData"}             = \$HTML::Embperl::optDisableFormData         ;
-        *{"$package\:\:optDisableHtmlScan"}             = \$HTML::Embperl::optDisableHtmlScan         ;
-        *{"$package\:\:optDisableInputScan"}            = \$HTML::Embperl::optDisableInputScan        ;
-        *{"$package\:\:optDisableMetaScan"}             = \$HTML::Embperl::optDisableMetaScan         ;
-        *{"$package\:\:optDisableTableScan"}            = \$HTML::Embperl::optDisableTableScan        ;
-        *{"$package\:\:optDisableVarCleanup"}           = \$HTML::Embperl::optDisableVarCleanup       ;
-        *{"$package\:\:optEarlyHttpHeader"}             = \$HTML::Embperl::optEarlyHttpHeader         ;
-        *{"$package\:\:optOpcodeMask"}                  = \$HTML::Embperl::optOpcodeMask              ;
-        *{"$package\:\:optRawInput"}                    = \$HTML::Embperl::optRawInput                ;
-        *{"$package\:\:optSafeNamespace"}               = \$HTML::Embperl::optSafeNamespace           ;
-        *{"$package\:\:optSendHttpHeader"}              = \$HTML::Embperl::optSendHttpHeader          ;
-        *{"$package\:\:optAllFormData"}                 = \$HTML::Embperl::optAllFormData ;
-        *{"$package\:\:optRedirectStdout"}              = \$HTML::Embperl::optRedirectStdout ;
-        *{"$package\:\:optUndefToEmptyValue"}           = \$HTML::Embperl::optUndefToEmptyValue ;
-        *{"$package\:\:optNoHiddenEmptyValue"}          = \$HTML::Embperl::optNoHiddenEmptyValue ;
-        *{"$package\:\:optAllowZeroFilesize"}           = \$HTML::Embperl::optAllowZeroFilesize ;
-        *{"$package\:\:optKeepSrcInMemory"}             = \$HTML::Embperl::optKeepSrcInMemory ;
-        *{"$package\:\:optKeepSpaces"}                  = \$HTML::Embperl::optKeepSpaces ;
-        *{"$package\:\:optOpenLogEarly"}                = \$HTML::Embperl::optOpenLogEarly ;
-        *{"$package\:\:optNoUncloseWarn"}               = \$HTML::Embperl::optNoUncloseWarn ;
-
-
-        *{"$package\:\:dbgAllCmds"}               = \$HTML::Embperl::dbgAllCmds           ;
-        *{"$package\:\:dbgCmd"}                   = \$HTML::Embperl::dbgCmd               ;
-        *{"$package\:\:dbgDefEval"}               = \$HTML::Embperl::dbgDefEval           ;
-        *{"$package\:\:dbgEarlyHttpHeader"}       = \$HTML::Embperl::dbgEarlyHttpHeader   ;
-        *{"$package\:\:dbgEnv"}                   = \$HTML::Embperl::dbgEnv               ;
-        *{"$package\:\:dbgEval"}                  = \$HTML::Embperl::dbgEval              ;
-        *{"$package\:\:dbgFlushLog"}              = \$HTML::Embperl::dbgFlushLog          ;
-        *{"$package\:\:dbgFlushOutput"}           = \$HTML::Embperl::dbgFlushOutput       ;
-        *{"$package\:\:dbgForm"}                  = \$HTML::Embperl::dbgForm              ;
-        *{"$package\:\:dbgFunc"}                  = \$HTML::Embperl::dbgFunc              ;
-        *{"$package\:\:dbgHeadersIn"}             = \$HTML::Embperl::dbgHeadersIn         ;
-        *{"$package\:\:dbgInput"}                 = \$HTML::Embperl::dbgInput             ;
-        *{"$package\:\:dbgLogLink"}               = \$HTML::Embperl::dbgLogLink           ;
-        *{"$package\:\:dbgMem"}                   = \$HTML::Embperl::dbgMem               ;
-        *{"$package\:\:dbgProfile"}               = \$HTML::Embperl::dbgProfile           ;
-        *{"$package\:\:dbgShowCleanup"}           = \$HTML::Embperl::dbgShowCleanup       ;
-        *{"$package\:\:dbgSource"}                = \$HTML::Embperl::dbgSource            ;
-        *{"$package\:\:dbgStd"}                   = \$HTML::Embperl::dbgStd               ;
-        *{"$package\:\:dbgTab"}                   = \$HTML::Embperl::dbgTab               ;
-        *{"$package\:\:dbgWatchScalar"}           = \$HTML::Embperl::dbgWatchScalar       ;
-
-        #print LOG  "[$$]MEM:  Created Aliases for $package\n" ;
-
+        #warn  "[$$]MEM:  Created Aliases for $package\n" ;
         }
 
 
-    ${"$package\:\:req_rec"} = $self -> ApacheReq ;
+     ${"$package\:\:req_rec"} = $self -> ApacheReq ;
 #    print HTML::Embperl::LOG  "[$$]MEM:  " . $self -> ApacheReq . "\n" ;
 
     use strict ;

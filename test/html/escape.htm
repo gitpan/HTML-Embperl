@@ -52,6 +52,18 @@ Array in A <A HREF="http://localhost/tests?[+ \@A +]">
 Hash in  H <A HREF="http://localhost/tests?[+ \\%H +]">
 Array in H <A HREF="http://localhost/tests?[+ scalar { @H } +]">
 
+
+[-
+%fdat = ( par1 => 1, par2 => 2 );
+-]
+
+
+<a href="tst.html?[+ \\%fdat +]">1</a>
+<a href="tst.html?[+ scalar ({ par3 => 3, %fdat }) +]">2</a>
+<a href="tst.html?[+ scalar ({ %fdat }) +]">3</a>
+<a href="tst.html?[+ scalar ({ %fdat, par3 => 3 }) +]">4</a>
+
+
 		
 [+ $escmode = 1 +]
 
@@ -109,43 +121,43 @@ What is the EscMode? [+ $escmode +]
 [+ foo (0) +]
 
 Now we localy set $escmode:<BR>
-[+  local $escmode = 0 ; $b . "  \\\\<a>" +]<BR>
-[+  local $escmode = 1 ; $b . "  \\\\<a>"  +]<BR>
-[+  local $escmode = 2 ; $b . "  \\\\<a>"  +]<BR>
-[+  local $escmode = 3 ; $b . "  \\\\<a>"  +]<BR>
-[+  local $escmode = 4 ; $b . "  \\\\<a>"  +]<BR>
-[+  local $escmode = 5 ; $b . "  \\\\<a>"  +]<BR>
-[+  local $escmode = 6 ; $b . "  \\\\<a>"  +]<BR>
-[+  local $escmode = 7 ; $b . "  \\\\<a>"  +]<BR>
+[+  do { local $escmode = 0 ; $b . "  \\\\<a>" } +]<BR>
+[+  do { local $escmode = 1 ; $b . "  \\\\<a>" } +]<BR>
+[+  do { local $escmode = 2 ; $b . "  \\\\<a>" } +]<BR>
+[+  do { local $escmode = 3 ; $b . "  \\\\<a>" } +]<BR>
+[+  do { local $escmode = 4 ; $b . "  \\\\<a>" } +]<BR>
+[+  do { local $escmode = 5 ; $b . "  \\\\<a>" } +]<BR>
+[+  do { local $escmode = 6 ; $b . "  \\\\<a>" } +]<BR>
+[+  do { local $escmode = 7 ; $b . "  \\\\<a>" } +]<BR>
 
 Same without local:
-[+  $escmode = 0 ; $b . "  \\\\<a>" +]<BR>
-[+  $escmode = 1 ; $b . "  \\\\<a>"  +]<BR>
-[+  $escmode = 2 ; $b . "  \\\\<a>"  +]<BR>
-[+  $escmode = 3 ; $b . "  \\\\<a>"  +]<BR>
-[+  $escmode = 4 ; $b . "  \\\\<a>"  +]<BR>
-[+  $escmode = 5 ; $b . "  \\\\<a>"  +]<BR>
-[+  $escmode = 6 ; $b . "  \\\\<a>"  +]<BR>
-[+  $escmode = 7 ; $b . "  \\\\<a>"  +]<BR>
+[+  $escmode = 0 , $b . "  \\\\<a>" +]<BR>
+[+  $escmode = 1 , $b . "  \\\\<a>"  +]<BR>
+[+  $escmode = 2 , $b . "  \\\\<a>"  +]<BR>
+[+  $escmode = 3 , $b . "  \\\\<a>"  +]<BR>
+[+  $escmode = 4 , $b . "  \\\\<a>"  +]<BR>
+[+  $escmode = 5 , $b . "  \\\\<a>"  +]<BR>
+[+  $escmode = 6 , $b . "  \\\\<a>"  +]<BR>
+[+  $escmode = 7 , $b . "  \\\\<a>"  +]<BR>
 
 
 Control Chars 0x80-0x9f:
-[+  local $escmode = 7 ; foreach (127..160) { $cc .= chr ($_) }; $cc +]<BR>
+[+  do { local $escmode = 7 ; foreach (127..160) { $cc .= chr ($_) }; $cc } +]<BR>
 
 Control Chars 129 & 130:
-[+  local $escmode = 7 ; "&#129;&#130;" +]<BR>
+[+  do  { local $escmode = 7 ; "&#129;&#130;" } +]<BR>
 
-[+ $n = 'My Name צהü' ; $escmode = 0 +]
+[+ $n = 'My Name צהü' , $escmode = 0 +]
 
-<A HREF='http://host/script?name=[+$escmode=3; $n+]'>
+<A HREF='http://host/script?name=[+ $escmode=3, $n +]'>
 
 <A HREF='http://host/script?name=[+ $n+]'>
 
 [+ $escmode = 0 +]
 
-<A HREF='http://host/script?name=[+ local $escmode=3; $n+]'>
+<A HREF='http://host/script?name=[+ do { local $escmode=3; $n } +]'>
 
-<A HREF='http://host/script?name=[+ $n+]'>
+<A HREF='http://host/script?name=[+ $n +]'>
 
 <br>
 

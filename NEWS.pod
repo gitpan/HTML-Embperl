@@ -3,6 +3,38 @@
 
 =over 4
 
+=item * 29. Mar 2001
+
+Embperl 2.0b2 released. The main news are the support for interactive
+debuggers and the possibility to use different syntaxes. 
+
+ftp://ftp.dev.ecos.de/pub/perl/embperl/HTML-Embperl-2.0b2.tar.gz
+
+=item * 25. Mar 2001
+
+My talk from the 3. German Perl-Workshop (http://www.perlworkshop.de)
+is available at http://www.ecos.de/ep/pod/conf/ApCon2001.Embperl.zip .
+It also contains a good introduction to the new features in Embperl 2.0 . 
+
+=item * 1. Mar 2001
+
+I will give a talk on the ApacheCon 2001 (http://www.apachecon.com/) about 
+"Embperl - Building dynamic Websites with Perl" 
+
+=item * 13. Feb 2001
+
+Embperl 1.3.1 released 
+
+=item * 12. Feb 2001
+
+New tutorial from Neil Gunton for EmbperlObject is available online. 
+Also now the full documentation of DBIx::Recordset is available online 
+and a new section about Tips & Tricks. Everybody is welcome to 
+contribute their own Tips & Tricks!. See
+
+perldoc IntroEmbperlObject.pod
+perldoc TipsAndTricks.pod
+
 =item * 22. Dec 2000 
 
 After long time of talking, designing, developing, codeing and testing I am

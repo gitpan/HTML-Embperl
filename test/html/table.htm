@@ -5,7 +5,6 @@
 
 <body>
 
-
 <p> $tabmode = default <p>
 
 <hr><p>Display an two dimensional array with one, two and three columns !<BR>
@@ -136,6 +135,18 @@ Please take a look at the source in your browser to see the difference<BR>
     </tr> 
 </table>
 
+<table border="6.1" width="100%">
+    <tr>
+        <td>[+ $a[$rows+1][0] +]</td>
+    </tr> 
+    <tr>
+        <td>[+ $a[$rows][0] +] </td>
+    </tr> 
+    <tr>
+        <td>[+ $rows +] </td>
+    </tr> 
+</table>
+
 <table border="7">
     <tr>
         <TD BGCOLOR="[+ ($row & 1)?(($col&1)?'#7CFC00':'#A4A4B4'):(($col&1)?'#FFFF00':'#F4A460') +]">[+ $a[$row][$col] +] </td>
@@ -226,6 +237,16 @@ $kats[3]{Id} = '' ;
         </tr>
     </table>
 
+[- 
+# build tight loop table with array data, multidimensional 5x6
+@array = sort ("Hello", "World", "2000", "Hello", "World", "2000");
+@multi = (\@array, \@array, \@array, \@array, \@array);
+-]
+<table>
+   <tr bgcolor="[+ $row % 2?'gray':'white' +]">
+     <td align="center"><font size="+1">[+ $multi[$row][$col] +]</font></td>
+   </tr>
+</table>
 
 </body>
 </html>

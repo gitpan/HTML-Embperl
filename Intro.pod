@@ -109,7 +109,9 @@ commands in C. The meta commands take the following form:
     [$ <cmd> <arg> $]
 
 
-=head3 if, elsif, else, endif
+=over 8
+
+=item if, elsif, else, endif
 
 The if command is just the same as in Perl.  It is used to
 conditionally output/process parts of the document.
@@ -127,7 +129,7 @@ This will output one of the three lines depending on the setting
 of $ENV{REQUEST_METHOD}.
 
 
-=head3 while, endwhile
+=item while, endwhile
 
 The while command can be used to create a loop in the HTML
 document.  For example:
@@ -139,7 +141,7 @@ document.  For example:
 The above example will display all environment variables, each
 terminated with a line break.
 
-=head3 do, until
+=item do, until
 
 The do until also create a loop, but with a condition at the end.
 For example:
@@ -149,7 +151,7 @@ For example:
     [+ $arr[ $i++ ] +]
  [$ until $i > $#arr $]
 
-=head3 foreach, endforeach
+=item foreach, endforeach
 
 Create a loop iterating over every element of an array/list.
 Example:
@@ -159,7 +161,7 @@ Example:
  [$ endforeach $]
 
 
-=head3 var <var1> <var2> ...
+=item var <var1> <var2> ...
 
 By default, you do not need to declare any variables you use within
 an Embperl page. Embperl takes care of deleting them at the end of
@@ -172,11 +174,13 @@ Has the same effect as the Perl code:
 
  use strict ;use vars qw {$a @b %c} ;
 
-=head3 hidden
+=item hidden
 
 
 hidden is used for creating hidden form fields and is described in
 the form field section below.
+
+=back
 
 =head1 Dynamic Tables
 

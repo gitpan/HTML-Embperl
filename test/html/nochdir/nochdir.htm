@@ -14,7 +14,7 @@ Script  CWD: [+ $script = Cwd::fastcwd() +] <BR>
 Embperl CWD: [+ $ep =     $HTML::Embperl::cwd +] <BR>
 
 Equal: [+ $script eq $ep?'Yes':'No' +]<BR>
-Diff CWD: [+ $script =~ /$ep/ ; ">$'<" +]<BR>
+Diff CWD: [+ do { $script =~ /$ep/ ; ">$'<" } +]<BR>
 
 [- @ks = sort keys %fdat -]
 

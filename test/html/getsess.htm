@@ -5,7 +5,26 @@
 
 
 <body>
+	
+	[#
+	[- $s = $Apache::Session::Win32::sessions  || $Apache::Session::MemoryStore::store  -]
+	[- @ks = sort keys %$s -]
+	sessions:
+	<table>
+		<tr>
+			<td>[+ $ks[$row] +]</td><td>[+ $sh = $s -> {$ks[$row] || ''} +]</td><td>[$if ref($sh) eq 'HASH' $][+ do { my @tmp = map { "$_ = $sh->{$_}" } keys (%$sh) ; join (', ', @tmp) } +][$endif$]</td>
+		</tr>
+	</table>
 
+		tied (%mdat) [+ $m = tied (%mdat) +]  <br>
+		ref          [+ ref ($m) +]  <br>
+		content      [+ do { my @tmp = map { "$_ = $mdat{$_}" } keys (%mdat) ; join (', ', @tmp) } +]  <br>
+		tied (%udat) [+ $u = tied (%udat) +]  <br>
+		ref          [+ ref ($u) +]  <br>
+		content      [+ do { my @tmp = map { "$_ = $udat{$_}" } keys (%udat) ; join (', ', @tmp) } +]  <br>
+
+	a=[+ scalar (do {$udat{'a'}}) +][+ $aa +]
+	#]
 
 	fdat:<br>
 	[- @ks = sort keys %fdat -]
@@ -36,19 +55,18 @@
 	-]
 
 
-        $mdat{cnt} = -[+ $mdat{cnt} ; +]- <br>
-        $udat{cnt} = -[+ $udat{cnt} ; +]- <br>
+        $mdat{cnt} = -[+ $mdat{cnt}  +]- <br>
+        $udat{cnt} = -[+ $udat{cnt}  +]- <br>
 
 
 	[- $s = $Apache::Session::Win32::sessions  || $Apache::Session::MemoryStore::store  -]
-
 	[- @ks = sort keys %$s -]
-
 	sessions:
 	<table>
 		<tr>
-			<td>[+ $ks[$row] +]</td><td>[+ $s -> {$ks[$row] || ''} +]</td>
+			<td>[+ $ks[$row] +]</td><td>[+ $sh = $s -> {$ks[$row] || ''} +]</td><td>[$if ref($sh) eq 'HASH' $][+ do { my @tmp = map { "$_ = $sh->{$_}" } keys (%$sh) ; join (', ', @tmp) } +][$endif$]</td>
 		</tr>
 	</table>
+
 </body>
 </html>

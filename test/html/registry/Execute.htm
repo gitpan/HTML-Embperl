@@ -9,7 +9,7 @@ use HTML::Embperl ;
 
 my($r) = @_;
 
-$HTML::Embperl::DebugDefault = $ENV{EMBPERL_DEBUG} ;
+$HTML::Embperl::DebugDefault = 811005 ;
 
 
 $tst1 = '<P>Here is some text</P>' ;
@@ -28,7 +28,7 @@ HTML::Embperl::Execute ({input		=> \$tst1,
 
 print "<H1> 2.) Include from memory with some Embperl code</H1>\n" ;
 
-HTML::Embperl::Execute ({input		=> \'[- @ar = (a1, b2, c3) -]<table><tr><td>[+$ar[$col]+]</td></tr></table></P>',
+HTML::Embperl::Execute ({input		=> \'[- @ar = (a1, b2, c3) -]<table><tr><td>[+$ar[$col]+]</td> </tr> </table> </P>',
 						 mtime      => 1,  
 						 inputfile	=> 'table',
 						 req_rec    => $r}) ;
@@ -91,7 +91,7 @@ my %myfdat = ('test' => 'value',
               
 my @myffld = sort keys %myfdat ;             
 
-HTML::Embperl::Execute ({input		=> \'<P><table><tr><td>[+ $ffld[$row] +]</td><td>[+ local $^W = 0 ; $fdat{$ffld[$row]} +]</td></tr></table></P>',
+HTML::Embperl::Execute ({input		=> \'<P><table><tr><td>[+ $ffld[$row] +]</td><td>[+ do { local $^W = 0 ; $fdat{$ffld[$row]} } +]</td></tr></table></P>',
 						 inputfile	=> 'fdat & ffld',
 						 req_rec    => $r,
 						 fdat  => \%myfdat,

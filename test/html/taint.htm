@@ -12,7 +12,7 @@ The following code should be trapped by the perl interpreter <BR>
 when running with -T option or PaintTaintCheck on <P>
 
 
-[+ system ('echo blabla') ; +]
+[+ do { system ('echo blabla') ;}  +]
 
 <P>Ok.<P>
 

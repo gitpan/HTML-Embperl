@@ -104,7 +104,9 @@ Form:
     [$ <cmd> <arg> $]
 
 
-=head3 if, elsif, else, endif
+=over 8
+
+=item if, elsif, else, endif
 
 Der if Befehl hat die selben Auswirkungen wie in Perl. Er kann genutzt
 werden um Teile des Dokuments nur unter bestimmten Bedingungen auszugeben/auszuführen.
@@ -122,7 +124,7 @@ Dieses Beispiel gibt eine der drei Absätze in Abhänigkeit von dem Wert
 von $ENV{REQUEST_METHOD} aus.
 
 
-=head3 while, endwhile
+=item while, endwhile
 
 Der while Befehl wird dazu benutzt, um eine Schleife innerhalb des
 HTML Dokuments zu erzeugen. Beispiel:
@@ -134,7 +136,7 @@ HTML Dokuments zu erzeugen. Beispiel:
 Das Beispiel zeigt alle Environementvariablen, jede abgeschlossen
 mit einem Zeilenumbruch (<BR>).
 
-=head3 do, until
+=item do, until
 
 C<do> C<until> erzeugt ebenso eine Schleife, jedoch mit der Bedingung am Ende.
 Beispiel:
@@ -144,7 +146,7 @@ Beispiel:
     [+ $arr[ $i++ ] +]
  [$ until $i > $#arr $]
 
-=head3 foreach, endforeach
+=item foreach, endforeach
 
 Erzeugt eine Schleife, die über jedes Element einer Liste/Arrays iteriert.
 Beispiel:
@@ -154,7 +156,7 @@ Beispiel:
  [$ endforeach $]
 
 
-=head3 var <var1> <var2> ...
+=item var <var1> <var2> ...
 
 Standartmäßig ist es nicht nötig irgenwelche Variablen innerhalb einer
 Embperlseite zu deklarieren. Embperl kümmert sich darum nach jedem Request
@@ -167,10 +169,12 @@ Hat den selben Effekt wie der Perlcode:
 
  use strict ; use vars qw {$a @b %c} ;
 
-=head3 hidden
+=item hidden
 
 hidden ermöglicht es versteckte Formularfelder zu erzeugen und wird weiter unten
 im Abschnitt über Formularfelder beschrieben.
+
+=back
 
 =head1 Dynamische Tabellen
 
@@ -770,7 +774,6 @@ innerhalb der Seiten genutzt werden dürfen.
  - entfernt HTML tags aus dem Perlcode (z.B. <br> welches durch einen
    HTML Editor eingefügt wurde)
 
-=back
 
 
 =head2 Ausgabe: Escaping

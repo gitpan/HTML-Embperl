@@ -27,50 +27,58 @@ $EP2 = -f "epcmd2.c" ;
     ( 
       'mod_perl.c' => { name	    => 'perl_module', 
 			path	    => ['$apache_src/modules/perl/libperl.so', '$EPBINDIR/modules/libperl.so', '$apache_src/mod_perl.so'],
-			win32path   => ['$mpdll', '$mpdll/apachemoduleperl.dll', '$EPBINDIR/modules/apachemoduleperl.dll'],
+			win32path   => ['$mpdll', '$mpdll/apachemoduleperl.dll', '$mpdll/mod_perl.so', '$EPBINDIR/modules/apachemoduleperl.dll', '$EPBINDIR/modules/mod_perl.so'],
 			file	    => 'libperl.so',
+			filetext    => 'libperl.so or mod_perl.so',
 			win32file   => 'apachemoduleperl.dll',
+			win32filetext   => 'ApacheModulePerl.dll or mod_perl.so',
 		      },
       'mod_dir.c'  => { name	    => 'dir_module', 
 			path	    => ['$apache_src/modules/standard/mod_dir.so', '$EPBINDIR/modules/mod_dir.so', '$apache_src/mod_dir.so'],
-			win32path   => ['$apache_src/modules/standard/apachemoduledir.dll', '$EPBINDIR/modules/apachemoduledir.dll'],
+			win32path   => ['$apache_src/modules/standard/apachemoduledir.dll', '$EPBINDIR/modules/apachemoduledir.dll', '$EPBINDIR/modules/mod_dir.so'],
 			file	    => 'mod_dir.so',
 			win32file   => 'apachemoduledir.dll',
+			win32filetext   => 'ApacheModuleDir.dll or mod_dir.so',
 		      },
 
       'mod_env.c'  => { name	    => 'env_module', 
 			path	    => ['$apache_src/modules/standard/mod_env.so', '$EPBINDIR/modules/mod_env.so', '$apache_src/mod_env.so'],
-			win32path   => ['$apache_src/modules/standard/apachemoduleenv.dll', '$EPBINDIR/modules/apachemoduleenv.dll'],
+			win32path   => ['$apache_src/modules/standard/apachemoduleenv.dll', '$EPBINDIR/modules/apachemoduleenv.dll', '$EPBINDIR/modules/mod_env.so'],
 			file	    => 'mod_env.so',
 			win32file   => 'apachemoduleenv.dll',
+			win32filetext   => 'ApacheModuleEnv.dll or mod_env.so',
 		      },
 
       'mod_mime.c'  => { name	    => 'mime_module', 
 			path	    => ['$apache_src/modules/standard/mod_mime.so', '$EPBINDIR/modules/mod_mime.so', '$apache_src/mod_mime.so'],
-			win32path   => ['$apache_src/modules/standard/apachemodulemime.dll', '$EPBINDIR/modules/apachemodulemime.dll'],
+			win32path   => ['$apache_src/modules/standard/apachemodulemime.dll', '$EPBINDIR/modules/apachemodulemime.dll', '$EPBINDIR/modules/mod_mime.so'],
 			file	    => 'mod_mime.so',
 			win32file   => 'apachemodulemime.dll',
+			win32filetext   => 'ApacheModuleMime.dll or mod_mime.so',
 		      },
 
       'mod_alias.c'  => { name	    => 'alias_module', 
 			path	    => ['$apache_src/modules/standard/mod_alias.so', '$EPBINDIR/modules/mod_alias.so', '$apache_src/mod_alias.so'],
-			win32path   => ['$apache_src/modules/standard/apachemodulealias.dll', '$EPBINDIR/modules/apachemodulealias.dll'],
+			win32path   => ['$apache_src/modules/standard/apachemodulealias.dll', '$EPBINDIR/modules/apachemodulealias.dll', '$EPBINDIR/modules/mod_alias.so'],
 			file	    => 'mod_alias.so',
 			win32file   => 'apachemodulealias.dll',
+			win32filetext   => 'ApacheModuleAlias.dll or mod_alias.so',
 		      },
 
       'mod_cgi.c'  => { name	    => 'cgi_module', 
 			path	    => ['$apache_src/modules/standard/mod_cgi.so', '$EPBINDIR/modules/mod_cgi.so', '$apache_src/mod_cgi.so'],
-			win32path   => ['$apache_src/modules/standard/apachemodulecgi.dll', '$EPBINDIR/modules/apachemodulecgi.dll'],
+			win32path   => ['$apache_src/modules/standard/apachemodulecgi.dll', '$EPBINDIR/modules/apachemodulecgi.dll', '$EPBINDIR/modules/mod_cgi.so'],
 			file	    => 'mod_cgi.so',
 			win32file   => 'apachemodulecgi.dll',
+			win32filetext   => 'ApacheModuleCgi.dll or mod_cgi.so',
 		      },
 
       'mod_actions.c'  => { name	    => 'action_module', 
 			path	    => ['$apache_src/modules/standard/mod_actions.so', '$EPBINDIR/modules/mod_actions.so', '$apache_src/mod_actions.so'],
-			win32path   => ['$apache_src/modules/standard/apachemoduleactions.dll', '$EPBINDIR/modules/apachemoduleactions.dll'],
+			win32path   => ['$apache_src/modules/standard/apachemoduleactions.dll', '$EPBINDIR/modules/apachemoduleactions.dll', '$EPBINDIR/modules/mod_actions.so'],
 			file	    => 'mod_actions.so',
 			win32file   => 'apachemoduleactions.dll',
+			win32filetext   => 'ApacheModuleActions.dll or mod_actions.so',
 		      },
 
 
@@ -174,6 +182,36 @@ sub MY::cflags
 	}
 
 	
+ sub MY::post_initialize
+        {
+        my $self = shift ;
+
+        # move docs to the right place
+         
+        my $pm = $self -> {PM} ;
+        my $k ;
+        my $v ;
+        while (($k, $v) = each (%$pm))
+            {
+            if (($k =~ /\.pod$/) && !($k =~ /^Embperl/) )
+                {
+                $v =~ s#^(.*/)(.*?)\.pod$#$1Embperl/$2.pod# ;
+                $pm -> {$k} = $v ;
+                }
+            }
+                                 
+        my $man = $self -> {MAN3PODS} ;
+        while (($k, $v) = each (%$man))
+            {
+            if (!($v =~ /::Embperl/))
+                {
+                $v =~ s#HTML::#HTML::Embperl::# ;
+                $man -> {$k} = $v ;
+                }
+            }
+
+       $self -> MM::post_initialize (@_) ;
+       }
 
 ## ----------------------------------------------------------------------------
 
@@ -345,6 +383,7 @@ $lddebug = '' ;
 
 if ($ARGV[0] eq 'debug')
     {
+    shift @ARGV;
     if ($win32)
         {
         $ccdebug = '-Zi -W3' ;
@@ -356,7 +395,8 @@ if ($ARGV[0] eq 'debug')
         $lddebug = '-g' ;
         }
     }
-elsif (defined ($ARGV[0]) && ($ARGV[0] =~ /^\W/))
+
+if (defined ($ARGV[0]) && ($ARGV[0] =~ /^\W/))
     {
     $apache = 2 ;
     $b = 1 ;
@@ -488,14 +528,22 @@ if ($b && $apache && $apache_src ne '')
 
     if ($win32)
 	{ 
-        $i = "-I. -I$inc_dir -I$apache_src/regex -I$apache_src/os/win32" ;
-	if (!-e "$apache_src/CoreR/ApacheCore.lib")
+        $i = "-I. -I\"$inc_dir\" -I\"$apache_src/regex\" -I\"$apache_src/os/win32\"" ;
+	if (-e "$apache_src/libexec/ApacheCore.lib")
             {
-	    $o = " $apache_src/CoreD/ApacheCore.lib" ;
+	    $o = " \"$apache_src/libexec/ApacheCore.lib\"" ;
+	    }
+	elsif (-e "$apache_src/../libexec/ApacheCore.lib")
+            {
+	    $o = " \"$apache_src/../libexec/ApacheCore.lib\"" ;
+	    }
+	elsif (!-e "$apache_src/CoreD/ApacheCore.lib")
+            {
+	    $o = " \"$apache_src/CoreR/ApacheCore.lib\"" ;
 	    }
 	else
 	    {        
-	    $o = " $apache_src/CoreR/ApacheCore.lib" ;
+	    $o = " \"$apache_src/CoreD/ApacheCore.lib\"" ;
 	    }
         }
     else
@@ -546,7 +594,7 @@ EOF
 #
 # Check to see which user to use for httpd tests
 #
-
+$loadmodules = $EPMODPERL ;
 $EPPATH    = cwd ;
 $EPMODPERL = '' ;
 $EPSTARTUP ='startup.pl' ;
@@ -584,12 +632,22 @@ if ($b && $apache)
         }
     else
         {
-        $EPHTTPD = "$apache_src/ApacheR/Apache.exe" ;
-        $EPHTTPDDLL = "$apache_src/CoreR" ;
+        $EPHTTPD = "$apache_src/Apache.exe" ;
+        $EPHTTPDDLL = "$apache_src" ;
+        if (!-e $EPHTTPD) 
+            {
+            $EPHTTPD = "$apache_src/../Apache.exe" ;
+            $EPHTTPDDLL = "$apache_src/.." ;
+            }
         if (!-e $EPHTTPD) 
             {
             $EPHTTPD = "$apache_src/ApacheD/Apache.exe" ;
             $EPHTTPDDLL = "$apache_src/CoreD" ;
+            }
+        if (!-e $EPHTTPD) 
+            {
+            $EPHTTPD = "$apache_src/ApacheR/Apache.exe" ;
+            $EPHTTPDDLL = "$apache_src/CoreR" ;
             }
         #$EPMODPERL="LoadModule perl_module $mpdll" ;
         $EPUSER  = 'www' ; # dummy value
@@ -626,6 +684,7 @@ if ($b && $apache)
 	    { # module not linked staticly
 	    $paths = $win32?$opt->{win32path}:$opt->{path} ;
 	    $modfile = $win32?$opt->{win32file}:$opt->{file} ;
+	    $modfiletext = ($win32?$opt->{win32filetext}:$opt->{filetext}) || $modfile ;
 	    $found = 2 ;
 	    while ($found == 2)
 		{
@@ -636,8 +695,8 @@ if ($b && $apache)
 		    #print "path = $_ -> $path\n" ;
 		    if (-f $path)
 			{ ## module fould
-	    		$EPMODPERL .= "\r\nLoadModule $opt->{name} $path" ;
-			print " + Load dynamic module $mod\n" ;
+	    		$EPMODPERL .= "\r\nLoadModule $opt->{name} \"$path\"" ;
+			print " + Load dynamic module $mod\n   ($path)\n" ;
 			$found = 1 ;
 			last ;
 			}
@@ -648,17 +707,32 @@ if ($b && $apache)
 		    #print "path = $_ -> $path\n" ;
 		    if (-f $path)
 			{ ## module fould
-	    		$EPMODPERL .= "\r\nLoadModule $opt->{name} $path" ;
-			print " + Load dynamic module $mod\n" ;
+	    		$EPMODPERL .= "\r\nLoadModule $opt->{name} \"$path\"" ;
+			print " + Load dynamic module $mod\n   ($path)\n" ;
 			$found = 1 ;
 			last ;
 			}
 		    }
-		if (!$found)
+                if (!$found && $loadmodules)
+                    {		
+                    if ($loadmodules =~ /LoadModule $opt->{name} (.*?)$/)
+                        {
+                        $path = $1 ;
+		        if (-f $path)
+			    { ## module fould
+	    		    $EPMODPERL .= "\r\nLoadModule $opt->{name} \"$path\"" ;
+			    print " + Load dynamic module $mod\n   ($path)\n" ;
+			    $found = 1 ;
+			    last ;
+			    }
+                        }
+                    }                            
+                
+                if (!$found)
 		    {
 		    my $w32msg = '' ;
 		    $w32msg = "\nPlease enter full path including the drive letter!! " if ($win32) ;
-		    $addmodpath = GetString ("Library for $mod not found, please enter path to $modfile $w32msg", "") ;
+		    $addmodpath = GetString ("Library for $mod not found, please enter path to $modfiletext $w32msg", "") ;
 		    $found = 2 ;
 		    }
 		}			    
@@ -775,15 +849,13 @@ if ($b && $apache)
             }
         }
 
-    if (($FSVer = CheckModule ("File::Spec", "-> Required for EmbperlObject, make test will fail whithout File::Spec")) < 0.82)
-        {
-        print "-> EmbperlObject requires File::Spec 0.82 or higher, found $FSVer, please upgrade!\n" ;
-        }
-        
-
-
     $SessVer ||= 0 ;
 
+    if (($FSVer = CheckModule ("File::Spec", "-> Required for EmbperlObject, make test will fail whithout File::Spec")) < 0.8)
+        {
+        print "-> EmbperlObject requires File::Spec 0.8 or higher, found $FSVer, please upgrade!\n" ;
+        }
+        
     CheckModule ("CGI", "-> File Upload will not work without CGI.pm installed") ;
 
     ### write out test configuration file ###
@@ -860,7 +932,11 @@ if ($win32)
         }
 
     # Check for winsock2api
-    if (open FH, "$inc_dir/../os/win32/os.h")
+    
+    my $os_h = "$inc_dir/os.h" ;
+    $os_h = "$inc_dir/../os/win32/os.h" if (!-e $os_h) ;
+    
+    if (open FH, $os_h )
         {
         my @conf = <FH> ;
         close FH ;
@@ -894,21 +970,17 @@ $dynlib->{'OTHERLDFLAGS'} .= " $lddebug" ;
 WriteMakefile(
     'NAME'	   => 'HTML::Embperl',
     'VERSION_FROM' => 'Embperl.pm', 		# finds $VERSION
-    'OBJECT'       => 'Embperl$(OBJ_EXT) epmain$(OBJ_EXT) epio$(OBJ_EXT) epchar$(OBJ_EXT) epcmd$(OBJ_EXT) eputil$(OBJ_EXT) epeval$(OBJ_EXT) epdbg$(OBJ_EXT) ' . 
+    'OBJECT'       => 'Embperl$(OBJ_EXT) epmain$(OBJ_EXT) epio$(OBJ_EXT) epchar$(OBJ_EXT) epcmd$(OBJ_EXT) eputil$(OBJ_EXT) epeval$(OBJ_EXT) epapinit$(OBJ_EXT) ' . 
                        ($EP2?'epcmd2$(OBJ_EXT) epparse$(OBJ_EXT) epdom$(OBJ_EXT) epcomp$(OBJ_EXT)':'') . $o,
     'LIBS'	   => [''],   			 
     'DEFINE'	   => "$d \$(DEFS)", 			 
     'INC'	   => $i,     			 
-    'MAN3PODS'     => { 
-			'Embperl.pod' => 'blib/man3/HTML::Embperl.3',
-			'EmbperlD.pod' => 'blib/man3/HTML::EmbperlD.3',
-			'EmbperlObject.pm' => 'blib/man3/HTML::EmbperlObject.3',
-			 }, 
+    'EXE_FILES'    => [ 'embpexec.pl' ],
     'clean'        => { FILES => 'dirent.h test/conf/httpd.conf test/tmp/* Embperl.c' },
     'realclean'    => { FILES => 'embpexec.pl embpexec.bat embpcgi.pl embpcgi.test.pl embpcgi.bat test/conf/config.pl' },
     'dist'         => { COMPRESS => 'gzip', SUFFIX => 'gz'},
     'dynamic_lib'  => $dynlib,
-    'PREREQ_PM'    => { 'File::Spec' => '0.82' },
+    'PREREQ_PM'    => { 'File::Spec' => 0.8 },
     'ABSTRACT'     => 'Embed Perl code in HTML documents',
     'AUTHOR'       => 'Gerald Richter <richter@dev.ecos.de>',
 
@@ -921,7 +993,8 @@ WriteMakefile(
 #
 
 @bins = ('embpexec.pl','embpexec.bat', 
-         'embpcgi.pl', 'embpcgi.test.pl', 'embpcgi.bat') ;
+         'embpcgi.pl', 'embpcgi.test.pl', 'embpcgi.bat',
+         'epocgi.pl', 'epocgi.test.pl', 'epocgi.bat') ;
 
 
 die "Missing path to perl binary" if (!$perlbinpath) ;

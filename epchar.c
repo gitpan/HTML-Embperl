@@ -10,7 +10,7 @@
 #   IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 #   WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 #
-#   $Id: epchar.c,v 1.13 2001/02/13 05:39:18 richter Exp $
+#   $Id: epchar.c,v 1.14 2001/04/27 06:37:58 richter Exp $
 #
 ###################################################################################*/
 
@@ -352,7 +352,7 @@ struct tCharTrans Char2Url [] =
         { '8' ,   ""         },    /* 	&#56;		Digit 8  */
         { '9' ,   ""         },    /* 	&#57;		Digit 9  */
         { ':' ,   ""         },    /* 	&#58;		Colon  */
-        { ';' ,   ""      },    /* 	&#59;		Semicolon  */
+        { ';' ,   "%3B"      },    /* 	&#59;		Semicolon  */
         { '<' ,   "%3C"      },    /* 	Less than  */
         { '=' ,   "%3D"      },    /* 	&#61;		Equals sign  */
         { '>' ,   "%3E"      },    /* 	Greater than  */
