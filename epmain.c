@@ -15,6 +15,9 @@
 
 #include "ep.h"
 #include "epmacro.h"
+#ifdef _AIX
+#include <sys/ldr.h>
+#endif
 
 
 /* Version */
@@ -1249,6 +1252,40 @@ int Init        (/*in*/ int           _nIOType,
 
     req * r = &InitialReq ;
     
+#if defined(_AIX) && defined(APACHE)
+    /*
+     * We need to resolve symbols against the main httpd part. The
+     * dlopen stub in mod_perl did already call loadbind to resolve
+     * all the perl symbols. The Apache dlopen stub does not know
+     * about us, so we have to do the loadbind ourselves. The tricky
+     * part is here that loadbind does require a pointer to any function
+     * in the module to bind against. Fortunately this can be found by
+     * querying the system loader for the list of loaded modules, the
+     * first is the main part.
+     */
+    struct ld_info *lp;
+    extern boot_HTML__Embperl();
+    len = 4096;
+
+    if ((lp = malloc(len)) == NULL) {
+	abort();
+    }
+    while (loadquery(L_GETINFO, lp, len) == -1) {
+	if (errno != ENOMEM) {
+		abort();
+	}
+	free(lp);
+	len += 4096;
+	if ((lp = malloc(len)) == NULL) {
+	    abort();
+	}
+    }
+    if (loadbind(0, lp->ldinfo_dataorg, (void *)boot_HTML__Embperl) == -1) {
+	abort();
+    }
+    free(lp);
+#endif
+
     pCurrReq = r ;
 
     r -> nIOType = _nIOType ;
@@ -2184,7 +2221,7 @@ static int EndOutput (/*i/o*/ register req * r,
             if (!r -> bAppendToMainReq)
                 {                    
 		SV **   ppSVID ;
-		SV *    pSVID ;
+		SV *    pSVID = NULL ;
                 MAGIC * pMG ;
 		char *  pUID = NULL ;
 	        STRLEN  ulen = 0 ;

@@ -74,7 +74,7 @@ use vars qw(
 @ISA = qw(Exporter DynaLoader);
 
 
-$VERSION = '1.2b7';
+$VERSION = '1.2b8';
 
 
 # HTML::Embperl cannot be bootstrapped in nonlazy mode except
@@ -353,8 +353,13 @@ if (exists $INC{'Apache/Session.pm'})
 	    my @args  ;
             if (defined ($ENV{EMBPERL_SESSION_ARGS}))
                 {
-                @args = split /\s*=\s*|\s*,\s*|\s+/, $ENV{EMBPERL_SESSION_ARGS} ;
-	        push @args, '' if (($#args & 1) == 0) ; # make even
+		my @arglist = split /\s+/, $ENV{EMBPERL_SESSION_ARGS} ;
+		foreach (@arglist)
+		    {
+		    /^(.*?)\s*=\s*(.*?)$/ ;
+		    push @args, $1 ;
+		    push @args, $2 ;
+		    }
                 }
 
             my %sargs = (

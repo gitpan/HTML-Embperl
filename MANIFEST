@@ -10,7 +10,12 @@ CVS.pod
 INSTALL.pod
 Intro.pod
 Embperl.pod
+Features.pod
+EmbperlD.pod
+IntroD.pod
+FeaturesD.pod
 typemap
+mod_perl.exp
 eg/README
 eg/images/jazzbkgd.gif
 eg/x/neu.htm
@@ -116,6 +121,7 @@ test/html/getsess.htm
 test/html/getnosess.htm
 test/html/mdatsess.htm
 test/html/execgetsess.htm
+test/html/clearsess.htm
 test/cmp/ascii
 test/cmp/pure.htm
 test/cmp/plain.htm
@@ -178,6 +184,7 @@ test/cmp/getnosess.htm
 test/cmp/mdatsess.htm
 test/cmp/execgetsess.htm
 test/cmp/errdoc.htm
+test/cmp/clearsess.htm
 test/conf/httpd.conf.src
 test/conf/startup.pl
 test/conf/startup_dso.pl

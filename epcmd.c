@@ -183,6 +183,10 @@ int SearchCmd (/*i/o*/ register req * r,
     if (pCmd && (pCmd -> bDisableOption & r -> bOptions))
         pCmd = NULL ; /* command is disabled */
 
+    if (pCmd && ((pCmd -> bHtml == 0) ^ (bIgnore == 0)))
+        pCmd = NULL ; /* command is not of right type (html <-> meta cmd) */
+
+	
     if (r -> bDebug & dbgAllCmds)
         if (sArg && *sArg != '\0')
             lprintf (r, "[%d]CMD%c:  Cmd = '%s' Arg = '%s'\n", r -> nPid, (pCmd == NULL)?'-':'+', sCmdLwr, sArg) ;
@@ -1630,7 +1634,8 @@ static int HtmlOption (/*i/o*/ register req * r,
         }
     else
         {
-        if (pSelected == NULL)
+        SvREFCNT_dec (pSV) ;
+	if (pSelected == NULL)
             return ok ;
         else
             {
@@ -1700,7 +1705,8 @@ static int HtmlInput (/*i/o*/ register req * r,
     
     
     pVal = GetHtmlArg (sArg, "VALUE", &vlen) ;
-    if ((pVal && vlen != 0) && bCheck == 0)    
+    /*if ((pVal && vlen != 0) && bCheck == 0)    */
+    if (pVal && bCheck == 0)    
         {
         pSV = newSVpv ((char *)pVal, vlen) ;
         TransHtmlSV (r, pSV) ;

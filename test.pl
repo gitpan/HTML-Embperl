@@ -88,6 +88,7 @@
     'getsess.htm',
     'mdatsess.htm?cnt=3',
     'execgetsess.htm',
+    'clearsess.htm',
     ) ;
 
 
@@ -187,7 +188,7 @@ $logfile    = "$tmppath/test.log" ;
 $embploc = 'embperl/' ;
 if ($EPWIN32)
     {
-    $cgiloc  = 'cgi-bin-32/' ;
+    $cgiloc  = 'cgi-bin/' ; #'cgi-bin-32/' ;
     }
 else
     {
@@ -999,6 +1000,7 @@ do
 	    next if ($file eq 'chdir.htm' && $EPWIN32) ;
 	    next if ($file eq 'notfound.htm' && $loc eq $cgiloc && $EPWIN32) ;
 	    next if ($file =~ /opmask/ && $EPSTARTUP =~ /_dso/) ;
+	    next if ($file eq 'clearsess.htm' && !$looptest) ;
 	    if ($file =~ /sess\.htm/)
                 { 
                 next if ($loc eq $cgiloc) ;

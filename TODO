@@ -28,7 +28,10 @@ Features
  
 - Make @erros visible from outside [James Elson 21.07.99]
 
-- exit -> no error about unclosed if's
+- custom html tags
+
+- url rewrting for session id
+
 
 Test
 ----
@@ -58,10 +61,10 @@ Bugs
 
 - SIG DIE missing message arg [Alex Schmelkin 24.8.99]
 
+- norm path before chdir on win32
+
+
 Docs
 ----
-- Docs about EmbperlChain [Eric CHOLET]
-
-- firstline
 
 

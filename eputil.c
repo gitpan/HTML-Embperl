@@ -294,8 +294,8 @@ int   TransHtml (/*i/o*/ register req * r,
 
 		s = p ;
 		p += 3 ;
-                *s++ = ((toupper (p[-2]) - (isdigit (p[-2])?'0':('A' + 10))) << 4) 
-                      + (toupper (p[-1]) - (isdigit (p[-1])?'0':('A' + 10)))  ;
+                *s++ = ((toupper (p[-2]) - (isdigit (p[-2])?'0':('A' - 10))) << 4) 
+                      + (toupper (p[-1]) - (isdigit (p[-1])?'0':('A' - 10)))  ;
 		}
 	    if (s && (p - s) > 0)
 		{ /* copy rest of string, pad with spaces */

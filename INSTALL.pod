@@ -23,6 +23,8 @@ used to build mod_perl.
 
 B<NOTE:> (only Embperl-1.2b1 or higher) For using session handling you need
 Apache::Session-0.17 or higher. If possible use Apache::Session 1.01 or higher.
+If can't find Apache::Session 1.01 or higher on CPAN, you can download it from
+ftp://ftp.dev.ecos.de/pub/perl/embperl/ .
 
 =head2 WIN 32
 
@@ -63,9 +65,13 @@ B<nmake install>
 
 B<NOTE:> (only Embperl-1.2b1 or higher) For using session handling you need
 Apache::Session-0.17 or higher. If possible use Apache::Session 1.01 or higher.
+If can't find Apache::Session 1.01 or higher on CPAN, you can download it from
+ftp://ftp.dev.ecos.de/pub/perl/embperl/ .
 
 
-=head2 Further Documentation
+=head2 Further Documentation (english)
+
+See L<"perldoc Features"|"Features.pod"> for list of Embperls features 
 
 See L<"perldoc Intro"|"Intro.pod"> for an step by step 
 introduction to Embperl.
@@ -76,3 +82,15 @@ See the L<"eg/"|"Examples.pod"> directory for examples.
 
 See L<"perldoc Faq"|"Faq.pod"> for Frequently Asked Questions.
 
+or you can view it online on http://perl.apache.org/embperl/
+
+=head2 Further Documentation (german)
+
+See B<perldoc FeaturesD> for list of Embperls features 
+
+See B<perldoc IntroD> for an step by step 
+introduction to Embperl.
+
+See B<perldoc EmbperlD> for complete documentation.
+
+or you can view it online on http://www.ecos.de/embperl/

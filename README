@@ -36,9 +36,10 @@ DOCUMENTATION
 
 The following documentation is available within the distribution
 
+Features of Embperl:        perldoc Features.pod
 Introduction to Embperl:    perldoc Intro.pod
 Installation of Embperl:    perldoc INSTALL.pod
-Full documentation:         perldoc Embperl
+Full documentation:         perldoc Embperl.pod
 Frequent Asked Questions:   perldoc Faq.pod
 Changes:                    perldoc Changes.pod
 Examples:		    eg/x/README
@@ -48,6 +49,64 @@ All the above and further information can be found at the Embperl website
 
     http://perl.apache.org/embperl/
 
+The following documentation is available in GERMAM
+
+Features of Embperl:        perldoc FeaturesD.pod
+Introduction to Embperl:    perldoc IntroD.pod
+Full documentation:         perldoc EmbperlD.pod
+
+All the above and further information can be found at the german Embperl website 
+
+    http://www.ecos.de/embperl/
+
+
+FEATURES
+
+* Lets you embed Perl code into HTML documents. Perl code is
+  evaluated at the server side and the result is sent to the browser.
+
+* Offers various meta-commands for conditional and loop 
+  processing of the HTML documents.
+
+* Automatically generates dynamic HTML tables/lists from Perl arrays or
+  function calls (e.g. DBI fetch)
+
+* Form data send to your document is placed in a hash
+
+* Automatically inserts data from the form hash into HTML input,
+  textarea and select tags
+
+* Understands HTML and URL escaping and unescaping
+
+* Handles per-user and per-module persistent session data for you.
+  All you need to do is store and retrieve them to and from
+  a special hash.
+
+* Allows you to build your web-site out of components. Frequently used elements
+  can be defined once and included in every page.
+
+* Gives you the possibility to build libraries with a set of frequently used 
+  Elements or components, and make them available to the whole web-site in the
+  same way as Perl modules are - well, modularized.
+
+* Supports debugging of pages by generating a very detailed
+  log file and making it accessible via the browser with a single click.
+
+* Generates verbose error pages in which every error can link 
+  to the log file. This is ideal for debugging.
+
+* Offers a lot of options for maximum configurability according to your personal tastes and needs.
+
+* Fully integrated into Apache and mod_perl to acheive the best
+  performance. Can also run as a CGI-script, offline or called from
+  another Perl program.
+
+* The Perl module DBIx::Recordset offers high level, easy to handle
+  database access for Embperl.
+
+* If you are concerned about security you can configure Embperl to use
+  Safe.pm. This way, your documents can run in a safe namespace which
+  can allow or disallow certain Perl opcodes.
 
 
 COMPATIBILITY
@@ -66,6 +125,7 @@ apache_1.3.2
 apache_1.3.3
 apache_1.3.4
 apache_1.3.6
+apache_1.3.9
 apache + mod_ssl
 apache_ssl (Ben SSL)
 Stronghold 2.2
@@ -75,11 +135,11 @@ on Windows NT 4.0 with
 
 perl5.004_04
 perl5.005 (only without threads!)
-apache_1.3b5
 apache_1.3.0
 apache_1.3.1
 apache_1.3.4
 apache_1.3.6
+apache_1.3.9
 
 on Windows 95/98 with
 perl5.004_02 (binary distribution)
@@ -113,10 +173,19 @@ http://forum.swarthmore.edu/epigone/modperl
 COMMERICAL SUPPORT
 
 You can get free support on the mod_perl mailing list (see above).  If
-you need commercial support (with a guarantee for response time or a
-solution) for Embperl or want a web site where you can run your
-Embperl/mod_perl scripts without setting up your own web server,
-please send e-mail to info@ecos.de.
+you need commercial support, ecos can provide it for you. We offer:
+
+* Consulting and assitance for you and your programmers
+
+* Planning of your dynamic website
+
+* Creating of parts or a whole website
+
+* Fixing bugs in Embperl (also available for mod_perl)
+
+* Adding new features
+
+You can reach us via http://www.ecos.de or info@ecos.de 
 
 
 AUTHOR

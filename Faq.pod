@@ -306,6 +306,88 @@ libraries
 =back
 
 
+=head2 Embperl and mod_perl on AIX 
+
+(from Jens-Uwe Mager)
+
+This was tested on AIX 4.1.5 with Apache 1.3.9 and the latest (post
+1.21) modperl from CVS. Earlier versions of modperl would only work
+after massaging the modperl build process by hand. To build Apache with
+modperl as a DSO I had to apply the following patch to modperl (the
+original assumed the apache source is in /usr/local/apache/src):
+
+ Index: apaci/configure
+ ===================================================================
+ --- apaci/configure.orig	Wed Aug 18 16:54:07 1999
+ +++ apaci/configure	Wed Aug 18 16:57:12 1999
+ @@ -73,6 +73,7 @@
+  my_apxs_sourcedir="`$my_apxs -q PREFIX`"
+  my_apxs_cflags="`$my_apxs -q CFLAGS`"
+  my_apxs_includes="-I`$my_apxs -q INCLUDEDIR`"
+ +my_apxs_libexec="`$my_apxs -q LIBEXECDIR`"
+  
+  #   friendly header
+  echo "Configuring mod_perl for building via APXS" 2>&1
+ @@ -95,6 +96,7 @@
+  echo "RANLIB=ranlib" >>$my_makefileconf
+  echo "LIBEXT=so" >>$my_makefileconf
+  echo "APACHEEXT=$my_apxs_sourcedir/src" >>$my_makefileconf
+ +echo "APACHELIBEXEC=$my_apxs_libexec" >>$my_makefileconf
+  echo "BASEEXT=mod_perl" >>$my_makefileconf
+  echo "APXS=$my_apxs" >>$my_makefileconf
+  echo "#   own special stuff" >>$my_makefileconf
+ Index: apaci/mod_perl.config.sh
+ ===================================================================
+ --- apaci/mod_perl.config.sh.orig	Wed Aug  4 03:17:52 1999
+ +++ apaci/mod_perl.config.sh	Wed Aug 18 16:55:46 1999
+ @@ -116,7 +116,7 @@
+  perl_lddlflags="`$perl_interp -MConfig -e 'print $Config{lddlflags}'`"
+  
+  case "$os_version" in
+ -    aix*)  perl_lddlflags="$perl_lddlflags -bI:\$(APACHEEXT)/support/httpd.exp" ;;
+ +    aix*)  perl_lddlflags="$perl_lddlflags -bI:\$(APACHELIBEXEC)/httpd.exp" ;;
+      * )    ;;
+  esac
+  
+ Index: apaci/mod_perl.exp
+ ===================================================================
+ --- apaci/mod_perl.exp.orig	Wed Aug 18 17:26:50 1999
+ +++ apaci/mod_perl.exp	Wed Aug 18 17:58:49 1999
+ @@ -1 +1,3 @@
+ +#!
+  perl_module
+ +mod_perl_sent_header 
+
+A second patch was needed for Apache 1.3.9 itself, as two symbols were
+forgotton to export in the base release:
+
+ Index: src/support/httpd.exp
+ ===================================================================
+ --- src/support/httpd.exp.orig	Wed Aug 18 17:07:34 1999
+ +++ src/support/httpd.exp	Wed Aug 18 17:08:20 1999
+ @@ -9,6 +9,7 @@
+  ap_SHA1Update
+  ap_add_cgi_vars
+  ap_add_common_vars
+ +ap_add_file_conf
+  ap_add_module
+  ap_add_named_module
+  ap_add_per_dir_conf
+ @@ -308,6 +309,7 @@
+  ap_server_root_relative
+  ap_set_byterange
+  ap_set_callback_and_alarm
+ +ap_set_config_vectors
+  ap_set_content_length
+  ap_set_etag
+  ap_set_file_slot
+
+After that you can simply build Embperl by using the supplied Makefile.
+As for the question where mod_perl is located, I gave the answer
+/usr/local/apache/libexec, as modperl is installed as a DSO.
+
+
+
 =head2 Embperl does not write to the logfile, because of missing permissions
 of the user Apache runs as.
 

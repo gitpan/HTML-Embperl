@@ -128,6 +128,25 @@ We can avoid interpreting [[- foo -] with a double [[[[ <br>
 This should also work for [[* foo *]  <br>
 
 
+<A HREF="[+ "abcd"+]%20[+ "%3e" +]">x</A>
+
+[- $dat = [[1], [2], [3]] -]
+
+<table>
+<TR>
+ <TD><a href="[+$dat-&gt;[$row][0]+]">Link</a></TD>
+</TR>
+</table>
+
+<table>
+<TR>
+ <TD><a href="[+$dat-%3e[$row][0]+]">Link</a></TD>
+</TR>
+</table>
+
+
+
+
 [- $optRawInput = 0 -]
 [- $escmode = 0 -]
 $optRawInput  [+ $optRawInput +]

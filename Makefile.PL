@@ -1,7 +1,7 @@
 #
 # Building Makefile for Embperl
 #
-# (C) 1997-1998 G.Richter (richter@dev.ecos.de) / ECOS
+# (C) 1997-1999 G.Richter (richter@dev.ecos.de) / ECOS
 #
 #
 
@@ -13,6 +13,8 @@ use File::Basename ;
 
 
 $win32 = ($Config{osname} =~ /win32/i) ;
+$aix = ($Config{osname} =~ /aix/i);
+$dynlib = {};
 print "\nRunning on Win 32\n" if ($win32) ;
 
 ## ----------------------------------------------------------------------------
@@ -593,6 +595,7 @@ if ($b && $apache)
 	#$EPMODPERL="LoadModule perl_module $apache_src/modules/perl/libperl.so" ;
         $EPSTARTUP ='startup_dso.pl' ;
         print " + mod_perl was build with USE_DSO\n" ;
+	$dynlib->{'OTHERLDFLAGS'} = "-bI:mod_perl.exp -bI:$apache_src/support/httpd.exp" if ($aix);
 	}
 
     
@@ -736,6 +739,23 @@ else
     close FH ;
     }
 
+
+if ($win32)
+    { # Check for winsock2api
+
+    if (open FH, "$inc_dir/ap_config.h")
+        {
+        my @conf = <FH> ;
+        close FH ;
+
+        if (grep (/winsock2\.h/, @conf))
+            {
+            $d .= ' -D_WINSOCK2API_ ' ;
+            }
+        }
+    }
+
+
 WriteMakefile(
     'NAME'	   => 'HTML::Embperl',
     'VERSION_FROM' => 'Embperl.pm', 		# finds $VERSION
@@ -746,6 +766,7 @@ WriteMakefile(
     'MAN3PODS'     => { 'Embperl.pod' => 'Embperl' }, 
     'clean'        => { FILES => 'dirent.h' },
     'dist'         => { COMPRESS => 'gzip', SUFFIX => 'gz'},
+    'dynamic_lib'  => $dynlib,
 );
 
 
@@ -771,14 +792,14 @@ foreach $f (@bins)
 		{
 		if ($l++ < 10)
                     {
-		    if ($win32)
-			{
-                    	s/^\#\!.*?perl.*?\s(.*?)/#!perl $1/ ;
-			}
-		    else
-			{
+		    #if ($win32)
+		    #	{
+                    #	s/^\#\!.*?perl.*?\s(.*?)/#!perl $1/ ;
+		    #	}
+		    #else
+		    #	{
                     	s/^\#\!.*?perl.*?\s(.*?)/#!$perlbinpath $1/ ;
-			}
+		    #	}
 		    s/^.*?perl.*?\s-x/$perlbinpath -x/ ;
                     }
 		print OUT $_ ;
