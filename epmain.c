@@ -1,6 +1,6 @@
 /*###################################################################################
 #
-#   Embperl - Copyright (c) 1997-1998 Gerald Richter / ECOS
+#   Embperl - Copyright (c) 1997-1999 Gerald Richter / ECOS
 #
 #   You may distribute under the terms of either the GNU General Public
 #   License or the Artistic License, as specified in the Perl README file.
@@ -51,7 +51,7 @@ static char sDefaultPackageName [] = "HTML::Embperl::DOC::_%d" ;
 
 static char sUIDName [] = "_ID" ;
 static char sSetCookie [] = "Set-Cookie" ;
-static char sCookieName [] = "EMBPERL_UID" ;
+static char sCookieNameDefault [] = "EMBPERL_UID" ;
 
 
 static int      nPackNo = 1 ;       /* Number for createing unique package names */
@@ -85,7 +85,7 @@ char * LogError (/*i/o*/ register req * r,
     
     if (rc != rcPerlWarn)
         r -> bError = 1 ;
-
+    
     switch (rc)
         {
         case ok:                        msg ="[%d]ERR:  %d: Line %d: ok%s%s" ; break ;
@@ -164,7 +164,7 @@ char * LogError (/*i/o*/ register req * r,
 
     if (r -> pErrArray)
         {
-        /*lprintf ("DIS: AvFILL (pErrArray) = %d, nMarker = %d,  nLastErrFill= %d , bLastErrState = %d\n" , AvFILL (pErrArray), nMarker, nLastErrFill, bLastErrState) ;*/
+        /*lprintf (r, "DIS: in LogError AvFILL (pErrArray) = %d, nMarker = %d,  nLastErrFill= %d , bLastErrState = %d, bError = %d\n" , AvFILL (r -> pErrArray), r -> nMarker, r -> nLastErrFill, r -> bLastErrState, r -> bError) ;*/
         av_push (r -> pErrArray, pSV) ;
     
         av_store (r -> pErrFill, r -> nMarker, newSViv (AvFILL(r -> pErrArray))) ;
@@ -177,6 +177,7 @@ char * LogError (/*i/o*/ register req * r,
                 break ;
             av_store (r -> pErrFill, n, newSViv (r -> nLastErrFill)) ;
             av_store (r -> pErrState, n, newSViv (r -> bLastErrState)) ;
+            /*lprintf (r, "DIS: in LogError n=%d\n", n) ;*/
             }
         
         r -> nLastErrFill  = AvFILL(r -> pErrArray) ;
@@ -198,14 +199,26 @@ void CommitError (/*i/o*/ register req * r)
     
     {
     int f = AvFILL(r -> pErrArray)  ;
-    
+    int n ;
+    SV ** ppSV ;
+
     if (f == -1)
         return ; /* no errors -> nothing to do */
 
-    /*lprintf ("DIS: Commit AvFILL (pErrArray) = %d, nMarker = %d,  nLastErrFill= %d , bLastErrState = %d\n" , AvFILL (pErrArray), nMarker, nLastErrFill, bLastErrState) ;*/
+    /* lprintf (r, "DIS: Commit AvFILL (pErrArray) = %d, nMarker = %d,  nLastErrFill= %d , bLastErrState = %d\n" , AvFILL (r -> pErrArray), r -> nMarker, r -> nLastErrFill, r -> bLastErrState) ; */
 
     av_store (r -> pErrFill, r -> nMarker, newSViv (f)) ;
     av_store (r -> pErrState, r -> nMarker, newSViv (r -> bError)) ;
+    n = r -> nMarker ;
+    while (n-- > 0)
+        {
+        ppSV = av_fetch (r -> pErrFill, n, 0) ;
+        if (ppSV && SvOK (*ppSV))
+            break ;
+        av_store (r -> pErrFill, n, newSViv (r -> nLastErrFill)) ;
+        av_store (r -> pErrState, n, newSViv (r -> bLastErrState)) ;
+        /* lprintf (r, "DIS: in LogError n=%d\n", n) ;*/
+        }
     }
 
     
@@ -227,7 +240,7 @@ void RollbackError (/*i/o*/ register req * r)
     if (f < r -> nMarker)
         return ;
     
-    /*lprintf ("DIS: AvFILL (pErrFill) = %d, nMarker = %d\n" , f, nMarker) ;*/
+    /*lprintf (r, "DIS: AvFILL (pErrFill) = %d, nMarker = %d\n" , f, r -> nMarker) ;*/
     
     for (i = f; i > r -> nMarker; i--)
         {
@@ -240,14 +253,19 @@ void RollbackError (/*i/o*/ register req * r)
     if (ppSV)
         n = SvIV (*ppSV) ;
     else
+        {
         n = 0 ;
+        /*lprintf (r, "DIS: in Roolback set n=%d\n", n) ;*/
+        }
+
+
     ppSV = av_fetch(r -> pErrState, r -> nMarker, 0) ;
     if (ppSV)
         r -> bError = SvIV (*ppSV) ;
     else
         r -> bError = 1 ;
     f = AvFILL (r -> pErrArray) ;
-    /*lprintf ("DIS: AvFILL (pErrArray) = %d, n = %d\n" , f, n) ;*/
+    /*lprintf (r, "DIS: AvFILL (pErrArray) = %d, n = %d\n" , f, n) ;*/
     if (f > n)
         lprintf (r, "[%d]ERR:  Discard the last %d errormessages, because they occured after the end of a table\n", r -> nPid, f - n) ;
     for (i = f; i > n; i--)
@@ -257,6 +275,9 @@ void RollbackError (/*i/o*/ register req * r)
 
     r -> nLastErrFill  = AvFILL(r -> pErrArray) ;
     r -> bLastErrState = r -> bError ;
+
+    /*lprintf (r, "DIS: in RollbackError AvFILL (pErrArray) = %d, nMarker = %d,  nLastErrFill= %d , bLastErrState = %d, bError = %d\n" , AvFILL (r -> pErrArray), r -> nMarker, r -> nLastErrFill, r -> bLastErrState, r -> bError) ;*/
+    
     }
 
 
@@ -334,6 +355,8 @@ OPTMG   (dbgCacheDisable , pCurrReq -> bDebug) ;
 OPTMG   (dbgWatchScalar  , pCurrReq -> bDebug) ;
 OPTMG   (dbgHeadersIn    , pCurrReq -> bDebug) ;
 OPTMG   (dbgShowCleanup  , pCurrReq -> bDebug) ;
+OPTMG   (dbgProfile      , pCurrReq -> bDebug) ;
+OPTMG   (dbgSession      , pCurrReq -> bDebug) ;
 
 /* ---------------------------------------------------------------------------- */
 /* read form input from http server... */
@@ -899,10 +922,18 @@ int ScanCmdEvalsInString (/*i/o*/ register req * r,
             if (*s)
                 {
                 n = strchr (s, '\n') ;
-                if (n)
-                    lprintf (r, "[%d]SRC: %*.*s\n", r -> nPid, n-s, n-s, s) ;
+#ifdef CLOCKS_PER_SEC
+                if (r -> bDebug & dbgProfile)
+                    if (n)
+                        lprintf (r, "[%d]SRC: Time: %d ms  %*.*s\n", r -> nPid, ((clock () - r -> startclock) * 1000 / CLOCKS_PER_SEC), n-s, n-s, s) ;
+                    else
+                        lprintf (r, "[%d]SRC: Time: %d ms  %70.70s\n", r -> nPid, ((clock () - r -> startclock) * 1000 / CLOCKS_PER_SEC), s) ;
                 else
-                    lprintf (r, "[%d]SRC: %70.70s\n", r -> nPid, s) ;
+#endif
+                    if (n)
+                        lprintf (r, "[%d]SRC: %*.*s\n", r -> nPid, n-s, n-s, s) ;
+                    else
+                        lprintf (r, "[%d]SRC: %70.70s\n", r -> nPid, s) ;
 
                 }
             }        
@@ -1357,6 +1388,8 @@ int Init        (/*in*/ int           _nIOType,
     ADDOPTMG   (dbgWatchScalar ) ;
     ADDOPTMG   (dbgHeadersIn   ) ;
     ADDOPTMG   (dbgShowCleanup ) ;
+    ADDOPTMG   (dbgProfile     ) ;
+    ADDOPTMG   (dbgSession     ) ;
    
     bInitDone = 1 ;
 
@@ -1465,6 +1498,10 @@ tConf * SetupConfData   (/*in*/ HV *   pReqInfo,
     pConf -> sLogFilename = sstrdup (GetHashValueStr (pReqInfo, "log",  NULL)) ;            /* name of logfile */
     pConf -> sVirtLogURI  = sstrdup (GetHashValueStr (pReqInfo, "virtlog",  NULL)) ;        /* name of logfile */
     pConf -> pOpcodeMask  = pOpcodeMask ;                                                   /* Opcode mask (if any) */
+    pConf -> sCookieName  = sstrdup (GetHashValueStr (pReqInfo, "cookie_name",  sCookieNameDefault))  ;   /* Name to use for cookie */
+    pConf -> sCookieExpires = sstrdup (GetHashValueStr (pReqInfo, "cookie_expires",  ""))  ; /* cookie expiration time */
+    pConf -> sCookieDomain = sstrdup (GetHashValueStr (pReqInfo, "cookie_domain",  "")) ; ; /* domain patter for which the cookie should be returned */
+    pConf -> sCookiePath   = sstrdup (GetHashValueStr (pReqInfo, "cookie_path",  "")) ; ;   /* path to which cookie should be returned */
     pConf -> cMultFieldSep = '\t' ;
     pConf -> pOpenBracket  = "[*" ;
     pConf -> pCloseBracket = "*]" ;
@@ -1779,6 +1816,7 @@ void FreeRequest (/*i/o*/ register req * r)
         {
         av_clear (r -> pFormArray) ;
         hv_clear (r -> pFormHash) ;
+        hv_clear (r -> pInputHash) ;
         hv_clear (r -> pFormSplitHash) ;
         }
 
@@ -1959,25 +1997,29 @@ static int EndOutput (/*i/o*/ register req * r,
             {
             if (!r -> bAppendToMainReq)
                 {                    
-				SV ** ppSVID ;
+		SV ** ppSVID ;
                 
-				set_content_length (r -> pApacheReq, GetContentLength (r) + 2) ;
-
+		set_content_length (r -> pApacheReq, GetContentLength (r) + 2) ;
+		
                 ppSVID = hv_fetch (r -> pUserHash, sUIDName, sizeof (sUIDName) - 1, 0) ;
-				if (ppSVID && *ppSVID)
-					{
-					STRLEN ulen ;
-					char * pUID = SvPV (*ppSVID, ulen) ;
-				    if (ulen > 0)
-						{
-						table_set(r -> pApacheReq->headers_out, sSetCookie, 
-							pstrcat (r -> pApacheReq->pool, sCookieName, "=", pUID, NULL));
-							
-						}
-					}
-				
-				
-				send_http_header (r -> pApacheReq) ;
+		if (ppSVID && *ppSVID)
+		    {
+		    STRLEN ulen ;
+		    char * pUID = SvPV (*ppSVID, ulen) ;
+		    if (ulen > 0)
+			{
+			table_add(r -> pApacheReq->headers_out, sSetCookie, 
+			    pstrcat (r -> pApacheReq->pool, r -> pConf -> sCookieName, "=", pUID,
+				    r -> pConf -> sCookieDomain[0]?"; domain=":""  , r -> pConf -> sCookieDomain, 
+				    r -> pConf -> sCookiePath[0]?"; path=":""      , r -> pConf -> sCookiePath, 
+				    r -> pConf -> sCookieExpires[0]?"; expires=":"", r -> pConf -> sCookieExpires, 
+				    NULL));
+			
+			}
+		    }
+		
+		
+		send_http_header (r -> pApacheReq) ;
 #ifndef WIN32
                 mod_perl_sent_header(r -> pApacheReq, 1) ;
 #endif
@@ -2216,10 +2258,19 @@ int ProcessBlock	(/*i/o*/ register req * r,
                 {
                 GetLineNo (r) ;    
                 n = strchr (s, '\n') ;
-                if (n)
-                    lprintf (r, "[%d]SRC: Line %d: %*.*s\n", r -> nPid, r -> Buf.nSourceline, n-s, n-s, s) ;
+    
+#ifdef CLOCKS_PER_SEC
+                if (r -> bDebug & dbgProfile)
+                    if (n)
+                        lprintf (r, "[%d]SRC: Line %d: Time %d ms  %*.*s\n", r -> nPid, r -> Buf.nSourceline, ((clock () - r -> startclock) * 1000 / CLOCKS_PER_SEC), n-s, n-s, s) ;
+                    else
+                        lprintf (r, "[%d]SRC: Line %d: Time %d ms  %60.60s\n", r -> nPid, r -> Buf.nSourceline, ((clock () - r -> startclock) * 1000 / CLOCKS_PER_SEC), s) ;
                 else
-                    lprintf (r, "[%d]SRC: Line %d: %60.60s\n", r -> nPid, r -> Buf.nSourceline, s) ;
+#endif
+                    if (n)
+                        lprintf (r, "[%d]SRC: Line %d: Time %*.*s\n", r -> nPid, r -> Buf.nSourceline, n-s, n-s, s) ;
+                    else
+                        lprintf (r, "[%d]SRC: Line %d: %60.60s\n", r -> nPid, r -> Buf.nSourceline, s) ;
 
                 }
             }        

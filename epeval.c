@@ -1,6 +1,6 @@
 /*###################################################################################
 #
-#   Embperl - Copyright (c) 1997-1998 Gerald Richter / ECOS
+#   Embperl - Copyright (c) 1997-1999 Gerald Richter / ECOS
 #
 #   You may distribute under the terms of either the GNU General Public
 #   License or the Artistic License, as specified in the Perl README file.
@@ -782,12 +782,16 @@ int EvalMain (/*i/o*/ register req *  r)
 	char * pCloseBracket = r -> pConf -> pCloseBracket ;
 	int  lenOpenBracket  = strlen (pOpenBracket) ;
 	int  lenCloseBracket = strlen (pCloseBracket) ;
-	char * pOpen ;
+	char * pOpen = pStart - 1 ;
 	char * pClose ;
 	char   buf [256] ;
         int    nBlockNo = 1 ;
 
-        pOpen  = strstr (pStart, pOpenBracket) ;
+        do 
+            pOpen  = strstr (pOpen + 1, pOpenBracket) ;
+        while (pOpen && pOpen > pStart && pOpen[-1] == '[') ;
+        
+        
         if (!pOpen)
             { /* no top level perl blocks -> call ProcessBlock directly */
             ProcessBlock (r, 0, r -> Buf.pEndPos - r -> Buf.pBuf, 1) ;
@@ -802,14 +806,18 @@ int EvalMain (/*i/o*/ register req *  r)
 	    pClose = NULL ;
 	    if (pOpen)
                 {
-                pClose = strstr (pOpen, pCloseBracket) ;
+                if ((pClose = strstr (pOpen, pCloseBracket)) == NULL)
+                    {
+                    strncpy (r -> errdat1, pCloseBracket, sizeof (r -> errdat1) - 1) ; 
+                    return rcMissingRight ;
+                    }
                 *pOpen = '\0' ;
                 }
             else
 		pOpen = pEnd ;
 
 
-            sprintf (buf, "\n$___b=$r -> ProcessBlock (%d,%d,%d);\ngoto \"b$___b\";\nb%d:;\n", pStart - r -> Buf.pBuf, pOpen - pStart, nBlockNo, nBlockNo) ;
+            sprintf (buf, "\n$___b=$_[0] -> ProcessBlock (%d,%d,%d);\ngoto \"b$___b\";\nb%d:;\n", pStart - r -> Buf.pBuf, pOpen - pStart, nBlockNo, nBlockNo) ;
             oputs  (r, buf) ;
             nBlockNo++ ;
 	    if (pClose)
@@ -819,11 +827,16 @@ int EvalMain (/*i/o*/ register req *  r)
                 /* skip trailing whitespaces */
                 while (isspace(*pStart))
                     pStart++ ;
-                pOpen  = strstr (pStart, pOpenBracket) ;
+                pOpen  = pStart - 1 ;
+                do 
+                    pOpen  = strstr (pOpen + 1, pOpenBracket) ;
+                while (pOpen && pOpen > pStart && pOpen[-1] == '[') ;
                 }
 	    else
-		pStart = NULL ;
-	    }
+                {
+                pStart = NULL ;
+                }
+            }
 
         oputs  (r, "\nb0:\n\0") ;
 

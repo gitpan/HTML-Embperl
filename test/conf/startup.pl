@@ -1,8 +1,15 @@
-BEGIN { use ExtUtils::testlib ; }
+BEGIN { 
+    use ExtUtils::testlib ;
+    
+    if ($EPSESSIONCLASS = $ENV{EMBPERL_SESSION_CLASS})
+        {
+        eval " use Apache\:\:Session\:\:$EPSESSIONCLASS; " ;
+        die $@ if ($@) ;
+        }
+    }
 
 use Apache ;
 use Apache::Registry ;
-#use Apache::Session::Win32 ;
 use HTML::Embperl ;
 
 $cp = HTML::Embperl::AddCompartment ('TEST') ;

@@ -1,6 +1,6 @@
 HTML::Embperl - Embed Perl in Your HTML Documents
 
-Copyright (c) 1997-1998 Gerald Richter / ECOS
+Copyright (c) 1997-1999 Gerald Richter / ECOS
 
 You may distribute under the terms of either the GNU General Public 
 License or the Artistic License, as specified in the Perl README file.
@@ -62,6 +62,7 @@ apache_1.3.0
 apache_1.3.1
 apache_1.3.2
 apache_1.3.3
+apache_1.3.4
 apache_ssl (Ben SSL)
 Stronghold 2.2
 Stronghold 2.4.1

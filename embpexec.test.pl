@@ -1,4 +1,4 @@
-#!/usr/bin/perl --
+#!/usr/bin/perl -T --
 ###################################################################################
 #
 #   Embperl - Copyright (c) 1997 Gerald Richter / ECOS

@@ -1,7 +1,7 @@
 #!/usr/bin/perl --
 ###################################################################################
 #
-#   Embperl - Copyright (c) 1997-1998 Gerald Richter / ECOS
+#   Embperl - Copyright (c) 1997-1999 Gerald Richter / ECOS
 #
 #   You may distribute under the terms of either the GNU General Public
 #   License or the Artistic License, as specified in the Perl README file.
@@ -13,7 +13,9 @@
 #
 ###################################################################################
 
+
 use HTML::Embperl;
+
 
 HTML::Embperl::run (@ARGV) ;
 

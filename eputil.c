@@ -1,6 +1,6 @@
 /*###################################################################################
 #
-#   Embperl - Copyright (c) 1997-1998 Gerald Richter / ECOS
+#   Embperl - Copyright (c) 1997-1999 Gerald Richter / ECOS
 #
 #   You may distribute under the terms of either the GNU General Public
 #   License or the Artistic License, as specified in the Perl README file.
@@ -211,15 +211,20 @@ void TransHtml (/*i/o*/ register req * r,
         {
         if (*p == '\\')
             {
+            
             if (p[1] == '<')
                 { /*  Quote next HTML tag */
-                p += 2 ;
+                memmove (p, p + 1, e - p - 1) ;
+                e[-1] = ' ' ;
+                p++ ;
                 while (*p && *p != '>')
                     p++ ;
                 }
             else if (p[1] == '&')
                 { /*  Quote next HTML char */
-                p += 2 ;
+                memmove (p, p + 1, e - p - 1) ;
+                e[-1] = ' ' ;
+                p++ ;
                 while (*p && *p != ';')
                     p++ ;
                 }
@@ -273,7 +278,6 @@ void TransHtml (/*i/o*/ register req * r,
                     s = NULL ;
                     }
                 }
-
             if (s && (p - s) > 0)
                 { /* copy rest of string, pad with spaces */
                 memmove (s, p, e - p + 1) ;
@@ -284,7 +288,6 @@ void TransHtml (/*i/o*/ register req * r,
             else
                 if (*p)
                     p++ ;
-            
             }
         }
     }

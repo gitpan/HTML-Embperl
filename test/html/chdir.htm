@@ -6,13 +6,13 @@
 
 <body>
 
-[- use Cwd (); -]
+[- use Cwd  -]
 
-Script  CWD: [+ $script = Cwd::fastcwd() +] <BR>
+Script  CWD: [+ $script = fastcwd +] <BR>
 Embperl CWD: [+ $ep =     $HTML::Embperl::cwd +] <BR>
 $0: [+ $abs = $0 +]
 
-[- $abs = $ep . $1 if ($0 =~ /^\.(.*?)$/) ; -]
+[- $abs = $ep . '/' . $0  if (!($0 =~ /^\//)) ; -]
 $0 (absolut): [+ $abs +]
 
 Equal: [+ $script eq $ep?'Yes':'No' +]<BR>

@@ -4,7 +4,19 @@
 <title>Test for $req_rec in Embperl</title>
 </head>
 
-^\/*.?\/test\/html\/reqrec\.htm
+$conf =  <br> 
+^\$_\[0\] = HTML::Embperl::Req=SCALAR\(0x.*?\) <br> 
+$_[1] =  <br> 
+
+^\$rec_rec  = Apache=SCALAR\(0x.*?\)<br>
+^\$\$rec_rec = \d+<br>
+
+^Apache->request    = Apache=SCALAR\(0x.*?\)<br>
+^\$\{Apache->request\} = \d+<br>
+
+${Apache->request} = $$req_rec ?  yes <br>
+
+^.*?test\/html\/reqrec\.htm
 </body>
 </html>
 

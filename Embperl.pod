@@ -311,6 +311,24 @@ Same as L<"EMBPERL_INPUT_FUNC"> (see below).
 
 Same as L<"EMBPERL_OUTPUT_FUNC"> (see below).
 
+
+=item B<cookie_name>
+
+Same as L<"EMBPERL_COOKIE_NAME"> (see below).
+
+=item B<cookie_path>
+
+Same as L<"EMBPERL_COOKIE_PATH"> (see below).
+
+=item B<cookie_domain>
+
+Same as L<"EMBPERL_COOKIE_DOMAIN"> (see below).
+
+=item B<cookie_expires>
+
+Same as L<"EMBPERL_COOKIE_EXPIRES"> (see below).
+
+
 =back
 
 
@@ -679,6 +697,16 @@ Log all HTTP headers which are sent from the browser.
 Show every variable which is undef'd at the end of the request.  For
 scalar variables, the value before undef'ing is logged.
 
+=item dbgProfile = 1048576
+
+When set every source line in the log file will also display the time until
+request was started. (L<"dbgSource"|"dbgSource = 2048"> must also be set)
+
+=item dbgSession = 2097152
+
+Enables logging of session transactions.
+
+
 =back
 
 A good value to start is C<2285> or C<10477> if you want to view the
@@ -822,6 +850,27 @@ for an output function which comes with Embperl.
 
 Specifies which host the L<MailFormTo|"MailFormTo($MailTo, $Subject, $ReturnField)"> function uses as SMTP server.
 Default is B<localhost>.
+
+=head2 EMBPERL_COOKIE_NAME
+
+(only 1.2b4 or above) Set the name that Embperl uses when it sends the cookie with the session id.
+Default is EMBPERL_UID.
+
+
+=head2 EMBPERL_COOKIE_DOMAIN
+
+(only 1.2b4 or above) Set the domain that Embperl uses for the cookie with the session id.
+Default is none.
+
+=head2 EMBPERL_COOKIE_PATH
+
+(only 1.2b4 or above) Set the path that Embperl uses for the cookie with the session id.
+Default is none.
+
+=head2 EMBPERL_COOKIE_EXPIRES
+
+(only 1.2b4 or above) Set the expiration date that Embperl uses for the cookie with the session id.
+Default is none.
 
 
 
@@ -1512,13 +1561,13 @@ be read and set by the corresponding variables.
 
 From 1.2b1 and higher Embperl is able to handle per user sessions for you. You can store any data
 in the L<%udat> hash and if the same user request again an Embperl document, you will see the same 
-values in that hash again.
+values in that hash again. (see B<IMPORTANT NOTE:> below for using DBI as storage)
 
 From 1.2b2 and higher Embperl is able to handle per module/page persitent data for you. You can store any data
 in the L<%mdat> hash and if any request comes to the same Embperl document, you will see the same 
-values in that hash again.
+values in that hash again. (see B<IMPORTANT NOTE:> below for %mdat storage)
 
-To configure Embperl to do session management for you, you must have installed Apache::Session and
+To configure Embperl to do session management for you, you must have installed Apache::Session (0.17 or higher) and
 loaded it before you load Embperl and you must tell Embperl which storage you would like to use for
 Apache::Session, by setting the environement variable EMBPERL_SESSION_CLASS.
 You may have a B<startup.pl> for your httpd which looks like this:
@@ -1536,11 +1585,12 @@ or put it in the httpd/srm.conf like this
  PerlSetEnv SESSION_FILE_DIRECTORY /tmp/sessions
  PerlSetEnv EMBPERL_SESSION_CLASS  File
  PerlModule Apache::Session::File 
- PerlModule HTML::Embperl ;
+ PerlModule HTML::Embperl 
 
 
-NOTE: You can use all the environement variables recognized by Apache::Session to configure it.
+NOTE 1: You can use all the environement variables recognized by Apache::Session to configure it.
 
+NOTE 2: Do not use SetEnv, use PerlSetEnv instead in your httpd/srm.conf
 
 Now you are able to use the %udat and %mdat hashs for your user/module sessions. As long as you
 don't touch %udat or %mdat
@@ -1555,7 +1605,31 @@ when the next request comes to the same page.
 B<NOTE: In the current version (1.2b2) the per user session handling  works only under mod_perl,
 CGI will come in one of the next releases>. The per module session handling works in all 
 operating modes.
- 
+
+
+
+B<IMPORTANT NOTE for DBI and %mdat usage:> The storage of %mdat requires a proper serialization of the access.
+Apache::Session (version 0.17) is not able to provide this. While this is no problem when using the
+Apache::Session::Win32
+as storage class, this will be a problem for all other storage medias. The Embperl distribution comes with
+a patch for that purpose. This works only for Apache::Session::DBI, so if you like to use %mdat, currently
+you can only do so when using Apache::Session::Win32 or Apache::Session::DBI as storage class.
+
+To use B<Apache::Session::DBI> together with Embperl you need to use B<Apache::Session::epDBI> (which comes
+with Embperl) instead. Apache::Session::epDBI has two enhancements over standard Apache::Session::DBI.
+1.) It serialzies all requests. 2.) It corrects a problems which will lead locks to not releases with
+normal Apache::Session::DBI. So your configuration for storing session data via DBI might look like the
+following:
+
+
+ PerlSetEnv SESSION_DBI_DATASOURCE dbi:mysql:session
+ PerlSetEnv EMBPERL_SESSION_CLASS  epDBI
+ PerlModule Apache::Session::epDBI 
+ PerlModule HTML::Embperl 
+
+
+While usage of B<Apache::Session::File> works ok for the %udat storage, it does B<not> work for the %mdat
+storage, because of the not working locking and serialization. 
 
 
 =head1 (Safe-)Namespaces and opcode restrictions
@@ -2073,6 +2147,8 @@ I have tested Embperl succesfully
 
 =item apache_1.3.3
 
+=item apache_1.3.4
+
 =item apache_ssl (Ben SSL)
 
 =item Stronghold 2.2
@@ -2160,6 +2236,11 @@ please send e-mail to info@ecos.de.
  mod_perl               http://www.perl.com/CPAN/modules/by-module/Apache
  Embperl                ftp://ftp.dev.ecos.de/pub/perl/embperl
  DBIx::Recordset	ftp://ftp.dev.ecos.de/pub/perl/dbi
+ 
+ Win NT/95/98 binarys
+ Apache/perl/
+ mod_perl/Embperl	http://mothra.tamu.edu/perl/
+
 
 =head2 CVS
 

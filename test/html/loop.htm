@@ -73,5 +73,21 @@
 [$ until $i > $#a $]
 
 
+[- undef @a ; undef @b -]
+
+[$ if 1 $]
+
+x
+
+ [$ foreach $a (@a) $]
+   [$ foreach $b (@b) $]
+   [$ endforeach $]
+ [$ endforeach $]
+
+y
+
+[$ endif $]
+
+
 </body>
 </html>

@@ -14,17 +14,17 @@
 
 =item    Form Processing
 
+=item    Maintaining persistent (session) data
+
+=item    Breaking up your code in components
+
 =item    Debugging
 
 =item    Database Access
 
 =item    Security
 
-=item    Inside Embperl
-
-=item    The future of Embperl - How does it go one?
-
-=item	 Appendix  Sites running Embperl - What people say about Embperl
+=item    Escaping/Unescaping
 
 =back
 
@@ -344,6 +344,66 @@ which part to show.
 
  [$endif$]
 
+=head1 Maintaining persistent (session) data
+
+ (Embperl 1.2 or above)
+
+While hidden fields are useful when working with forms, it's often
+necessary to B<store persistent data> in a more general way. Embperl
+utilizes B<Apache::Session> to do this job. Apache::Session is caple
+of storing persistent data in memory, in a textfile or in a database.
+More storage methods may supported in the future. While you can simply call
+Apache::Session from an Embperl page, Embperl can do it for
+you. All you need to do is to put your data in the hash
+B<%udat>. The next time the same user requests any Embperl page %udat
+will contain the same data. You can simply use this to keep state
+information for the user. Depending on your expire settings, the state
+can also kept between mulitiple sessions. A second hash, B<%mdat>, can be
+used to keep a state for one page, but for multiple users. A simple example
+would be a page hit counter:
+
+  The page is requested [+ $mdat{counter}++ +] times
+  since [+ $mdat{date} ||= localtime +]
+
+The above example counts the page hits and shows the date when the page
+is first requested.
+You don't need to worry about performance - as long as you don't touch
+%udat or %mdat, no action is taken.
+
+=head1 Breaking up your code in components
+
+ (Embperl 1.2 or above)
+
+If you are working on a complete site, and not just a few pages, there are
+always elements which occur in every page or in many pages. Instead of
+copying the source code to every page, you can include B<Embperl modules>
+in your pages, so you have to write the source only once. Such a module
+could be a header, a footer, a navigation bar etc. Embperl is not only
+caple of including such partial pages, you can also pass arguments - 
+for example, to tell the navigation bar which element to highlight.
+
+ Example for a simple navigation bar
+
+ [- @buttons = ('Index', 'Infos', 'Search') -]
+ <table><tr><td>
+     [$if $buttons[$col] eq $param[0]$] <bold> [$endif$]
+     <a href="[+ $buttons[$col] +].html"> [+ $buttons[$col] +] </a>
+     [$if $buttons[$col] eq $param[0]$] </bold> [$endif$]
+ </td></tr></table>
+ <hr>
+
+Now if you are on the "Info" page you can include the navigation bar
+as following:
+
+ [- Execute ('navbar.html', 'Infos') -]
+
+This will include the navigation bar, which is stored in the file navbar.html,
+and pass as its first parameter the string 'Infos'. The navigation bar module
+itself uses a dynamic table to display one column, which contains the text and
+a link, for every item in the array @buttons. Also the text which is equal
+to the one passed as first parameter is displayed in bold.
+There is also a long form of the Execute call, which allows you to control
+all details how the called module is executed.
 
 =head1 Debugging
 

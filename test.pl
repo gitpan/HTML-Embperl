@@ -14,6 +14,7 @@
     'error.htm???7',
     'error.htm???7',
     'error.htm???7',
+#    'errorright.htm???1',
 #    'notfound.htm???1',
     'noerr/noerrpage.htm???7?2',
     'rawinput/rawinput.htm????16',
@@ -29,8 +30,6 @@
     'loopperl.htm?erstes=Hallo&zweites=Leer+zeichen&drittes=%21%22%23&erstes=Wert2',
     'table.htm',
     'table.htm??1',
-#   'table.htm??32769',
-#   'table.htm??131085',
     'lists.htm?sel=2&SEL1=B&SEL3=D&SEL4=cc',
     'mix.htm',
     'nesting.htm',
@@ -41,7 +40,7 @@
     'java.htm',
     'inputjava.htm',
     'post.htm',
-    'upload.htm',
+    'upload.htm?multval=A&multval=B&multval=C&single=S',
     'reqrec.htm',
     'reqrec.htm',
     'include.htm',
@@ -52,8 +51,10 @@
     'nph/div.htm????64',
     'nph/npherr.htm???7?64',
     'sub.htm',
+    'sub.htm',
     'exit.htm',
     'exit2.htm',
+    'chdir.htm?a=1&b=2&c=&d=&f=5&g&h=7&=8&=',
     'chdir.htm?a=1&b=2&c=&d=&f=5&g&h=7&=8&=',
     'allform/allform.htm?a=1&b=2&c=&d=&f=5&g&h=7&=8&=???8192',
     'stdout/stdout.htm????16384',
@@ -69,12 +70,21 @@
     'safe/safe.htm???-1?4',
     'opmask/opmask.htm???-1?12?TEST',
     'opmask/opmasktrap.htm???2?12?TEST',
+    'mdatsess.htm?cnt=0',
+    'setsess.htm?a=1',
+    'mdatsess.htm?cnt=1',
+    'getnosess.htm?nocookie=2',
+    'mdatsess.htm?cnt=2',
+    'getsess.htm',
+    'mdatsess.htm?cnt=3',
+    'execgetsess.htm',
     ) ;
 
 
 # avoid some warnings:
 
-use vars qw ($httpconfsrc $httpconf $EPPORT $EPPORT2 *SAVEERR *ERR $EPHTTPDDLL $EPSTARTUP $EPDEBUG) ;
+use vars qw ($httpconfsrc $httpconf $EPPORT $EPPORT2 *SAVEERR *ERR $EPHTTPDDLL $EPSTARTUP $EPDEBUG
+             $EPSESSIONDS $EPSESSIONCLASS $EPSESSIONVERSION) ;
 
     {
     local $^W = 0 ;
@@ -108,6 +118,7 @@ BEGIN
 	} ;
 
     print "\nloading...              ";
+    
     }
 
 END 
@@ -119,7 +130,7 @@ END
 
 
 
-$confpath = './test/conf' ;
+$confpath = 'test/conf' ;
 
 $cmdarg   = $ARGV[0] || '' ;
 shift @ARGV ;
@@ -139,14 +150,16 @@ else
 
 
 $EPPORT2 = ($EPPORT || 0) + 1 ;
+$EPSESSIONCLASS = $ENV{EMBPERL_SESSION_CLASS} || ($EPSESSIONVERSION?'Win32':'0') ;
+$EPSESSIONDS    = $ENV{EMBPERL_SESSION_DS} || 'dbi:mysql:session' ;
 
 die "You must install libwin32 first" if ($EPWIN32 && $win32loaderr && $EPHTTPD) ;
 
 #### setup paths #####
 
-$inpath  = './test/html' ;
-$tmppath = './test/tmp' ;
-$cmppath = './test/cmp' ;
+$inpath  = 'test/html' ;
+$tmppath = 'test/tmp' ;
+$cmppath = 'test/cmp' ;
 
 
 #### setup files ####
@@ -270,11 +283,18 @@ sub CmpFiles
 
 	
 	$eq = 0 ;
-	while (!$notseen && ($l2 =~ /^\^\^(.*?)$/) && !$eq)
+	while (((!$notseen && ($l2 =~ /^\^\^(.*?)$/)) || ($l2 =~ /^\^\-(.*?)$/)) && !$eq)
 	    {
 	    $l2 = $1 ;
-	    $eq = $l1 =~ /$l2/ ;
-	    $l2 = <F2> if (!$eq) ;
+	    if (($l1 =~ /^\s*$/) && ($l2 =~ /^\s*$/))
+                { 
+                $eq = 1 ;
+                }
+            else
+                {
+                $eq = $l1 =~ /$l2/ ;
+                }
+            $l2 = <F2> if (!$eq) ;
 	    chompcr ($l2) ;
 	    }
 
@@ -349,15 +369,19 @@ sub REQ
 	$url = new URI::URL("http://$host:$port/$loc$file?$query");
 
 	$request = new HTTP::Request($content?'POST':'GET', $url);
-
+        $request -> header ('Cookie' => $cookie) if ($cookie && !($query =~ /nocookie/)) ;
+        
 	$request -> content ($content) if ($content) ;
 	}
     else
 	{
-	$request = POST ("http://$host:$port/$loc$file?$query",
+	my @q = split (/\&|=/, $query) ;
+        
+        $request = POST ("http://$host:$port/$loc$file",
 					Content_Type => 'form-data',
 					Content      => [ upload => [undef, 'upload', Content => $upload],
-							  content => $content ]) ;
+							  content => $content,
+                                                          @q ]) ;
 	}
 	    
     #print "Request: " . $request -> as_string () ;
@@ -368,6 +392,12 @@ sub REQ
     open FH, ">$ofile" ;
     print FH $response -> content ;
     close FH ;
+
+    my $c = $response -> header ('Set-Cookie') || '' ;
+    $cookie = $c if (!$cookie && ($c =~ /EMBPERL_UID/)) ;  
+    #print "Got Cookie $cookie\n" ;
+
+    #print $response -> headers -> as_string () ;
 
     return $response -> message if (!$response->is_success) ;
     
@@ -417,6 +447,7 @@ sub CheckError
 	if (!($_ =~ /^\s*$/) &&
 	    !($_ =~ /\-e /) &&
 	    !($_ =~ /Warning/) &&
+	    !($_ =~ /SES\:/) &&
 	    $_ ne 'Use of uninitialized value.')
 	    {
 	    $cnt-- ;
@@ -597,6 +628,7 @@ do
 	    next if ($file =~ /^exit/) ;
 	    next if ($file =~ /registry/) ;
 	    next if ($file =~ /match/) ;
+	    next if ($file =~ /sess\.htm/) ;
 	    next if ($DProf && ($file =~ /safe/)) ;
 	    next if ($DProf && ($file =~ /opmask/)) ;
 
@@ -862,9 +894,10 @@ do
 	if ($EPWIN32)
 	    {
 	    $ENV{PATH} .= ";$EPHTTPDDLL" if ($EPWIN32) ;
+	    $ENV{PERL_STARTUP_DONE} = 1 ;
 
 	    Win32::Process::Create($HttpdObj, $EPHTTPD,
-				   "Apache  $XX -f $EPPATH/$httpdconf ", 0,
+				   "Apache -s $XX -f $EPPATH/$httpdconf ", 0,
 				   # NORMAL_PRIORITY_CLASS,
 				   0,
 				    ".") or die "***Cannot start $EPHTTPD" ;
@@ -880,8 +913,15 @@ do
 	    if (!open FH, "$tmppath/httpd.pid")
 		{
 		sleep (7) ;
-		open FH, "$tmppath/httpd.pid" or die "Cannot open $tmppath/httpd.pid" ;
-		}
+		if (!open FH, "$tmppath/httpd.pid")
+                    {
+            	    open (FERR, "$httpderr") ;  
+                    print $_ while (<FERR>) ;
+                    close FERR ;
+                    die "Cannot open $tmppath/httpd.pid" ;
+		    }
+                }
+
 	    }
 	$httpdpid = <FH> ;
 	chop($httpdpid) ;       
@@ -907,7 +947,8 @@ do
 	else
 	    { print "\nTesting cgi mode...\n\n" ; }
 
-	$t_req = 0 ;
+	$cookie = undef ;
+        $t_req = 0 ;
 	$n_req = 0 ;
 	$n = 0 ;
 	foreach $url (@tests)
@@ -915,7 +956,7 @@ do
 	    ($file, $query_info, $debug, $errcnt) = split (/\?/, $url) ;
 
 	    next if ($file =~ /\// && $loc eq $cgiloc) ;        
-	    next if ($file eq 'taint.htm' && $loc eq $cgiloc) ;
+	    #next if ($file eq 'taint.htm' && $loc eq $cgiloc) ;
 	    next if ($file eq 'reqrec.htm' && $loc eq $cgiloc) ;
 	    next if (($file =~ /^exit/) && $loc eq $cgiloc) ;
 	    #next if ($file eq 'error.htm' && $loc eq $cgiloc && $errcnt < 16) ;
@@ -926,7 +967,17 @@ do
 	    next if ($file eq 'http.htm' && $loc eq $cgiloc) ;
 	    next if ($file eq 'chdir.htm' && $EPWIN32) ;
 	    next if ($file =~ /opmask/ && $EPSTARTUP =~ /_dso/) ;
-	    next if ($file eq 'upload.htm' && $memcheck) ;
+	    if ($file =~ /sess\.htm/)
+                { 
+                next if ($loc eq $cgiloc) ;
+                if (!$EPSESSIONVERSION)
+                    {
+	            formline ('@<<<<<<<<<<<<<<<<<<<<... skip on this plattform', $file) ;
+	            print "$^A\n" ; 
+	            $^A = '' ;
+                    next ;
+                    }
+                }
      
 	    $debug ||= $defaultdebug ;  
 	    $errcnt ||= 0 ;

@@ -1,6 +1,6 @@
 /*###################################################################################
 #
-#   Embperl - Copyright (c) 1997-1998 Gerald Richter / ECOS
+#   Embperl - Copyright (c) 1997-1999 Gerald Richter / ECOS
 #
 #   You may distribute under the terms of either the GNU General Public
 #   License or the Artistic License, as specified in the Perl README file.
@@ -91,6 +91,8 @@ enum dbg
     dbgWatchScalar      = 0x20000,
     dbgHeadersIn        = 0x40000,
     dbgShowCleanup      = 0x80000,
+    dbgProfile          = 0x100000,
+    dbgSession          = 0x200000,
     
     dbgAll  = -1
     } ;

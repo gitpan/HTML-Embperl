@@ -98,6 +98,10 @@ test/html/match/div.asc
 test/html/ofunc/div.htm
 test/html/ifuncsrc/proxy.htm
 test/html/setsess.htm
+test/html/getsess.htm
+test/html/getnosess.htm
+test/html/mdatsess.htm
+test/html/execgetsess.htm
 test/cmp/ascii
 test/cmp/pure.htm
 test/cmp/plain.htm
@@ -147,9 +151,15 @@ test/cmp/post.htm
 test/cmp/upload.htm
 test/cmp/npherr.htm
 test/cmp/div.asc
+test/cmp/setsess.htm
+test/cmp/getsess.htm
+test/cmp/getnosess.htm
+test/cmp/mdatsess.htm
+test/cmp/execgetsess.htm
 test/conf/httpd.conf.src
 test/conf/startup.pl
 test/conf/startup_dso.pl
 test/conf/null
 embpexec.test.pl
 embpexec.test.bat
+lib/Apache/Session/epDBI.pm

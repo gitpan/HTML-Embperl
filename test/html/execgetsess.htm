@@ -1,11 +1,12 @@
 <html>
 <head>
-<title>Tests for Embperl - Set Session Data</title>
+<title>Tests for Embperl - Execute Get Session Data</title>
 </head>
 
 
 <body>
 
+	[- Execute ('getsess.htm') ; -]
 
 	fdat:<br>
 	[- @ks = sort keys %fdat -]
@@ -35,16 +36,11 @@
 	-]
 
 
+        $mdat{cnt} = -[+ $mdat{cnt} ; +]- <br>
+        $udat{cnt} = -[+ $udat{cnt} ; +]- <br>
 
-	[- $s = $Apache::Session::Win32::sessions -]
 
-	[- @ks = sort keys %$s -]
+	[- Execute ('getsess.htm') ; -]
 
-	sessions:
-	<table>
-		<tr>
-			<td>[+ $ks[$row] +]</td><td>[+ $s -> {$ks[$row] || ''} +]</td>
-		</tr>
-	</table>
 </body>
 </html>

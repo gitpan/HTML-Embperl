@@ -1,5 +1,76 @@
 =pod
 
+=head1 1.2b4  15 Feb 1999
+
+
+   - fixed a problem that $req_rec was sometimes invalid on the 
+     second call to the same page causing Embperl to SIGSEGV.
+     With help of Todd Eigenshink.
+   - Cleanup the variable space inside Embperl pages. Before this
+     fix many of the internal my variables were visible to the 
+     Embperl page. Spotted by Todd Eigenshink. 
+   - multiple form values with the same name are handled now
+     correctly (concated in a tab delimited string) when send
+     in a multipart/form-data (file-upload). Spotted by Dirk
+     Lutzebaeck.
+   - The dbgForm flag works now also for multipart/form-data
+   - a missing right *] will be reported as an error. 
+   - [[* is correctly output as [* and not interpreted as a
+     starting of a perl block. Spotted by Dirk Lutzebaeck.
+   - fixed a bug that causes the html after an endforeach to be
+     skiped, when the foreach loop gets an empty array as argument.
+     Spotted by Dirk Lutzebaeck.
+   - Makefile.PL checks now for required modules and versions and
+     generates warnings if necessary
+   - Do not CLEAR %udat and %mdat in cleanup, so Apache::Session
+     will not warn anymore about unsupported CLEAR operation.
+   - Added tests for session management (%udat, %mdat)
+   - Added more tests to see that $req_rec is correctly setup
+   - Added module Apache::Session::epDBI which is a subclass of
+     Apache::Session::DBI and corrects a problem with locking and
+     cares of serializing requests, so %mdat works correctly.
+     Please read IMPORTANT NOTE under Session Management in
+     Embperl.pod
+   - Added the dbgProfile flag which cause the display of the time
+     since the request start for every source line in the logfile.
+   - Correct a problem that the escape character ('\') was not removed
+     when unescaping the input. Now '&lt;' is correctly translated
+     to '<'  and '\&lt;' is translated to '&lt;' . 
+   - When requesting to view the logfile via the browser now all
+     lines which does not start with a pid ([<pid>]) are displayed.
+   - fixed a problem, that sometimes not all errors are shown in the
+     error page, in conjunction with dynamic tables
+   - When running under perl 5.005 or higher, the cleanup after the
+     every request, now not only cleans up scalars, array and hashs,
+     but also closes all open file- and directoryhandles and undef's
+     all typglob (which causes for example DBIx::Recordset objects to
+     DESTROY correctly)
+     NOTE: This also causes imported variables from other packages/modules
+     not to be cleanedup anymore!!
+     NOTE: That the cleanup behaveiour under perl 5.004 and 5.005 is
+     slightly differnt! The new cleanup doesn't work with 5.004 because 
+     of a bug, which should be corrected in 5.004_05 as soon as available.
+   - EMail adress from the form is insert as Reply-To header instead of
+     From header in MailFormTo to avoid problems with unresolvable
+     EMail adresses.
+   - Fixed the problem that session management (%udat, %mdat) didn't
+     work when Execute is used in the same page. Spotted by by Simon Lindgren. 
+   - Fixed a path problem in Makefile.PL. Now pathes on Win32 Systems uses
+     blackslash instead of slash. Spotted by Randy Kobes.
+   - Win32 batch files will no longer contain path to perl after the #!,
+     so cgi tests passes on systems with 4DOS shell. Spotted by Randy Kobes.
+   - Added ; as terminator for cookie to correctly parse multiple cookies.
+     Patch from Tim Carrol.    
+   - Changed table_set to table_add when setting the cookie for session data
+     to avoid problems with other modules setting also cookies.
+   - Corrected the %ENV problem that mod_perl-1.18 introduced, so both 
+     work together again.
+   - Added dbgSession flag to enable/disable logging of session handling
+   - Added configuration diretives EMBPERL_COOKIE_NAME, EMBPERL_COOKIE_DOMAIN,
+     EMBPERL_COOKIE_PATH and EMBPERL_COOKIE_EXPIRES to configure the cookie
+     which holds the session id. Suggested by Cliff Rayman.
+
+
 =head1 1.2b3 (BETA)  22 Nov 1998
 
    - fixed an undefined pointer which occurs when using precompiled

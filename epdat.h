@@ -1,6 +1,6 @@
 /*###################################################################################
 #
-#   Embperl - Copyright (c) 1997-1998 Gerald Richter / ECOS
+#   Embperl - Copyright (c) 1997-1999 Gerald Richter / ECOS
 #
 #   You may distribute under the terms of either the GNU General Public
 #   License or the Artistic License, as specified in the Perl README file.
@@ -35,6 +35,10 @@ typedef struct tConf
     char *  sVirtLogURI ;      /* uri for access virtual log file */
     SV *    pOpcodeMask ;   /* Opcode mask (if any) */
     int     nEscMode ;      /* default escape mode */
+    char *  sCookieName ;   /* Name to use for cookie */
+    char *  sCookieExpires ; /* cookie expiration time */
+    char *  sCookieDomain ; /* domain patter for which the cookie should be returned */
+    char *  sCookiePath ;   /* path to which cookie should be returned */
     char    cMultFieldSep ;
     char *  pOpenBracket  ;
     char *  pCloseBracket ;

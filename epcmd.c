@@ -1,6 +1,6 @@
 /*###################################################################################
 #
-#   Embperl - Copyright (c) 1997-1998 Gerald Richter / ECOS
+#   Embperl - Copyright (c) 1997-1999 Gerald Richter / ECOS
 #
 #   You may distribute under the terms of either the GNU General Public
 #   License or the Artistic License, as specified in the Perl README file.
@@ -646,8 +646,11 @@ static int CmdEndforeach (/*i/o*/ register req * r,
         return rcEndforeachWithoutForeach ;
 
     if (r -> CmdStack.State.pSV == NULL)
+        {
+        r -> CmdStack.State.pStart    = NULL ;
         return ok ;
-    
+        }
+
     ppSV = av_fetch ((AV *)r -> CmdStack.State.pSV2, r -> CmdStack.State.nResult, 0) ;
 
     if (ppSV != NULL && *ppSV != NULL)

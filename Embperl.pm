@@ -1,7 +1,7 @@
 
 ###################################################################################
 #
-#   Embperl - Copyright (c) 1997-1998 Gerald Richter / ECOS
+#   Embperl - Copyright (c) 1997-1999 Gerald Richter / ECOS
 #
 #   You may distribute under the terms of either the GNU General Public
 #   License or the Artistic License, as specified in the Perl README file.
@@ -60,17 +60,21 @@ use vars qw(
 
     $dbgShowCleanup
     $dbgLogLink
+    $dbgForm
+    $dbgSession
 
     $escmode
 
     $SessionMgnt
+
+    $req_rec
     ) ;
 
 
 @ISA = qw(Exporter DynaLoader);
 
 
-$VERSION = '1.2b3';
+$VERSION = '1.2b4';
 
 
 bootstrap HTML::Embperl $VERSION;
@@ -106,9 +110,11 @@ use constant dbgHeadersIn           => 262144 ;
 use constant dbgInput               => 128 ;
 use constant dbgLogLink             => 8192 ;
 use constant dbgMem                 => 2 ;
+use constant dbgProfile             => 0x100000 ;
 use constant dbgShowCleanup         => 524288 ;
 use constant dbgSource              => 2048 ;
 use constant dbgStd                 => 1 ;
+use constant dbgSession             => 0x200000 ;
 use constant dbgTab                 => 64 ;
 use constant dbgWatchScalar         => 131072 ;
 
@@ -411,11 +417,10 @@ sub SendLogFile ($$$)
 
     while (<LOGFILE>)
         {
-        /^\[(\d+)\](.*?)\s/ ;
         $cnt++ ;
-        $tag = $2 ;
-        if ($1 == $pid && (!defined($src) || $tag eq $src))
+        if (!(/^\[(\d+)\](.*?)\s/) || ($1 == $pid && (!defined($src) || $2 eq $src)))
             {
+            $tag = $2 ;
             if (defined ($LogFileColors{$tag}))
                 {
                 if ($fontcol ne $LogFileColors{$tag})
@@ -505,8 +510,17 @@ sub ScanEnvironement
     {
     my ($req, $req_rec) = @_ ; 
 
-    %ENV = %{{$req_rec->cgi_env, %ENV}} if (defined ($req_rec)) ;
-    
+    if (defined ($req_rec))
+	{
+	my $k ;
+	my $v ;
+	my %cgienv = $req_rec->cgi_env ;
+        while (($k, $v) = each %cgienv)
+		{
+		$ENV{$k} ||= $v ;
+		}
+	}
+
     $$req{'virtlog'}     = $ENV{EMBPERL_VIRTLOG}     if (exists ($ENV{EMBPERL_VIRTLOG})) ;
     $$req{'compartment'} = $ENV{EMBPERL_COMPARTMENT} if (exists ($ENV{EMBPERL_COMPARTMENT})) ;
     $$req{'package'}     = $ENV{EMBPERL_PACKAGE}     if (exists ($ENV{EMBPERL_PACKAGE})) ;
@@ -521,12 +535,23 @@ sub ScanEnvironement
     else
         { $$req{'escmode'}    = escStd ; }
     
+    $$req{'cookie_name'}    = $ENV{EMBPERL_COOKIE_NAME} if (exists ($ENV{EMBPERL_COOKIE_NAME})) ;
+    $$req{'cookie_domain'}  = $ENV{EMBPERL_COOKIE_DOMAIN} if (exists ($ENV{EMBPERL_COOKIE_DOMAIN})) ;
+    $$req{'cookie_path'}    = $ENV{EMBPERL_COOKIE_PATH} if (exists ($ENV{EMBPERL_COOKIE_PATH})) ;
+    $$req{'cookie_expires'} = $ENV{EMBPERL_COOKIE_EXPIRES} if (exists ($ENV{EMBPERL_COOKIE_EXPIRES})) ;
     }
 
 
 
 #######################################################################################
 
+sub CleanCallExecuteReq
+
+    {
+    $_[0] -> ExecuteReq ($_[1]) ;
+    }
+
+#######################################################################################
 
 
 sub Execute
@@ -633,9 +658,21 @@ use strict ;
 	    
         @ffld = $cgi->param;
     
+        my $params ;
     	foreach ( @ffld )
             {
-    	    $fdat{ $_ } = $cgi->param( $_ );
+    	    # the param_fetch needs CGI.pm 2.43
+            #$params = $cgi->param_fetch( $_ ) ;
+    	    $params = $cgi->{$_} ;
+            if ($#$params > 0)
+                {
+                $fdat{ $_ } = join ("\t", @$params) ;
+                }
+            else
+                {
+                $fdat{ $_ } = $params -> [0] ;
+                }
+            print LOG "[$$]FORM: $_=" . (ref ($fdat{$_})?ref ($fdat{$_}):$fdat{$_}) . "\n" if ($dbgForm) ; 
             }
 
         }
@@ -654,14 +691,15 @@ use strict ;
     my $udat ;
     my $mdat ;
 
-    if ($SessionMgnt)
+    if ($SessionMgnt && !$r -> SubReq)
         {
-        $udat = tied(%udat) ;
+        my $cookie_name = $r -> CookieName ;
+	$udat = tied(%udat) ;
 
-        if (defined ($ENV{HTTP_COOKIE}) && ($ENV{HTTP_COOKIE} =~ /EMBPERL_UID=(.*?)(\s|$)/))
+        if (defined ($ENV{HTTP_COOKIE}) && ($ENV{HTTP_COOKIE} =~ /$cookie_name=(.*?)(\;|\s|$)/))
 	    {
 	    $udat -> {ID} = $1 ;
-            print LOG "[$$]SES:  Received session cookie $1\n" ;
+            print LOG "[$$]SES:  Received session cookie $1\n" if ($dbgSession) ;
 	    }
         else
 	    {
@@ -671,7 +709,7 @@ use strict ;
         $udat -> {DIRTY} = 0 ;
 
         $mdat = tied(%mdat) ;
-	$mdat -> {ID} = MD5 -> hexhash ($Inputfile) ;
+	$mdat -> {ID} = substr(MD5 -> hexhash ($Inputfile), 0, &Apache::Session::ID_LENGTH ); 
         $mdat -> {DIRTY} = 0 ;
         }
 
@@ -681,7 +719,9 @@ use strict ;
         my $oldfh = select (OUT) if ($optRedirectStdout) ;
         my $saver = $r ;
         
-        $rc = $r -> ExecuteReq ($$req{'param'}) ;
+
+        $rc = CleanCallExecuteReq ($r, $$req{'param'}) ;
+        #$rc = $r -> ExecuteReq ($$req{'param'}) ;
         
         $r = $saver ;
         select ($oldfh) if ($optRedirectStdout) ;
@@ -704,11 +744,11 @@ use strict ;
     use strict ;
 
     
-    if ($SessionMgnt)
+    if ($SessionMgnt && !$r -> SubReq)
         {
         if ($udat->{'DIRTY'})
 	    {
-            print LOG "[$$]SES:  Store session data of \%udat id=$udat->{ID}\n" ;
+            print LOG "[$$]SES:  Store session data of \%udat id=$udat->{ID}\n" if ($dbgSession) ;
             $udat->{'DATA'}->store ;
 	    }
 
@@ -716,7 +756,7 @@ use strict ;
         $udat -> {ID}   = undef ;
         if ($mdat->{'DIRTY'})
 	    {
-            print LOG "[$$]SES:  Store session data of \%mdat id=$mdat->{ID}\n" ;
+            print LOG "[$$]SES:  Store session data of \%mdat id=$mdat->{ID}\n" if ($dbgSession) ;
             $mdat->{'DATA'}->store ;
 	    }
 
@@ -932,7 +972,9 @@ sub cleanup
     my $package ;
     my %seen ;
     my $Debugflags ;
-
+    my $savecv ;
+    #my $ver54 = $] < 5.005 ;
+    my $ver54 = 1 ;
 
     $seen{''}      = 1 ;
     $seen{'dbgShowCleanup'} = 1 ;
@@ -943,10 +985,16 @@ sub cleanup
 
 	$seen{$package} = 1 ;
         
-        print LOG "[$$]CUP:  Cleanup package: $package\n" if ($Debugflags & dbgShowCleanup);
-        if (defined (&{"$package\:\:CLEANUP"}))
+        if ($Debugflags & dbgShowCleanup)
 	    {
-    	    eval "\&$package\:\:CLEANUP;" ;
+	    print LOG "[$$]CUP:  Cleanup package: $package\n" ;
+	    print LOG "[$$]CUP:  Detected perl >= 5.005. Do extended Cleanup\n" if (!$ver54) ;
+	    }
+	if (defined (&{"$package\:\:CLEANUP"}))
+	    {
+    	    #$package =~ /^([a-zA-Z0-9\:\:\_]+)$/ ;
+	    #eval "\&$1\:\:CLEANUP;" ;
+	    eval "\&$package\:\:CLEANUP;" ;
 	    print LOG "[$$]CUP:  Call \&$package\:\:CLEANUP;\n" if ($Debugflags & dbgShowCleanup);
 	    embperl_logevalerr ($@) if ($@) ;
 	    }
@@ -956,40 +1004,57 @@ sub cleanup
             {
 	    while (($key,$val) = each(%{*{"$package\::"}}))
                 {
-		if ($key ne 'udat')
+		#if ($key ne 'udat' && $key ne 'mdat')
 		    {
 		    local(*ENTRY) = $val;
 		    $glob = $package.'::'.$key ;
-		    if (defined (*ENTRY{SCALAR})) 
+		    $savecv = undef ;
+                    print LOG "[$$]CUP:  \$$key = ${$glob}\n" if (defined (*ENTRY{SCALAR}) && defined (${$glob})) ;
+		    print LOG "[$$]CUP:  \%$key\n"            if (defined (*ENTRY{HASH})) ;
+		    print LOG "[$$]CUP:  \@$key\n"            if (defined (*ENTRY{ARRAY})) ;
+		    print LOG "[$$]CUP:  LVALUE $key\n"       if (defined (*ENTRY{LVALUE})) ;
+		    print LOG "[$$]CUP:  FORMAT $key\n"       if (defined (*ENTRY{FORMAT})) ;
+		    print LOG "[$$]CUP:  IO     $key\n"       if (defined (*ENTRY{IO})) ;
+		    if (defined (*ENTRY{CODE}))
 			{
-			print LOG "[$$]CUP:  \$$key = ${$glob}\n" ;
-			undef ${$glob} ;
-			}
-		    if (defined (*ENTRY{HASH}) && !($key =~ /\:\:$/))
-			{
-			print LOG "[$$]CUP:  \%$key\n" ;
-			undef %{$glob} ;
-			}
-		    if (defined (*ENTRY{ARRAY}))
-			{
-			print LOG "[$$]CUP:  \@$key\n" ;
-			undef @{$glob} ;
-			}
-		    }
+			print LOG "[$$]CUP:  \&$key\n" ;
+                        $savecv = \&{$glob} ;
+                        }
+
+		    undef *{"$package\:\:$key"} ;
+		    if (!($key =~ /\:\:$/) && $key ne 'mdat' && $key ne 'udat' && $ver54)
+                        {
+		        # the undef of the type glob does not work under perl 5.004, so we undef everything on it own here
+                        undef ${"$package\:\:$key"} ;
+                        undef @{"$package\:\:$key"} ;
+                        undef %{"$package\:\:$key"} ;
+                        }
+		    # restore code value to avoid undef of subroutines
+                    *{"$package\:\:$key"} = $savecv if ($savecv) ;
+                    }
 		}
             }
         else
             {
             while (($key,$val) = each(%{*{"$package\::"}}))
                 {
-		if ($key ne 'udat')
+		undef $savecv ;
+	        local(*ENTRY) = $val;
+                if (defined (*ENTRY{CODE}))
 		    {
-		    local(*ENTRY) = $val;
-		    $glob = $package.'::'.$key ;
-		    undef ${$glob} if (defined (*ENTRY{SCALAR})) ;
-		    undef %{$glob} if (defined (*ENTRY{HASH}) && !($key =~ /\:\:$/)) ;
-		    undef @{$glob} if (defined (*ENTRY{ARRAY})) ;
+                    $savecv = \&{"$package\:\:$key"} ;
+                    }
+
+                undef *{"$package\:\:$key"} ;
+		if (!($key =~ /\:\:$/) && $key ne 'mdat' && $key ne 'udat' && $ver54)
+                    {
+		    # the undef of the type glob does not work under perl 5.004, so we undef everything on it own here
+                    undef ${"$package\:\:$key"} ;
+                    undef @{"$package\:\:$key"} ;
+                    undef %{"$package\:\:$key"} ;
 		    }
+		# restore code value to avoid undef of subroutines
+                *{"$package\:\:$key"} = $savecv if ($savecv) ;
 		}
             }
         }
@@ -1044,13 +1109,10 @@ sub MailFormTo
     die "require Net::SMTP failed: $@" if ($@); 
 
     $smtp = Net::SMTP->new($ENV{'EMBPERL_MAILHOST'} || 'localhost') or die "Cannot connect to mailhost" ;
-    if ($ret)
-        { $smtp->mail($ret); }
-    else
-        { $smtp->mail('WWW-Server');}
+    { $smtp->mail('WWW-Server');}
     $smtp->to($to);
     $ok = $smtp->data();
-    $ok = $smtp->datasend("Return-Path: $ret\n") if ($ok && $ret) ;
+    $ok = $smtp->datasend("Reply-To: $ret\n") if ($ok && $ret) ;
     $ok and $ok = $smtp->datasend("To: $to\n");
     $ok and $ok = $smtp->datasend("Subject: $subject\n");
     $ok and $ok = $smtp->datasend("\n");
@@ -1180,6 +1242,7 @@ sub CreateAliases
     
     no strict ;
 
+
     if (!defined(${"$package\:\:row"}))
         { # create new aliases for Embperl magic vars
 
@@ -1196,7 +1259,7 @@ sub CreateAliases
         *{"$package\:\:maxcol"}  = \$HTML::Embperl::maxcol ;
         *{"$package\:\:tabmode"} = \$HTML::Embperl::tabmode ;
         *{"$package\:\:escmode"} = \$HTML::Embperl::escmode ;
-    	*{"$package\:\:req_rec"} = \$HTML::Embperl::req_rec if defined ($req_rec) ;
+    	*{"$package\:\:req_rec"} = \$HTML::Embperl::req_rec if defined ($HTML::Embperl::req_rec) ;
     	*{"$package\:\:exit"}    = \&Apache::exit if defined (&Apache::exit) ;
         
         *{"$package\:\:MailFormTo"} = \&HTML::Embperl::MailFormTo ;
@@ -1240,6 +1303,7 @@ sub CreateAliases
         *{"$package\:\:dbgInput"}                 = \$HTML::Embperl::dbgInput             ;
         *{"$package\:\:dbgLogLink"}               = \$HTML::Embperl::dbgLogLink           ;
         *{"$package\:\:dbgMem"}                   = \$HTML::Embperl::dbgMem               ;
+        *{"$package\:\:dbgProfile"}               = \$HTML::Embperl::dbgProfile           ;
         *{"$package\:\:dbgShowCleanup"}           = \$HTML::Embperl::dbgShowCleanup       ;
         *{"$package\:\:dbgSource"}                = \$HTML::Embperl::dbgSource            ;
         *{"$package\:\:dbgStd"}                   = \$HTML::Embperl::dbgStd               ;
@@ -1249,6 +1313,10 @@ sub CreateAliases
         #print LOG  "[$$]MEM:  Created Aliases for $package\n" ;
 
         }
+
+
+    ${"$package\:\:req_rec"} = $self -> ApacheReq ;
+#    print HTML::Embperl::LOG  "[$$]MEM:  " . $self -> ApacheReq . "\n" ;
 
     use strict ;
     }
