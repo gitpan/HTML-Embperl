@@ -15,6 +15,69 @@ use File::Basename ;
 $win32 = ($Config{osname} =~ /win32/i) ;
 print "\nRunning on Win 32\n" if ($win32) ;
 
+## ----------------------------------------------------------------------------
+
+
+
+%neededmodules =
+    ( 
+      'mod_perl.c' => { name	    => 'perl_module', 
+			path	    => ['$apache_src/modules/perl/libperl.so', '$EPBINDIR/modules/libperl.so'],
+			win32path   => ['$EPBINDIR/modules/apachemoduleperl.dll'],
+			win32path   => ['$mpdll'],
+			file	    => 'libperl.so',
+			win32file   => 'apachemoduleperl.dll',
+		      },
+      'mod_dir.c'  => { name	    => 'dir_module', 
+			path	    => ['$apache_src/modules/standard/mod_dir.so', '$EPBINDIR/modules/mod_dir.so'],
+			win32path   => ['$apache_src/modules/standard/apachemoduledir.dll', '$EPBINDIR/modules/apachemoduledir.dll'],
+			file	    => 'mod_dir.so',
+			win32file   => 'apachemoduledir.dll',
+		      },
+
+      'mod_env.c'  => { name	    => 'env_module', 
+			path	    => ['$apache_src/modules/standard/mod_env.so', '$EPBINDIR/modules/mod_env.so'],
+			win32path   => ['$apache_src/modules/standard/apachemoduleenv.dll', '$EPBINDIR/modules/apachemoduleenv.dll'],
+			file	    => 'mod_env.so',
+			win32file   => 'apachemoduleenv.dll',
+		      },
+
+      'mod_mime.c'  => { name	    => 'mime_module', 
+			path	    => ['$apache_src/modules/standard/mod_mime.so', '$EPBINDIR/modules/mod_mime.so'],
+			win32path   => ['$apache_src/modules/standard/apachemodulemime.dll', '$EPBINDIR/modules/apachemodulemime.dll'],
+			file	    => 'mod_mime.so',
+			win32file   => 'apachemodulemime.dll',
+		      },
+
+      'mod_alias.c'  => { name	    => 'alias_module', 
+			path	    => ['$apache_src/modules/standard/mod_alias.so', '$EPBINDIR/modules/mod_alias.so'],
+			win32path   => ['$apache_src/modules/standard/apachemodulealias.dll', '$EPBINDIR/modules/apachemodulealias.dll'],
+			file	    => 'mod_alias.so',
+			win32file   => 'apachemodulealias.dll',
+		      },
+
+      'mod_cgi.c'  => { name	    => 'cgi_module', 
+			path	    => ['$apache_src/modules/standard/mod_cgi.so', '$EPBINDIR/modules/mod_cgi.so'],
+			win32path   => ['$apache_src/modules/standard/apachemodulecgi.dll', '$EPBINDIR/modules/apachemodulecgi.dll'],
+			file	    => 'mod_cgi.so',
+			win32file   => 'apachemodulecgi.dll',
+		      },
+
+      'mod_actions.c'  => { name	    => 'action_module', 
+			path	    => ['$apache_src/modules/standard/mod_actions.so', '$EPBINDIR/modules/mod_actions.so'],
+			win32path   => ['$apache_src/modules/standard/apachemoduleactions.dll', '$EPBINDIR/modules/apachemoduleactions.dll'],
+			file	    => 'mod_actions.so',
+			win32file   => 'apachemoduleactions.dll',
+		      },
+
+
+    ) ;
+
+
+
+
+## ----------------------------------------------------------------------------
+
 
 sub MY::test_via_harness 
 	{
@@ -216,6 +279,7 @@ if (!$apache && $apache_src eq '')
     eval 'do "test/conf/config.pl"' ;
 
     $apache_src = $EPAPACHESRC ;
+    $loadmodules = $EPMODPERL ;
     }
 
 $base = '..' ;
@@ -355,6 +419,7 @@ if ($win32 && $apache)
 EOF
     close FH;
 
+=pod
     if ($ENV{APACHE_PERL_DLL})
 	{
 	$mpdll = $ENV{APACHE_PERL_DLL} ;
@@ -395,6 +460,8 @@ EOF
     $mpdll =~ s/\\\\/\\/g ;
 
     die "Can't find ApacheModulePerl.dll at $mpdll!" if (!(-e $mpdll));
+=cut
+
     }
 
 #
@@ -444,7 +511,7 @@ if ($b && $apache)
             $EPHTTPD = "$apache_src/ApacheD/Apache.exe" ;
             $EPHTTPDDLL = "$apache_src/CoreD" ;
             }
-        $EPMODPERL="LoadModule perl_module $mpdll" ;
+        #$EPMODPERL="LoadModule perl_module $mpdll" ;
         $EPUSER  = 'www' ; # dummy value
         $EPGROUP = 'www' ;
         if (!-e $EPHTTPD)
@@ -467,10 +534,63 @@ if ($b && $apache)
     $EPSTRONGHOLD = ($EPAPACHEVERSION[0] =~ /stronghold/i) ;
     $EPAPACHE_SSL = grep (/apache_ssl.c/, @modules) ;
     $EPMOD_SSL    = !$EPSTRONGHOLD && grep (/mod_ssl.c/, @modules) ;
+
+    $EPBINDIR	  = dirname ($EPHTTPD) ;    
+    $EPMODPERL	  = '' ;
     
-    if (!$win32 && -e "$apache_src/modules/perl/libperl.so" && !grep (/mod_perl.c/, @modules)) 
+    $addmodpath = '' ;
+    while (($mod, $opt) = each %neededmodules)
 	{
-	$EPMODPERL="LoadModule perl_module $apache_src/modules/perl/libperl.so" ;
+	if (!grep (/$mod/, @modules))
+	    { # module not linked staticly
+	    $paths = $win32?$opt->{win32path}:$opt->{path} ;
+	    $modfile = $win32?$opt->{win32file}:$opt->{file} ;
+	    $found = 2 ;
+	    while ($found == 2)
+		{
+		$found = 0 ;
+		if ($addmodpath)
+		    {
+		    $path = cnvpath ("$addmodpath/$modfile") ;
+		    #print "path = $_ -> $path\n" ;
+		    if (-e $path)
+			{ ## module fould
+	    		$EPMODPERL .= "\r\nLoadModule $opt->{name} $path" ;
+			print " + Load dynamic module $mod\n" ;
+			$found = 1 ;
+			last ;
+			}
+		    }
+		foreach (@$paths)
+		    {
+		    $path = cnvpath (eval "\"$_\"") ;
+		    #print "path = $_ -> $path\n" ;
+		    if (-e $path)
+			{ ## module fould
+	    		$EPMODPERL .= "\r\nLoadModule $opt->{name} $path" ;
+			print " + Load dynamic module $mod\n" ;
+			$found = 1 ;
+			last ;
+			}
+		    }
+		if (!$found)
+		    {
+		    my $w32msg = '' ;
+		    $w32msg = "\nPlease enter full path including the drive letter!! " if ($win32) ;
+		    $addmodpath = GetString ("Library for $mod not found, please enter path to $modfile $w32msg", "") ;
+		    $found = 2 ;
+		    }
+		}			    
+	    }
+	}
+
+
+		    
+
+    #if (!$win32 && -e "$apache_src/modules/perl/libperl.so" && !grep (/mod_perl.c/, @modules)) 
+    if (!$win32 && ($EPMODPERL =~ /perl_module/))
+	{
+	#$EPMODPERL="LoadModule perl_module $apache_src/modules/perl/libperl.so" ;
         $EPSTARTUP ='startup_dso.pl' ;
         print " + mod_perl was build with USE_DSO\n" ;
 	}
@@ -544,9 +664,9 @@ if ($b && $apache)
 
     $SessVer = CheckModule ("Apache::Session", "-> Disable tests for persistent data storage") || '' ;
 
-    if ($SessVer && $SessVer lt "0.17")
+    if ($SessVer && !($SessVer =~ /0\.17/))
         {
-        print "-> Please upgrade to Apache::Session 0.17 or higher\n" ;
+        print "-> Embperl works only with Apache::Session 0.17.x\n" ;
         print "-> Disable tests for persistent data storage\n" ;
         $SessVer = '0' ;
         }

@@ -1,6 +1,97 @@
 =pod
 
-=head1 1.2b4  15 Feb 1999
+=head1 1.2b5_dev -- That's what currently under developement
+
+Last Update: <$localtime$> (MET)
+
+NOTE: This version is only available via L<"CVS"|CVS/"INTRO">
+
+   - Renamed __strdup and __strndup so there are no duplicate 
+     symbols when compiling with glibc. Spotted by Michael Hall.
+   - Removed some debugging message from the logfile output.
+   - Correct some wrong table entries for html escaping of some
+     characters like §
+   - Added optReturnError which causes Embperl to return an
+     error code and let the calling programm (i.e. Apache)
+     handle the error. This is necessary to use the
+     ErrorDocument directive together with Embperl. Spotted by
+     Michael Smith.
+   - Fixed the problem that the output of Execute inside a table
+     didn't come out when optEarlyHttpHeader was set. Spotted by
+     Chris Alexander.
+   - %fdat of a Execute will not be overwritten anymore when the
+     %fdat of the main request was empty. Spotted by Chris Alexander.
+   - fixed a small memory leak which was caused by not releasing 
+     memory space for the cookie-name/-domain etc.
+   - added the missing -T switch to embpexec.test.bat, which caused the
+     taint test in cgi mode to fail on win32
+   - Added epchar.c.iso-latin-2 from Jiri Novak, which contains the correct
+     escaping for the iso-8859-2 (iso-latin-2) character set. You may use it
+     to replace the standard epchar.c
+   - Added new metacommand [$ sub <name> $] and [$ endsub $] which allows
+     you to define blocks of code an call them mulitple times inside a page,
+     either a creating a subrequest Execute('#<name>') or by calling them
+     directly as a perl subroutine [- <name> -]. Read the docs for more
+     information on the details and differences.
+   - Added new parameter "import" to Execute, which let's you import subs
+     (defined with [$sub <name>$]) into the current page.
+   - @ffld is filled with 'values %fdat' if the ffld parameter in the call
+     to the Execute funtion is missing.
+   - Filedata will held into memory until the end of the request, so a
+     second call to Execute for the same file will not reread the data
+     from disk.
+   - Added emacs/embperl.el. It's a emacs minor mode for Embperl written
+     by Erik Arneson
+   - Output of dbgShowCleanup is now sorted by name
+   - Update the Faq.pod with new Q&A and removed obsolete Q&A
+   - Made Makefile.PL more smarter in DSO situations. It detecteds now 
+     which of the needed Apache modules are linked staticly and places
+     neccessary LoadModule statements in the httpd.conf for make test.
+     This way make test should work also where all modules linked at
+     runtime, like on RedHat 6. With help form James H. Thompson.
+   - Makefile.PL ask´s now if it can´t find any modules. On win32
+     it will not try to guess (the maybe wrong) path anymore.
+   - Added possibility to get the the uploadInfo from CGI.pm
+     (e.g. ${${$fdat{upload}}} -> {'Content-Type'} will return the
+      content type). Requested by Brian Reichert.
+   - Catch die of CGI.pm when it hit's a 'Malformed multipart POST'.
+     Spooted by Chris Alexander.
+   - Add optKeepSrcInMemory which tells Embperl to keep the source
+     file in memory and not reload it on every request
+   - Added the possibility to use recursive calls to Execute.
+     NOTE: You can create local variables via [* local $foo ; *]
+   - Reworked the cleanup. Now imported values from other modules
+     left unchanged. This solves problems with using modules
+     inside Embperl pages, which exports some global variables.
+   - Added the %CLEANUP hash. Put variables into with should be
+     additional cleaned up ($CLEANUP{'var'} = 1) or which shouldn't
+     cleaned up ($CLEANUP{'var'} = 0)
+   - Special handling for DBIx::Recordset objects, so it's sure
+     they are really get destroyed 
+   - fixed a problem with dynamic tables, that occurs when you
+     had tried to repeat multiple table rows
+   - Embperl compiles now with perl5.005_57+. Patch from Ask Bjoern Hansen
+   - Cleanup now logs any errors that occurs when calling object
+     destructors and makes sure errors inside object destructors do
+     not break Embperl itself.
+   - Embperl now returns DECLINED when called for a directory. This
+     way Apache can handle diretories the correct way. This will make
+     DiretoryIndex (e.g. index.html) work again with Embperl. 
+   - Fixed a problem that @ffld contains the same field more then
+     one time if posted from a select multiple with multiple items
+     selected. This caused problems with [$hidden$]. Spotted by
+     Martin Leja.
+   - Double quotes (") will be url-encoded to %22 inside URLs.
+   - Embperl now never writes to the logfile if EMBPERL_DEBUG is zero
+   - make test now runs with newest version of mod_ssl (2.3.5)
+   - Added option optKeepSpaces which will disable the removing of spaces
+     and empty lines from the output. Suggested from Gary Shea.
+   - Added option optOpenLogEarly, which will cause Embperl to open the
+     logfile as soon as it is loaded into memory. You can use this when
+     you loaded Embperl via PerlModule under Apache, to open the log
+     as root instead of the non-privileged user Apache runs as.
+
+=head1 1.2b4 (BETA)  15 Feb 1999
 
 
    - fixed a problem that $req_rec was sometimes invalid on the 

@@ -370,17 +370,45 @@ is first requested.
 You don't need to worry about performance - as long as you don't touch
 %udat or %mdat, no action is taken.
 
-=head1 Breaking up your code in components
+
+=head1 Breaking your code up into components
 
  (Embperl 1.2 or above)
 
-If you are working on a complete site, and not just a few pages, there are
-always elements which occur in every page or in many pages. Instead of
-copying the source code to every page, you can include B<Embperl modules>
-in your pages, so you have to write the source only once. Such a module
-could be a header, a footer, a navigation bar etc. Embperl is not only
-caple of including such partial pages, you can also pass arguments - 
-for example, to tell the navigation bar which element to highlight.
+=head2 Subroutines
+
+It is better to write subroutines than to keep placing repetetive pieces of
+code in your program many times. You can do this with Embperl too.
+As an example, if you have text input fields with
+labels, this may work better for you:
+
+[$ sub textinput $]
+    [- ($label, $name) = @param -]
+    [+ $label +]<input type=text name=[+ $name +]>
+[$ endsub $]
+
+
+<form>
+    [- textinput ('Last Name', 'lname')  -]<p>
+    [- textinput ('First Name', 'fname') -]<p>
+</form>
+
+The B<sub> metacommand starts the subroutine and the parameters are passed in
+the array B<@Z<>param>. You can do anything in the subroutine that you would
+normally be able to do inside normal Embperl pages. Embperl lets you call this
+subroutine just like any other Perl subroutine: just write its name and, if
+necessary, the parameter list.
+
+=head2 Execute
+
+If you are working on an entire site rather than just a few pages, you are
+well aware that there are always elements which occur in every page or across 
+many pages. Instead of copying the source code to every page, you can include
+other Embperl pages in your page - so you have to write the source only once.
+Such an included page could be a header, a footer, a navigation bar, and so on.
+Embperl is not only capable of including such partial pages, you can also pass
+arguments -  for example, to tell the navigation bar which of its own element
+to highlight:
 
  Example for a simple navigation bar
 
@@ -393,17 +421,35 @@ for example, to tell the navigation bar which element to highlight.
  <hr>
 
 Now if you are on the "Info" page you can include the navigation bar
-as following:
+this way: 
 
  [- Execute ('navbar.html', 'Infos') -]
 
 This will include the navigation bar, which is stored in the file navbar.html,
 and pass as its first parameter the string 'Infos'. The navigation bar module
-itself uses a dynamic table to display one column, which contains the text and
-a link, for every item in the array @buttons. Also the text which is equal
-to the one passed as first parameter is displayed in bold.
-There is also a long form of the Execute call, which allows you to control
-all details how the called module is executed.
+itself uses a dynamic table to display one column - which contains the text and
+a link - for every item in the array @buttons. The text which matches that
+which is passed as the first parameter is displayed in bold. There is also a
+long form of the Execute call, which allows you to control all of the details
+of how the called page is executed.
+
+=head2 Creating Component Libraries
+
+Instead of creating a single file for every piece of HTML-code you wish to include,
+you can pack them together in just one library. To do this, split up every
+piece of code you want to include separately in one Embperl
+subroutine (sub-metacommand). Now, you can use the import parameter of the
+Execute function to import all of the subrountines defined in one file, into
+the namespace of the current page. Afterwards, you are able to call them just
+like any other Perl subroutine.
+
+Moreover, if you wish to have some systemwide Embperl subroutines, you can put all the 
+Embperl code in a normal Perl module (a foo.pm file), install it into your Perl system
+(or a private library path), and use it just like any other Perl module - just
+by saying 
+
+  use mymodule;
+
 
 =head1 Debugging
 

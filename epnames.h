@@ -57,12 +57,14 @@
 #define GetLogHandle           EMBPERL_GetLogHandle
 #define SearchCmd              EMBPERL_SearchCmd     
 #define ProcessCmd             EMBPERL_ProcessCmd    
+#define ProcessSub             EMBPERL_ProcessSub
 #define Char2Url               EMBPERL_Char2Url            
 #define CmdTab                 EMBPERL_CmdTab              
 #define EvalTrans              EMBPERL_EvalTrans           
 #define EvalMain               EMBPERL_EvalMain
 #define EvalTransFlags         EMBPERL_EvalTransFlags
 #define EvalTransOnFirstCall   EMBPERL_EvalTransOnFirstCall           
+#define EvalSub                EMBPERL_EvalSub
 #define GetContentLength       EMBPERL_GetContentLength    
 #define GetLogFilePos          EMBPERL_GetLogFilePos       
 #define ReadHTML               EMBPERL_ReadHTML            
@@ -73,8 +75,8 @@
 #define CommitError            EMBPERL_CommitError
 #define RollbackError          EMBPERL_RollbackError
 #define _memstrcat             EMBPERL__memstrcat
-#define __strdup               EMBPERL___strdup
-#define __strndup              EMBPERL___strndup
+#define _ep_strdup             EMBPERL__ep_strdup
+#define _ep_strndup            EMBPERL__ep_strndup
 #define _realloc               EMBPERL__realloc
 #define ExecuteReq             EMBPERL_ExecuteReq     
 #define FreeConfData           EMBPERL_FreeConfData   
@@ -90,29 +92,22 @@
 #define sstrdup                EMBPERL_sstrdup        
 #define ProcessBlock           EMBPERL_ProcessBlock
 #define NewEscMode             EMBPERL_NewEscMode
+#define GetSubTextPos          EMBPERL_GetSubTextPos
+#define SetSubTextPos          EMBPERL_SetSubTextPos
 
 
 #define InitialReq             EMBPERL_InitialReq
 #define pCurrReq               EMBPERL_pCurrReq
 
-
-/* --> from mod_perl.h
- * patchlevel.h causes a -Wall warning, 
- * plus chance that another patchlevel.h might be in -I paths
- * so try to avoid it if possible 
- */ 
-#ifdef PERL_VERSION
-#if PERL_VERSION >= 500476
-#define PERL5_005
+#ifndef PERL_VERSION
+#include <patchlevel.h>
+#define PERL_VERSION PATCHLEVEL
+#define PERL_SUBVERSION SUBVERSION
 #endif
-#else
-#include "patchlevel.h"
-#if ((PATCHLEVEL >= 4) && (SUBVERSION >= 76)) || (PATCHLEVEL >= 5)
-#define PERL5_005
-#endif
-#endif /*PERL_VERSION*/
 
-#ifdef PERL5_005
+
+#if PERL_VERSION >= 5
+
 #ifndef rs
 #define rs PL_rs
 #endif
@@ -179,10 +174,26 @@
 #ifndef maxo
 #define maxo PL_maxo
 #endif
-#else
+
+#if PERL_SUBVERSION >= 50 || PERL_VERSION >= 6
+
+#ifndef na
+#define na PL_na
+#endif
+#ifndef sv_undef
+#define sv_undef PL_sv_undef
+#endif
+#ifndef tainted
+#define tainted PL_tainted
+#endif
+
+#endif
+
+
+#else  /* PERL_VERSION > 5 */
 
 #define ERRSV GvSV(errgv)
 #define dTHR
 
 
-#endif /* PERL5_005 */
+#endif /* PERL_VERSION > 5 */

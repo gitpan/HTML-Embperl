@@ -1,6 +1,6 @@
 /*###################################################################################
 #
-#   Embperl - Copyright (c) 1997-1999 Gerald Richter / ECOS
+#   Embperl - Copyright (c) 1997-1998 Gerald Richter / ECOS
 #
 #   You may distribute under the terms of either the GNU General Public
 #   License or the Artistic License, as specified in the Perl README file.
@@ -12,6 +12,7 @@
 #
 ###################################################################################*/
 
+/* input and output escaping for iso-8859-1 (iso-latin-1) */
 
 #include "ep.h"
 
@@ -194,13 +195,13 @@ struct tCharTrans Char2Html [] =
         { '¥' ,   "&yen;"    },    /* 	Yen sign  */
 /*        { '¦' ,   "&brvbar;" },    /*  	Broken vertical bar  */
         { '¦' ,   "&brkbar;" },    /* 	Broken vertical bar  */
-        { '§' ,   "&&sect;"  },    /* 	Section sign  */
+        { '§' ,   "&sect;"  },    /* 	Section sign  */
 /*        { '¨' ,   "&&um;"    },    /*  	Diæresis / Umlaut  */
-        { '¨' ,   "&&die;"   },    /* 	Diæresis / Umlaut  */
-        { '©' ,   "&&copy;"  },    /* 	Copyright               */
-        { 'ª' ,   "&&ordf;"  },    /* 	Feminine ordinal  */
-        { '«' ,   "&&laquo;" },    /* 	Left angle quote, guillemot left  */
-        { '¬' ,   "&&not;"   },    /*	Not sign  */
+        { '¨' ,   "&die;"   },    /* 	Diæresis / Umlaut  */
+        { '©' ,   "&copy;"  },    /* 	Copyright               */
+        { 'ª' ,   "&ordf;"  },    /* 	Feminine ordinal  */
+        { '«' ,   "&laquo;" },    /* 	Left angle quote, guillemot left  */
+        { '¬' ,   "&not;"   },    /*	Not sign  */
         { '­' ,   "&shy;"    },    /* 	Soft hyphen  */
         { '®' ,   "&reg;"    },    /* 	Registered trademark  */
 /*        { '¯' ,   "&macr;"   },    /*  	Macron accent  */
@@ -325,7 +326,7 @@ struct tCharTrans Char2Url [] =
         { ' ' ,   "%1F"         },    /* &#31;		Unused  */
         { ' ' ,   "+"           },    /* 	&#32;		Space  */
         { '!' ,   ""         },    /* 	&#33;		Exclamation mark  */
-        { '"' ,   ""   },    /* 	Quotation mark  */
+        { '"' ,   "%22"   },    /* 	Quotation mark  */
         { '#' ,   ""         },    /* 	&#35;		Number sign  */
         { '$' ,   ""         },    /* 	&#36;		Dollar sign  */
         { '%' ,   ""         },    /* 	&#37;		Percent sign  */
@@ -554,13 +555,6 @@ struct tCharTrans Char2Url [] =
 struct tCharTrans Html2Char [] = 
  
     {
-        { '©' ,   "&&copy"  },    /* 	Copyright  */
-        { '¨' ,   "&&die"   },    /* 	Diæresis / Umlaut  */
-        { '«' ,   "&&laquo" },    /* 	Left angle quote, guillemot left  */
-        { '¬' ,   "&&not"   },    /*	Not sign  */
-        { 'ª' ,   "&&ordf"  },    /* 	Feminine ordinal  */
-        { '§' ,   "&&sect"  },    /* 	Section sign  */
-        { '¨' ,   "&&um"    },    /*  	Diæresis / Umlaut  */
         { 'Æ' ,   "&AElig"  },    /* 	Capital AE ligature  */
         { 'Á' ,   "&Aacute" },    /* 	Capital A, acute accent  */
         { 'Â' ,   "&Acirc"  },    /* 	Capital A, circumflex  */
@@ -605,8 +599,10 @@ struct tCharTrans Html2Char [] =
         { 'ç' ,   "&ccedil" },    /* 	Small c, cedilla  */
         { '¸' ,   "&cedil"  },    /* 	Cedilla  */
         { '¢' ,   "&cent"   },    /* 	Cent sign  */
+        { '©' ,   "&copy"  },    /* 	Copyright  */
         { '¤' ,   "&curren" },    /* 	General currency sign  */
         { '°' ,   "&deg"    },    /* 	Degree sign  */
+        { '¨' ,   "&die"   },    /* 	Diæresis / Umlaut  */
         { '÷' ,   "&divide" },    /* 	Division sign  */
         { 'é' ,   "&eacute" },    /* 	Small e, acute accent  */
         { 'ê' ,   "&ecirc"  },    /* 	Small e, circumflex  */
@@ -624,15 +620,18 @@ struct tCharTrans Html2Char [] =
         { 'ì' ,   "&igrave" },    /* 	Small i, grave accent  */
         { '¿' ,   "&iquest" },    /* 	Inverted question mark  */
         { 'ï' ,   "&iuml"   },    /* 	Small i, diæresis / umlaut  */
+        { '«' ,   "&laquo" },    /* 	Left angle quote, guillemot left  */
         { '<' ,   "&lt"     },    /* 	Less than  */
         { '¯' ,   "&macr"   },    /*  	Macron accent  */
         { 'µ' ,   "&micro"  },    /* 	Micro sign  */
         { '·' ,   "&middot" },    /* 	Middle dot  */
         { ' ' ,   "&nbsp"   },    /* 	Non-breaking Space  */
+        { '¬' ,   "&not"   },    /*	Not sign  */
         { 'ñ' ,   "&ntilde" },    /* 	Small n, tilde  */
         { 'ó' ,   "&oacute" },    /* 	Small o, acute accent  */
         { 'ô' ,   "&ocirc"  },    /* 	Small o, circumflex  */
         { 'ò' ,   "&ograve" },    /* 	Small o, grave accent  */
+        { 'ª' ,   "&ordf"  },    /* 	Feminine ordinal  */
         { 'º' ,   "&ordm"   },    /* 	Masculine ordinal  */
         { 'ø' ,   "&oslash" },    /* 	Small o, slash  */
         { 'õ' ,   "&otilde" },    /* 	Small o, tilde  */
@@ -643,6 +642,7 @@ struct tCharTrans Html2Char [] =
         { '"' ,   "&quot"   },    /* 	Quotation mark  */
         { '»' ,   "&raquo"  },    /* 	Right angle quote, guillemot right  */
         { '®' ,   "&reg"    },    /* 	Registered trademark  */
+        { '§' ,   "&sect"  },    /* 	Section sign  */
         { '­' ,   "&shy"    },    /* 	Soft hyphen  */
         { '¹' ,   "&sup1"   },    /* 	Superscript one  */
         { '²' ,   "&sup2"   },    /* 	Superscript two  */
@@ -653,6 +653,7 @@ struct tCharTrans Html2Char [] =
         { 'ú' ,   "&uacute" },    /* 	Small u, acute accent  */
         { 'û' ,   "&ucirc"  },    /* 	Small u, circumflex  */
         { 'ù' ,   "&ugrave" },    /* 	Small u, grave accent  */
+        { '¨' ,   "&um"    },    /*  	Diæresis / Umlaut  */
         { 'ü' ,   "&uuml"   },    /* 	Small u, diæresis / umlaut  */
         { 'ý' ,   "&yacute" },    /* 	Small y, acute accent  */
         { '¥' ,   "&yen"    },    /* 	Yen sign  */

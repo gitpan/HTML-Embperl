@@ -43,6 +43,7 @@ OUTPUT:
     RETVAL
 
 
+# /* ---- Helper ----- */
 
 int
 embperl_ResetHandler(pReqSV)
@@ -64,6 +65,31 @@ CODE:
 #endif
 
 
+
+char *
+embperl_GVFile(gv)
+    SV * gv
+CODE:
+    if (!gv)
+	RETVAL = "" ;
+    else
+	{
+	GV * fgv = GvFILEGV(gv) ;
+	if (!fgv)
+	    RETVAL = "" ;
+	else
+	    {
+	    char * name = GvNAME (fgv) ;
+	    if (name && SvTYPE(fgv) == SVt_PVGV)
+		RETVAL = name ;
+	    else
+		RETVAL = "" ;
+	    }
+	}
+OUTPUT:
+    RETVAL
+
+
 # /* ---- Configuration data ----- */
 
 tConf *
@@ -78,10 +104,21 @@ OUTPUT:
     RETVAL
 
 
+int
+embperl_FreeConfData(pConf) 
+    tConf *   pConf
+CODE:
+    FreeConfData(pConf) ;
+    RETVAL = 1 ;
+OUTPUT:
+    RETVAL
+
+
+
 # /* ----- Request data ----- */
 
 tReq *
-embperl_SetupRequest(req_rec,sInputfile,mtime,filesize,sOutputfile,pConf,nIOtype,pIn,pOut) 
+embperl_SetupRequest(req_rec,sInputfile,mtime,filesize,sOutputfile,pConf,nIOtype,pIn,pOut,sSubName,sImport) 
     SV *    req_rec
     char *  sInputfile
     double  mtime
@@ -91,17 +128,27 @@ embperl_SetupRequest(req_rec,sInputfile,mtime,filesize,sOutputfile,pConf,nIOtype
     int     nIOtype
     SV *    pIn
     SV *    pOut
+    char *  sSubName 
+    char *  sImport
 INIT:
     if (SvOK(ST(4)))
         sOutputfile = SvPV(ST(4), na);
     else
         sOutputfile = "\1" ; 
 CODE:        
-    RETVAL = SetupRequest(req_rec,sInputfile,mtime,filesize,sOutputfile,pConf,nIOtype,pIn,pOut) ;
+    RETVAL = SetupRequest(req_rec,sInputfile,mtime,filesize,sOutputfile,pConf,nIOtype,pIn,pOut,sSubName,sImport) ;
 OUTPUT:
     RETVAL
 
 
+tReq *
+embperl_CurrReq(dummy)
+    int dummy
+CODE:        
+    RETVAL = pCurrReq ;
+OUTPUT:
+    RETVAL
+ 
 
 
 
@@ -194,6 +241,19 @@ OUTPUT:
     RETVAL
 
 
+int
+embperl_ProcessSub(pFile, nBlockStart, nBlockNo)
+    int     pFile
+    int     nBlockStart
+    int     nBlockNo
+INIT:
+    tReq * r = pCurrReq ;
+CODE:
+    RETVAL = ProcessSub(r,(tFile *)pFile, nBlockStart, nBlockNo) ;
+OUTPUT:
+    RETVAL
+
+
 
 ################################################################################
 
@@ -211,6 +271,18 @@ CODE:
 OUTPUT:
     RETVAL
 
+SV *
+embperl_ExportHash(r)
+    tReq * r
+CODE:
+    if (r -> Buf.pFile && r -> Buf.pFile -> pExportHash)
+	{
+        ST(0) = newRV_inc((SV *)r -> Buf.pFile -> pExportHash) ;
+	if (SvREFCNT(ST(0))) sv_2mortal(ST(0));
+	}
+    else
+        ST(0) = &sv_undef ;
+
 
 char *
 embperl_Sourcefile(r)
@@ -219,7 +291,7 @@ CODE:
     if (r -> Buf.pFile)
         RETVAL = r -> Buf.pFile -> sSourcefile ;
     else
-        RETVAL = NULL ;
+        RETVAL = NULL;
 OUTPUT:
     RETVAL
 
@@ -295,6 +367,14 @@ CODE:
 OUTPUT:
     RETVAL
 
+int
+embperl_Error(r)
+    tReq * r
+CODE:
+    RETVAL = r -> bError ;
+OUTPUT:
+    RETVAL
+
 
 int
 embperl_ProcessBlock(r,nBlockStart,nBlockSize,nBlockNo)
@@ -304,6 +384,18 @@ embperl_ProcessBlock(r,nBlockStart,nBlockSize,nBlockNo)
     int     nBlockNo
 CODE:
     RETVAL = ProcessBlock(r,nBlockStart,nBlockSize,nBlockNo) ;
+OUTPUT:
+    RETVAL
+
+
+int
+embperl_ProcessSub(r,pFile,nBlockStart,nBlockNo)
+    tReq * r
+    int     pFile
+    int     nBlockStart
+    int     nBlockNo
+CODE:
+    RETVAL = ProcessSub(r,(tFile *)pFile, nBlockStart, nBlockNo) ;
 OUTPUT:
     RETVAL
 

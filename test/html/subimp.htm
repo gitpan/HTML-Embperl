@@ -1,0 +1,39 @@
+
+[###### first sub #####]
+[$sub tfirst$]
+
+<h2>1.) Here goes some normal html text <h2>
+
+[$endsub$]
+[###### second sub #####]
+[$sub tsecond $]
+
+2.) Here comes some perl:
+
+[- $foo = 'Hello world' -]
+
+foo = [+ $foo +]<br>
+testdata = [+ $testdata +]<br>
+
+[$endsub$]
+[###### table header #####]
+[$sub tabheader $]
+
+<table>
+<tr><th>1</th><th>2></th></tr>
+<tr>
+
+[$endsub$]
+[###### table cell #####]
+[$sub tabcell $]
+
+<td>[+ $_[0] -> [$row][$col] +]<td>
+
+[$endsub$]
+[###### table footer #####]
+[$sub tabfooter $]
+
+</tr>
+</table>
+
+[$endsub$]

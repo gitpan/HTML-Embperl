@@ -36,19 +36,24 @@ Embperl FAQ - embed Perl code in your HTML docs
 
 
 For basics on downloading, compiling, and installing, please see the 
-L<INSTALL/"INSTALLATION"> in the Embperl documentation. Please be sure to load Embperl 
-at server startup - if you do not, various problems may result. 
+L<INSTALL/"INSTALLATION"> in the Embperl documentation. Please be sure
+to load Embperl at server startup - if you do not, various problems may
+result. An exception to that rule is when you have compiled mod_perl with
+B<USE_DSO>. In this case you B<must not> load Embperl at server statup,
+neither via an use in your startup.pl file, nor via PerlModule from
+your httpd.conf.
 
 
 
-=head2 Is there a binary distribution of Embperl?
+=head2 Is there a binary distribution of Embperl for Unix?
 
 No.
 
 
 =head2 Is there a binary distribution of Embperl for Win32?
 
-Not at the present time, but this may change.
+Win NT/95/98 binarys for Apache/perl/mod_perl/Embperl are
+available from http://www.perl.com/CPAN/authors/Jeffrey_Baker/
 
 
 =head2 I want to run Embperl with mod_perl under Apache. In what order should I
@@ -204,11 +209,128 @@ You can load Embperl at server startup by PerlModule or in a startup.pl:
 
 =back
 
-NOTE: Either of these approaches can often 'fix' SIGSEVs in any mod_perl
+NOTE 1: Either of these approaches can often 'fix' SIGSEVs in any mod_perl
 handler, not just Embperl.
 
+NOTE 2: When mod_perl is compiled as loadable module (i.e. with USE_DSO)
+you B<must not> load Embperl at server startup time!
 
 
+
+=head2 make test fails with a SIGxxxx, how can I obtain a stack bactrace
+from gdb?
+
+The eaiest way is
+
+        make install            -> if Embperl is installed, it's easier
+        gdb perl                -> start the debugger with perl binary
+        set args test.pl        -> set the arguments for perl
+        r                       -> start the program
+
+        -> Here you should receive the signal
+
+        share                   -> makes sure all symbols are really loaded
+        bt                      -> show the backtrace
+
+To get some more information it would be a good idea to compile Embperl with
+debugging infomation enabled. Therefor do
+
+=head2 How do I build Embperl with debugging informations
+
+=over4
+
+=item edit the Makefile
+
+=item search for the line starting with 'CC = ' add the -g switch to the end of the line
+
+=item search for the line starting with 'LDDFLAGS = ' add the -g switch to the end of the line
+
+=item type make to build Embperl with debugging infomation
+
+=back
+
+now start the gdb as decribed before.
+
+
+
+=head2  make test fails with SIGXFSZ
+
+This may occur when the filesize limit for the account, either test
+is running as or the test httpd, is too small. Embperl make test
+generates a really large logfile! Yu must increase the filesize limit
+for that accounts.
+
+
+
+
+=head2 Embperl on SCO Unix
+
+>From Red Plait
+
+My OS is SCO Unix 3.2v4.2, Apache 1.3.4, perl 5.004_4, mod_perl 1.18 and
+Embperl-1.1.1
+
+I done following:
+
+=over 4
+
+=item 1)
+
+I made HTML-Embperl-1.1.1 with no mod_perl support ( when I builded it
+with mod_perl 1.18 I can`t link it because it don`t finds ap_XXX functions.
+When I manually insert src/main/libmain.a from Apache 1.3.4 I got message
+"Symbol main is multiple defined in  /src/main/libmain.a. and perlmain.o"
+). Then I "make test" - all tests was O`k. After this I "make clean", "perl
+Makefile.pl" with mod_perl support and "make install"
+
+=item 2)
+
+I installed mod_perl and "perl Makefile.PL", then "make"
+
+
+=item 3)
+
+because I have`nt dynamical loading ( very old and buggy OS ) I had to
+manually change src/modules/perl/perlxsi.c to insert bootstraps function`s
+and it`s invocations and also /src/Makefile to manually insert libXXX.a
+libraries
+
+=item In access.conf I insert code:
+
+ PerlModule HTML::Embperl
+ <Directory /my_dir>
+  SetHandler perl-script
+  PerlHandler HTML::Embperl::handler
+ </Directory>
+
+=back
+
+
+=head2 Embperl does not write to the logfile, because of missing permissions
+of the user Apache runs as.
+
+The apache server is started as root, then set the effective uid to
+user "www", who can then write to the embperl logfile (owned by root)
+file handle
+that is passed along.  However, if this log file handle is later
+accidentally
+closed, then reopen, the www user would have problem writing to it?
+
+
+The reopen is only done when the logfile name changes. As log as you don't
+change the name on the logfile, the logfile will stay open.
+
+The problem (in this case) is, that Embperl init function ,(Init in epmain.c)
+calls OpenLog will an second argument of zero. Which will only save the
+filename. The log will actually opened on the first write to it (or at the
+start of the first request). At this time your Apache has alreay switch to
+user www. This is done to allow to change the logfile name before an
+request, but after the init is already called (which is done when you or
+Apache "use" the module)
+
+The current solutions is to
+write something to the log, before Apache changes it's user (i.e. in the
+startup.pl)
 
 
 
@@ -269,10 +391,11 @@ ideas, let me know.
 To see the steps for loading Embperl at server startup, please see the
 section L<"Downloading, Compiling & Installing">.
 
-
+NOTE: When mod_perl is compiled with B<USE_DSO> it behaves vice versa
+and you may get SIGSEGVs when Embper is loaded at server startup time.
 
 =head2 I am having troubles with using Embperl in combination with
-Apache::Include and Apache::Registry.
+Apache::Include inside a Apache::Registry script.
 
 This is a known problem, but it is a problem with mod_perl rather than
 with Embperl. It looks like mod_perl clears the request_rec after the
@@ -299,14 +422,32 @@ the L<"Common Questions"> section.
 
 
 =head2 I can't figure out how to split a 'while' statement across 
-two [--] segments
+two [- -] segments
 
 That isn't surprising, as you cannot split Perl statements across multiple
-blocks in Embperl :) You need to use a metacommand for that. The [$while$]
+[- -] blocks in Embperl :) You need to use a metacommand for that. The [$while$]
 metacommand comes to mind... :) 
 
 For a list of all possible metacommands, see the section on 
 L<Meta-Commands|Embperl/"[$ Cmd Arg $]  (Meta-Commands)"> in the Embperl documentation.
+
+        [$ while $st -> fetch $]
+                #some html or other Embperl blocks goes here
+        [$ endwhile $]
+
+Newer Embperl versions (1.2b3 and above) supports the [* *] which can be
+used for such purposes.
+
+        [* while ($st -> fetch) { *]
+                #some html or other Embperl blocks goes here
+        [* } *]
+
+While the later can use all Perl control structures, the first seems to
+me more readable and is better debugable, because Embperl controls the
+execution of the control structure it can do a quite better job in debug
+logging.
+
+
 
 
 =head2 My HTML tags like '<' '>' and '"' are being translated to &lt;, &gt; !!!
@@ -339,38 +480,14 @@ devoted to them.  Less common questions are addressed here:
 
 
 
-=head2 What is the difference between Embperl and ePerl (and ASP, etc)?
-
-ePerl also embeds Perl code in documents, but it doesn't know anything
-about HTML. 
-
-Embperl's strongest features (the ones which have received 
-the most attention during development so far) are probably:
-
-=over 4
-
-=item - Dynamic Tables
-
-=item - Formfields Processing
-
-=item - Escaping/Unescaping
-
-=item - Safe Namespaces
-
-=back
-
 
 =head2 How can I get my HTML files to be converted into Perl code which, as a
-whole, could then be compiled as function named munge(URL) so that I could, for 
+whole, could then be compiled as function so that I could, for 
 instance, fetch Perl docs from the Formatter table and compile them the
 way AUTOLOAD does.
 
-This is a very good example of a very long run-on sentence, and it is also a 
-very good example of a thing that ePerl would do better than Embperl.
-
-See ePerl, by Ralf Engelschalls, at http://www.engelschall.com. See also
-the previous question, "What is the difference between Embperl and ePerl?"
-
+Embperl cannot covert your HTML into one piece of Perl-code, but you can
+wrap the call to Execute into a Perl function and let AUTOLOAD call it.
 
 
 =head2 I have an HTML page which is dynamically generated at runtime 
@@ -389,6 +506,10 @@ HTML source from the disk or even from a database. Embperl also
 provides the function ProxyInput, which allows you to get input from
 another web server altogether.
 
+=item 3.) Look at the module Apache::EmbperlChain, which is able to chain
+multiple modules, including Embperl, together.
+
+
 =back
 
 =head2 How can I customise the header that Embperl is sending?
@@ -400,7 +521,7 @@ You can write it as
 (Embperl will automatically insert all meta http-equiv tags into the http
 header)
 
-or you can use
+or (only when running under mod_perl) you can use
 
     [- $req_rec -> content_type ('text/html') -]
 
@@ -424,6 +545,9 @@ Example Code:
 
 =back
 
+NOTE: You make also take a look at Embperls (1.2b2 and above) ability to
+handle sessions for you inside the %udat and %mdat hashes.
+
 =head2 Can I do REDIRECT with Embperl?
 
 The function you want to call is Apache::header_out.
@@ -434,13 +558,29 @@ Example Code:
     use Apache;
     use Apache::Constants qw(REDIRECT);
 
-    $req_rec->header_out("Location" => "http://$ENV{SERVER_NAME}/specials/");
+    $req_rec->header_out("Location" => "http://$ENV{HTTP_HOST}/specials/");
     $req_rec->status(REDIRECT);
     -]
 
+=head2 How to send Location Header with EmbedPerl
+
+ 
+Try
+
+    [-
+       $req_rec ->  header_out("Location" => "http://cnn.com/");
+       $req_rec ->  status (302));
+    -] 
+ 
+(You may use the constants from Apache::Constants instead of the 302)
+
+If there is nothing more to do on this page, you may call exit directly
+after setting the status.
+
+
 
 =head2 Can I serve random GIFs with Embperl?
-(Will Leonard Stein's GD.pm module work with Embperl??)
+(Will Lincoln Stein's GD.pm module work with Embperl??)
 
 As always, there is more than one way to do this - especially as this 
 is more of a question of how you are coding your HTML than how you 
@@ -567,6 +707,107 @@ parameter to pass values to %fdat.
 
 
 
+=head2 How to include other files into Embperl pages?
+
+I am using embedded Perl on my site and am curious if I can use it for
+server side includes.  I want to embed the contents of file x.html into
+file y.html such that whenever I change x.html, displaying y.html will
+also reflect this change. How do I do it using embedded perl?
+
+
+You need Embperl 1.2b4 or above. Then you can say inside of y.html:
+
+ [- Execute ('x.html') -]
+
+=Head2 EmbPerl iteration without indexing
+
+I have a rather large table in a database which I'd like to display using
+EmbPerl.  All of the examples show a process of fetching all the data
+first,
+then iterating through it using $row and $col, like this:
+
+   [-
+   $sth = $dbh -> prepare ("select * from $comptbl order by SubSystem");
+   $sth -> execute;
+   $dref = $sth -> fetchall_arrayref;
+   -]
+   <TABLE>
+      ... $dref -> [$row][0] ...
+   </TABLE>
+
+I'd prefer to fetch the data one row at a time, how can I do this?
+
+For solution 1 you may write
+
+ <table>
+ [$while $rref = $sth -> fetch $]
+     <tr>....</tr>
+ [$endwhile$]
+ </table>
+
+Solution 2 should work like this
+
+ <table>
+    <tr> [- $dummy = $row ; $rref = $sth -> fetch -]
+            ....
+    </tr>
+ </table>
+
+The table ends when the expression where $row is used in some way returns
+<undef>. So also there is no releation between $row and the fetch, both
+conditions are met.
+
+=head2 How to display arrays with undef values in it?
+
+ 
+I'm doing a search on a table where some of the columns have NULL and
+non-NULL values.  DBIx::Recordset has no problem reading this values 
+The problem is that I then tried to print these values
+out in a table using Embperl's  table feature, like this.
+ 
+ <TABLE>
+ <TR>
+ <TD>$set[$row]{column_name1}</TD>
+ <TD>$set[$row]{column_nameN}</TD>
+ </TR>
+ 
+ The problem is that I got 5 rows instead of the 15 that I was expected.  I
+ have been  trying all kinds of tweaks to the arguments to the Search
+ function and getting nowwhere, until I re-read the Embperl docs.  Embperl
+ will not print out a table row if one of the columns has an 
+ expression that
+ is undefined.  This is a problem since DBIx::Recordset (and DBI)
+ natually uses undef to represent a NULL value for a column.  So I made a
+ slight modification to my embperl code.
+ 
+ <TABLE>
+ <TR>
+ <TD>defined($set[$row]{column_name1}) ? $set[$row]{column_name1} :
+ "UNDEF"</TD>
+                                 .   .   .
+ <TD>$set[$row]{column_nameN} ? $set[$row]{column_nameN} : "UNDEF"</TD>
+ </TR>
+ 
+Now all 15 rows appear as expected, with "UNDEF" representing the NULL
+values in the database.
+
+Another way top solve you problem may be:
+
+
+ <TABLE>
+ <TR>
+ [- $r = $set[$row] -]
+ <TD> [+ $r -> {column_name1} +] </TD>
+                                 .   .   .
+ <TD> [+ $r -> {column_nameN} +] </TD>
+ </TR>
+
+
+This will only refer one time to $row and the expression is defined,
+as long as the row could be fetched from the db. All NULL fields will
+be displayed as empty table cells.
+
+
 
 
 
@@ -676,7 +917,7 @@ The Embperl version is
     @a = ('a', 'b', 'c') ;
     -]
     <table>
-    <tr><td>Row $a[$row]</td></tr>" ;
+    <tr><td>Row [+ $a[$row] +]</td></tr>" ;
     </table>
 
 The output will be
@@ -798,6 +1039,11 @@ Never set all debugging bits!
     dbgFlushLog dbgFlushOutput, dbgMem and dbgEvalNoCache in a
     production environment.
 
+=item 3.) You may also want to take a look at the available options
+    you can set via EMBPERL_OPTIONS. For example optDisableChdir, will
+    speed up processing because it avoid the change directory before
+    every request.
+
 =back
 
 
@@ -813,7 +1059,7 @@ How can I override or alter this or that behavior?
 
 Usually, defaults are set in a way that is likely to make most sense for a
 majority of users. As of version 1.0, Embperl allows much more flexibility
-in tweaking your own default values than before. 
+in tweaking your own default values than before. Take a look at EMBERPL_OPTIONS.
 
 
 
@@ -931,7 +1177,9 @@ but they don't say how to control it. How can I get Embperl to use *my*
 CGI.pm object instead of creating its own? 
 
 Embperl only creates a CGI objects to process multipart form data (from
-fileupload). In all other cases Embperl doesn't use CGI.pm
+fileupload). In all other cases Embperl doesn't use CGI.pm. There is no
+way to change this behaviour, or access the internal CGI object in case
+of file-uploads.
 
 
 

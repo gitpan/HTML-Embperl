@@ -37,7 +37,18 @@ sub new
 
 
 [-
+test::object->new (0) ;
+-]
+
+[-
+$obj[0] = 1 ;
+-]
+
+[-
 $obj[0] = test::object->new (0) ;
+
+
+
 $obj[1] = test::object->new (1) ;
 $obj[2] = test::object->new (2) ;
 $obj[3] = test::object->new (3) ;

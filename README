@@ -41,6 +41,8 @@ Installation of Embperl:    perldoc INSTALL.pod
 Full documentation:         perldoc Embperl
 Frequent Asked Questions:   perldoc Faq.pod
 Changes:                    perldoc Changes.pod
+Examples:		    eg/x/README
+Emacs-Mode:		    emacs/README
 
 All the above and further information can be found at the Embperl website 
 
@@ -63,6 +65,8 @@ apache_1.3.1
 apache_1.3.2
 apache_1.3.3
 apache_1.3.4
+apache_1.3.6
+apache + mod_ssl
 apache_ssl (Ben SSL)
 Stronghold 2.2
 Stronghold 2.4.1
@@ -74,10 +78,12 @@ perl5.005 (only without threads!)
 apache_1.3b5
 apache_1.3.0
 apache_1.3.1
+apache_1.3.4
 
 on Windows 95 with
 perl5.004_02 (binary distribution)
 Offline mode
+it's reported that it also work with mod_perl on Win95
 
 I know from other people that it works on many other UNIX systems
 

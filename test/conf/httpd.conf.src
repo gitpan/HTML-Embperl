@@ -1,3 +1,4 @@
+print OFH <<EOD ;
 #
 # Testconfig for HTML::Embperl make test
 #
@@ -15,9 +16,10 @@ StartServers 2
 MaxClients 2
 MaxRequestsPerChild 0
 
+$EPMODPERL
+
 DirectoryIndex index.htm  
 
-$EPMODPERL
 
 $EPSTRONGHOLDKEY
 
@@ -122,6 +124,16 @@ PerlHandler HTML::Embperl
 Options ExecCGI
 PerlSetEnv EMBPERL_OPTIONS 2
 </Location>
+
+<Location /embperl/errdoc>
+SetHandler perl-script
+PerlHandler HTML::Embperl
+Options ExecCGI
+PerlSetEnv EMBPERL_OPTIONS 262144
+ErrorDocument 500 /html/errmsg.htm
+</Location>
+
+
 
 <Location /embperl/match>
 SetHandler perl-script
@@ -237,9 +249,17 @@ SSLDisable
 </IfModule>
 
 
+EOD
+
+if (!$EPSTRONGHOLDKEY)
+    {
+print OFH <<EOD ;
 <IfModule mod_ssl.c>
 SSLDisable
 SSLCacheServerPort $EPPORT2
 SSLCacheServerPath tmp
 </IfModule>
+EOD
+    }
+
 

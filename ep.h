@@ -117,7 +117,9 @@ tReq * SetupRequest (/*in*/ SV *    pApacheReqSV,
                      /*in*/ tConf * pConf,
                      /*in*/ int     nIOType,
                      /*in*/ SV *    pIn,
-                     /*in*/ SV *    pOut) ;
+                     /*in*/ SV *    pOut,
+    		     /*in*/ char *  sSubName,
+		     /*in*/ char *  sImport) ;
 
 void FreeRequest (/*i/o*/ register req * r) ;
                    
@@ -145,6 +147,11 @@ void RollbackError (/*i/o*/ register req * r) ;
 int ProcessBlock	(/*i/o*/ register req * r,
 			 /*in*/  int	 nBlockStart,
 			 /*in*/  int	 nBlockSize,
+                         /*in*/  int     nBlockNo) ;
+
+int ProcessSub		(/*i/o*/ register req * r,
+			 /*in*/  tFile * pFile,
+			 /*in*/  int	 nBlockStart,
                          /*in*/  int     nBlockNo) ;
 
 /* ---- from epio.c ----- */
@@ -237,9 +244,9 @@ void * _malloc      (/*i/o*/ register req * r, size_t  size) ;
 void * _realloc     (/*i/o*/ register req * r,  void * ptr, size_t oldsize, size_t  size) ;
 char * _memstrcat   (/*i/o*/ register req * r,
 			     const char *s, ...) ;
-char * __strdup     (/*i/o*/ register req * r,
+char * _ep_strdup   (/*i/o*/ register req * r,
                      /*in*/  const char * str) ;
-char * __strndup    (/*i/o*/ register req * r,
+char * _ep_strndup  (/*i/o*/ register req * r,
                      /*in*/  const char *   str,
                      /*in*/  int            len) ;
 
@@ -324,6 +331,16 @@ void Dirname (/*in*/ const char * filename,
 
 char * sstrdup (/*in*/ char *   pString) ;
 
+
+int SetSubTextPos (/*i/o*/ register req * r,
+		   /*in*/  const char *   sName,
+		   /*in*/  int		  sPos) ;
+
+int GetSubTextPos (/*i/o*/ register req * r,
+		   /*in*/  const char *   sName) ;
+
+
+
 /* ---- from epeval.c ----- */
 
 
@@ -360,3 +377,8 @@ int EvalBool (/*i/o*/ register req * r,
 	      /*in*/  char *        sArg,
               /*in*/  int           nFilepos,
               /*out*/ int *         pTrue) ;
+
+int EvalSub (/*i/o*/ register req * r,
+	    /*in*/  const char *  sArg,
+	    /*in*/  int           nFilepos,
+	    /*in*/  const char *  sName) ;

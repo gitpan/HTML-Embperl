@@ -60,6 +60,7 @@ tReq     InitialReq ;               /* Initial request - holds default values */
 tReq * pCurrReq ;                   /* Set before every eval (NOT thread safe!!) */ 
 
 static HV * pCacheHash ;            /* Hash which holds all cached data (key=>filename, value=>cache hash for file) */
+static AV * pSubArgsAV ;            /* @_ */
 
 /* */
 /* print error */
@@ -128,6 +129,9 @@ char * LogError (/*i/o*/ register req * r,
         case rcNotAnArray:              msg ="[%d]ERR:  %d: Line %d: Second Argument must be array/list%s%s" ; break ;
         case rcCallInputFuncFailed:     msg ="[%d]ERR:  %d: Line %d: Call to Input Function failed: %s%s" ; break ;
         case rcCallOutputFuncFailed:    msg ="[%d]ERR:  %d: Line %d: Call to Output Function failed: %s%s" ; break ;
+        case rcSubNotFound:             msg ="[%d]ERR:  %d: Line %d: Call to unknown Embperl macro %s%s" ; break ;
+        case rcImportStashErr:          msg ="[%d]ERR:  %d: Line %d: Package %s for import unknown%s" ; break ;
+        case rcCGIError:                msg ="[%d]ERR:  %d: Line %d: Setup of CGI.pm failed: %s%s" ; break ;
         default:                        msg ="[%d]ERR:  %d: Line %d: Error %s%s" ; break ; 
         }
 
@@ -318,6 +322,7 @@ INTMG (EscMode, pCurrReq -> nEscMode, notused, NewEscMode (pCurrReq, pSV))
 
 OPTMGRD (optDisableVarCleanup      , pCurrReq -> bOptions) ;
 OPTMG   (optDisableEmbperlErrorPage, pCurrReq -> bOptions) ;
+OPTMG   (optReturnError            , pCurrReq -> bOptions) ;
 OPTMGRD (optSafeNamespace          , pCurrReq -> bOptions) ;
 OPTMGRD (optOpcodeMask             , pCurrReq -> bOptions) ;
 OPTMG   (optRawInput               , pCurrReq -> bOptions) ;
@@ -334,6 +339,9 @@ OPTMGRD (optRedirectStdout         , pCurrReq -> bOptions) ;
 OPTMG   (optUndefToEmptyValue      , pCurrReq -> bOptions) ;
 OPTMG   (optNoHiddenEmptyValue     , pCurrReq -> bOptions) ;
 OPTMGRD (optAllowZeroFilesize      , pCurrReq -> bOptions) ;
+OPTMGRD (optKeepSrcInMemory        , pCurrReq -> bOptions) ;
+OPTMG   (optKeepSpaces             , pCurrReq -> bOptions) ;
+OPTMG   (optOpenLogEarly           , pCurrReq -> bOptions) ;
 
 
 OPTMG   (dbgStd          , pCurrReq -> bDebug) ;
@@ -357,6 +365,7 @@ OPTMG   (dbgHeadersIn    , pCurrReq -> bDebug) ;
 OPTMG   (dbgShowCleanup  , pCurrReq -> bDebug) ;
 OPTMG   (dbgProfile      , pCurrReq -> bDebug) ;
 OPTMG   (dbgSession      , pCurrReq -> bDebug) ;
+OPTMG   (dbgImport       , pCurrReq -> bDebug) ;
 
 /* ---------------------------------------------------------------------------- */
 /* read form input from http server... */
@@ -462,11 +471,11 @@ static int GetFormData (/*i/o*/ register req * r,
                             return rcHashError ;
                             }
 
+			pSVK = newSVpv (pKey, nKey) ;
+
+			av_push (r -> pFormArray, pSVK) ;
                         }
 
-                    pSVK = newSVpv (pKey, nKey) ;
-
-                    av_push (r -> pFormArray, pSVK) ;
                 
                     if (r -> bDebug & dbgForm)
                         lprintf (r, "[%d]FORM: %s=%s\n", r -> nPid, pKey, pVal) ; 
@@ -694,7 +703,8 @@ static int ScanCmdEvals (/*i/o*/ register req * r,
     struct tCmd * pCmd ;
     char *  pAfterWS ;
     char *  pBlank ;
-
+    int     nFilepos = p - r -> Buf.pBuf ;
+    SV **   ppSV ;
 
     EPENTRY (ScanCmdEvals) ;
     
@@ -718,31 +728,50 @@ static int ScanCmdEvals (/*i/o*/ register req * r,
         return ok ;
         }
 
+    /* end known ? */
 
-    do
-        { /* search end  */
-        p++ ;
-    
-        if ((p = strchr (p, ']')) == NULL)
-            break ;
-        }   
-    while (p[-1] != nType) ;
-    if (p == NULL)
-        { /* end not found */
-        sprintf (r -> errdat1, "%c]", nType) ; 
-        return rcMissingRight ;
+    ppSV = hv_fetch(r -> Buf.pFile -> pCacheHash, (char *)&nFilepos, sizeof (nFilepos), 1) ;  
+    if (ppSV == NULL)
+        return rcHashError ;
+
+    if (*ppSV != NULL && SvTYPE (*ppSV) == SVt_IV)
+        {
+	p = p + SvIV(*ppSV) ;
         }
+    else
+	{
+	do
+	    { /* search end  */
+	    p++ ;
+    
+	    if ((p = strchr (p, ']')) == NULL)
+		break ;
+	    }   
+	while (p[-1] != nType) ;
+	if (p == NULL)
+	    { /* end not found */
+	    sprintf (r -> errdat1, "%c]", nType) ; 
+	    return rcMissingRight ;
+	    }
+        SvREFCNT_dec (*ppSV) ;  
+        *ppSV = newSViv (p - r -> Buf.pCurrPos) ;
+        /*SvREFCNT_inc (*ppSV) ;  */
+	}
+	
     p [-1] = '\0' ;
     p++ ;
 
     pAfterWS = p;
 
-    /* skip trailing whitespaces */
-    while (isspace(*pAfterWS))
-        pAfterWS++ ;
+    if ((r -> bOptions & optKeepSpaces) == 0)
+	{	    
+	/* skip trailing whitespaces */
+	while (isspace(*pAfterWS))
+	    pAfterWS++ ;
 
-    if (nType == '+' && pAfterWS > p)
-        pAfterWS-- ;
+	if (nType == '+' && pAfterWS > p)
+	    pAfterWS-- ;
+	}
 
     switch (nType)
         {
@@ -824,8 +853,11 @@ static int ScanCmdEvals (/*i/o*/ register req * r,
         
         
             if ((rc = ProcessCmd (r, pCmd, a)) != ok)
+		{
+		p [-2] = nType ;
                 return rc ;
-        
+		}
+
             p [-2] = nType ;
             if (r -> Buf.pCurrPos == p)
                 r -> Buf.pCurrPos = pAfterWS ;
@@ -1079,6 +1111,10 @@ static int ScanHtmlTag (/*i/o*/ register req * r,
             if (pFreeBuf)
                 _free (r, pFreeBuf) ;
             
+            *pec = ec ;              /* restore first char after tag name */
+            if (pea)
+                *pea = ea ;              /* restore first char after tag arguments */
+
             return rc ;
             }
         }
@@ -1206,7 +1242,7 @@ int Init        (/*in*/ int           _nIOType,
 
     r -> nEscMode = escStd ;
 
-    if ((rc = OpenLog (r, sLogFile, (r -> bDebug & dbgFunc)?1:0)) != ok)
+    if ((rc = OpenLog (r, sLogFile, ((r -> bDebug & dbgFunc) || (r -> bOptions & optOpenLogEarly))?1:0)) != ok)
         { 
         r -> bDebug = 0 ; /* Turn debbuging off, only errors will go to stderr */
         LogError (r, rc) ;
@@ -1245,6 +1281,14 @@ int Init        (/*in*/ int           _nIOType,
 
     if (bInitDone)
         return ok ; /* the rest was alreay done */
+
+    /*
+    if ((pSubArgsAV = perl_get_av ("_", FALSE)) == NULL)
+        {
+        LogError (r, rcPerlVarError) ;
+        return 1 ;
+        }
+    */
 
     if ((r -> pFormHash = perl_get_hv (sFormHashName, TRUE)) == NULL)
         {
@@ -1352,6 +1396,7 @@ int Init        (/*in*/ int           _nIOType,
     
     ADDOPTMG (optDisableVarCleanup      ) ;
     ADDOPTMG (optDisableEmbperlErrorPage) ;
+    ADDOPTMG (optReturnError) ;
     ADDOPTMG (optSafeNamespace          ) ;
     ADDOPTMG (optOpcodeMask             ) ;
     ADDOPTMG (optRawInput               ) ;
@@ -1368,6 +1413,9 @@ int Init        (/*in*/ int           _nIOType,
     ADDOPTMG (optUndefToEmptyValue      ) ;
     ADDOPTMG (optNoHiddenEmptyValue     ) ;
     ADDOPTMG (optAllowZeroFilesize      ) ;
+    ADDOPTMG (optKeepSrcInMemory       ) ;
+    ADDOPTMG (optKeepSpaces            ) ;
+    ADDOPTMG (optOpenLogEarly          ) ;
 
     ADDOPTMG   (dbgStd         ) ;
     ADDOPTMG   (dbgMem         ) ;
@@ -1390,6 +1438,7 @@ int Init        (/*in*/ int           _nIOType,
     ADDOPTMG   (dbgShowCleanup ) ;
     ADDOPTMG   (dbgProfile     ) ;
     ADDOPTMG   (dbgSession     ) ;
+    ADDOPTMG   (dbgImport      ) ;
    
     bInitDone = 1 ;
 
@@ -1531,6 +1580,19 @@ void FreeConfData       (/*in*/ tConf *   pConf)
     if (pConf -> sVirtLogURI)
         free (pConf -> sVirtLogURI) ;
 
+    if (pConf -> sCookieName)
+	free (pConf -> sCookieName) ;
+
+    if (pConf -> sCookieExpires)
+	free (pConf -> sCookieExpires) ;
+
+    if (pConf -> sCookieDomain)
+	free (pConf -> sCookieDomain) ;
+
+    if (pConf -> sCookiePath)
+	free (pConf -> sCookiePath) ;
+
+
     free (pConf) ;
     }
 
@@ -1570,7 +1632,13 @@ tFile * SetupFileData   (/*i/o*/ register req * r,
 
             f -> mtime       = mtime ;	 /* last modification time of file */
             f -> nFilesize   = nFilesize ;	 /* size of File */
-            }
+	    f -> bKeep       = (r -> bOptions & optKeepSrcInMemory) != 0 ;
+	    if (f -> pExportHash)
+		{
+		SvREFCNT_dec (f -> pExportHash) ;
+		f -> pExportHash = NULL ;
+		}
+	    }
         }
     else
         { /* create new file structure */
@@ -1580,6 +1648,10 @@ tFile * SetupFileData   (/*i/o*/ register req * r,
         f -> sSourcefile = sstrdup (sSourcefile) ; /* Name of sourcefile */
         f -> mtime       = mtime ;	 /* last modification time of file */
         f -> nFilesize   = nFilesize ;	 /* size of File */
+	f -> pBufSV      = NULL ;
+	f -> pNext2Free  = NULL ;
+	f -> bKeep       = (r -> bOptions & optKeepSrcInMemory) != 0;
+	f -> pExportHash = NULL ;
 
         f -> pCacheHash  = newHV () ;    /* Hash containing CVs to precompiled subs */
 
@@ -1603,6 +1675,28 @@ tFile * SetupFileData   (/*i/o*/ register req * r,
 
 /* ---------------------------------------------------------------------------- */
 /*                                                                              */
+/* Free File buffer								*/
+/*                                                                              */
+/* ---------------------------------------------------------------------------- */
+
+
+static void FreeFileBuf     (/*i/o*/ register req * r,
+			     /*i/o*/ tFile * f)
+
+
+    {
+    if (!f -> bKeep && f -> pBufSV)
+	{
+	SvREFCNT_dec (f -> pBufSV) ;
+	f -> pBufSV = NULL ;
+        if (r -> bDebug)
+            lprintf (r, "[%d]MEM: Free buffer for %s in %s\n", r -> nPid,  f -> sSourcefile, f -> sCurrPackage) ;
+	}
+    }
+
+
+/* ---------------------------------------------------------------------------- */
+/*                                                                              */
 /* Setup Request                                                                */
 /*                                                                              */
 /* ---------------------------------------------------------------------------- */
@@ -1616,7 +1710,9 @@ tReq * SetupRequest (/*in*/ SV *    pApacheReqSV,
                      /*in*/ tConf * pConf,
                      /*in*/ int     nIOType,
                      /*in*/ SV *    pIn,
-                     /*in*/ SV *    pOut)
+                     /*in*/ SV *    pOut,
+		     /*in*/ char *  sSubName,
+		     /*in*/ char *  sImport)
 
     {
     int     rc ;
@@ -1677,11 +1773,21 @@ tReq * SetupRequest (/*in*/ SV *    pApacheReqSV,
     r -> bOptions        = pConf -> bOptions ;
     /*r -> nIOType         = InitialReq.nIOType ;*/
 
+    r -> sSubName        = sSubName ;
+    
     r -> pConf           = pConf ;
 
-    if ((pFile = SetupFileData (r, sSourcefile, mtime, nFilesize, pConf)) == NULL)
-        return NULL ;
-    
+    r -> pFiles2Free	 = NULL ;
+    if (r -> bSubReq && sSourcefile[0] == '?' && sSubName && sSubName[0] != '\0')
+	{
+	pFile = r -> pLastReq -> Buf.pFile ;
+	}
+    else
+	{
+	if ((pFile = SetupFileData (r, sSourcefile, mtime, nFilesize, pConf)) == NULL)
+            return NULL ;
+	}
+
     if (r -> bSubReq && sOutputfile[0] == 1 && r -> pLastReq && !SvROK (pOut))
         {
         r -> sOutputfile      = r -> pLastReq -> sOutputfile ;
@@ -1729,6 +1835,18 @@ tReq * SetupRequest (/*in*/ SV *    pApacheReqSV,
         r -> Buf.nEvalPackage = r -> Buf.pFile -> nCurrPackage ;
         }
     
+    if (sImport && *sImport)
+	{
+
+        if ((r -> pImportStash = gv_stashpv (sImport, 0)) == NULL)
+	    {
+	    strncpy (r -> errdat1, sImport, sizeof (r -> errdat1) - 1);
+	    LogError (r, rcImportStashErr) ;
+	    }
+	}
+    else
+	r -> pImportStash = NULL ;
+
     r -> Buf.nSourceline = 1 ;
     r -> Buf.pSourcelinePos = NULL ;    
     r -> Buf.pLineNoCurrPos = NULL ;    
@@ -1757,7 +1875,8 @@ tReq * SetupRequest (/*in*/ SV *    pApacheReqSV,
         struct tm * tm ;
         time (&t) ;        
         tm =localtime (&t) ;
-        lprintf (r, "[%d]REQ:  Embperl %s starting... %s\n", r -> nPid,  sVersion, asctime(tm)) ;
+        if (!r -> bSubReq)
+	    lprintf (r, "[%d]REQ:  Embperl %s starting... %s\n", r -> nPid,  sVersion, asctime(tm)) ;
         r -> numEvals = 0  ;
         r -> numCacheHits = 0 ;
         }
@@ -1814,11 +1933,20 @@ void FreeRequest (/*i/o*/ register req * r)
         }
     else
         {
+        tFile * pFile ;
+
         av_clear (r -> pFormArray) ;
         hv_clear (r -> pFormHash) ;
         hv_clear (r -> pInputHash) ;
         hv_clear (r -> pFormSplitHash) ;
-        }
+
+	if (pFile = r -> pFiles2Free)
+	    {
+	    do
+		FreeFileBuf (r, pFile) ;
+	    while (pFile = pFile -> pNext2Free) ;
+	    }
+	}
 
 
     pCurrReq = r -> pLastReq ;
@@ -1886,7 +2014,12 @@ static int StartOutput (/*i/o*/ register req * r)
     SV * pOutData  = r -> pOutData ;
     int  bOutToMem = SvROK (pOutData) ;
     
-    if (!bOutToMem)
+
+    if (r -> pImportStash)
+	{ /* import does not generate any output */
+	r -> bDisableOutput = 1 ;
+	}
+    else if (!bOutToMem)
         {
         if (!r -> bAppendToMainReq)
             {
@@ -1971,23 +2104,36 @@ static int EndOutput (/*i/o*/ register req * r,
     
     if (rc != ok ||  r -> bError)
         { /* --- generate error page if necessary --- */
+        if (r -> bOptions & optReturnError)
+	    {
+    	    r -> bError = 1 ;
+	    oRollbackOutput (r, NULL) ;
+	    if (bOutToMem)
+		sv_setsv (pOut, &sv_undef) ;
+	    return ok ; /* No further output or header, this should be handle by the server */
+	    }    
+        else if (!(r -> bOptions & optDisableEmbperlErrorPage))
+	    {
+	    if (!r -> bAppendToMainReq)
+		{
+		dSP;                            /* initialize stack pointer      */
+
+		oRollbackOutput (r, NULL) ; /* forget everything outputed so far */
+		oBegin (r) ;
+
+		PUSHMARK(sp);                   /* remember the stack pointer    */
+		XPUSHs(r -> pReqSV) ;            /* push pointer to obeject */
+		PUTBACK;
+		perl_call_method ("SendErrorDoc", G_DISCARD) ; /* call the function             */
 #ifdef APACHE
-        if (r -> pApacheReq)
-            r -> pApacheReq -> status = 500 ;
+		if (r -> pApacheReq)
+		    r -> pApacheReq -> status = 500 ;
 #endif
-        if (!(r -> bOptions & optDisableEmbperlErrorPage) && !r -> bAppendToMainReq)
-            {
-            dSP;                            /* initialize stack pointer      */
-
-            oRollbackOutput (r, NULL) ; /* forget everything outputed so far */
-            oBegin (r) ;
-
-            PUSHMARK(sp);                   /* remember the stack pointer    */
-            XPUSHs(r -> pReqSV) ;            /* push pointer to obeject */
-            PUTBACK;
-            perl_call_method ("SendErrorDoc", G_DISCARD) ; /* call the function             */
-            }
-        }
+		}
+	    }
+	if (!r -> bAppendToMainReq)
+   	    r -> bError = 0 ; /* error already handled */
+	}
     
 
     if (!(r -> bOptions & optEarlyHttpHeader) && (r -> bOptions & optSendHttpHeader) && !bOutToMem)
@@ -2062,9 +2208,10 @@ static int EndOutput (/*i/o*/ register req * r,
         pOut = SvRV (pOutData) ;
 
 #ifdef APACHE
-    if ((r -> pApacheReq == NULL || !r -> pApacheReq -> header_only) && !(r -> bOptions & optEarlyHttpHeader))
+    if ((r -> pApacheReq == NULL || !r -> pApacheReq -> header_only) && 
+	(!(r -> bOptions & optEarlyHttpHeader) || r -> bAppendToMainReq))
 #else
-    if (!(r -> bOptions & optEarlyHttpHeader))
+    if (!(r -> bOptions & optEarlyHttpHeader) || r -> bAppendToMainReq)
 #endif
         {
         oputs (r, "\r\n") ;
@@ -2143,7 +2290,8 @@ static int ResetRequest (/*i/o*/ register req * r,
                 lprintf (r, "Cache Hits: %d (%d%%)", r -> numCacheHits, r -> numCacheHits * 100 / r -> numEvals) ;
 
         lprintf (r, "\n") ;    
-        lprintf (r, "[%d]Request finished. %s. Entry-SVs: %d -OBJs: %d Exit-SVs: %d -OBJs: %d\n", r -> nPid, asctime(tm), r -> stsv_count, r -> stsv_objcount, sv_count, sv_objcount) ;
+        lprintf (r, "[%d]%sRequest finished. %s. Entry-SVs: %d -OBJs: %d Exit-SVs: %d -OBJs: %d\n", r -> nPid,
+	    (r -> bSubReq?"Sub-":""), asctime(tm), r -> stsv_count, r -> stsv_objcount, sv_count, sv_objcount) ;
         }
 
     r -> Buf.pCurrPos = NULL ;
@@ -2268,7 +2416,7 @@ int ProcessBlock	(/*i/o*/ register req * r,
                 else
 #endif
                     if (n)
-                        lprintf (r, "[%d]SRC: Line %d: Time %*.*s\n", r -> nPid, r -> Buf.nSourceline, n-s, n-s, s) ;
+                        lprintf (r, "[%d]SRC: Line %d: %*.*s\n", r -> nPid, r -> Buf.nSourceline, n-s, n-s, s) ;
                     else
                         lprintf (r, "[%d]SRC: Line %d: %60.60s\n", r -> nPid, r -> Buf.nSourceline, s) ;
 
@@ -2301,6 +2449,119 @@ int ProcessBlock	(/*i/o*/ register req * r,
     return r -> Buf.nBlockNo ;
     }
 
+
+	    
+	    
+	    
+/* ---------------------------------------------------------------------------- */
+/*                                                                              */
+/* Read input file into memory  						*/
+/*                                                                              */
+/* ---------------------------------------------------------------------------- */
+
+static int ReadInputFile	(/*i/o*/ register req * r)
+
+    {
+    int	    rc = ok ;
+    SV *    pBufSV = NULL ;
+    req *   pMain = r ;
+
+    if ((pBufSV = r -> Buf.pFile -> pBufSV) == NULL)
+	{
+	if (SvROK(r -> pInData))
+	    { /* --- get input from memory --- */
+	    STRLEN n ;
+	    r -> Buf.pBuf = SvPV (pBufSV = SvRV(r -> pInData), n) ;
+	    r -> Buf.pFile -> nFilesize = n ; 
+	    }
+
+	else
+	    {
+	    /* --- read input file --- */
+    	    rc = ReadHTML (r, r -> Buf.pFile -> sSourcefile, &r -> Buf.pFile -> nFilesize, &pBufSV) ;
+	    if (rc == ok)
+		r -> Buf.pBuf = SvPVX (pBufSV) ;
+	    }
+	
+	if (rc == ok)
+	    {
+	    SvREFCNT_inc (pBufSV) ;
+	    r -> Buf.pFile -> pBufSV = pBufSV ;
+	    r -> Buf.pEndPos  = r -> Buf.pBuf + r -> Buf.pFile -> nFilesize ;
+	    
+	    /* --- add to list for freeing --- */
+	    
+	    while (pMain && pMain -> pLastReq != &InitialReq)
+		pMain = pMain -> pLastReq ;
+
+	    r -> Buf.pFile -> pNext2Free = pMain -> pFiles2Free ;
+	    pMain -> pFiles2Free = r -> Buf.pFile ;
+	    }
+	}
+    else
+	r -> Buf.pBuf = SvPVX (pBufSV) ;
+
+
+    return rc ;
+    }
+
+/* ---------------------------------------------------------------------------- */
+/*                                                                              */
+/* Process a block of the file  						*/
+/*                                                                              */
+/* ---------------------------------------------------------------------------- */
+
+    
+
+int ProcessSub		(/*i/o*/ register req * r,
+			 /*in*/  tFile * pFile,
+			 /*in*/  int	 nBlockStart,
+                         /*in*/  int     nBlockNo)
+
+    {
+    int	    rc ;
+    tSrcBuf Buf ;
+    char *  sEvalPackage = r -> Buf.sEvalPackage ; 
+    STRLEN  nEvalPackage = r -> Buf.nEvalPackage ;  
+
+
+    /*av_unshift (GvAV (PL_defgv), 1) ;
+    av_store   (GvAV (PL_defgv), 0, r -> pReqSV) ; */
+    
+    memcpy (&Buf, &r -> Buf, sizeof (Buf)) ;
+
+    
+    if (pFile != r -> Buf.pFile)
+	{ /* get other file */
+	r -> Buf.pFile = pFile ;
+
+	if ((rc = ReadInputFile (r)) != ok)
+	    {
+	    LogError (r, rc) ;
+	    return rc ;
+	    }
+
+	r -> Buf.pSourcelinePos =  r -> Buf.pBuf ;
+	r -> Buf.nSourceline = 1 ;
+	r -> Buf.pLineNoCurrPos = NULL ;    
+	r -> Buf.sEvalPackage   = r -> Buf.pFile -> sCurrPackage ; 
+	r -> Buf.nEvalPackage   = r -> Buf.pFile -> nCurrPackage ; 
+	}
+
+    rc = ProcessBlock (r, nBlockStart, r -> Buf.pFile -> nFilesize - nBlockStart, nBlockNo) ;
+
+    memcpy (&r -> Buf, &Buf, sizeof (Buf)) ;
+    r -> Buf.sEvalPackage = sEvalPackage ; 
+    r -> Buf.nEvalPackage = nEvalPackage ; 
+
+    if (rc != ok)
+	LogError (r, rc) ;
+
+    return rc ;
+    }
+
+
+    
 /* ---------------------------------------------------------------------------- */
 /*                                                                              */
 /* Request handler                                                              */
@@ -2314,7 +2575,6 @@ int ExecuteReq (/*i/o*/ register req * r,
 
     {
     int     rc = ok ;
-    SV *    pBufSV = NULL ;
     char    olddir[PATH_MAX];
     char *  sInputfile = r -> Buf.pFile -> sSourcefile ;
 #ifdef WIN32
@@ -2327,6 +2587,8 @@ int ExecuteReq (/*i/o*/ register req * r,
 
     
     r -> pReqSV = pReqSV ;
+    if (!r -> Buf.pFile -> pExportHash)
+	r -> Buf.pFile -> pExportHash = newHV () ;
     
     ENTER;
     SAVETMPS ;
@@ -2334,28 +2596,16 @@ int ExecuteReq (/*i/o*/ register req * r,
     SetupSafeNamespace (r) ;
 
     /* --- read form data from browser if not already read by perl part --- */
-    if (rc == ok && !(r -> bOptions & optDisableFormData) && av_len (r -> pFormArray) == -1) 
+    if (rc == ok && !(r -> bOptions & optDisableFormData) && av_len (r -> pFormArray) == -1 && !r -> bSubReq) 
         rc = GetInputData_CGIScript (r) ;
     
     /* --- open output and send http header if EarlyHttpHeaders --- */
     if (rc == ok)
         rc = StartOutput (r) ;
 
-    if (SvROK(r -> pInData))
-        { /* --- get input from memory --- */
-        STRLEN n ;
-        r -> Buf.pBuf = SvPV (SvRV(r -> pInData), n) ;
-        r -> Buf.pFile -> nFilesize = n ; 
-        }
-
-    else
-        {
-        /* --- read input file --- */
-        if (rc == ok)
-            rc = ReadHTML (r, sInputfile, &r -> Buf.pFile -> nFilesize, &pBufSV) ;
-        if (rc == ok)
-            r -> Buf.pBuf = SvPVX (pBufSV) ;
-        }
+    /* --- read input file or get input file from memory --- */
+    if (rc == ok)
+	rc = ReadInputFile (r) ;
 
     if (rc == ok && r -> Buf.pBuf == NULL)
         rc = rcMissingInput ;

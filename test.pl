@@ -17,6 +17,7 @@
 #    'errorright.htm???1',
 #    'notfound.htm???1',
     'noerr/noerrpage.htm???7?2',
+    'errdoc/errdoc.htm???7?262144',
     'rawinput/rawinput.htm????16',
     'var.htm',
     'varerr.htm???-1',
@@ -48,8 +49,16 @@
     'includeerr2.htm???4',
     'registry/Execute.htm',
     'registry/errpage.htm???14',
+    'callsub.htm',
+    'callsub.htm',
+    'importsub.htm',
+    'importsub.htm',
+    'importsub2.htm',
+    'importmodule.htm',
+    'recursexec.htm',
     'nph/div.htm????64',
     'nph/npherr.htm???7?64',
+    'nph/nphinc.htm????64',
     'sub.htm',
     'sub.htm',
     'exit.htm',
@@ -117,7 +126,7 @@ BEGIN
 	    }
 	} ;
 
-    print "\nloading...              ";
+    print "\nloading...                    ";
     
     }
 
@@ -125,6 +134,7 @@ END
     { 
     print "\nTest terminated with fatal error\n" if ($fatal) ; 
     system "kill `cat $tmppath/httpd.pid` 2> /dev/null" if ($EPHTTPD ne '' && $killhttpd && !$EPWIN32) ;
+    exit ($fatal || $err) ;	
     }
 
 
@@ -187,7 +197,7 @@ else
 $port    = $EPPORT ;
 $host    = 'localhost' ;
 $httpdpid = 0 ;
-$defaultdebug = 0x85ffd ;
+$defaultdebug = 0x785ffd ;
 
 
 if ($cmdarg =~ /\?/)
@@ -263,18 +273,24 @@ sub chompcr
 
 sub CmpFiles 
     {
-    my ($f1, $f2) = @_ ;
+    my ($f1, $f2, $errin) = @_ ;
     my $line = 1 ;
     my $err  = 0 ;
 
     open F1, $f1 || die "***Cannot open $f1" ; 
-    open F2, $f2 || die "***Cannot open $f2" ; 
+    if (!$errin)
+	{
+	open F2, $f2 || die "***Cannot open $f2" ; 
+	}
 
     while (defined ($l1 = <F1>))
 	{
 	chompcr ($l1) ;
-	$l2 = <F2> ;
-	chompcr ($l2) ;
+	if (!$errin) 
+	    {
+	    $l2 = <F2> ;
+	    chompcr ($l2) ;
+	    }
 	if (!defined ($l2))
 	    {
 	    print "\nError in Line $line\nIs:\t$l1\nShould:\t<EOF>\n" ;
@@ -319,15 +335,18 @@ sub CmpFiles
 	$line++ ;
 	}
 
-    while (defined ($l2 = <F2>))
-       {
-       chompcr ($l2) ;
-       if (!($l2 =~ /^\s*$/))
-	    {
-	    print "\nError in Line $line\nIs:\t\nShould:\t$l2\n" ;
-	    return $line ;
+    if (!$errin)
+	{
+	while (defined ($l2 = <F2>))
+	   {
+	   chompcr ($l2) ;
+	   if (!($l2 =~ /^\s*$/))
+		{
+		print "\nError in Line $line\nIs:\t\nShould:\t$l2\n" ;
+		return $line ;
+		}
+	    $line++ ;
 	    }
-	$line++ ;
 	}
 
     close F1 ;
@@ -354,7 +373,11 @@ sub REQ
 	return "LWP not installed\n" ;
 	}
     
-    use HTTP::Request::Common ;
+    eval 'use HTTP::Request::Common' ;
+    if ($@)
+	{
+	return "HTTP::Request::Common not installed\n" ;
+	}
     
     
     $query ||= '' ;     
@@ -379,7 +402,9 @@ sub REQ
         
         $request = POST ("http://$host:$port/$loc$file",
 					Content_Type => 'form-data',
-					Content      => [ upload => [undef, 'upload', Content => $upload],
+					Content      => [ upload => [undef, 'upload-filename', 
+								    'Content-type' => 'test/plain',
+								    Content => $upload],
 							  content => $content,
                                                           @q ]) ;
 	}
@@ -447,6 +472,7 @@ sub CheckError
 	if (!($_ =~ /^\s*$/) &&
 	    !($_ =~ /\-e /) &&
 	    !($_ =~ /Warning/) &&
+	    !($_ =~ /mod_ssl\:/) &&
 	    !($_ =~ /SES\:/) &&
 	    $_ ne 'Use of uninitialized value.')
 	    {
@@ -518,6 +544,7 @@ sub CheckSVs
 
 
 use HTML::Embperl;
+require HTML::Embperl::Module ;
 
 print "ok\n";
 
@@ -648,10 +675,9 @@ do
 			   $page, $query_info || '') ;
 	    unshift (@testargs, 'dbgbreak') if ($dbgbreak) ;
     
-	    $txt = $file . ($debug != $defaultdebug ?"-d $debug ":"") ;
-	    formline ('@<<<<<<<<<<<<<<<<<<<<... ', $txt) ;
-	    print $^A ; 
-	    $^A = '' ;
+	    $txt = $file . ($debug != $defaultdebug ?"-d $debug ":"") . '...' ;
+	    $txt .= ' ' x (30 - length ($txt)) ;
+	    print $txt ; 
     
     
 	    unlink ($outfile) ;
@@ -671,14 +697,16 @@ do
 		CheckSVs ($loopcnt, $n) ;
 		}
 		
-	    $err = CheckError ($errcnt) if ($err == 0 || $file eq 'notfound.htm') ;
+	    $errin = $err ;
+	    $err = CheckError ($errcnt) if ($err == 0 || ($errcnt > 0 && $err == 500) || $file eq 'notfound.htm') ;
     
-	    if ($err == 0 && $file ne 'notfound.htm')
+	    
+	    if ($err == 0 && $errin != 500 && $file ne 'notfound.htm')
 		{
 		$page =~ /.*\/(.*)$/ ;
 		$org = "$cmppath/$1" ;
 
-		$err = CmpFiles ($outfile, $org) ;
+		$err = CmpFiles ($outfile, $org, $errin) ;
 		}
 
 	    print "ok\n" unless ($err) ;
@@ -718,9 +746,9 @@ do
 		}
 
 
-	    formline ('@<<<<<<<<<<<<<<<<<<<<... ', "$txt from file") ;
-	    print $^A ; 
-	    $^A = '' ;
+	    $txt2 = "$txt from file...";
+	    $txt2 .= ' ' x (30 - length ($txt2)) ;
+	    print $txt2 ; 
 
 	    unlink ($outfile) ;
 	    $t1 = HTML::Embperl::Clock () ;
@@ -738,9 +766,9 @@ do
 
 	    if ($err == 0)
 		{
-		formline ('@<<<<<<<<<<<<<<<<<<<<... ', "$txt from memory") ;
-		print $^A ;     
-		$^A = '' ;
+		$txt2 = "$txt from memory...";
+		$txt2 .= ' ' x (30 - length ($txt2)) ;
+		print $txt2 ; 
 
 		unlink ($outfile) ;
 		$t1 = HTML::Embperl::Clock () ;
@@ -759,9 +787,9 @@ do
 
 	    if ($err == 0)
 		{
-		formline ('@<<<<<<<<<<<<<<<<<<<<... ', "$txt to memory") ;
-		print $^A ;     
-		$^A = '' ;
+		$txt2 = "$txt to memory...";
+		$txt2 .= ' ' x (30 - length ($txt2)) ;
+		print $txt2 ; 
 
 		my $outdata ;
 		unlink ($outfile) ;
@@ -784,9 +812,9 @@ do
 
 	    if ($err == 0)
 		{
-		formline ('@<<<<<<<<<<<<<<<<<<<<... ', "$txt from/to memory") ;
-		print $^A ;     
-		$^A = '' ;
+		$txt2 = "$txt from/to memory...";
+		$txt2 .= ' ' x (30 - length ($txt2)) ;
+		print $txt2 ; 
 
 		my $outdata ;
 		unlink ($outfile) ;
@@ -818,9 +846,9 @@ do
 
 	    if ($err == 0)
 		{
-		formline ('@<<<<<<<<<<<<<<<<<<<<... ', "$txt to memory") ;
-		print $^A ;     
-		$^A = '' ;
+		$txt2 = "$txt to memory...";
+		$txt2 .= ' ' x (30 - length ($txt2)) ;
+		print $txt2 ; 
 
 		my $outdata ;
 		unlink ($outfile) ;
@@ -879,8 +907,8 @@ do
 	$cf = <IFH> ;
 	close IFH ;
 	open OFH, ">$httpdconf" or die "***Cannot open $httpconf" ;
-	eval "print OFH \"$cf\"" ;
-	die "***Cannot print $httpconf ($@)" if ($@) ;
+	eval $cf ;
+	die "***Cannot eval $httpconf ($@)" if ($@) ;
 	close OFH ;
 	$/ = $rs ;
     
@@ -972,9 +1000,9 @@ do
                 next if ($loc eq $cgiloc) ;
                 if (!$EPSESSIONVERSION)
                     {
-	            formline ('@<<<<<<<<<<<<<<<<<<<<... skip on this plattform', $file) ;
-	            print "$^A\n" ; 
-	            $^A = '' ;
+		    $txt2 = "$file...";
+		    $txt2 .= ' ' x (29 - length ($txt2)) ;
+		    print "$txt2 skip on this plattform\n" ; 
                     next ;
                     }
                 }
@@ -998,10 +1026,9 @@ do
 		$notseen = 1 ;
 		}
     
-	    $txt = "$file" . ($debug != $defaultdebug ?"-d $debug ":"") ;
-	    formline ('@<<<<<<<<<<<<<<<<<<<<... ', $txt) ;
-	    print $^A ; 
-	    $^A = '' ;
+	    $txt = "$file" . ($debug != $defaultdebug ?"-d $debug ":"") . '...' ;
+	    $txt .= ' ' x (30 - length ($txt)) ;
+	    print $txt ; 
 	    unlink ($outfile) ;
 	    
 	    $content = undef ;

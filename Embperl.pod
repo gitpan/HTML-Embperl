@@ -194,6 +194,12 @@ you compiled the same source - that means that Embperl uses the same package
 name as in your last call, and only recompiles the code if B<mtime> has
 changed or is undefined.
 
+=item B<sub>
+
+Call the Embperl subroutine named by this parameter. Currently the subroutine
+must be in the same file or if it's in another file, the other file has to be
+imported first.
+
 =item B<input>
 
 Reference to a string which contains the source. B<inputfile> must also
@@ -215,6 +221,16 @@ nor output is specified, ouput is written to stdout.
 
 Reference to a scalar where the output should be written to.
 
+=item B<import>
+
+A value of zero tell's Embperl not to execute the page, but define all subrountines
+found inside. This is neccessary before calling them with Execute by the B<sub>
+parameter or for an later import.
+
+A value of one tell's Embperl to define to subrountines inside the file (if not already
+done) and to import them as perl subroutines into the current namespace.
+
+See B<[$ sub $]> metacommand and section about subroutines for more infos.
 
 =item B<req_rec>
 
@@ -478,11 +494,20 @@ request.
 =item optDisableEmbperlErrorPage = 2
 
 Tells Embperl to not send its own errorpage in case of failure,
-instead giving the error back to the web server and let the web server
-handle it the standard way.  Without this option, Embperl sends its
+instead shows as much of the page as possible. Errors are only logged
+to the log file.
+Without this option, Embperl sends its
 own error page, showing all the errors which have occurred.  If you
 have dbgLogLink enabled, every error will be a link to the
-corresponding location in the log file.
+corresponding location in the log file. This option has no effect if
+optReturnError is set.
+
+=item optReturnError = 262144
+
+With this option set Embperl sends no output in case of an error, instead
+it returns the error back to Apache or the calling programm. When running
+under mod_perl this gives you the chance to use the Apache I<ErrorDocument>
+directive to show a custom error-document.
 
 =item optSafeNamespace = 4
 
@@ -587,6 +612,21 @@ value is a blank string.
 Normaly Embperl reports NOT_FOUND (404) if a file of length zero is requested. With
 this option set Embperl will return an empty document.
 
+=item optKeepSrcInMemory =  524288  (only 1.2b5 and above) 
+
+Tells Embperl to keep the source file in memory and not reload it on every request.
+(The precompiled Perlcode is always kept in memory, regardless of this flag)
+
+=item optKeepSpaces = 1048576 (only 1.2b5 and above) 	       = 0x100000,
+
+Disable the removing of spaces and empty lines from the output. This is usefull
+for other sources then HTML.
+
+=item optOpenLogEarly =  2097152 (only 1.2b5 and above) 
+
+This option causeses Embperl to open the logfile as soon as it is loaded into memory.
+You can use this when you load Embperl via PerlModule under Apache, to open the log
+as root instead of the non-privileged user Apache runs as.
  
 =back
 
@@ -697,14 +737,18 @@ Log all HTTP headers which are sent from the browser.
 Show every variable which is undef'd at the end of the request.  For
 scalar variables, the value before undef'ing is logged.
 
-=item dbgProfile = 1048576
+=item dbgProfile = 1048576 (only 1.2b4 and above) 
 
 When set every source line in the log file will also display the time until
-request was started. (L<"dbgSource"|"dbgSource = 2048"> must also be set)
+request was started. (B<dbgSource> must also be set)
 
-=item dbgSession = 2097152
+=item dbgSession = 2097152 (only 1.2b4 and above) 
 
 Enables logging of session transactions.
+
+=item dbgImport =  4194304 (only 1.2b5 and above) 
+
+Show how subroutines are imported in other namesapces
 
 
 =back
@@ -1167,6 +1211,51 @@ NOTE 1: `use strict' within an Embperl document will only apply to the
 block in which it occurs.
 
 
+=item B<sub>
+
+(Only Embperl 1.2b5 and above)
+
+Defines a Embperl subroutine. Example:
+
+  [$ sub foo $]
+    <p> Here we do something </p>
+  [$ endsub $]
+
+You can call this subroutine either as a normal Perl subroutine
+
+  [- foo -]
+
+or via the HTML::Embperl::Execute function.
+
+  [- Execute ('#foo')           # short form -]
+  [- Execute ({ sub => 'foo'})  # long form  -]
+
+The difference is that the Execute function will reset the internal
+states of Embperl like they were before the subrountine call, when 
+the subroutine returns. Also Execute could handle recursive call, which
+currently not work when calling it as a Perl subroutine.
+
+You may also pass Parameters to the subroutine:
+
+  [$ sub foo $]
+    [- $p = shift -]
+    <p> Here we show the first parameter [+ $p +]</p>
+  [$ endsub $]
+
+  
+  [- foo ('value') -]
+
+
+If you have a couple of commonly used subroutines you can define then in one
+file and import them into the modules where they are neccesary:
+
+  [- Execute ({ inputfile => 'mylib.htm', import => 1 }) -]
+
+This will import all subroutines from the file I<mylib.htm> into the current page
+where they could call just as a normal Perl subroutine.
+
+
+
 =back
 
 =head2 HTML Tags
@@ -1333,6 +1422,8 @@ You can disable the automatic cleanup of global variables with
 B<EMBPERL_OPTIONS> or the B<cleanup> parameter of the B<Execute>
 function.
 
+You can define expections to the cleanup rule with the hash B<%CLEANUP>.
+
 If you like to do your own cleanup you can define a subroutine B<CLEANUP>
 in your document. This will be called right before the variables are 
 cleaned up, but after the connection to the client is closed.
@@ -1385,6 +1476,19 @@ File upload example:
        }
     -]
 	
+
+When you have installed CGI.pm 2.46 or above you may also retrieve the 
+filename (local filename, as it was on the browser side) and the informations
+provied by the CGI.pm uploadInfo function. To get the filename just print out
+the value of the correspondig %fdat entry, instead of using it as a filehandle.
+To get the uploadInfo you must two times dereference it.
+
+  Example:
+
+  Filename:      [+ $fdat{ImageName} +] <br>
+  Content-Type:  [+ ${${$fdat{ImageName}}} -> {'Content-Type'} +] <br>
+
+
 
 =head2 @ffld
 
@@ -1439,8 +1543,9 @@ B<end of table>
 
 =item B<1>
 
-End when an expression with $row becomes undefined.  The row
-containing the undefined expression is B<not> displayed.
+End when one of the expressions with $row becomes undefined.  The row
+containing the undefined expression is B<not> displayed. Only those
+expression are observed which contains an access to the varibale $row.
 
 =item B<2>
 
@@ -1459,8 +1564,9 @@ B<end of row>
 
 =item B<16>
 
-End when an expression with $col becomes undefined.  The column
-containing the undefined expression is B<not> displayed.
+End when one of the expression with $col becomes undefined.  The column
+containing the undefined expression is B<not> displayed.  Only those
+expression are observed which contains an access to the varibale $col.
 
 =item B<32>
 
@@ -1555,6 +1661,42 @@ be read and set by the corresponding variables.
 
 
     [+ $dbgCmd +] # Output the state of the dbgCmd flag
+
+
+There are a few exceptions, where the variables can only be read. Setting of such options
+must be done via the config-files. Read-only variables are:
+
+=over 4
+
+=item $optDisableVarCleanup 
+
+=item $optSafeNamespace     
+
+=item $optOpcodeMask        
+
+=item $optDisableChdir      
+
+=item $optEarlyHttpHeader   
+
+=item $optDisableFormData   
+
+=item $optAllFormData       
+
+=item $optRedirectStdout    
+
+=item $optAllowZeroFilesize 
+
+=item $optKeepSrcInMemory   
+
+=back
+
+
+=head2 %CLEANUP
+
+Embperl cleanups up only variables with are defined within the Embperl page. If you want Embperl 
+to cleanup addtional variables you can add them to the hash %CLEANUP, with the key set to the
+variable name and the value set to one. The other way round you could prevent Embperl from cleaning
+up some variables, by adding them to this hash, with a values of zero.
 
 
 =head1 Session handling
@@ -2239,7 +2381,7 @@ please send e-mail to info@ecos.de.
  
  Win NT/95/98 binarys
  Apache/perl/
- mod_perl/Embperl	http://mothra.tamu.edu/perl/
+ mod_perl/Embperl	http://www.perl.com/CPAN/authors/Jeffrey_Baker/
 
 
 =head2 CVS

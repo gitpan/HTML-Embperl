@@ -1,6 +1,6 @@
 @rem = '--*-Perl-*--
 @echo off
-/usr/bin/perl -x %0 %1 %2 %3 %4 %5 %6 %7 %8 %9
+/usr/bin/perl -x -T %0 %1 %2 %3 %4 %5 %6 %7 %8 %9
 goto endofperl
 @rem ';
 #!/usr/bin/perl --

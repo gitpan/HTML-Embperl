@@ -61,7 +61,10 @@ enum tRc
     rcMissingArgs,
     rcNotAnArray,
     rcCallInputFuncFailed,
-    rcCallOutputFuncFailed
+    rcCallOutputFuncFailed,
+    rcSubNotFound,
+    rcImportStashErr,
+    rcCGIError
     } ;
 
 
@@ -93,6 +96,7 @@ enum dbg
     dbgShowCleanup      = 0x80000,
     dbgProfile          = 0x100000,
     dbgSession          = 0x200000,
+    dbgImport		= 0x400000,
     
     dbgAll  = -1
     } ;
@@ -120,7 +124,11 @@ enum opt
     optRedirectStdout          = 16384,
     optUndefToEmptyValue       = 32768,
     optNoHiddenEmptyValue      = 65536,
-    optAllowZeroFilesize       = 0x20000 
+    optAllowZeroFilesize       = 0x20000, 
+    optReturnError             = 0x40000, 
+    optKeepSrcInMemory         = 0x80000,
+    optKeepSpaces	       = 0x100000,
+    optOpenLogEarly            = 0x200000
     } ;
 
 /*

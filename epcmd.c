@@ -49,6 +49,10 @@ static int CmdHidden (/*i/o*/ register req * r,
 			/*in*/ const char *   sArg) ;
 static int CmdVar (/*i/o*/ register req * r,
 			/*in*/ const char *   sArg) ;
+static int CmdSub (/*i/o*/ register req * r,
+			/*in*/ const char *   sArg) ;
+static int CmdEndsub (/*i/o*/ register req * r,
+			/*in*/ const char *   sArg) ;
 
 static int HtmlTable (/*i/o*/ register req * r,
 			/*in*/ const char *   sArg) ;
@@ -100,6 +104,7 @@ struct tCmd CmdTab [] =
         { "elsif",    CmdElsif,         0, 0, cmdIf,            0, 0, cnNop    , 0                  , 0 } ,
         { "endforeach", CmdEndforeach,  0, 1, cmdForeach,       0, 0, cnNop    , 0                  , 0 } ,
         { "endif",    CmdEndif,         0, 1, (enum tCmdType)(cmdIf | cmdEndif), 0, 0, cnNop    , 0,  0 } ,
+        { "endsub",   CmdEndsub,        0, 1, cmdSub,           0, 0, cnNop    , 0                  , 0 } ,
         { "endwhile", CmdEndwhile,      0, 1, cmdWhile,         0, 0, cnNop    , 0                  , 0 } ,
         { "foreach",  CmdForeach,       1, 0, cmdForeach,       0, 1, cnNop    , 0                  , 0 } ,
         { "hidden",   CmdHidden,        0, 0, cmdNorm,          0, 0, cnNop    , 0                  , 0 } ,
@@ -110,6 +115,7 @@ struct tCmd CmdTab [] =
         { "ol",       HtmlTable,        1, 0, cmdTable,         1, 0, cnOl     , optDisableTableScan, 1 } ,
         { "option",   HtmlOption,       0, 0, cmdNorm,          1, 0, cnNop    , optDisableInputScan, 1 } ,
         { "select",   HtmlSelect,       1, 0, cmdTable,         1, 0, cnSelect , optDisableTableScan, 1 } ,
+        { "sub",      CmdSub,           1, 0, cmdSub,           0, 0, cnNop    , 0                  , 0 } ,
         { "table",    HtmlTable,        1, 0, cmdTable,         1, 0, cnTable  , optDisableTableScan, 1 } ,
         { "textarea", HtmlTextarea,     1, 0, cmdTextarea,      1, 1, cnNop    , optDisableInputScan, 1 } ,
         { "th",       HtmlTableHead,    0, 0, cmdNorm,          1, 0, cnNop    , optDisableTableScan, 1 } ,
@@ -237,7 +243,7 @@ static int ProcessAllCmds (/*i/o*/ register req *   r,
         pState -> pStart    = r -> Buf.pCurrPos ;
         pState -> nBlockNo  = r -> Buf.nBlockNo ;
         if (pCmd -> bSaveArg)
-            pState -> sArg      = __strdup (r, sArg) ;
+            pState -> sArg      = _ep_strdup (r, sArg) ;
         else
             pState -> sArg = NULL ;
         
@@ -254,7 +260,7 @@ static int ProcessAllCmds (/*i/o*/ register req *   r,
     if (rc == rcEvalErr)
         rc = ok ;
 
-    if (pCmd -> bPop && pState -> pStart == NULL)
+    if (pCmd -> bPop && pState -> pStart == NULL && rc != rcExit)
         {
         pStack = pSP -> pStack ; 
 
@@ -276,7 +282,7 @@ static int ProcessAllCmds (/*i/o*/ register req *   r,
             pSP -> pStackFree = pStack ;
             }
         }
-
+    
     return rc ;
     }
 
@@ -693,7 +699,7 @@ static int CmdHidden (/*i/o*/ register req * r,
     EPENTRY (CmdHidden) ;
 
     
-    sArgs = __strdup (r, sArg) ;
+    sArgs = _ep_strdup (r, sArg) ;
     if (sArgs && *sArgs != '\0')
         {            
         strncpy (sVar, r -> Buf.sEvalPackage, sizeof (sVar) - 5) ;
@@ -837,12 +843,71 @@ static int CmdVar (/*i/o*/ register req * r,
     
     sv_setiv (*ppSV, 1) ;
     
-    pSV = newSVpvf("package %s ; \n#line %d %s\n use vars qw(%s);\n",r -> Buf.sEvalPackage, r -> Buf.nSourceline, r -> Buf.pFile -> sSourcefile, sArg) ;
+    pSV = newSVpvf("package %s ; \n#line %d %s\n use vars qw(%s); map { $%s::CLEANUP{substr ($_, 1)} = 1 } qw(%s) ;\n",
+	           r -> Buf.sEvalPackage, r -> Buf.nSourceline, r -> Buf.pFile -> sSourcefile, sArg,
+		   r -> Buf.sEvalPackage, sArg) ;
     rc = EvalDirect (r, pSV) ;
     SvREFCNT_dec(pSV);
 
     return rc ;
     }
+
+
+
+/* ---------------------------------------------------------------------------- */
+/*                                                                              */
+/* sub command ...                                                              */
+/*                                                                              */
+/* ---------------------------------------------------------------------------- */
+
+int CmdSub           (/*i/o*/ register req * r,
+		      /*in*/ const char *   sArg)
+    {
+    int	nSubPos = r -> Buf.pCurrPos - r -> Buf.pBuf ;
+    int    nFilepos = (sArg - r -> Buf.pBuf) ;
+    char sSubCode [128] ;
+
+    EPENTRY (CmdSub) ;
+
+
+    /* remember the start of the sub */
+    SetSubTextPos (r, sArg, nSubPos) ;
+    
+    /* skip everything until endsub */
+    r -> CmdStack.State.bProcessCmds = cmdSub ;
+
+    /* compile perl sub */
+    /* sprintf (sSubCode, "unshift @_, HTML::Embperl::CurrReq (0) ; HTML::Embperl::ProcessSub (%d, %d, %d)", (int)r -> Buf.pFile, nSubPos, r -> Buf.nBlockNo) ; */
+    sprintf (sSubCode, " HTML::Embperl::ProcessSub (%d, %d, %d)", (int)r -> Buf.pFile, nSubPos, r -> Buf.nBlockNo) ;
+
+    while (isspace(*sArg))
+	sArg++ ;
+
+    return EvalSub (r, sSubCode, nFilepos, sArg) ;
+    }
+
+/* ---------------------------------------------------------------------------- */
+/*                                                                              */
+/* endsub command ...                                                           */
+/*                                                                              */
+/* ---------------------------------------------------------------------------- */
+
+static int CmdEndsub   (/*i/o*/ register req * r,
+			/*in*/ const char *   sArg)
+    {
+    EPENTRY (CmdEndsub) ;
+
+
+    if (r -> CmdStack.State.nCmdType != cmdSub)
+        return rcExit ;
+
+    r -> CmdStack.State.bProcessCmds = cmdAll ;
+    r -> CmdStack.State.pStart       = NULL ;
+
+    return ok ;
+    }
+
+
 
 /* ---------------------------------------------------------------------------- */
 /*                                                                              */
@@ -1096,7 +1161,7 @@ static int HtmlEndtable (/*i/o*/ register req * r,
         }
 
     if (r -> bDebug & dbgTab)
-        lprintf (r, "[%d]TAB:  nResult=%d nRow=%d Used=%d nCol=%d Used=%d nCnt=%d Used=%d \n",
+        lprintf (r, "[%d]TAB:  r -> nTabMode=%d nResult=%d nRow=%d Used=%d nCol=%d Used=%d nCnt=%d Used=%d \n",
                r -> nPid, r -> TableStack.State.nTabMode, r -> TableStack.State.nResult, r -> TableStack.State.nRow, r -> TableStack.State.nRowUsed, r -> TableStack.State.nCol, r -> TableStack.State.nColUsed, r -> TableStack.State.nCount, r -> TableStack.State.nCountUsed) ;
 
     if ((r -> TableStack.State.nTabMode & epTabRow) == epTabRowDef)
@@ -1115,7 +1180,9 @@ static int HtmlEndtable (/*i/o*/ register req * r,
         if ((r -> TableStack.State.nTabMode & epTabRow) == epTabRowDef)
             r -> HtmlStack.State.pBuf = oBegin (r) ;
 
-        return ok ;
+	r -> TableStack.State.nResult    = 1 ;
+        
+	return ok ;
         }
 
     r -> HtmlStack.State.pStart    = NULL ;
@@ -1158,7 +1225,7 @@ static int HtmlRow (/*i/o*/ register req * r,
         }
     oputc (r, '>') ;
 
-    r -> TableStack.State.nResult    = 1 ;
+    /* r -> TableStack.State.nResult    = 1 ; */
     r -> TableStack.State.nCol       = 0 ; 
     r -> TableStack.State.nColUsed   = 0 ; 
     r -> TableStack.State.bHead      = r -> TableStack.State.bRowHead = 0 ;
@@ -1194,7 +1261,7 @@ int HtmlEndrow (/*i/o*/ register req * r,
     if ((r -> TableStack.State.nTabMode & epTabCol) == epTabColDef)
         if (r -> TableStack.State.nResult || (!r -> TableStack.State.nColUsed && !r -> TableStack.State.nCountUsed && !r -> TableStack.State.nRowUsed))
             oCommit (r, r -> HtmlStack.State.pBuf) ;
-        else
+	else
             oRollback (r, r -> HtmlStack.State.pBuf), r -> TableStack.State.nCol-- ;
 
     if (r -> TableStack.State.bRowHead)    
@@ -1216,10 +1283,17 @@ int HtmlEndrow (/*i/o*/ register req * r,
         r -> Buf.nBlockNo = r -> HtmlStack.State.nBlockNo ;        
         if ((r -> TableStack.State.nTabMode & epTabCol) == epTabColDef)
             r -> HtmlStack.State.pBuf = oBegin (r) ;
+    
         }
     else
+	{
         r -> HtmlStack.State.pStart    = NULL ;
 
+	if (r -> TableStack.State.bHead || r -> TableStack.State.nCol > 0)    
+	    {
+	    r -> TableStack.State.nResult    = 1 ; 
+	    }
+	}
     return ok ;
     }
                         
@@ -1261,8 +1335,6 @@ static SV * SplitFdat     (/*i/o*/ register req * r,
     char * s ;
     char * p ;
     
-    if (ppSVerg && *ppSVerg)
-        lprintf (r, "ok refcnt = %d type=%d\n", SvREFCNT (*ppSVerg), SvTYPE (*ppSVerg)) ;
     if (ppSVerg && *ppSVerg && SvTYPE (*ppSVerg))
         {
         return *ppSVerg ;
@@ -1290,14 +1362,12 @@ static SV * SplitFdat     (/*i/o*/ register req * r,
         hv_store (r -> pFormSplitHash, (char *)pName, nlen, (SV *)pHV, 0) ;
         if (r -> bDebug & dbgInput)
             lprintf (r, "[%d]INPU: <mult values>\n", r -> nPid) ; 
-        lprintf (r, "new hv refcnt = %d type=%d dat=%s\n", SvREFCNT (pHV), SvTYPE (pHV), pData) ;
         return (SV *)pHV;
         }
     else
         {
         SvREFCNT_inc (*ppSVfdat) ;
         hv_store (r -> pFormSplitHash, (char *)pName, nlen, *ppSVfdat, 0) ;
-        lprintf (r, "new refcnt = %d type=%d dat=%s\n", SvREFCNT (*ppSVfdat), SvTYPE (*ppSVfdat), pData) ;
         if (r -> bDebug & dbgInput)
             lprintf (r, "[%d]INPU: value = %s\n", r -> nPid, SvPV(*ppSVfdat, na)) ; 
         return *ppSVfdat ;
@@ -1328,7 +1398,7 @@ static int HtmlSelect (/*i/o*/ register req * r,
         }
     else
         {
-        r -> HtmlStack.State.sArg   = __strndup (r, pName, nlen) ;
+        r -> HtmlStack.State.sArg   = _ep_strndup (r, pName, nlen) ;
 
         ppSV = hv_fetch(r -> pFormHash, (char *)pName, nlen, 0) ;  
         if (ppSV == NULL)
@@ -1556,7 +1626,6 @@ static int HtmlInput (/*i/o*/ register req * r,
             {
             SV * pSV ;
             SV * * ppSVerg = hv_fetch(r -> pFormSplitHash, (char *)pName, nlen, 0) ;  
-            lprintf (r, "ref name = <%s> %d\n", pName, nlen) ; 
             pSV = SplitFdat (r, ppSV, ppSVerg, (char *)pName, nlen) ;
     
             if (SvTYPE (pSV) == SVt_PVHV)

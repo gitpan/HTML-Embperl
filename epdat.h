@@ -56,10 +56,16 @@ typedef struct tFile
     char *  sSourcefile ;   /* Name of sourcefile */
     double  mtime ;	    /* last modification time of file */
     size_t  nFilesize ;	    /* size of File */
+    SV *    pBufSV ;        /* SV that contains the file content */
+    bool    bKeep ;	    /* set true if you want to keep file in memory */
+    
     HV *    pCacheHash ;    /* Hash containing CVs to precompiled subs */
 
     char *  sCurrPackage ;  /* Package of file  */
     STRLEN  nCurrPackage ;  /* Package of file (length) */
+    HV *    pExportHash ;   /* exportable Macros */
+
+    struct tFile * pNext2Free ;  /* Next file that has to be freed after the request */
     } tFile ;
 
 /*-----------------------------------------------------------------*/
@@ -104,8 +110,9 @@ enum tCmdType
     cmdTextarea = 64,
     cmdDo       = 128,
     cmdForeach  = 256,
+    cmdSub      = 512,
 
-    cmdAll      = 511
+    cmdAll      = 1023
     } ;
 
 enum tCmdNo
@@ -250,13 +257,16 @@ struct tReq
     int     bOptions ;		/* Options */
     int     nIOType ;
     bool    bSubReq ;           /* This is a sub request (called inside an Embperl page) */
+    char *  sSubName ;          /* subroutine to call */
 
+    
     /* --- Source in memory --- */
 
     tSrcBuf   Buf ;            /* Buffer */
     tSrcBuf * pBufStack  ;     /* pointer to buffer stack */
     tSrcBuf * pBufStackFree  ; /* pointer to buffer stack free list*/
 
+    tFile * pFiles2Free ;	/* files that has to be freed after the request (only valid in main request) */
 
     /* --- command handling --- */
 
@@ -315,6 +325,7 @@ struct tReq
     long    nLogFileStartPos ; /* file position of logfile, when logfile started */
     char *  sOutputfile ;      /* name of output file */
     bool    bAppendToMainReq ; /* append output to main request */
+    bool    bDisableOutput ;   /* no output is generated */
 
     SV *    pOutData ;
     SV *    pInData ;
@@ -368,7 +379,7 @@ struct tReq
 
     char op_mask_buf[MAXO + 100]; /* save buffer for opcode mask - maxo shouldn't differ from MAXO but leave room anyway (see BOOT:)	*/
 
-
+    HV *  pImportStash ;	/* stash for package, where new macros should be imported */
     } ;
 
 

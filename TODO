@@ -16,17 +16,26 @@ Features
 
 - check for unclosed if's etc. [Todd Eigenshink]
 
-- DirectoryIndex via Embperl (does not work anymore with apache 1.3.4)
-
 - used named subroutines for debugging [Ert Dredge]
 
 - Adapt session handling to new Apache::Session
 
+- Mail errors to admin
+
+- EMBPERL_VERSION [Christian Gilmore]
+
+- use ap_r.. instead of ap_b... ?
+
+- Remove space at the start and end of the line [Dirk Lutzebaeck]
+
+- gzip output [Andreas Koenig]
+
+ 
 Test
 ----
 - test FORBIDDEN
 
-- table_set -> table_add (test with mod_usertrack)
+- check permissions of test/html
 
 Bugs
 ----
@@ -36,14 +45,16 @@ Bugs
 
 - errorright output
 
-- error in 'do xxx.pl' are not shown anywhere
+- error from croak in 'do xxx.pl' are not shown anywhere
+
+- [* *] inside if [Vasco Chita 1.5.99]
+
+- select option a &amp; b  [Rick Welykochy 1.6.99]
+
 
 Docs
 ----
 - Docs about EmbperlChain [Eric CHOLET]
 
-- readonly variables
-
-- new cleanup, bug in 5.004
 
 

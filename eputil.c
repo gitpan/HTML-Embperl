@@ -544,3 +544,107 @@ void Dirname (/*in*/ const char * filename,
 
     return ;
     }
+
+
+
+/* ------------------------------------------------------------------------- */
+/*                                                                           */
+/* GetSubTextPos						             */
+/*                                                                           */
+/*                                                                           */
+/* in	sName = name of sub                                                  */
+/*                                                                           */
+/* returns the position within the file for a given Embperl sub              */
+/*                                                                           */
+/* ------------------------------------------------------------------------- */
+
+
+int GetSubTextPos (/*i/o*/ register req * r,
+		   /*in*/  const char *   sName) 
+
+    {
+    SV **   ppSV ;
+    const char *  sKey  ;
+    char    sKeyBuf[sizeof (int) + 4] ;
+    int	    l ;    
+    
+    EPENTRY (Eval) ;
+
+    while (isspace(*sName))
+	sName++ ;
+
+    l = strlen (sName) ;
+    while (l > 0 && isspace(sName[l-1]))
+	l-- ;
+    
+    sKey = sName ;
+    if (l < sizeof (int))
+	{ /* right pad name with spaces to make sure name is longer then sizeof (int) */
+	  /* distiguish it from filepos entrys */
+	memset (sKeyBuf, ' ', sizeof (sKeyBuf) - 1) ;
+	sKeyBuf[sizeof(sKeyBuf) - 1] = '\0' ;
+	memcpy (sKeyBuf, sName, l) ;
+	sKey = sKeyBuf ;
+	l = sizeof(sKeyBuf) - 1 ;
+	}
+    
+    
+    ppSV = hv_fetch(r -> Buf.pFile -> pCacheHash, (char *)sKey, l, 0) ;  
+    if (ppSV == NULL || *ppSV == NULL) /* || SvTYPE (*ppSV) != SVt_IV)*/
+        return 0 ;
+
+    return SvIV (*ppSV) ;    
+    }
+
+
+/* ------------------------------------------------------------------------- */
+/*                                                                           */
+/* SetSubTextPos						             */
+/*                                                                           */
+/*                                                                            */
+/* in	sName = name of sub                                                  */
+/* in   nPos  = position within the file for a given Embperl sub             */
+/*                                                                           */
+/* ------------------------------------------------------------------------- */
+
+
+int SetSubTextPos (/*i/o*/ register req * r,
+		   /*in*/  const char *   sName,
+		   /*in*/  int		  nPos) 
+
+    {
+    SV **   ppSV ;
+    const char *  sKey ;
+    char    sKeyBuf[sizeof (int) + 4] ;
+    int	    l ;    
+    
+    EPENTRY (Eval) ;
+
+    while (isspace(*sName))
+	sName++ ;
+
+    l = strlen (sName) ;
+    while (l > 0 && isspace(sName[l-1]))
+	l-- ;
+    
+    sKey = sName ;
+    if (l < sizeof (int))
+	{ /* right pad name with spaces to make sure name is longer then sizeof (int) */
+	  /* distiguish it from filepos entrys */
+	memset (sKeyBuf, ' ', sizeof (sKeyBuf) - 1) ;
+	sKeyBuf[sizeof(sKeyBuf) - 1] = '\0' ;
+	memcpy (sKeyBuf, sName, l) ;
+	sKey = sKeyBuf ;
+	l = sizeof(sKeyBuf) - 1 ;
+	}
+    
+    
+    ppSV = hv_fetch(r -> Buf.pFile -> pCacheHash, (char *)sKey, l, 1) ;  
+    if (ppSV == NULL)
+        return rcHashError ;
+
+    SvREFCNT_dec (*ppSV) ;  
+    *ppSV = newSViv (nPos) ;
+    
+    return ok ;
+    }

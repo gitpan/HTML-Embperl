@@ -34,6 +34,7 @@ epdat.h
 epio.c
 epmain.c
 epchar.c
+epchar.c.iso-latin-2
 epeval.c
 epcmd.c
 eputil.c
@@ -46,6 +47,8 @@ test/html/plain.htm
 test/html/plainblock.htm
 test/html/error.htm
 test/html/noerr/noerrpage.htm
+test/html/errdoc/errdoc.htm
+test/html/errmsg.htm
 test/html/escape.htm
 test/html/if.htm
 test/html/ifperl.htm
@@ -73,6 +76,13 @@ test/html/incerr.htm
 test/html/incparam.htm
 test/html/includeerr1.htm
 test/html/includeerr2.htm
+test/html/callsub.htm
+test/html/importsub.htm
+test/html/importsub2.htm
+test/html/importmodule.htm
+test/html/recursexec.htm
+test/html/subimp.htm
+test/html/subimp.pm
 test/html/div.htm
 test/html/object.htm
 test/html/discard.htm
@@ -93,6 +103,8 @@ test/html/allform/allform.htm
 test/html/stdout/stdout.htm
 test/html/nph/div.htm
 test/html/nph/npherr.htm
+test/html/nph/nphinc.htm
+test/html/nph/incshort.htm
 test/html/match/div.htm
 test/html/match/div.asc
 test/html/ofunc/div.htm
@@ -130,6 +142,11 @@ test/cmp/errpage.htm
 test/cmp/include.htm
 test/cmp/includeerr1.htm
 test/cmp/includeerr2.htm
+test/cmp/callsub.htm
+test/cmp/importsub.htm
+test/cmp/importsub2.htm
+test/cmp/importmodule.htm
+test/cmp/recursexec.htm
 test/cmp/sub.htm
 test/cmp/div.htm
 test/cmp/object.htm
@@ -150,12 +167,14 @@ test/cmp/exit2.htm
 test/cmp/post.htm
 test/cmp/upload.htm
 test/cmp/npherr.htm
+test/cmp/nphinc.htm
 test/cmp/div.asc
 test/cmp/setsess.htm
 test/cmp/getsess.htm
 test/cmp/getnosess.htm
 test/cmp/mdatsess.htm
 test/cmp/execgetsess.htm
+test/cmp/errdoc.htm
 test/conf/httpd.conf.src
 test/conf/startup.pl
 test/conf/startup_dso.pl
@@ -163,3 +182,6 @@ test/conf/null
 embpexec.test.pl
 embpexec.test.bat
 lib/Apache/Session/epDBI.pm
+lib/HTML/Embperl/Module.pm
+emacs/README
+emacs/embperl.el

@@ -74,17 +74,19 @@ int EvalDirect (/*i/o*/ register req * r,
 ------------------------------------------------------------------------------- */
 
 static int EvalAll (/*i/o*/ register req * r,
-			/*in*/  const char *  sArg,
+		    /*in*/  const char *  sArg,
                     /*in*/  int           flags,
-                    /*out*/ SV **         pRet)             
+                    /*in*/  const char *  sName,
+		    /*out*/ SV **         pRet)             
     {
-    static char sFormat []       = "package %s ; sub { \n#line %d %s\n%s\n}" ;
-    static char sFormatStrict [] = "package %s ; use strict ; sub {\n#line %d %s\n%s\n}" ; 
-    static char sFormatArray []       = "package %s ; sub { \n#line %d %s\n[%s]\n}" ;
-    static char sFormatStrictArray [] = "package %s ; use strict ; sub {\n#line %d %s\n[%s]\n}" ; 
+    static char sFormat []       = "package %s ; sub %s { \n#line %d \"%s\"\n%s\n} %s%s" ;
+    static char sFormatStrict [] = "package %s ; use strict ; sub %s {\n#line %d \"%s\"\n%s\n} %s%s" ; 
+    static char sFormatArray []       = "package %s ; sub %s { \n#line %d \"%s\"\n[%s]\n} %s%s" ;
+    static char sFormatStrictArray [] = "package %s ; use strict ; sub %s {\n#line %d \"%s\"\n[%s]\n} %s%s" ; 
     SV *   pSVCmd ;
     SV *   pSVErr ;
     int    n ;
+    char * sRef = "" ;
 
     dSP;
     
@@ -98,16 +100,19 @@ static int EvalAll (/*i/o*/ register req * r,
     tainted = 0 ;
     pCurrReq = r ;
 
+    if (*sName)
+	sRef = "; \\&" ;
+    
     if (r -> bStrict)
         if (flags & G_ARRAY)
-            pSVCmd = newSVpvf(sFormatStrictArray, r -> Buf.sEvalPackage, r -> Buf.nSourceline, r -> Buf.pFile -> sSourcefile, sArg) ;
+            pSVCmd = newSVpvf(sFormatStrictArray, r -> Buf.sEvalPackage, sName, r -> Buf.nSourceline, r -> Buf.pFile -> sSourcefile, sArg, sRef, sName) ;
         else
-            pSVCmd = newSVpvf(sFormatStrict, r -> Buf.sEvalPackage, r -> Buf.nSourceline, r -> Buf.pFile -> sSourcefile, sArg) ;
+            pSVCmd = newSVpvf(sFormatStrict, r -> Buf.sEvalPackage, sName, r -> Buf.nSourceline, r -> Buf.pFile -> sSourcefile, sArg, sRef, sName) ;
     else
         if (flags & G_ARRAY)
-            pSVCmd = newSVpvf(sFormatArray, r -> Buf.sEvalPackage, r -> Buf.nSourceline, r -> Buf.pFile -> sSourcefile, sArg) ;
+            pSVCmd = newSVpvf(sFormatArray, r -> Buf.sEvalPackage, sName, r -> Buf.nSourceline, r -> Buf.pFile -> sSourcefile, sArg, sRef, sName) ;
         else
-            pSVCmd = newSVpvf(sFormat, r -> Buf.sEvalPackage, r -> Buf.nSourceline, r -> Buf.pFile -> sSourcefile, sArg) ;
+            pSVCmd = newSVpvf(sFormat, r -> Buf.sEvalPackage, sName, r -> Buf.nSourceline, r -> Buf.pFile -> sSourcefile, sArg, sRef, sName) ;
 
     PUSHMARK(sp);
     n = perl_eval_sv(pSVCmd, G_SCALAR | G_KEEPERR);
@@ -122,7 +127,7 @@ static int EvalAll (/*i/o*/ register req * r,
         lprintf (r, "[%d]SVs:  %d\n", r -> nPid, sv_count) ;
     
     pSVErr = ERRSV ;
-    if (SvTRUE (pSVErr) || n == 0)
+    if (SvTRUE (pSVErr) || (n == 0 && (flags & G_DISCARD) == 0))
         {
         STRLEN l ;
         char * p = SvPV (pSVErr, l) ;
@@ -286,8 +291,8 @@ static int Watch (/*i/o*/ register req * r)
 ------------------------------------------------------------------------------- */
 
 
-static int CallCV (/*i/o*/ register req * r,
-			/*in*/  const char *  sArg,
+static int CallCV  (/*i/o*/ register req * r,
+		    /*in*/  const char *  sArg,
                     /*in*/  CV *          pSub,
                     /*in*/  int           flags,
                     /*out*/ SV **         pRet)             
@@ -422,6 +427,62 @@ static int CallCV (/*i/o*/ register req * r,
 
 /* -------------------------------------------------------------------------------
 *
+* Eval PERL Statements and setup the correct return value/error message
+* 
+* in  sArg   Statement to eval
+* out ppSV   pointer to an SV with should be set to CV of the evaled code
+*
+------------------------------------------------------------------------------- */
+
+
+static int EvalOnly (/*i/o*/ register req * r,
+			/*in*/  const char *  sArg,
+                        /*in*/  SV **         ppSV,
+                        /*in*/  int           flags,
+  		        /*in*/  const char *  sName)
+
+
+
+    {
+    int     rc ;
+    SV *   pSub ;
+    
+    
+    EPENTRY (EvalOnly) ;
+
+    r -> lastwarn[0] = '\0' ;
+    
+    rc = EvalAll (r, sArg, flags, sName, &pSub) ;
+
+    if (rc == ok && (flags & G_DISCARD))
+	return ok ;
+
+    if (rc == ok && pSub != NULL && SvTYPE (pSub) == SVt_RV)
+        {
+        /*sv_setsv (*ppSV, pSub) ;*/
+        SvREFCNT_dec (*ppSV) ;  
+        *ppSV = SvRV(pSub) ;
+        SvREFCNT_inc (*ppSV) ;  
+        }
+    else
+        {
+        if (pSub != NULL && SvTYPE (pSub) == SVt_PV)
+            *ppSV = pSub ; /* save error message */
+        else if (r -> lastwarn[0] != '\0')
+    	    *ppSV = newSVpv (r -> lastwarn, 0) ;
+        else
+    	    *ppSV = newSVpv ("Compile Error", 0) ;
+        
+        r -> bError = 1 ;
+        return rc ;
+        }
+
+    return ok ;
+    }
+
+
+/* -------------------------------------------------------------------------------
+*
 * Eval PERL Statements and execute the evaled code
 * 
 * in  sArg   Statement to eval
@@ -440,35 +501,16 @@ static int EvalAndCall (/*i/o*/ register req * r,
 
     {
     int     rc ;
-    SV *   pSub ;
     
     
     EPENTRY (EvalAndCall) ;
 
-    r -> lastwarn[0] = '\0' ;
-    
-    rc = EvalAll (r, sArg, flags, &pSub) ;
+    if ((rc = EvalOnly (r, sArg, ppSV, flags, "")) != ok)
+	{
+	*pRet = NULL ;
+	return rc ;
+	}
 
-    if (rc == ok && pSub != NULL && SvTYPE (pSub) == SVt_RV)
-        {
-        /*sv_setsv (*ppSV, pSub) ;*/
-        SvREFCNT_dec (*ppSV) ;  
-        *ppSV = SvRV(pSub) ;
-        SvREFCNT_inc (*ppSV) ;  
-        }
-    else
-        {
-        if (pSub != NULL && SvTYPE (pSub) == SVt_PV)
-            *ppSV = pSub ; /* save error message */
-        else if (r -> lastwarn[0] != '\0')
-    	    *ppSV = newSVpv (r -> lastwarn, 0) ;
-        else
-    	    *ppSV = newSVpv ("Compile Error", 0) ;
-        
-        *pRet = NULL ;
-        r -> bError = 1 ;
-        return rc ;
-        }
 
     if (*ppSV && SvTYPE (*ppSV) == SVt_PVCV)
         { /* Call the compiled eval */
@@ -667,6 +709,99 @@ int EvalTransOnFirstCall (/*i/o*/ register req * r,
     }
 
 
+/* -------------------------------------------------------------------------------
+*
+* Eval PERL Statements into a sub, check if it's already compiled
+* 
+* in  sArg      Statement to eval wrap into a sub
+* in  nFilepos  position von eval in file (is used to build an unique key)
+* in  sName     sub name
+*
+------------------------------------------------------------------------------- */
+
+int EvalSub (/*i/o*/ register req * r,
+	    /*in*/  const char *  sArg,
+	    /*in*/  int           nFilepos,
+	    /*in*/  const char *  sName)
+
+
+    {
+    int     rc ;
+    SV **   ppSV ;
+    GV *    gv ;
+    GV**    gvp ;
+    
+    
+    EPENTRY (EvalSub) ;
+
+    r -> numEvals++ ;
+
+
+    /* Already compiled ? */
+
+    ppSV = hv_fetch(r -> Buf.pFile -> pCacheHash, (char *)&nFilepos, sizeof (nFilepos), 1) ;  
+    if (ppSV == NULL)
+        return rcHashError ;
+
+    if (*ppSV != NULL && SvTYPE (*ppSV) == SVt_PV)
+        {
+        strncpy (r -> errdat1, SvPV(*ppSV, na), sizeof (r -> errdat1) - 1) ; 
+        LogError (r, rcEvalErr) ;
+        return rcEvalErr ;
+        }
+
+    if (*ppSV == NULL || SvTYPE (*ppSV) != SVt_PVCV)
+        {
+	char endc ;
+	int  len = strlen (sName) ;
+	
+	while (len > 0 && isspace(sName[len-1]))
+	    len-- ;
+	endc = sName[len] ;
+	((char *)sName)[len] = '\0' ;
+	
+	if ((rc =  EvalOnly (r, sArg, ppSV, 0, sName)) != ok)
+	    {
+	    ((char *)sName)[len] = endc ;
+	    return rc ;
+	    }
+
+        if (r -> pImportStash && *ppSV && SvTYPE (*ppSV) == SVt_PVCV)
+	    {
+	    hv_store (r -> Buf.pFile -> pExportHash, (char *)sName, len, newRV_inc(*ppSV), 0) ;
+	    
+	    if (r -> bDebug & dbgImport)
+		lprintf (r, "[%d]IMP:  %s -> %s (%x)\n", r -> nPid, sName, HvNAME (r -> pImportStash), *ppSV) ;
+
+	    /* 
+	    gvp = (GV**)hv_fetch(r -> pImportStash, (char *)sName, len, 1);
+	    
+	    if (!gvp || *gvp == (GV*)&PL_sv_undef)
+		{
+		((char *)sName)[len] = endc ;
+		return rcHashError ;
+		}
+
+	    gv = *gvp;
+	    if (SvTYPE(gv) != SVt_PVGV) 
+		gv_init(gv, r -> pImportStash, (char *)sName, len, 0);
+	    
+	    lprintf (r, "sv_any=%x\n", gv -> sv_any) ;
+	    
+	    SvREFCNT_dec (GvCV (gv)) ;  
+	    GvCV (gv) = (CV *)*ppSV ; 
+	    SvREFCNT_inc (*ppSV) ;  
+	    */
+	    }
+
+	((char *)sName)[len] = endc ;
+	return ok ;
+	}
+
+    r -> numCacheHits++ ;
+    return ok ;
+    }
+
 
 /* -------------------------------------------------------------------------------
 *
@@ -782,19 +917,33 @@ int EvalMain (/*i/o*/ register req *  r)
 	char * pCloseBracket = r -> pConf -> pCloseBracket ;
 	int  lenOpenBracket  = strlen (pOpenBracket) ;
 	int  lenCloseBracket = strlen (pCloseBracket) ;
-	char * pOpen = pStart - 1 ;
+	char * pOpen  ;
 	char * pClose ;
 	char   buf [256] ;
         int    nBlockNo = 1 ;
 
-        do 
+        
+	if (r -> sSubName && *(r -> sSubName))
+	    {
+	    int nPos = GetSubTextPos (r, r -> sSubName) ;
+	    
+	    if (!nPos || pStart + nPos > pEnd || nPos < 0)
+		{
+		strncpy (r -> errdat1, r -> sSubName, sizeof (r -> errdat1) - 1) ; 
+		return rcSubNotFound ;
+		}
+	    pStart += nPos ; 
+	    }
+	pOpen = pStart - 1 ;
+	
+	do 
             pOpen  = strstr (pOpen + 1, pOpenBracket) ;
         while (pOpen && pOpen > pStart && pOpen[-1] == '[') ;
         
         
         if (!pOpen)
             { /* no top level perl blocks -> call ProcessBlock directly */
-            ProcessBlock (r, 0, r -> Buf.pEndPos - r -> Buf.pBuf, 1) ;
+            ProcessBlock (r, pStart - r -> Buf.pBuf, r -> Buf.pEndPos - r -> Buf.pBuf, 1) ;
             return ok ;
             }
 

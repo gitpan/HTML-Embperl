@@ -1,0 +1,32 @@
+Von: Erik Arneson [erik@mind.net]
+Gesendet: Freitag, 7. Mai 1999 20:40
+An: Gerald Richter
+Betreff: RE: Embperl mode for Emacs?
+
+I've attached the embperl.el file to this e-mail.  It's ready for use,
+even if it's not the most beautiful piece of Emacs Lisp code in the
+world.  It also isn't heavily tested -- it's not going to destroy
+anybody's files or anything, but it may have trouble doing some mode
+switching.
+
+In order to use it, one must stick the following in his .emacs file:
+
+(autoload 'embperl-minor-mode "embperl" "HTML::Embperl Mode" t)
+
+They also need to stick embperl.el somewhere in their load-path.
+
+I'm more than willing to take suggestions and help for this; please feel 
+free to stick my name and e-mail address in a README file somewhere.
+The homepage for this bit of code is
+<URL:http://mother.mind.net/~erik/>.
+
+I'll also make sure to keep you updated if anything changes.
+
+Thank you very much for including this!  I think it'll make a lot of
+Embperl coders very happy.  :)
+
+-- 
+# Erik Arneson       erik@mind.net       Network Engineer #
+# Infostructure   http://www.mind.net/     (541) 488-1962 #
+# "My brain is my second favorite organ."  -- Woody Allen #
+

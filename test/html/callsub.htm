@@ -1,0 +1,57 @@
+<html>
+<head>
+<title>Tests for Embperl - Embperl sub Metacommand</title>
+</head>
+
+
+<body>
+
+[###### first sub #####]
+[$sub txt$]
+
+<h2>Here goes some normal html text <h2>
+
+[$endsub$]
+
+
+[###### second sub #####]
+[$sub perl_code $]
+
+Here comes some perl:
+
+[- $foo = 'Hello world' -]
+
+foo = [+ $foo +]<br>
+testdata = [+ $testdata +]<br>
+
+[$endsub$]
+
+[###### main page #####]
+
+
+<h1>Tests for Embperl - Embperl sub Metacommand</h1>
+
+[- $testdata = 'abcd' -]
+
+Now we call the first sub via Execute:
+
+[- Execute ('#txt') -]
+
+And now the second via Execute:
+
+[- Execute ('#perl_code') -]
+
+Now we call the first sub via Perl:
+
+[- txt -]
+
+And now the second via Perl:
+
+[- perl_code -]
+
+And done!
+
+
+
+</body>
+</html>

@@ -704,7 +704,7 @@ int owrite (/*i/o*/ register req * r,
     {
     int n = size ;
 
-    if (n == 0)
+    if (n == 0 || r -> bDisableOutput)
         return 0 ;
 
     if (r -> pMemBuf)
@@ -830,6 +830,10 @@ int OpenLog (/*i/o*/ register req * r,
    
     r -> lfd = NULL ;
 
+    
+    if (r -> bDebug == 0)
+	return ok ; /* never write to logfile if debugging is disabled */	    
+    
     if (nMode != 2)
         {
         strncpy (sLogFilename, sFilename, sizeof (sLogFilename) - 1) ;
@@ -1163,7 +1167,7 @@ char * _memstrcat (/*i/o*/ register req * r,
 
 
 
-char * __strdup (/*i/o*/ register req * r,
+char * _ep_strdup (/*i/o*/ register req * r,
                  /*in*/  const char * str)
 
     {
@@ -1180,7 +1184,7 @@ char * __strdup (/*i/o*/ register req * r,
     
 
 
-char * __strndup (/*i/o*/ register req * r,
+char * _ep_strndup (/*i/o*/ register req * r,
                   /*in*/  const char *   str,
                   /*in*/  int            len)
 
