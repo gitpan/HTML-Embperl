@@ -480,7 +480,8 @@ Especialy in a CGI environenemt this can be usefull to make a server more secure
 
 =head2 EMBPERL_PATH (1.3b1 and above)
 
-Can contain a colon separated file search path. When a file is processed and the filename
+Can contain a semikolon (under Unix also colon) separated file search path.
+When a file is processed and the filename
 does not contain a path, I<Embperl> searches all the specified directories for
 that file.
 
@@ -1003,6 +1004,12 @@ Example:
 
   PerlSetEnv EMBPERL_SESSION_ARGS "DataSource=dbi:mysql:session UserName=www Password=secret"
 
+=head2 EMBPERL_SESSION_HANDLER_CLASS (1.3b3 and higher)
+
+Set the class that performs the Embperl session handling. Default is
+C<HTML::Embperl::Session>. You can overwrite I<HTML::Embperl::Session> and
+specify the name of your class within this variable. This gives you
+the possibility to implement your own session handling.
 
 =head1 SYNTAX
 
@@ -2377,6 +2384,8 @@ I have tested Embperl succesfully
 
 =item perl5.005_03
 
+=item perl5.6.0
+
 =item apache_1.2.5
 
 =item apache_1.2.6
@@ -2394,6 +2403,10 @@ I have tested Embperl succesfully
 =item apache_1.3.5
 
 =item apache_1.3.6
+
+=item apache_1.3.9
+
+=item apache_1.3.12
 
 =item apache_ssl (Ben SSL)
 
@@ -2417,9 +2430,15 @@ I know from other people that it works on many other UNIX systems
 
 =item perl5.005
 
+=item perl5.6.0
+
 =item apache_1.3.1
 
 =item apache_1.3.6
+
+=item apache_1.3.9
+
+=item apache_1.3.12
 
 =back
 
@@ -2440,21 +2459,21 @@ I know from other people that it works on many other UNIX systems
 
 Please let me know if you use or test this module.  Bugs, questions,
 suggestions for things you would find useful, etc., are discussed on
-the mod_perl mailing list.
-
->From the mod_perl README:
- 
-The Apache/Perl mailing list (modperl@apache.org) is available for mod_perl
-users and developers to share ideas, solve problems and discuss things related
-to mod_perl and the Apache::* (and Embperl) modules. To subscribe to this list, send mail to
-majordomo@apache.org with the string "subscribe modperl" in the body. 
+the Embperl mailing list. If you have a site that is using Embperl,
+I would love to mention it in list of sites using Embperl 
+(http://perl.apache.org/embperl/Sites.pod.1.html). Please drop
+me a mail with a short description, if your site uses Embperl.
 
 
-There is a hypermail archive for this list available from:
-http://outside.organic.com/mail-archives/modperl/
+The Embperl mailing list (embperl@perl.apache.org) is available for Embperl users
+and developers to share ideas, solve problems and discuss things related to Embperl
+To subscribe to this list, send mail to embperl-subscribe@perl.apache.org.
+To unsubscribe send email to embperl-unsubscribe@perl.apache.org . 
 
-There is an Epigone archive for the mod_perl mailing list at
-http://forum.swarthmore.edu/epigone/modperl
+There is an archive for the Embperl mailing list at http://www.ecos.de/~mailarc/embperl/
+
+For mod_perl related questions you may search the mod_perl mailing list
+archive at http://forum.swarthmore.edu/epigone/modperl
 
 
 =head2 Commerical Support
@@ -2502,13 +2521,42 @@ You can reach us via http://www.ecos.de or info@ecos.de
  
  Win NT/95/98 binarys
  Apache/perl/
- mod_perl/Embperl	http://www.perl.com/CPAN/authors/Jeffrey_Baker/
+ mod_perl/Embperl	ftp://theoryx5.uwinnipeg.ca/pub/other/ 
 
 
 =head2 CVS
 
 The lastest developements are available from a CVS.
 Look at L<"perldoc CVS.pod"|CVS/"INTRO"> for a detailed description.
+
+
+=head1 Syntaxmodes for various editors
+
+=head2 Emacs
+
+From: Erik Arneson [erik@mind.net]
+
+Here's the amount of documentation I've got right now.
+
+They need to get mmm.el from this URL:
+http://members.tripod.com/gchen2/xemacs/
+
+Then download my mmm-embperl.el from this one:
+http://inanna.starseed.com/~erik/mmm-embperl.el
+
+The documentation for using these is included in those two elisp files.
+
+=head2 VIM
+
+Vim Syntaxfile from Steve Willer could be found at http://www.interlog.com/~willer/embperl.vim
+
+Vim Syntaxfile from Kee Hinckley could be found at http://www.somewhere.com/software/
+
+=head2 Dreamweaver
+
+Dreamweaverextention which tell Dreamweaver not to touch Embperl code could 
+be found at http://www.somewhere.com/software/
+
 
 =head1 Author
 

@@ -217,7 +217,7 @@ you B<must not> load Embperl at server startup time!
 
 
 
-=head2 make test fails with a SIGxxxx, how can I obtain a stack bactrace
+=head2 make test fails with a SIGxxxx, how can I obtain a stack backtrace
 from gdb?
 
 The eaiest way is
@@ -308,84 +308,8 @@ libraries
 
 =head2 Embperl and mod_perl on AIX 
 
-(from Jens-Uwe Mager)
-
-This was tested on AIX 4.1.5 with Apache 1.3.9 and the latest (post
-1.21) modperl from CVS. Earlier versions of modperl would only work
-after massaging the modperl build process by hand. To build Apache with
-modperl as a DSO I had to apply the following patch to modperl (the
-original assumed the apache source is in /usr/local/apache/src):
-
- Index: apaci/configure
- ===================================================================
- --- apaci/configure.orig	Wed Aug 18 16:54:07 1999
- +++ apaci/configure	Wed Aug 18 16:57:12 1999
- @@ -73,6 +73,7 @@
-  my_apxs_sourcedir="`$my_apxs -q PREFIX`"
-  my_apxs_cflags="`$my_apxs -q CFLAGS`"
-  my_apxs_includes="-I`$my_apxs -q INCLUDEDIR`"
- +my_apxs_libexec="`$my_apxs -q LIBEXECDIR`"
-  
-  #   friendly header
-  echo "Configuring mod_perl for building via APXS" 2>&1
- @@ -95,6 +96,7 @@
-  echo "RANLIB=ranlib" >>$my_makefileconf
-  echo "LIBEXT=so" >>$my_makefileconf
-  echo "APACHEEXT=$my_apxs_sourcedir/src" >>$my_makefileconf
- +echo "APACHELIBEXEC=$my_apxs_libexec" >>$my_makefileconf
-  echo "BASEEXT=mod_perl" >>$my_makefileconf
-  echo "APXS=$my_apxs" >>$my_makefileconf
-  echo "#   own special stuff" >>$my_makefileconf
- Index: apaci/mod_perl.config.sh
- ===================================================================
- --- apaci/mod_perl.config.sh.orig	Wed Aug  4 03:17:52 1999
- +++ apaci/mod_perl.config.sh	Wed Aug 18 16:55:46 1999
- @@ -116,7 +116,7 @@
-  perl_lddlflags="`$perl_interp -MConfig -e 'print $Config{lddlflags}'`"
-  
-  case "$os_version" in
- -    aix*)  perl_lddlflags="$perl_lddlflags -bI:\$(APACHEEXT)/support/httpd.exp" ;;
- +    aix*)  perl_lddlflags="$perl_lddlflags -bI:\$(APACHELIBEXEC)/httpd.exp" ;;
-      * )    ;;
-  esac
-  
- Index: apaci/mod_perl.exp
- ===================================================================
- --- apaci/mod_perl.exp.orig	Wed Aug 18 17:26:50 1999
- +++ apaci/mod_perl.exp	Wed Aug 18 17:58:49 1999
- @@ -1 +1,3 @@
- +#!
-  perl_module
- +mod_perl_sent_header 
-
-A second patch was needed for Apache 1.3.9 itself, as two symbols were
-forgotton to export in the base release:
-
- Index: src/support/httpd.exp
- ===================================================================
- --- src/support/httpd.exp.orig	Wed Aug 18 17:07:34 1999
- +++ src/support/httpd.exp	Wed Aug 18 17:08:20 1999
- @@ -9,6 +9,7 @@
-  ap_SHA1Update
-  ap_add_cgi_vars
-  ap_add_common_vars
- +ap_add_file_conf
-  ap_add_module
-  ap_add_named_module
-  ap_add_per_dir_conf
- @@ -308,6 +309,7 @@
-  ap_server_root_relative
-  ap_set_byterange
-  ap_set_callback_and_alarm
- +ap_set_config_vectors
-  ap_set_content_length
-  ap_set_etag
-  ap_set_file_slot
-
-After that you can simply build Embperl by using the supplied Makefile.
-As for the question where mod_perl is located, I gave the answer
-/usr/local/apache/libexec, as modperl is installed as a DSO.
-
+You need at least mod_perl 1.22. For mod_perl 1.22 and higher Embperl
+should compile out of the box on AIX.
 
 
 =head2 Embperl does not write to the logfile, because of missing permissions
@@ -425,6 +349,82 @@ Unescaping.  They are so common, that an entire section on
 L<"Escaping & Unescaping"> is devoted to them.
 
 
+=head2 When I use a module inside a Embperl page, it behaves weired
+when the source changes.
+
+
+Nothing weird here. Everything is well defined. Just let us try to
+understand how I<Perl>, I<mod_perl> and I<Embperl> works together:
+
+"perldoc -f use" tells us:
+
+  Imports some semantics into the current package from the named module,
+  generally by aliasing certain subroutine or variable names into your
+  package.  It is exactly equivalent to
+ 
+     BEGIN { require Module; import Module LIST; }
+
+  except that Module must be a bareword.
+
+So what's important here for us is, that C<use> executes a C<require> and
+this is always done before any other code is executed.
+
+"perldoc -f require" says (among other things):
+
+  ..., demands that a library file be included if it hasn't already
+  been included. 
+
+and
+
+  Note that the file will not be included twice under the same specified
+  name.
+
+So now we know (or should know) that I<mod_perl> starts the Perl interpreter
+once when I<Apache> is started and the Perl interpreter is only terminated
+when Apache is terminated. Out of these two things follows, that a module
+that is loaded via C<use> or C<require> is only loaded once and will never
+be reloaded, regardless if the source changes or not.
+
+So far this is just standard Perl. Things get's a little bit more difficult
+when running under mod_perl (only Unix), because Apache forks a set of child
+processes as neccessary and from the moment they are forked, they run on their
+own and don't know of each other. So if a module is loaded at server startup
+time (before the fork), it is loaded in all childs (this can be used to save
+memory, because the code will actually only reside once in memory), but when
+the modul is loaded inside the child and the source changes, it could be
+happen, that one child has loaded an ealier version and another child has
+loaded a later version of that module, depending on the time the module
+is actualy loaded by the child.
+
+That explains, why sometimes it works and sometimes it doesn't, simply because
+different childs has loaded different versions of the same module and when you
+reload your page you hit different childs of Apache!
+
+Now there is one point that is special to Embperl to add.
+Since Embperl compiles every page in a different namespace,
+a module that doesn't contains a C<package foo> statement is compiled in the
+namespace of the page where it is first loaded.
+Because Perl will not load the module a second time,
+every other page will not see subs and vars that are defined in the loaded
+module. This could be simply avoided by giving every module that should be
+loaded via C<use>/C<require> an explicit namespace via the package statement.
+
+So what can we do?
+
+=over 4
+
+=item * If a module change, simply restart Apache. That's works always.
+
+=item * Use I<Apache::StatInc.> This will do a stat on every loaded module and compare
+the modification time. If the source has changed the module is reloaded. This
+works most times (but not all modules can be cleanly reloaded) and as the number
+of loaded modules increase, your sever will slow down, because of the stat it
+has to do for every module.
+
+=item * Use C<do> instead of C<require>. C<do> will execute your file everytime
+it is used. This also adds overhead, but this may be accpetable for small files
+or in a debugging environement. (B<NOTE:> Be sure to check C<$@> after a C<do>,
+because do works like C<eval>)
 
 
 =head2 Why doesn't the following line work?
@@ -1204,6 +1204,8 @@ to adapt the file C<epchar.c> to your character set.
 The distribution contain already an C<epchar.c.iso-latin-2> from Jiri Novak which
 is an replacement for epchar.c for the iso-8859-2 (iso-latin-2) character set.
 If you want to use iso-latin-2, simply renmae C<epchar.c.iso-latin-2> to C<epchar.c>.
+There is also an file C<epchar.c.min> from Sangmook Yi, which leaves all
+chars above 128 untouch, which is especialy usefull for two byte charsets.
 
 This file contains three tables:
 

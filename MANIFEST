@@ -16,7 +16,6 @@ EmbperlD.pod
 IntroD.pod
 FeaturesD.pod
 typemap
-mod_perl.exp
 eg/README
 eg/images/jazzbkgd.gif
 eg/x/neu.htm
@@ -45,6 +44,7 @@ epio.c
 epmain.c
 epchar.c
 epchar.c.iso-latin-2
+epchar.c.min
 epeval.c
 epcmd.c
 eputil.c
@@ -131,6 +131,12 @@ test/html/getnosess.htm
 test/html/mdatsess.htm
 test/html/execgetsess.htm
 test/html/clearsess.htm
+test/html/EmbperlObject/epobase.htm
+test/html/EmbperlObject/epohead.htm
+test/html/EmbperlObject/epofoot.htm
+test/html/EmbperlObject/epopage1.htm
+test/html/EmbperlObject/sub/epohead.htm
+test/html/EmbperlObject/sub/epopage2.htm
 test/cmp/ascii
 test/cmp/pure.htm
 test/cmp/plain.htm
@@ -152,6 +158,7 @@ test/cmp/taint.htm
 test/cmp/input.htm
 test/cmp/var.htm
 test/cmp/varerr.htm
+test/cmp/varerr.htm56
 test/cmp/hidden.htm
 test/cmp/java.htm
 test/cmp/inputjava.htm
@@ -197,6 +204,8 @@ test/cmp/mdatsess.htm
 test/cmp/execgetsess.htm
 test/cmp/errdoc.htm
 test/cmp/clearsess.htm
+test/cmp/epopage1.htm
+test/cmp/epopage2.htm
 test/conf/httpd.conf.src
 test/conf/startup.pl
 test/conf/startup_dso.pl
@@ -207,3 +216,4 @@ Embperl/Session.pm
 Embperl/Mail.pm
 emacs/README
 emacs/embperl.el
+EmbperlLogo.gif

@@ -71,13 +71,15 @@ use vars qw(
     $req_rec
 
     %http_headers_out
+
+    $pathsplit
     ) ;
 
 
 @ISA = qw(Exporter DynaLoader);
 
 
-$VERSION = '1.3b2';
+$VERSION = '1.3b3';
 
 
 # HTML::Embperl cannot be bootstrapped in nonlazy mode except
@@ -112,6 +114,7 @@ $packno   = 1 ;     # for assigning unique packagenames
 
 @cleanups = () ;    # packages which need a cleanup
 $LogOutputFileno = 0 ;
+$pathsplit = $^O eq 'MSWin32'?';':';|:' ;   # separators for path
 
 # setup constans
 
@@ -376,10 +379,12 @@ if (defined ($ENV{EMBPERL_SESSION_CLASSES}))
 	    lock_manager   => $lm
 	    ) ;
 
-        require HTML::Embperl::Session ; 
+        my $session_handler = $ENV{EMBPERL_SESSION_HANDLER_CLASS} || 'HTML::Embperl::Session' ; 
+        eval "require $session_handler" ; 
+        die $@ if ($@)  ;
 
-	tie %udat, 'HTML::Embperl::Session', undef, \%sargs ;
-	tie %mdat, 'HTML::Embperl::Session', undef, \%sargs ;
+	tie %udat, $session_handler, undef, \%sargs ;
+	tie %mdat, $session_handler, undef, \%sargs ;
 	$SessionMgnt = 2 ;
 	warn "[$$]SES:  Embperl Session management enabled (1.xx)\n" if ($ENV{MOD_PERL}) ;
         }
@@ -581,14 +586,14 @@ sub CheckFile
 
     if ($path && !($filename =~ /\//))
         {
-        my @path = split /:/, $path ;
+        my @path = split /$pathsplit/o, $path ;
         my $fn = '' ;
 
         foreach (@path)
             {
             next if (!$_) ;
             $fn = "$_/$filename" ;
-            #warn "Embperl path search $fn\n" ;
+            warn "Embperl path search $fn\n" ;
             if (-r $fn && (-s _ || $AllowZeroFilesize))
                 {
                 if (defined ($allow) && !($fn =~ /$allow/))
@@ -853,11 +858,15 @@ use strict ;
 
 	    }
 
-    no strict ;
-	# pass parameters via @param
-	*{"$package\:\:param"}   = $$req{'param'} if (exists $$req{'param'}) ;
-    use strict ;
-    
+	my $saved_param = undef;
+	if ( ref $$req{'param'} eq 'ARRAY') {
+	    no strict 'refs';
+	    # pass parameters via @param
+	    $saved_param = \@{"$package\:\:param"} 
+		if defined @{"$package\:\:param"};
+	    *{"$package\:\:param"}   = $$req{'param'};
+	}
+
 	my $udat ;
 	my $mdat ;
 
@@ -898,7 +907,8 @@ use strict ;
 	    my $saver = $r ;
         
 
-	    $rc = CleanCallExecuteReq ($r, $$req{'param'}) ;
+	    $@ = undef ;
+            $rc = CleanCallExecuteReq ($r, $$req{'param'}) ;
 	    #$rc = $r -> ExecuteReq ($$req{'param'}) ;
         
 	    $r = $saver ;
@@ -926,11 +936,13 @@ use strict ;
 	    }
 
 
-	no strict ;
-	undef *{"$package\:\:param"} ;
-	use strict ;
 
-    
+	if ( defined $saved_param ) {
+	    no strict 'refs';
+	    *{"$package\:\:param"} = $saved_param;
+	}
+
+
 	if ($SessionMgnt && !$r -> SubReq)
 	    {
 	    if ($SessionMgnt == 1)
@@ -1228,7 +1240,7 @@ sub cleanup
 	$seen{$package} = 1 ;
         
 	$packfile = GVFile (*{"$package\::__ANON__"}) ;
-        $packfile = '-> No Perl in Source <-' if ($packfile eq ('_<' . __FILE__)) ;
+        $packfile = '-> No Perl in Source <-' if ($packfile eq ('_<' . __FILE__) || $packfile eq __FILE__) ;
 	$addcleanup = \%{"$package\:\:CLEANUP"} ;
 	$addcleanup -> {'CLEANUP'} = 0 ;
 	if ($Debugflags & dbgShowCleanup)

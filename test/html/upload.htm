@@ -6,7 +6,7 @@
 
 <h1>Embperl Tests - File-Upload</h1>
 
-[+ $cgiok = $CGI::VERSION > 2.45 ; @info = keys %{$fdat{-upload}} ; $cgiok?"@info":'Content-Type Content-Disposition' +]
+[+ $cgiok = $CGI::VERSION > 2.45 ; @info = sort keys %{$fdat{-upload}} ; $cgiok?"@info":'Content-Disposition Content-Type' +]
 Filename:       [+ $cgiok?$fdat{upload}:'upload-filename' +]<br>
 Content-Type:	[+ $cgiok?$fdat{-upload} -> {'Content-Type'}:'test/plain' +]<br>
 CGI-Version:    [+ $CGI::VERSION +]

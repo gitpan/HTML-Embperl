@@ -71,7 +71,15 @@ embperl_GVFile(gv)
     SV * gv
 CODE:
     RETVAL = "" ;
-    if (gv && SvTYPE(gv) == SVt_PVGV)
+#ifdef GvFILE
+    if (gv && SvTYPE(gv) == SVt_PVGV && GvGP (gv))
+	{
+	char * name = GvFILE (gv) ;
+	if (name)
+	    RETVAL = name ;
+	}
+#else
+    if (gv && SvTYPE(gv) == SVt_PVGV && GvGP (gv))
 	{
 	GV * fgv = GvFILEGV(gv) ;
 	if (fgv && SvTYPE(fgv) == SVt_PVGV)
@@ -81,6 +89,7 @@ CODE:
 		RETVAL = name ;
 	    }
 	}
+#endif
 OUTPUT:
     RETVAL
 

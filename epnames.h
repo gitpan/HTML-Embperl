@@ -204,3 +204,70 @@
 
 
 #endif /* PERL_VERSION > 5 */
+
+
+#ifdef APACHE
+
+#ifdef WIN32
+
+#undef uid_t
+#ifdef apache_uid_t
+#define uid_t apache_uid_t
+#undef apache_uid_t
+#endif
+
+#undef gid_t
+#ifdef apache_gid_t
+#define gid_t apache_gid_t
+#undef apache_gid_t
+#endif
+
+#undef mode_t
+#ifdef apache_mode_t
+#define gid_t apache_mode_t
+#undef apache_mode_t
+#endif
+
+#ifdef apache_stat
+#undef stat
+#define stat apache_stat
+#undef apache_stat
+#endif
+
+#ifdef apache_sleep
+#undef sleep
+#define sleep apache_sleep
+#undef apache_sleep
+#endif
+
+#if PERL_VERSION >= 6
+
+#ifdef apache_opendir
+#undef opendir
+#define opendir apache_opendir
+#undef apache_opendir
+#endif
+
+#ifdef apache_readdir
+#undef readdir
+#define readdir apache_readdir
+#undef apache_readdir
+#endif
+
+#ifdef apache_closedir
+#undef closedir
+#define closedir apache_closedir
+#undef apache_closedir
+#endif
+
+#ifdef apache_crypt
+#undef crypt
+#define crypt apache_crypt
+#undef apache_crypt
+#endif
+
+#endif /* endif PERL_IS_5_6 */
+
+#endif /* endif WIN32 */
+
+#endif /* APACHE */

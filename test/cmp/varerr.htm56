@@ -7,6 +7,11 @@ The server encountered an internal error or misconfiguration and was unable to c
 ^\[.*?\]ERR\:  32\: Line 18: Warning in Perl code\: Use of uninitialized value
 ^\[.*?\]ERR\:  (32\: Line 19: Warning|24\: Line 19: Error) in Perl code\: Global symbol \&quot\;\$?d\&quot\; requires explicit package name at.*?
 ^\[.*?\]ERR\:  (32\: Line 20: Warning|24\: Line 20: Error) in Perl code\: Global symbol \&quot\;\$?e\&quot\; requires explicit package name at.*?
+^\[.*?]ERR\:  24\: Line 42: Error in Perl code: Global symbol \&quot\;\$e\&quot\; requires explicit package name at
+^\[.*?]ERR\:  24\: Line 43: Error in Perl code: Global symbol \&quot\;\$d\&quot\; requires explicit package name at
+^<br>&nbsp;&nbsp;&nbsp;&nbsp;Global symbol &quot;\$e&quot; requires explicit package name at
+^\[.*?]ERR\:  24\: Line 50: Error in Perl code: Global symbol \&quot\;\$d\&quot\; requires explicit package name at
+^\[.*?]ERR\:  24\: Line 51: Error in Perl code: Global symbol \&quot\;\$e\&quot\; requires explicit package name at
 ^ HTML\:\:Embperl.*?<P>
 </BODY></HTML>
 

@@ -265,6 +265,17 @@ PerlHandler Apache::Registry
 Options ExecCGI
 </Location>
 
+
+<Location /embperl/EmbperlObject>
+PerlSetEnv EMBPERL_OBJECT_BASE epobase.htm
+PerlSetEnv EMBPERL_FILESMATCH \"\\.htm.?\$|\\.epl\$\"
+SetHandler perl-script
+PerlHandler HTML::EmbperlObject 
+Options ExecCGI
+</Location>
+
+
+
 <Location /eg>
 SetHandler perl-script
 PerlHandler HTML::Embperl

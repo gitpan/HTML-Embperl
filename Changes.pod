@@ -1,5 +1,46 @@
 =pod
 
+=head1 1.3b3 (BETA)  25.04.2000
+
+   - Fixed SIGSEGV which occurs in cleanup with Perl 5.6. Spotted by 
+     Aaron Johnson.
+   - Changed make test so it works correctly with new error messages of
+     Perl 5.6. 
+   - Fixed a bug that Execute will always fail when $@ was set before.
+     Patch from Francis J. Lacoste.
+   - Changed test so it accpects charset in Content-Type header from
+     Apache 1.3.12
+   - The outputfile parameter now also works when running under 
+     mod_perl. Spotted by Ilia Lobsanov.
+   - Makefile.PL warns if you build with a DSO mod_perl < 1.22
+   - make test checks that test files are readable by Apache. 
+   - Applied a patch from Jens-Uwe Magner to make Embperl work
+     with mod_perl 1.22 on AIX. We now require mod_perl 1.22,
+     but I should now work as DSO and staticly linked.
+   - Applied a patch from Francis J. Lacoste that makes sure
+     that when a package name is given the file is always compiled
+     into this package. Note: This means that if you specify a
+     packagename and the packagename differs from request to
+     request, the page is compiled for every package and therfore
+     consuming memory on every request. 
+   - Added EMBPERL_SESSION_HANDLER_CLASS which allows you to overwrite
+     Embperl defaults session handling. Idea form Barrie Slaymaker.
+   - Added EmbperlLogo.gif to the distribution, which contains
+     "Powered by Embperl".
+   - Added Patch from Randy Kobes that makes Embperl compile with
+     Apache 1.3.12 and Perl 5.6 on Win32. 
+   - Removed some -w warnings form EmbperlObject
+   - Added tests for EmbperlObject
+   - Fixed a SIGSEGV that occured when Embperl found [*] inside
+     a page. Spotted by Barrie Slaymaker.
+   - Added epchar.c.min which contains translation tables which
+     let's all chars above 128 untouched. This is usefull for
+     processing two byte charsets. Patch from Sangmook Yi.
+   - The searchpath (EMBPERL_PATH) now uses semikolons (';') instead 
+     of colons (':') to avoid problems with Windows drive letters.
+     Colons still work on Unix.
+            
+
 =head1 1.3b2 (BETA) 11. Feb 2000
 
    - added new mod_perl handler EmbperlObject, which helps to build whole

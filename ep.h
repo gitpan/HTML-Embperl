@@ -61,6 +61,73 @@ extern "C" {
 #undef FALSE
 #endif
 
+#ifdef WIN32
+
+#ifdef uid_t
+#define apache_uid_t uid_t
+#undef uid_t
+#endif
+#define uid_t apache_uid_t
+
+#ifdef gid_t
+#define apache_gid_t gid_t
+#undef gid_t
+#endif
+#define gid_t apache_gid_t
+
+#ifdef mode_t
+#define apache_mode_t mode_t
+#undef mode_t
+#endif
+#define mode_t apache_mode_t
+
+#ifdef stat
+#define apache_stat stat
+#undef stat
+#endif
+
+#ifdef sleep
+#define apache_sleep sleep
+#undef sleep
+#endif
+
+#ifndef PERL_VERSION
+#include <patchlevel.h>
+#define PERL_VERSION PATCHLEVEL
+#define PERL_SUBVERSION SUBVERSION
+#endif
+
+#if PERL_VERSION >= 6
+
+#ifdef opendir
+#define apache_opendir opendir
+#undef opendir
+#endif
+
+#ifdef readdir
+#define apache_readdir readdir
+#undef readdir
+#endif
+
+#ifdef closedir
+#define apache_closedir closedir
+#undef closedir
+#endif
+
+#ifdef crypt
+#define apache_crypt crypt
+#undef crypt
+#endif
+
+#ifdef errno
+#define apache_errno errno
+#undef errno
+#endif
+
+#endif /* endif PERL_VERSION >= 6 */ 
+
+#endif /* endif WIN32 */
+
 #include <httpd.h>
 #include <http_config.h>
 #include <http_protocol.h>
@@ -77,6 +144,7 @@ extern "C" {
 
 #include "epdat.h"
 #include "embperl.h"
+
 
 #ifdef WIN32
 #define PATH_MAX _MAX_DIR
@@ -399,3 +467,4 @@ int EvalMain (/*i/o*/ register req *  r) ;
 /* ---- from epdbg.c ----- */
 
 int SetupDebugger (/*i/o*/ register req * r) ;
+

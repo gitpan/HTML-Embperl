@@ -36,23 +36,14 @@ Die Hauptanwendung von HTML::Embperl ist Perlcode in HTML Dokumente
 einzufügen. Embperl kann zwar ebenfalls mit nicht HTML Dokumenten benutzt
 werden, hat jedoch einige Features speziell für HTML.
 
-=head2 Wie ist es im Vergleich zu ASP, PHP, ePerl?
-
-Embperl ist nicht der einzige Prozessor für eingefügten Perlcode.
-ASP zusammen mit ActivesStates Perldistribution erlaubt dies für
-den Microsoft IIS, ePerl ist eine Lösung, die für alle Arten von
-ASCII Dateien gut funktioniert und es gibt weitere
-Perlmodule die diesen Zweck erfüllen. PHP ist eine sehr bekannte
-Lösung um einfach Webseiten, mit eingebetteten Code und Datenbankanbindung,
-zu erstellen, man muß jedoch dessen eigene Syntax lernen.
-
 =head2 Zusätzliche HTML Features
 
-Der Hauptvorteil von Embperl ist, daß es speziell auf HTML
+Einer der Vorteile von Embperl ist, daß es speziell auf HTML
 zugeschnitten ist. Es stellt u.a. Funktionen zur Formularbehandlung und für
 HTML Tabellen zur Verfügung, einhergehend mit der Fähigkeit Logdateien
 und Fehlerseiten in HTML darzustellen. Ebenso erledigt es die
-HTML und URL Kodierung.
+HTML und URL Kodierung. Dies verhindet jedoch nicht das Embperl mit allen
+Arten von Textdateien umgehen kann.
 
 =head2 Integration mit Apache und mod_perl
 
@@ -452,6 +443,119 @@ wie normale Perlfunktionen aufgerufen werden.
 Weiterhin ist es möglich die I<Embperl> Funktionen (zusammen mit normalen Perl Code)
 als ein Perl Modul (.pm Datei) zu installieren. Dadurch stehen sie systemweit zur
 Verfügung und können wie jedes andere Perl Modul mittels C<use> genutzt werden.
+
+=head1 EmbperlObject
+
+ (ab Embperl 1.3)
+
+Einen Schritt weiter als das einfache Einbetten von anderen Dateien mittels C<Execute> geht
+I<EmbperlObject>. I<EmbperlObject> ist ein I<mod_perl> handler,
+der es erlaubt eine Website in konsistenter Weise aus einzelnen Komponenten zusammenzusetzen.
+Dabei definiert man ein Rahmenlayout, welches "Platzhalter" für einzelne Elemente der Site
+(z.B. Kopf, Fuß, Navigation etc.) enthält. Diese "Platzhalter" können nun für unterschiedliche
+Bereiche (Unterverzeichnisse) der Site mit verschiedenen Inhalten gefüllt werden. Definiert ein
+Bereich (Unterverzeichnis) keinen eigenen Inhalt, wird automatisch der Inhalt des 
+übergeordneten Verzeichnisses eingefügt. Konkret heißt das, man identifiziert Bereiche,
+die auf allen/vielen Seiten gleich aussehen sollen, macht daraus eine eigenständige Komponente
+(HTML Datei) und fügt diese dann nur noch an passender Stelle ein. Es leuchtet ein, dass dies
+das Design und Änderungen wesentlich vereinfacht, da eine Änderung in der Komponente sich auf
+alle Seiten auswirkt. Hier ein einfaches Beispiel, um zu verdeutlichen wie EmbperlObject arbeitet; dabei
+definert base.htm das Rahmenlayout, head.htm enthält den Kopf und foot.htm den Fuß für die Seite:
+
+B<Anordnung der Dateien:>
+
+ /foo/base.htm
+ /foo/head.htm
+ /foo/foot.htm
+ /foo/page1.htm
+ /foo/sub/head.htm
+ /foo/sub/page2.htm
+
+B</foo/base.htm:>
+
+ <html>
+ <head>
+ <title>Beispiel</title>
+ </head>
+ <body>
+ [- Execute ('head.htm') -]
+ [- Execute ('*') -]
+ [- Execute ('foot.htm') -]
+ </body>
+ </html>
+
+B</foo/head.htm:>
+
+ <h1>Kopf aus foo</h1>
+
+B</foo/sub/head.htm:>
+
+ <h1>Hier ein anderer Kopf aus dem Verzeichnis sub</h1>
+
+B</foo/foot.htm:>
+
+ <hr> Fußzeile <hr>
+
+
+B</foo/page1.htm:>
+
+ Hier steht der Inhalt von Seite 1
+
+B</foo/sub/page2.htm:>
+
+ Hier steht der Inhalt von Seite 2
+
+B</foo/sub/index.htm:>
+
+ Index im Verzeichnis /foo/sub
+
+Der Request B<http://host/foo/page1.htm> führt dann zu folgender Seite:
+
+  
+ <html>
+ <head>
+ <title>Beispiel</title>
+ </head>
+ <body>
+ <h1>Kopf aus foo</h1>
+ Hier steht der Inhalt von Seite 1
+ <hr> Fußzeile <hr>
+ </body>
+ </html>
+
+
+Der Request B<http://host/foo/sub/page2.htm> führt dann zu folgender Seite:
+
+  
+ <html>
+ <head>
+ <title>Beispiel</title>
+ </head>
+ <body>
+ <h1>Hier ein anderer Kopf aus dem Verzeichnis sub</h1>
+ Hier steht der Inhalt von Seite 2
+ <hr> Fußzeile <hr>
+ </body>
+ </html>
+
+
+Der Request B<http://host/foo/sub/> führt dann zu folgender Seite:
+
+  
+ <html>
+ <head>
+ <title>Beispiel</title>
+ </head>
+ <body>
+ <h1>Hier ein anderer Kopf aus dem Verzeichnis sub</h1>
+ Index im Verzeichnis /foo/sub
+ <hr> Fußzeile <hr>
+ </body>
+ </html>
+
+
+
+
 
 =head1 Debugging
 

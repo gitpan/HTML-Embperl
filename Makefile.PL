@@ -25,8 +25,7 @@ print "\nRunning on Win 32\n" if ($win32) ;
     ( 
       'mod_perl.c' => { name	    => 'perl_module', 
 			path	    => ['$apache_src/modules/perl/libperl.so', '$EPBINDIR/modules/libperl.so'],
-			win32path   => ['$EPBINDIR/modules/apachemoduleperl.dll'],
-			win32path   => ['$mpdll'],
+			win32path   => ['$mpdll', '$mpdll/apachemoduleperl.dll', '$EPBINDIR/modules/apachemoduleperl.dll'],
 			file	    => 'libperl.so',
 			win32file   => 'apachemoduleperl.dll',
 		      },
@@ -446,7 +445,6 @@ if ($win32 && $apache)
 EOF
     close FH;
 
-=pod
     if ($ENV{APACHE_PERL_DLL})
 	{
 	$mpdll = $ENV{APACHE_PERL_DLL} ;
@@ -455,6 +453,7 @@ EOF
 	{
 	$mpdll = $1 ;
 	}
+=pod
     else
 	{
 	SEARCH:
@@ -580,7 +579,7 @@ if ($b && $apache)
 		    {
 		    $path = cnvpath ("$addmodpath/$modfile") ;
 		    #print "path = $_ -> $path\n" ;
-		    if (-e $path)
+		    if (-f $path)
 			{ ## module fould
 	    		$EPMODPERL .= "\r\nLoadModule $opt->{name} $path" ;
 			print " + Load dynamic module $mod\n" ;
@@ -592,7 +591,7 @@ if ($b && $apache)
 		    {
 		    $path = cnvpath (eval "\"$_\"") ;
 		    #print "path = $_ -> $path\n" ;
-		    if (-e $path)
+		    if (-f $path)
 			{ ## module fould
 	    		$EPMODPERL .= "\r\nLoadModule $opt->{name} $path" ;
 			print " + Load dynamic module $mod\n" ;
@@ -614,14 +613,19 @@ if ($b && $apache)
 
 		    
 
+    $use_dso = 0 ;
     #if (!$win32 && -e "$apache_src/modules/perl/libperl.so" && !grep (/mod_perl.c/, @modules)) 
     if (!$win32 && ($EPMODPERL =~ /perl_module/))
 	{
 	#$EPMODPERL="LoadModule perl_module $apache_src/modules/perl/libperl.so" ;
-        $EPSTARTUP ='startup_dso.pl' ;
+        #$EPSTARTUP ='startup_dso.pl' ;
         print " + mod_perl was build with USE_DSO\n" ;
-	$dynlib->{'OTHERLDFLAGS'} = "-bI:mod_perl.exp -bI:$apache_src/support/httpd.exp" if ($aix);
-	}
+	#aixold# $dynlib->{'OTHERLDFLAGS'} = "-bI:mod_perl.exp -bI:$apache_src/support/httpd.exp" if ($aix);
+	$use_dso = 1 ;
+        }
+
+    require Apache::src;
+    $dynlib->{'OTHERLDFLAGS'} = Apache::src->new->otherldflags if (defined (&Apache::src::otherldflags)) ;
 
     
     if ($EPSTRONGHOLD) 
@@ -683,6 +687,16 @@ if ($b && $apache)
         if ($win32 && $MPVer lt "1.12")
             {
             print "-> Please upgrade to an higher version of mod_perl on Win32\n" ;
+            }
+        if ($use_dso && $MPVer lt "1.22")
+            {
+            print "-> You MUST upgrade to mod_perl 1.22 or higher when mod_perl is build with USE_DSO!!\n" ;
+            $EPSTARTUP ='startup_dso.pl' ;
+            }
+        if ($aix && $MPVer lt "1.22")
+            {
+            print "-> You MUST upgrade to mod_perl 1.22 or higher to use Embperl on AIX!!\n" ;
+            $EPSTARTUP ='startup_dso.pl' ;
             }
         }
 
@@ -767,18 +781,29 @@ else
     close FH ;
     }
 
+# $d .= ' -DPERL_IS_5_6 ' if $] >= 5.006;
 
 if ($win32)
     { # Check for winsock2api
 
-    if (open FH, "$inc_dir/ap_config.h")
+    if (open FH, "$inc_dir/../os/win32/os.h")
         {
         my @conf = <FH> ;
         close FH ;
 
         if (grep (/winsock2\.h/, @conf))
             {
-            $d .= ' -D_WINSOCK2API_ ' ;
+            $d .= ' -D_WINSOCK2API_ -D_MSWSOCK_ ' ;
+            }
+        elsif (open FH, "$inc_dir/ap_config.h")
+            {
+            @conf = <FH> ;
+            close FH ;
+
+            if (grep (/winsock2\.h/, @conf))
+                {
+                $d .= ' -D_WINSOCK2API_ ' ;
+                }
             }
         }
     }

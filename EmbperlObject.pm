@@ -55,6 +55,8 @@ $VERSION = '0.02_dev-1';
 sub norm_path
 
     {
+    return '' if (!$_[0]) ;
+
     my $path = File::Spec -> canonpath (shift) ;
     $path =~ s/\\/\//g ;
     $path = $1 if ($path =~ /^\s*(.*?)\s*$/) ;
@@ -97,8 +99,8 @@ sub handler
 
     my $basename  = $ENV{EMBPERL_OBJECT_BASE} ;
     $basename     =~ s/%modifier%/$mod/ ;
-    my $addpath   = $ENV{EMBPERL_OBJECT_ADDPATH} ;
-    my @addpath   = split /:/, $addpath ;
+    my $addpath   = $ENV{EMBPERL_OBJECT_ADDPATH}  ;
+    my @addpath   = $addpath?split (/:/, $addpath):() ;
     my $directory ;
     my $rootdir   = norm_path ($r -> document_root) ;
     my $stopdir   = norm_path ($ENV{EMBPERL_OBJECT_STOPDIR}) ;
@@ -126,7 +128,7 @@ sub handler
     do
         {
         $fn = "$directory/$basename" ;
-        $searchpath .= ":$directory" ; 
+        $searchpath .= ";$directory" ; 
         #warn "EmbperlObject Check: $fn\n" ;
         if (-e $fn)
             {
@@ -146,7 +148,7 @@ sub handler
         {
         next if (!$ap) ;
         $fn = "$ap/$basename" ;
-        $searchpath .= ":$ap" ; 
+        $searchpath .= ";$ap" ; 
         #warn "EmbperlObject Check: $fn\n" ;
         if (-e $fn)
             {
@@ -231,7 +233,8 @@ Directory where to stop searching for the base page
 
 =head2 EMBPERL_OBJECT_ADDPATH
 
-Additional directories where to search for pages
+Additional directories where to search for pages. Directories are
+separated by C<;> (on Unix C<:> works also)
 
 
 =head1 Example

@@ -331,7 +331,7 @@ struct tCharTrans Char2Url [] =
         { '$' ,   ""         },    /* 	&#36;		Dollar sign  */
         { '%' ,   "%25"      },    /* 	&#37;		Percent sign  */
         { '&' ,   "%26"    },    /* 	Ampersand  */
-        { '\'' ,  ""         },    /* 	&#39;		Apostrophe  */
+        { '\'' ,  "%27"       },    /* 	&#39;		Apostrophe  */
         { '(' ,   ""         },    /* 	&#40;		Left parenthesis  */
         { ')' ,   ""         },    /* 	&#41;		Right parenthesis  */
         { '*' ,   ""         },    /* 	&#42;		Asterisk  */
@@ -352,9 +352,9 @@ struct tCharTrans Char2Url [] =
         { '9' ,   ""         },    /* 	&#57;		Digit 9  */
         { ':' ,   ""         },    /* 	&#58;		Colon  */
         { ';' ,   ""      },    /* 	&#59;		Semicolon  */
-        { '<' ,   ""      },    /* 	Less than  */
+        { '<' ,   "%3C"      },    /* 	Less than  */
         { '=' ,   "%3D"      },    /* 	&#61;		Equals sign  */
-        { '>' ,   ""      },    /* 	Greater than  */
+        { '>' ,   "%3E"      },    /* 	Greater than  */
         { '?' ,   "%3F"      },    /* 	&#63;		Question mark  */
         { '@' ,   ""      },    /* 	&#64;		Commercial at  */
         { 'A' ,   ""         },    /* 	&#65;		Capital A  */

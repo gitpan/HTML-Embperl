@@ -423,7 +423,8 @@ die Serversicherheit zu erhöhen.
 
 =head2 EMBPERL_PATH (ab 1.3b1)
 
-Hier kann eine durch Doppelpunkte getrennte Liste von Verzeichnissen angegeben werden,
+Hier kann eine durch Semikolon (unter Unix auch Doppelpunkte) getrennte Liste von
+Verzeichnissen angegeben werden,
 die I<Embperl> durchsucht, wenn eine Datei verabeitet werden soll und die Datei keine
 Pfadangaben enthält.
 
@@ -912,6 +913,12 @@ Liste von zusätzlichen Parametern für I<Apache::Session> Klassen (Leerzeichen ge
 
   PerlSetEnv EMBPERL_SESSION_ARGS "DataSource=dbi:mysql:session UserName=www Password=secret"
 
+=head2 EMBPERL_SESSION_HANDLER_CLASS (ab 1.3b3)
+
+Bestimmt die Klasse die das Session Handling für I<Embperl durchführt>.
+Default ist C<HTML::Embperl::Session>. Sie können eine eigene Klasse von 
+I<HTML::Embperl::Session> ableiten und diese hier angeben um Ihr eigenes
+Session Handling zu implementieren.
 
 =head2 EMBPERL_COOKIE_NAME (ab 1.2b4) 
 
@@ -2333,6 +2340,8 @@ I<Embperl> wurde erfolgreich getestet
 
 =item perl5.005_03
 
+=item perl 5.6.0
+
 =item apache_1.2.5
 
 =item apache_1.2.6
@@ -2352,6 +2361,8 @@ I<Embperl> wurde erfolgreich getestet
 =item apache_1.3.6
 
 =item Apache_1.3.9
+
+=item Apache_1.3.12
 
 =item apache_ssl (Ben SSL)
 
@@ -2377,11 +2388,15 @@ problemlos läuft.
 
 =item perl5.005
 
+=item perl 5.6.0
+
 =item apache_1.3.1
 
 =item apache_1.3.6
 
 =item Apache_1.3.9
+
+=item Apache_1.3.12
 
 =back
 
@@ -2401,17 +2416,25 @@ problemlos läuft.
 =head2 Rückmeldungen/Anregungen/Probleme/Fehlerreports
 
 Diskussionen zu allen Fragen/Problemen rund um I<Embperl> werden auf
-der mod_perl Mailingliste geführt. Sollten Sie Probleme mit I<Embperl>
-haben, die sich nach der Lektüre dieser Dokumentation sowie der L<FAQs|"faq_pod">
+der Embperl Mailingliste (embperl@perl.apache.org) geführt. Sollten Sie Probleme mit
+I<Embperl> haben, die sich nach der Lektüre dieser Dokumentation sowie der L<FAQs|"faq_pod">
 nicht lösen lassen, ist die Mailingliste der richtige Ort um nachzufragen.
 Oft wurden Probleme schon diskutiert, deshalb lohnt sich ein Blick in
 die Archive der Liste.
 
- http://outside.organic.com/mail-archives/modperl/
+ http://www.ecos.de/~mailarc/embperl/
+
+oder in das Archiv der mod_perl Mailingliste für Fragen in Zusammenhang mit mod_perl
+
  http://forum.swarthmore.edu/epigone/modperl
 
 Um die Mailingliste zu abbonieren, senden Sie eine Mail an
-majordomo@apache.org mit dem Text "subscribe modperl" als Text. 
+embperl-subscribe@perl.apache.org, zum von der Liste gestrichen zu werden
+genügt eine Mail an embperl-unsubscribe@perl.apache.org .
+
+Haben Sie eine Website die Embperl benutzt, würde ich mich über eine
+Rückmeldung freuen und diese ggf. in die Liste der Sites die Embperl
+nutzen ( http://perl.apache.org/embperl/Sites.pod.1.html ) aufnehmen.
 
 
 =head2 Kommerzieller Support
@@ -2459,13 +2482,39 @@ Sie erreichen uns via http://www.ecos.de oder info@ecos.de
  
  Win NT/95/98 Binaries
  Apache/perl/
- mod_perl/Embperl	http://www.perl.com/CPAN/authors/Jeffrey_Baker/
+ mod_perl/Embperl	ftp://theoryx5.uwinnipeg.ca/pub/other/ 
 
 
 =head2 CVS
 
 Die aktuelle Entwicklerversion ist via CVS verfügbar.
 Weitere Informationen dazu stehen in L<"perldoc CVS.pod"|CVS/"INTRO">.
+
+=head1 Syntaxmodes für verschiedene Editoren
+
+=head2 Emacs
+
+Von: Erik Arneson [erik@mind.net]
+
+Man braucht mmm.el von
+http://members.tripod.com/gchen2/xemacs/
+
+Anschließend muß man mein mmm-embperl.el downloaden von
+http://inanna.starseed.com/~erik/mmm-embperl.el
+
+Dokumentation ist in den Dateien enthalten.
+
+=head2 VIM
+
+Vim Syntaxfile von Steve Willer: http://www.interlog.com/~willer/embperl.vim
+
+Vim Syntaxfile von Kee Hinckley: http://www.somewhere.com/software/
+
+=head2 Dreamweaver
+
+Dreamweaverextention welche Dreamweaver veranlasst den Embperl code in Ruhe zu lassen
+befindet sich unter http://www.somewhere.com/software/
+
 
 =head1 Author
 

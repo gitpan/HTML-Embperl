@@ -550,14 +550,6 @@ int OpenOutput (/*i/o*/ register req * r,
     r -> pFreeBuf     = NULL ;
     r -> pLastFreeBuf = NULL ;
 
-#if defined (APACHE)
-    if (r -> pApacheReq)
-        {
-        if (r -> bDebug)
-            lprintf (r, "[%d]Using APACHE for output...\n", r -> nPid) ;
-        return ok ;
-        }
-#endif
 
     
     if (r -> ofd && r -> ofd != PerlIO_stdoutF)
@@ -577,6 +569,14 @@ int OpenOutput (/*i/o*/ register req * r,
             }
         */
 
+#if defined (APACHE)
+	if (r -> pApacheReq)
+	    {
+	    if (r -> bDebug)
+		lprintf (r, "[%d]Using APACHE for output...\n", r -> nPid) ;
+	    return ok ;
+	    }
+#endif
         r -> ofd = PerlIO_stdoutF ;
         
         if (r -> bDebug)
@@ -624,10 +624,10 @@ int CloseOutput (/*i/o*/ register req * r)
 
     buffree (r) ; 
 
-#if defined (APACHE)
+/* #if defined (APACHE)
     if (r -> pApacheReq)
         return ok ;
-#endif
+  #endif */
 
     if (r -> ofd && r -> ofd != PerlIO_stdoutF)
         PerlIO_close (r -> ofd) ;
@@ -746,7 +746,7 @@ int owrite (/*i/o*/ register req * r,
         return bufwrite (r, ptr, n) ;
 
 #if defined (APACHE)
-    if (r -> pApacheReq)
+    if (r -> pApacheReq && r -> ofd == NULL)
         {
         if (n > 0)
             {
@@ -790,7 +790,7 @@ void oputc (/*i/o*/ register req * r,
         }
 
 #if defined (APACHE)
-    if (r -> pApacheReq)
+    if (r -> pApacheReq && r -> ofd == NULL)
         {
         rputc (c, r -> pApacheReq) ;
         if (r -> bDebug & dbgFlushOutput)

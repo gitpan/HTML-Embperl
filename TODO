@@ -1,4 +1,4 @@
-TODO for Embperl
+#TODO for Embperl
 
 Features
 --------
@@ -33,8 +33,6 @@ Features
 
 - return value from sub
 
-- build with perl > 5.005_61
-
 - remove \n in perl code? when and how?
 
 - url/html escaping [Eugene B. Byrganov 4.11.99]
@@ -57,11 +55,16 @@ Features
 
 - return custom error code to Apache [Alan Gutierrez 11.2.00]
 
+- send last modified header if no perl in the doc [Christain Gilmore 23.02.00]
+
+- turn off all perl processin [Kee Hinckley 22.03.00]
+
+- accpect \0 as separator for multiple with same name in %fdat (as CGI->Vars)
+  [Ilia Lobsanov 8.4.00]
+
 Test
 ----
 - test FORBIDDEN
-
-- check permissions of test/html
 
 Bugs
 ----
@@ -85,11 +88,19 @@ Bugs
 
 - contrib from Ken Hinckley 2.12.99
 
+- perl 5.6 [Matthias Ulrichs 06.3.2000]
+
+- var cleanup of in imported subs [Lai Yiu Fai 14.3.00] 
+
+- using outputfile inside a outputfile crashs
+
+- define _MSWSOCK_ with apache 1.3.12 [Randy Kobes 23.3.00]
+
 Docs
 ----
 - [- -] [+ +] etc all turns into _perl_code_ in html [S Page 13.9.99]
 
-- maxrwo, maxcol [Ed Geenberg, Cliff Raymann 20.12.99]
+- File::Spec for EmbperlObject
 
 1.3
 ---
@@ -97,6 +108,12 @@ Docs
 - restrict number of iterations in search
 
 - make [+ +] configurable [ Christian Gilmore 16.10.99]
+
+- "$urlprefix" [Steve Willer 14.2.99]
+
+- make Not found case configurable [Steve Willer 14.2.99]
+
+- filename prefix in path [Steve Willer 14.2.99]
 
 2.0
 __

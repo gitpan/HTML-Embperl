@@ -15,9 +15,6 @@
 
 #include "ep.h"
 #include "epmacro.h"
-#ifdef _AIX
-#include <sys/ldr.h>
-#endif
 
 
 /* Version */
@@ -56,7 +53,10 @@ static tReq *   pReqFree = NULL ;   /* Chain of unused req structures */
 tReq     InitialReq ;               /* Initial request - holds default values */
 tReq * pCurrReq ;                   /* Set before every eval (NOT thread safe!!) */ 
 
-static HV * pCacheHash ;            /* Hash which holds all cached data (key=>filename, value=>cache hash for file) */
+static HV * pCacheHash ;            /* Hash which holds all cached data
+				       (key=> filename or 
+					      filename + packagename, 
+				       value=>cache hash for file) */
 
 /* */
 /* print error */
@@ -1234,40 +1234,6 @@ int Init        (/*in*/ int           _nIOType,
 
     req * r = &InitialReq ;
     
-#if defined(_AIX) && defined(APACHE)
-    /*
-     * We need to resolve symbols against the main httpd part. The
-     * dlopen stub in mod_perl did already call loadbind to resolve
-     * all the perl symbols. The Apache dlopen stub does not know
-     * about us, so we have to do the loadbind ourselves. The tricky
-     * part is here that loadbind does require a pointer to any function
-     * in the module to bind against. Fortunately this can be found by
-     * querying the system loader for the list of loaded modules, the
-     * first is the main part.
-     */
-    struct ld_info *lp;
-    extern boot_HTML__Embperl();
-    int len = 4096;
-
-    if ((lp = malloc(len)) == NULL) {
-	abort();
-    }
-    while (loadquery(L_GETINFO, lp, len) == -1) {
-	if (errno != ENOMEM) {
-		abort();
-	}
-	free(lp);
-	len += 4096;
-	if ((lp = malloc(len)) == NULL) {
-	    abort();
-	}
-    }
-    if (loadbind(0, lp->ldinfo_dataorg, (void *)boot_HTML__Embperl) == -1) {
-	abort();
-    }
-    free(lp);
-#endif
-
     pCurrReq = r ;
 
     r -> nIOType = _nIOType ;
@@ -1660,12 +1626,23 @@ tFile * SetupFileData   (/*i/o*/ register req * r,
     {
     SV * *      ppSV ;
     tFile *     f ;
-    char txt [sizeof (sDefaultPackageName) + 50] ;
+    char	txt [sizeof (sDefaultPackageName) + 50] ;
+    char *	cache_key;
+    int		cache_key_len;
     
     EPENTRY (SetupFileData) ;
 
-    /* Have we seen this sourcefile already ? */
-    ppSV = hv_fetch(pCacheHash, (char *)sSourcefile, strlen (sSourcefile), 0) ;  
+    /* Have we seen this sourcefile/package already ? */
+    cache_key_len = strlen( sSourcefile ) ;
+    if ( pConf->sPackage )
+	cache_key_len += strlen( pConf->sPackage );
+    
+    cache_key = _malloc( r, cache_key_len + 1 );
+    strcpy( cache_key, sSourcefile );
+    if ( pConf->sPackage )
+	strcat( cache_key, pConf->sPackage );
+    ppSV = hv_fetch(pCacheHash, cache_key, cache_key_len, 0);  
+    
     if (ppSV && *ppSV)
         {
         f = (tFile *)SvIV((SV*)SvRV(*ppSV)) ;
@@ -1691,7 +1668,10 @@ tFile * SetupFileData   (/*i/o*/ register req * r,
     else
         { /* create new file structure */
         if ((f = malloc (sizeof (*f))) == NULL)
+	    {
+	    _free(r,cache_key);
             return NULL ;
+	    }
 
         f -> sSourcefile = sstrdup (sSourcefile) ; /* Name of sourcefile */
         f -> mtime       = mtime ;	 /* last modification time of file */
@@ -1713,11 +1693,12 @@ tFile * SetupFileData   (/*i/o*/ register req * r,
             }
         f -> nCurrPackage = strlen (f -> sCurrPackage); /* Package of file (length) */
 
-        hv_store(pCacheHash, (char *)sSourcefile, strlen (sSourcefile), newRV_noinc (newSViv ((IV)f)), 0) ;  
+        hv_store(pCacheHash, cache_key, cache_key_len, newRV_noinc (newSViv ((IV)f)), 0) ;  
     
         if (r -> bDebug)
             lprintf (r, "[%d]MEM: Load %s in %s\n", r -> nPid,  sSourcefile, f -> sCurrPackage) ;
         }
+    _free(r,cache_key);
 
     return f ;
     }

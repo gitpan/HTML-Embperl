@@ -986,7 +986,7 @@ int EvalMain (/*i/o*/ register req *  r)
 	    pClose = NULL ;
 	    if (pOpen)
                 {
-                if ((pClose = strstr (pOpen, pCloseBracket)) == NULL)
+		if ((pClose = strstr (pOpen + lenOpenBracket, pCloseBracket)) == NULL)
                     {
                     strncpy (r -> errdat1, pCloseBracket, sizeof (r -> errdat1) - 1) ; 
                     return rcMissingRight ;

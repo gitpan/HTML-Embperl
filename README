@@ -29,6 +29,10 @@ It can run in various ways: Under mod_perl, as a cgi script, or offline.
 There is also a module for Database access within Embperl, look
 at DBIx::Recordset. 
 
+EmbperlObject is a OO-approach for a common "look & feel" for
+a whole web-site, which allows you to build your web-site out
+of small reuseable pieces.
+
 
 DOCUMENTATION
 
@@ -128,6 +132,7 @@ on Linux 2.x with
 
 perl5.004_04
 perl5.005_01/02/03
+perl5.6.0
 apache_1.2.5
 apache_1.2.6
 apache_1.3.0
@@ -137,6 +142,7 @@ apache_1.3.3
 apache_1.3.4
 apache_1.3.6
 apache_1.3.9
+apache_1.3.12
 apache + mod_ssl
 apache_ssl (Ben SSL)
 Stronghold 2.2
@@ -145,12 +151,14 @@ Stronghold 2.4.1
 on Windows NT 4.0 with
 
 perl5.004_04
-perl5.005_xx (only without threads!)
+perl5.005_xx 
+perl5.6.0
 apache_1.3.0
 apache_1.3.1
 apache_1.3.4
 apache_1.3.6
 apache_1.3.9
+apache_1.3.12
 
 on Windows 95/98 with
 perl5.004_02 (binary distribution)
@@ -164,21 +172,22 @@ FEEDBACK and BUG REPORTS
 
 Please let me know if you use or test this module.  Bugs, questions,
 suggestions for things you would find useful, etc., are discussed on
-the mod_perl mailing list.
-
->From the mod_perl README:
- 
-The Apache/Perl mailing list (modperl@apache.org) is available for mod_perl
-users and developers to share ideas, solve problems and discuss things related
-to mod_perl and the Apache::* (and Embperl) modules. To subscribe to this list, send mail to
-majordomo@apache.org with the string "subscribe modperl" in the body. 
+the Embperl mailing list. If you have a site that is using Embperl,
+I would love to mention it in list of sites using Embperl 
+(http://perl.apache.org/embperl/Sites.pod.1.html). Please drop
+me a mail with a short description, if your site uses Embperl.
 
 
-There is a hypermail archive for this list available from:
-http://outside.organic.com/mail-archives/modperl/
+The Embperl mailing list (embperl@perl.apache.org) is available for Embperl users
+and developers to share ideas, solve problems and discuss things related to Embperl
+To subscribe to this list, send mail to embperl-subscribe@perl.apache.org.
+To unsubscribe send email to embperl-unsubscribe@perl.apache.org . 
 
-There is an Epigone archive for the mod_perl mailing list at
-http://forum.swarthmore.edu/epigone/modperl
+There is an archive for the Embperl mailing list at http://www.ecos.de/~mailarc/embperl/
+
+For mod_perl related questions you may search the mod_perl mailing list
+archive at http://forum.swarthmore.edu/epigone/modperl
+
 
 
 COMMERICAL SUPPORT
@@ -197,6 +206,12 @@ you need commercial support, ecos can provide it for you. We offer:
 * Adding new features
 
 You can reach us via http://www.ecos.de or info@ecos.de 
+
+
+LOGO
+
+The Embperl distribution contains a "Powered by Embperl" Logo
+(EmbperlLogo.gif) which you may place at your Web-site if you like.
 
 
 AUTHOR

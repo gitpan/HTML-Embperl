@@ -94,6 +94,8 @@
     'mdatsess.htm?cnt=3',
     'execgetsess.htm',
     'clearsess.htm',
+    'EmbperlObject/epopage1.htm',
+    'EmbperlObject/sub/epopage2.htm',
     ) ;
 
 
@@ -653,9 +655,11 @@ do
 	$n = 0 ;
 	$t_offline = 0 ;
 	$n_offline = 0 ;
-	foreach $url (@tests)
+	$testnum = -1 ;
+        foreach $url (@tests)
 	    {
-	    ($file, $query_info, $debug, $errcnt, $option, $ns) = split (/\?/, $url) ;
+	    $testnum++ ;
+            ($file, $query_info, $debug, $errcnt, $option, $ns) = split (/\?/, $url) ;
 	    next if ($file eq 'http.htm') ;
 	    next if ($file eq 'taint.htm') ;
 	    next if ($file eq 'reqrec.htm') ;
@@ -666,8 +670,10 @@ do
 	    next if ($file =~ /registry/) ;
 	    next if ($file =~ /match/) ;
 	    next if ($file =~ /sess\.htm/) ;
+	    next if ($file =~ /EmbperlObject/) ;
 	    next if ($DProf && ($file =~ /safe/)) ;
 	    next if ($DProf && ($file =~ /opmask/)) ;
+            $errcnt = 7 if ($file eq 'varerr.htm' && $^V && $^V ge v5.6.0) ;
 
 	    $debug ||= $defaultdebug ;  
 	    $page = "$inpath/$file" ;
@@ -685,7 +691,7 @@ do
 			   $page, $query_info || '') ;
 	    unshift (@testargs, 'dbgbreak') if ($dbgbreak) ;
     
-	    $txt = $file . ($debug != $defaultdebug ?"-d $debug ":"") . '...' ;
+	    $txt = "#$testnum ". $file . ($debug != $defaultdebug ?"-d $debug ":"") . '...' ;
 	    $txt .= ' ' x (30 - length ($txt)) ;
 	    print $txt ; 
     
@@ -715,6 +721,7 @@ do
 		{
 		$page =~ /.*\/(.*)$/ ;
 		$org = "$cmppath/$1" ;
+                $org .= '56' if ($file eq 'varerr.htm' && $^V && $^V ge v5.6.0) ;
 
 		$err = CmpFiles ($outfile, $org, $errin) ;
 		}
@@ -985,7 +992,9 @@ do
 	close ERR ;
 	open (ERR, "$httpderr") ;  
 	<ERR> ; # skip first line
-	}
+	
+        $httpduid = getpwnam ($EPUSER) if (!$EPWIN32) ;
+        }
     elsif ($err == 0 && $EPHTTPD eq '')
 	{
 	print "\n\nSkiping tests for mod_perl, because Embperl is not build for it.\n" ;
@@ -1005,9 +1014,11 @@ do
         $t_req = 0 ;
 	$n_req = 0 ;
 	$n = 0 ;
-	foreach $url (@tests)
+	$testnum = -1 ;
+        foreach $url (@tests)
 	    {
-	    ($file, $query_info, $debug, $errcnt) = split (/\?/, $url) ;
+	    $testnum++ ;
+            ($file, $query_info, $debug, $errcnt) = split (/\?/, $url) ;
 
 	    next if ($file =~ /\// && $loc eq $cgiloc) ;        
 	    next if ($file eq 'taint.htm' && $loc eq $cgiloc) ;
@@ -1024,6 +1035,8 @@ do
 	    #next if ($file eq 'notallow.xhtm' && $loc eq $cgiloc && $EPWIN32) ;
 	    next if ($file =~ /opmask/ && $EPSTARTUP =~ /_dso/) ;
 	    next if ($file eq 'clearsess.htm' && !$looptest) ;
+	    next if (($file =~ /EmbperlObject/) && $loc eq $cgiloc) ;
+            $errcnt = 7 if ($file eq 'varerr.htm' && $^V && $^V ge v5.6.0) ;
 	    if ($file =~ /sess\.htm/)
                 { 
                 next if ($loc eq $cgiloc && $EPSESSIONCLASS ne 'Embperl') ;
@@ -1031,7 +1044,7 @@ do
                     {
 		    $txt2 = "$file...";
 		    $txt2 .= ' ' x (29 - length ($txt2)) ;
-		    print "$txt2 skip on this plattform\n" ; 
+		    print "#$testnum $txt2 skip on this plattform\n" ; 
                     next ;
                     }
                 }
@@ -1055,7 +1068,7 @@ do
 		$notseen = 1 ;
 		}
     
-	    $txt = "$file" . ($debug != $defaultdebug ?"-d $debug ":"") . '...' ;
+	    $txt = "#$testnum $file" . ($debug != $defaultdebug ?"-d $debug ":"") . '...' ;
 	    $txt .= ' ' x (30 - length ($txt)) ;
 	    print $txt ; 
 	    unlink ($outfile) ;
@@ -1068,6 +1081,13 @@ do
 		$upload = "f1=abc1\r\n&f2=1234567890&f3=" . 'X' x 8192 ;
 		$content = "Hi there!" ;
 		}
+
+            if (!$EPWIN32 && $loc eq $embploc && $file ne 'notfound.htm')
+                {
+                print "ERROR: Missing read permission for file $inpath/$file\n" if (!-r "$inpath/$file") ;
+                local $> = $httpduid ;
+                print "ERROR: $inpath/$file must be readable by $EPUSER (uid=$httpduid)\n" if (!-r "$inpath/$file") ;
+                }
 
 	    $n_req++ ;
 	    $t1 = HTML::Embperl::Clock () ;
@@ -1098,6 +1118,7 @@ do
 		{
 		$page =~ /.*\/(.*)$/ ;
 		$org = "$cmppath/$1" ;
+                $org .= '56' if ($file eq 'varerr.htm' && $^V && $^V ge v5.6.0) ;
 
 		#print "Compare $page with $org\n" ;
 		$err = CmpFiles ($outfile, $org) ;

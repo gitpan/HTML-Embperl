@@ -132,6 +132,13 @@ Execute ({input		=> \'<P><table><tr><td>[+ $ffld[$row] +]</td><td>[+ local $^W =
 
 [- Execute ('incparam.htm', 0, 'B', 'three', 'dddd', '555') -]
 
+<H1> 12.) Inculde a file and write outputfile</H1>
+
+[# - Execute ({inputfile	=> 'inc.htm',
+			 outputfile     => "../tmp/incout.htm",
+						 }) ;
+- #]
+
 <H1> 12.) Done :-)</H1>
 
 <br>
