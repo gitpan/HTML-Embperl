@@ -55,7 +55,9 @@
 #include <http_config.h>
 #include <http_protocol.h>
 #include <http_log.h>
-#if MODULE_MAGIC_NUMBER >= 19980413
+#if MODULE_MAGIC_NUMBER >= 19980713
+#include "ap_compat.h"
+#elif MODULE_MAGIC_NUMBER >= 19980413
 #include "compat.h"
 #endif
 #endif
@@ -100,6 +102,7 @@ extern char cMultFieldSep ;  /* Separator if a form filed is multiplie defined *
 
 extern HV *    pCacheHash ; /* Hash containing CVs to precompiled subs */
 extern HV *    pFormHash ;  /* Formular data */
+extern HV *    pFormSplitHash ; /* Formular data split up at \t */
 extern AV *    pFormArray ; /* Fieldnames */
 extern HV *    pInputHash ; /* Data of input fields */
 
@@ -119,23 +122,25 @@ extern int    nSourceline ; /* Currentline in sourcefile */
 extern char * pSourcelinePos ; /* Positon of nSourceline in sourcefile */
 extern char * pLineNoCurrPos ; /* save pCurrPos for line no calculation */                     
                      
+#define nInitialScanOutputSize 2048
 
 int iembperl_init (int  nIOType,
                    const char * sLogFile) ;
 int iembperl_setreqrec  (/*in*/ SV *   pReqSV) ;
-int iembperl_resetreqrec  (void) ;
+int iembperl_resetreqrec  (/*in*/ int bResetHandler) ;
 int iembperl_term (void) ;
 int iembperl_req  (/*in*/ char *  sInputfile,
                    /*in*/ char *  sOutputfile,
                    /*in*/ int     bDebugFlags,
                    /*in*/ int     bOptionFlags,
-                   /*in*/ int     nFileSize,
+                   /*in*/ STRLEN  nFileSize,
                    /*in*/ HV *    pCache,
                    /*in*/ SV *    pInData,
                    /*in*/ SV *    pOutData) ;
 int ScanCmdEvalsInString (/*in*/  char *   pIn,
                           /*out*/ char * * pOut,
-                          /*in*/  size_t   nSize) ;
+                          /*in*/  size_t   nSize,
+                          /*out*/ char * * pFree) ;
     
 char * LogError (/*in*/ int   rc) ;
 void CommitError (void) ;
@@ -165,7 +170,7 @@ extern int     nMarker ;
 
 int OpenInput   (/*in*/ const char *  sFilename) ;
 int CloseInput  (void) ;
-int iread       (/*in*/ void * ptr, size_t size, size_t nmemb) ;
+int iread       (/*in*/ void * ptr, size_t size) ;
 char * igets    (/*in*/ char * s,   int    size) ;
 
 
@@ -177,7 +182,7 @@ int oputs (/*in*/ const char *  str) ;
 
 void OutputToMemBuf (/*in*/ char *  pBuf,
                      /*in*/ size_t  nBufSize) ;
-void OutputToStd (void) ;
+char * OutputToStd (void) ;
 
 
              
@@ -205,6 +210,8 @@ int GetLogHandle (void) ;
 
 void _free (void * p) ;
 void * _malloc (size_t  size) ;
+void * _realloc (void * ptr, size_t  size) ;
+char *  _memstrcat (const char *s, ...) ;
 
 /* ---- from epchar.c ----- */
 
@@ -225,7 +232,9 @@ extern struct tCharTrans Char2Url  [] ;
 extern struct tCharTrans Html2Char [] ;
 extern int sizeHtml2Char ;
 extern struct tCharTrans * pCurrEscape ;
+extern struct tCharTrans * pNextEscape ;
 extern int bEscMode ;
+extern int bEscModeSet ;
 
 /* ---- from epcmd.c ----- */
 
@@ -235,15 +244,17 @@ extern int bEscMode ;
 
 enum tCmdType
     {
-    cmdNorm = 1,
-    cmdIf   = 2,
-    cmdEndif = 4,
-    cmdWhile = 8,
-    cmdTable = 16,
+    cmdNorm     = 1,
+    cmdIf       = 2,
+    cmdEndif    = 4,
+    cmdWhile    = 8,
+    cmdTable    = 16,
     cmdTablerow = 32,
-    cmdTextarea  = 64,
+    cmdTextarea = 64,
+    cmdDo       = 128,
+    cmdForeach  = 256,
 
-    cmdAll   = 255
+    cmdAll      = 511
     } ;
 
 enum tCmdNo
@@ -256,7 +267,9 @@ enum tCmdNo
     cnOl,
     cnUl,
     cnDl,
-    cnSelect
+    cnSelect,
+    cnDo,
+    cnForeach,
     } ;
 
 /* */
@@ -274,6 +287,7 @@ struct tCmd
     bool            bSaveArg ;      /* is it nessesary to save the command arg for later use */
     enum tCmdNo     nCmdNo ;        /* number of command to catch mismatch in start/end */
     int             bDisableOption ; /* option bit which disables this cmd */
+    bool            bHtml ;          /* this is an html tag */
     } ;
 
 
@@ -289,6 +303,7 @@ struct tStackEntry
     int             nResult ;       /* Result of Command which starts the block */
     char *          sArg ;          /* Argument of Command which starts the block */
     SV *            pSV ;           /* Additional Data */
+    SV *            pSV2 ;          /* Additional Data */
     struct tBuf *   pBuf ;          /* Output buf for table rollback          */
     struct tCmd *   pCmd ;          /* pointer to command infos */
     } ;
@@ -299,8 +314,12 @@ struct tStackEntry
 extern int nStack  ;                /* Stackpointer */
 extern struct tStackEntry State ;             /* current State */
 extern char ArgStack [16384] ;
-
 extern char * pArgStack  ;
+
+extern int nHtmlStack  ;                /* Stackpointer */
+extern struct tStackEntry HtmlState ;             /* current State */
+extern char ArgHtmlStack [16384] ;
+extern char * pArgHtmlStack  ;
 
 /* */
 /* Stack for dynamic table counters */
@@ -397,6 +416,11 @@ int Eval (/*in*/  const char *  sArg,
 int EvalTrans (/*in*/  char *   sArg,
                /*in*/  int      nFilepos,
                /*out*/ SV **    pRet) ;
+
+int EvalTransFlags (/*in*/  char *   sArg,
+                   /*in*/  int      nFilepos,
+                   /*in*/  int      flags,
+                   /*out*/ SV **    pRet) ;
 
 int EvalTransOnFirstCall (/*in*/  char *   sArg,
                           /*in*/  int      nFilepos,

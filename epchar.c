@@ -324,19 +324,19 @@ struct tCharTrans Char2Url [] =
         { ' ' ,   "%1E"         },    /* &#30;		Unused  */
         { ' ' ,   "%1F"         },    /* &#31;		Unused  */
         { ' ' ,   "+"           },    /* 	&#32;		Space  */
-        { '!' ,   "%21"         },    /* 	&#33;		Exclamation mark  */
-        { '"' ,   "%22"   },    /* 	Quotation mark  */
-        { '#' ,   "%23"         },    /* 	&#35;		Number sign  */
-        { '$' ,   "%24"         },    /* 	&#36;		Dollar sign  */
-        { '%' ,   "%25"         },    /* 	&#37;		Percent sign  */
+        { '!' ,   ""         },    /* 	&#33;		Exclamation mark  */
+        { '"' ,   ""   },    /* 	Quotation mark  */
+        { '#' ,   ""         },    /* 	&#35;		Number sign  */
+        { '$' ,   ""         },    /* 	&#36;		Dollar sign  */
+        { '%' ,   ""         },    /* 	&#37;		Percent sign  */
         { '&' ,   "%26"    },    /* 	Ampersand  */
-        { '\'' ,  "%27"         },    /* 	&#39;		Apostrophe  */
+        { '\'' ,  ""         },    /* 	&#39;		Apostrophe  */
         { '(' ,   ""         },    /* 	&#40;		Left parenthesis  */
         { ')' ,   ""         },    /* 	&#41;		Right parenthesis  */
-        { '*' ,   "%2A"         },    /* 	&#42;		Asterisk  */
+        { '*' ,   ""         },    /* 	&#42;		Asterisk  */
         { '+' ,   "%2B"         },    /* 	&#43;		Plus sign  */
-        { ',' ,   "%2C"         },    /* 	&#44;		Comma  */
-        { '-' ,   "%2D"         },    /* 	&#45;		Hyphen  */
+        { ',' ,   ""         },    /* 	&#44;		Comma  */
+        { '-' ,   ""         },    /* 	&#45;		Hyphen  */
         { '.' ,   ""         },    /* 	&#46;		Period (fullstop)  */
         { '/' ,   ""         },    /* 	&#47;		Solidus (slash)  */
         { '0' ,   ""         },    /* 	&#48;		Digit 0  */
@@ -350,12 +350,12 @@ struct tCharTrans Char2Url [] =
         { '8' ,   ""         },    /* 	&#56;		Digit 8  */
         { '9' ,   ""         },    /* 	&#57;		Digit 9  */
         { ':' ,   ""         },    /* 	&#58;		Colon  */
-        { ';' ,   "%3B"      },    /* 	&#59;		Semicolon  */
-        { '<' ,   "%3C"      },    /* 	Less than  */
+        { ';' ,   ""      },    /* 	&#59;		Semicolon  */
+        { '<' ,   ""      },    /* 	Less than  */
         { '=' ,   "%3D"      },    /* 	&#61;		Equals sign  */
-        { '>' ,   "%3E"      },    /* 	Greater than  */
+        { '>' ,   ""      },    /* 	Greater than  */
         { '?' ,   "%3F"      },    /* 	&#63;		Question mark  */
-        { '@' ,   "%40"      },    /* 	&#64;		Commercial at  */
+        { '@' ,   ""      },    /* 	&#64;		Commercial at  */
         { 'A' ,   ""         },    /* 	&#65;		Capital A  */
         { 'B' ,   ""         },    /* 	&#66;		Capital B  */
         { 'C' ,   ""         },    /* 	&#67;		Capital C  */
@@ -383,10 +383,10 @@ struct tCharTrans Char2Url [] =
         { 'Y' ,   ""         },    /* 	&#89;		Capital Y  */
         { 'Z' ,   ""         },    /* 	&#90;		Capital Z  */
         { '[' ,   ""         },    /* 	&#91;		Left square bracket  */
-        { '\\' ,  "%7C"         },    /* 	&#92;		Reverse solidus (backslash)  */
+        { '\\' ,  ""         },    /* 	&#92;		Reverse solidus (backslash)  */
         { ']' ,   ""         },    /* 	&#93;		Right square bracket  */
-        { '^' ,   "%7E"         },    /* 	&#94;		Caret  */
-        { '_' ,   "%7F"         },    /* 	&#95;		Horizontal bar (underscore)  */
+        { '^' ,   ""         },    /* 	&#94;		Caret  */
+        { '_' ,   ""         },    /* 	&#95;		Horizontal bar (underscore)  */
         { '`' ,   ""         },    /* 	&#96;		Acute accent  */
         { 'a' ,   ""         },    /* 	&#97;		Small a  */
         { 'b' ,   ""         },    /* 	&#98;		Small b  */
@@ -663,5 +663,7 @@ struct tCharTrans Html2Char [] =
 int sizeHtml2Char = sizeof (Html2Char) / sizeof (struct tCharTrans) ;
 
 struct tCharTrans * pCurrEscape = Char2Html ;
+struct tCharTrans * pNextEscape = Char2Html ;
 
 int bEscMode = escUrl | escHtml ;
+int bEscModeSet = 0 ;

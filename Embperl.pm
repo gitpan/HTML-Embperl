@@ -23,6 +23,8 @@ use IO::Handle ;
 use CGI;
 use File::Basename ();
 use Cwd ();
+require LWP::UserAgent ;
+
 #eval ' require Apache::Symbol ; ' ;
 
 require Exporter;
@@ -31,7 +33,7 @@ require DynaLoader;
 @ISA = qw(Exporter DynaLoader);
 
 
-$VERSION = '1.0.0';
+$VERSION = '1.1.0';
 
 
 bootstrap HTML::Embperl $VERSION;
@@ -51,7 +53,7 @@ $packno   = 1 ;     # for assigning unique packagenames
 @cleanups = () ;    # packages which need a cleanup
 @errfill  = () ;    # predefine -> avoid waring
 @errstate = () ;    # predefine -> avoid waring
-
+$LogOutputFileno = 0 ;
 
 # setup constans
 
@@ -103,6 +105,8 @@ use constant optSafeNamespace           => 4 ;
 use constant optSendHttpHeader          => 32 ;
 use constant optAllFormData             => 8192 ;
 use constant optRedirectStdout          => 16384 ;
+use constant optUndefToEmptyValue       => 32768 ;
+
 
 use constant ok                     => 0 ;
 use constant rcArgStackOverflow => 23 ;
@@ -405,6 +409,7 @@ sub SendErrorDoc ()
     my $virtlog = $ENV{EMBPERL_VIRTLOG} || '' ;
     my $url     = $LogfileURL || '' ;
 
+    $req_rec -> content_type('text/html') if (defined ($req_rec)) ;
 
     embperl_output ("<HTML><HEAD><TITLE>Embperl Error</TITLE></HEAD><BODY bgcolor=\"#FFFFFF\">\r\n$url") ;
     embperl_output ("<H1>Internal Server Error</H1>\r\n") ;
@@ -415,11 +420,14 @@ sub SendErrorDoc ()
         {
         foreach $err (@errors)
             {
-            embperl_output ("<A HREF=\"$virtlog?$logfilepos&$$#E$cnt\">") ;
+            embperl_output ("<A HREF=\"$virtlog?$logfilepos&$$#E$cnt\">") ; #<tt>") ;
             $escmode = 3 ;
+            $err =~ s|\n|\n\\<br\\>\\&nbsp;\\&nbsp;\\&nbsp;\\&nbsp;|g;
+            $err =~ s|(Line [0-9]*:)|$1\\</a\\>|;
             embperl_output ($err) ;
             $escmode = 0 ;
-            embperl_output ("</a><P>\r\n") ;
+            embperl_output ("<p>\r\n") ;
+            #embperl_output ("</tt><p>\r\n") ;
             $cnt++ ;
             }
         }
@@ -428,7 +436,9 @@ sub SendErrorDoc ()
 	$escmode = 3 ;
         foreach $err (@errors)
             {
-            embperl_output ("$err\\<P\\>\r\n") ;
+            $err =~ s|\n|\n\\<br\\>\\&nbsp;\\&nbsp;\\&nbsp;\\&nbsp;|g;
+            embperl_output ("$err\\<p\\>\r\n") ;
+            #embperl_output ("\\<tt\\>$err\\</tt\\>\\<p\\>\r\n") ;
             $cnt++ ;
             }
 	$escmode = 0 ;
@@ -515,6 +525,7 @@ sub CheckCache
     if (!defined(${"$package\:\:row"}))
         { # create new aliases for Embperl magic vars
         *{"$package\:\:fdat"}    = \%fdat ;
+        *{"$package\:\:fsplitdat"}  = \%fsplitdat ;
         *{"$package\:\:ffld"}    = \@ffld ;
         *{"$package\:\:idat"}    = \%idat ;
         *{"$package\:\:cnt"}     = \$cnt ;
@@ -525,6 +536,7 @@ sub CheckCache
         *{"$package\:\:tabmode"} = \$tabmode ;
         *{"$package\:\:escmode"} = \$escmode ;
     	*{"$package\:\:req_rec"} = \$req_rec if defined ($req_rec) ;
+    	*{"$package\:\:exit"}    = \&Apache::exit if defined (&Apache::exit) ;
         
         *{"$package\:\:MailFormTo"} = \&MailFormTo ;
 
@@ -546,6 +558,7 @@ sub CheckCache
         *{"$package\:\:optSendHttpHeader"}              = \$optSendHttpHeader          ;
         *{"$package\:\:optAllFormData"}                 = \$optAllFormData ;
         *{"$package\:\:optRedirectStdout"}              = \$optRedirectStdout ;
+        *{"$package\:\:optUndefToEmptyValue"}           = \$optUndefToEmptyValue ;
         
 
         *{"$package\:\:dbgAllCmds"}               = \$dbgAllCmds           ;
@@ -591,6 +604,8 @@ sub ScanEnvironement
     $$req{'virtlog'}     = $ENV{EMBPERL_VIRTLOG}     if (exists ($ENV{EMBPERL_VIRTLOG})) ;
     $$req{'compartment'} = $ENV{EMBPERL_COMPARTMENT} if (exists ($ENV{EMBPERL_COMPARTMENT})) ;
     $$req{'package'}     = $ENV{EMBPERL_PACKAGE}     if (exists ($ENV{EMBPERL_PACKAGE})) ;
+    $$req{'input_func'}  = $ENV{EMBPERL_INPUT_FUNC}  if (exists ($ENV{EMBPERL_INPUT_FUNC})) ;
+    $$req{'output_func'} = $ENV{EMBPERL_OUTPUT_FUNC} if (exists ($ENV{EMBPERL_OUTPUT_FUNC})) ;
     $$req{'debug'}       = $ENV{EMBPERL_DEBUG}   || 0 ;
     $$req{'options'}     = $ENV{EMBPERL_OPTIONS} || 0 ;
     $$req{'log'}         = $ENV{EMBPERL_LOG}     || $DefaultLog ;
@@ -648,8 +663,34 @@ sub Execute
     my $cgi ;
     my $filesize ;
     my $mtime ;
-    
-    
+    my $InFunc ;
+    my $OutFunc ;
+    my $InData ;
+    my $OutData ;
+
+     if (exists $$req{'input_func'})  
+        {
+        my @p ;
+        $In = \$InData ;
+        $$req{mtime} = 0 ;
+        @p = split (/\s*\,\s*/, $$req{'input_func'}) ;
+        $InFunc = shift @p ;
+        eval {$rc = &{$InFunc} ($req_rec, $In, \$$req{mtime}, @p)} ;
+        if ($rc || $@)
+            {
+            if ($@) 
+                {
+                $rc = 500 ;
+                print LOG "[$$]ERR:  $@\n" 
+                }
+
+            embperl_resetreqrec () ;
+            return $rc ;
+            }
+        }
+
+    $Out = \$OutData if (exists $$req{'output_func'}) ;
+
     $Inputfile    = $$req{'inputfile'} ;
     
     if (defined ($In))
@@ -685,7 +726,7 @@ sub Execute
 	{ $evalpackage = $package ; }
 
 
-    if (!($Options & optDisableFormData) && 
+    if (!($Options & optDisableFormData) &&
            defined($ENV{'CONTENT_TYPE'}) &&
            $ENV{'CONTENT_TYPE'}=~m|^multipart/form-data|)
         { # just let CGI.pm read the multipart form data, see cgi docu
@@ -729,6 +770,18 @@ sub Execute
         $rc = embperl_req ($Inputfile, $Outputfile, $Debugflags, $Options, $filesize, $pcodecache, $In, $Out) ;
         
         select ($oldfh) if ($Options & optRedirectStdout) ;
+        
+        if (exists $$req{'output_func'}) 
+            {
+            my @p ;
+            ($OutFunc, @p) = split (/\s*,\s*/, $$req{'output_func'}) ;
+            eval { &$OutFunc ($req_rec, $Out,@p) } ;
+            if ($@) 
+                {
+                print LOG "[$$]ERR:  $@\n" 
+                }
+
+            }
         }
 
     undef *{"$package\:\:param"} ;
@@ -756,7 +809,8 @@ sub Init
 
     {
     my $Logfile   = shift ;
-    $DebugDefault = shift || dbgStd ;
+    $DebugDefault = shift ;
+    $DebugDefault = dbgStd if (!defined ($DebugDefault)) ;
         
     embperl_init (epIOPerl, $Logfile || $DefaultLog) ;
     
@@ -895,6 +949,16 @@ sub handler
     undef $package if (defined ($package)) ; 
     
     $req{'uri'}       = $req_rec -> Apache::uri ;
+
+    if (exists $ENV{EMBPERL_FILESMATCH} && 
+                         !($req{'uri'} =~ m{$ENV{EMBPERL_FILESMATCH}})) 
+        {
+        embperl_setreqrec ($req_rec) ;
+        embperl_resetreqrec (1) ;
+        return &DECLINED ;
+        }
+
+
     $req{'inputfile'} = $ENV{PATH_TRANSLATED} = $req_rec -> filename ;
 
     #print LOG "i = $req{'inputfile'}\n" ;
@@ -970,6 +1034,8 @@ sub cleanup
 
     @cleanups = () ;
 
+    embperl_flushlog () ;
+
     #log_svs ("cleanup exit") ;
     return &OK ;
     }
@@ -1011,10 +1077,13 @@ sub MailFormTo
     eval 'use Net::SMTP' ;
 
     $smtp = Net::SMTP->new('localhost');
-    $smtp->mail('WWW-Server');
+    if ($ret)
+        { $smtp->mail($ret); }
+    else
+        { $smtp->mail('WWW-Server');}
     $smtp->to($to);
     $ok = $smtp->data();
-    $ok and $ok = $smtp->datasend("Return-Path: $ret\n") if ($ret) ;
+    $ok = $smtp->datasend("Return-Path: $ret\n") if ($ok && $ret) ;
     $ok and $ok = $smtp->datasend("To: $to\n");
     $ok and $ok = $smtp->datasend("Subject: $subject\n");
     foreach $k (@ffld)
@@ -1031,6 +1100,93 @@ sub MailFormTo
 
     return $ok ;
     }    
+
+
+#######################################################################################
+
+
+sub ProxyInput
+
+    {
+    my ($r, $in, $mtime, $src, $dest) = @_ ;
+
+
+
+    if (defined ($src))
+        {
+        $url = $dest . $1 if ($r -> uri =~ m{^$src(.*?)$}) ;
+        }
+    else
+        {
+        return &NOT_FOUND ;
+        }
+
+    my $q = $r -> args ;
+    $url .= "?$q" if ($q) ;
+    
+    my ($request, $response, $ua);
+
+    $ua = new LWP::UserAgent;  
+    $ua -> use_eval (0) ;
+    $request  = new HTTP::Request($r -> method, $url);
+
+    my %headers_in = $r->headers_in;
+    while (($key,$val) = each %headers_in)
+        {
+ 	$request->header($key,$val) if (lc ($key) ne 'connection') ;
+        }
+
+    $response = $ua->request($request);
+
+    my $code = $response -> code ;
+    my $mod  = $response -> last_modified || '???' ;
+
+    if ($Debugflags) 
+        { 
+        print LOG "[$$]PXY: uri=" . $r->uri . "\n" ;
+        print LOG "[$$]PXY: src=$src, dest=$dest\n" ;
+        print LOG "[$$]PXY: -> url=$url\n" ;
+        print LOG "[$$]PXY: code=$code,  last modified = $mod\n" ;
+        print LOG "[$$]PXY: msg =". $response -> message . "\n" ;
+        }
+            
+    $$in    = $response -> content ;
+    $$mtime = $mod if ($mod ne '???') ;
+
+    return $code == 200?0:$code;
+    }
+
+
+#######################################################################################
+
+
+sub LogOutput
+
+    {
+    my ($r, $out, $basepath) = @_ ;
+
+    #$basepath =~ s*[^a-zA-Z0-9./-]*-* ;
+    $basepath =~ /^(.*?)$/ ;
+
+    $basepath = $1 ;
+
+    $LogOutputFileno++ ;
+
+    $r -> send_http_header ;
+
+    $r -> print ($$out) ;
+    
+    open L, ">$basepath.$$.$LogOutputFileno" ;
+    print L $$out ;
+    close L ;
+
+    if ($Debugflags) 
+        { 
+        print LOG "[$$]OUT:  Logged output to $basepath.$$.$LogOutputFileno\n" ;
+        }
+
+    return 0 ;
+    }
 
 
 ###############################################################################    
@@ -1247,6 +1403,13 @@ nor output is specified ouput is written to stdout.
 
 Reference to a scalar where the output should be written to.
 
+
+=item B<req_rec>
+
+If used under mod_perl, you should set the req_rec paramter to the Apache 
+request record object provided by mod_perl.
+
+
 =item B<cleanup>
 
 This value specifies if and when the cleanup of the package should be
@@ -1326,6 +1489,14 @@ B<NOTE:> You should set the B<optDisableFormData> if you have already
 read the form data from stdin, while in a POST request, otherwise
 Execute will hang and try to read the data a second time.
 
+=item B<input_func>
+
+Same as EMBPERL_INPUT_FUNC (see below).
+
+=item B<output_func>
+
+Same as EMBPERL_OUTPUT_FUNC (see below).
+
 =back
 
 
@@ -1403,6 +1574,18 @@ The advantage of PerlSetEnv over SetEnv is that it can be used on a
 per directory/virtual host basis.
 
 =over 4
+
+=item B<EMBPERL_FILESMATCH>
+
+If specified only files which match the given B<perl regular expression>, will be
+processed by Embperl, all other files will be handled, by standard apache
+handler. This could be usefull if you have Embperl documents and non Embperl
+documents (e.g. gifs) in the same directory. EMBPERL_FILESMATCH works only
+under mod_perl.
+
+ Example: 
+ # Only files which end with .htm will processed by Embperl
+ PerlSetEnv EMBPERL_FILESMATCH \.htm$
 
 =item B<EMBPERL_COMPARTMENT>
 
@@ -1548,6 +1731,12 @@ Without this option you can only output data by using the [+ ... +] block, or pr
 to the filehandle B<OUT>.
 
 
+=item optUndefToEmptyValue = 32768
+
+Normaly if there is no value in %fdat for a specific input field Embperl will leave
+it untouched. When this option is set Embperl will handle the field as if an empty
+string is stored in %fdat for the field.
+
 
 =back
 
@@ -1658,13 +1847,138 @@ Log all HTTP headers which are sent from the browser.
 Show every variable which is undef'd at the end of the request.  For
 scalar variables, the value before undef'ing is logged.
 
-
 =back
 
 A good value to start is C<2285> or C<10477> if you want to view the
 logfile with your browser.  (Don't forget to set EMBPERL_VIRTLOG.)  If
 Embperl crashes, add C<512> so the logfile is flushed after every line
 is written and you can see where Embperl is when it crashes.
+
+
+=item B<EMBPERL_INPUT_FUNC>
+
+This directive gives you the possiblity to specify a non-standard way,
+how the input is fetch. Normaly Embperl reads it's input (source) from
+a file (or gets it from a scalar if you use C<Execute>). Here you can 
+give a name of a perl function which is called instead of reading the
+input from a file. The function must look like the following:
+
+ InputFunc ($r, $in, $mtime, additional parameters...) ;
+
+=over 4
+
+=item B<$r>
+Apache Request Record (see B<perldoc Apache> for details)
+
+=item B<$in>
+a reference to a scalar, where the input should be returned.
+
+ Example:
+
+ open F, "filename" ;
+ local $\ = undef ;
+ $$in = <F> ;
+ close F ;
+
+=item B<$mtime>
+a reference to s scalar, where the modification time should be returned.
+
+ Example:
+
+ $$mtime = -M "filename" ;
+
+
+=back
+
+You can give B<additional parameters> (which must be comma separated) to B<EMBPERL_INPUT_FUNC>
+which will be passed as string.
+
+  Example:
+
+  PerlSetEnv EMBPERL_INPUT_FUNC "InputFunc, foo, bar"
+
+  will call
+
+  InputFunc ($r, $in, $mtime, 'foo', 'bar') ;
+
+  to get the input.
+
+B<EXAMPLE for a input function which does just the same a Embperl>
+
+ sub Input
+
+    {
+    my ($r, $in, $mtime) = @_ ;
+
+    open F, $r -> filename or return NOT_FOUND ;
+    local $\ = undef ;
+    $$in = <F> ;
+    close F ;
+
+    $$mtime = -M $r -> filename ;
+    
+    return 0 ;
+    }
+
+
+
+See also B<ProxyInput> below, for a input function which comes with Embperl.
+
+
+=item B<EMBPERL_OUTPUT_FUNC>
+
+This directive gives you the possiblity to specify a non-standard way,
+what is done with output. Normaly Embperl send it's output (source) to
+a file/browser (or to a scalar if you use C<Execute>). Here you can 
+give a name of a perl function which is called instead of sending the
+output to a file/brwoser. The function must look like the following:
+
+ InputFunc ($r, $out, additional parameters...) ;
+
+=over 4
+
+=item B<$r>
+Apache Request Record (see B<perldoc Apache> for details)
+
+=item B<$out>
+Output from Embperl
+
+
+=back
+
+You can give B<additional parameters> (which must be comma separated) to B<EMBPERL_OUTPUT_FUNC>
+which will be passed as string.
+
+  Example:
+
+  PerlSetEnv EMBPERL_OUTPUT_FUNC "OutputFunc, foo, bar"
+
+  will call
+
+  OutputFunc ($r, $out, 'foo', 'bar') ;
+
+  for output.
+
+
+B<EXAMPLE for a ouput function which does just the same a Embperl>
+
+ sub Output
+
+    {
+    my ($r, $out) = @_ ;
+
+    $r -> send_http_header ;
+
+    $r -> print ($$out) ;
+
+    return 0 ;
+    }
+
+
+
+See also B<LogOutput> below, for a output function which comes with Embperl.
+
+
 
 
 =head1 B<SYNTAX>
@@ -1683,12 +1997,17 @@ done in case your favorite (WYSIWYG) HTML editor inserts tags like
 line breaks or formatting into your Embperl commands where you don't
 want them.
 
-B<NOTE:> If you do use an ASCII editor to write your HTML documents,
+B<VERY IMPORTANT NOTE:> If you do use an ASCII editor to write your HTML documents,
 you should set the option B<optRawInput> so Embperl does not
 preprocess your source.  You can also HTML-escape your code
 (i.e. write `&lt;' instead of `<'), to avoid ambiguity.  In most cases
 it will also work without the optRawInput and HTML-escaping, but in
 some cases Embperl will deteced an HTML tag were there isn't one.
+
+B<If you have any trouble with your code, especialy with html tags or filehandles
+in your perl code, be sure to understand input- and output (un)escaping.
+Read the section "Inside Embperl" to see what's going on!!>
+
 
 All Embperl commands start with a `[' and end with a `]'.  To get a
 real `[' you must enter `[['.
@@ -1791,6 +2110,30 @@ This will send a list of all environment variables to the client.
 
 NOTE: The `&lt;' is translated to `<' before call the Perl eval,
 unless optRawInput is set.
+
+=item B<do>, B<until>
+
+Executes a loop until the B<Arg> given to B<until> is true.
+
+ Example:
+
+ [- $i = 0 -]
+ [$ do $]
+     [+ $i++ +] <BR>
+ [$ until $i > 10 $]
+
+=item B<foreach>, B<endforeach>
+
+Executes a loop for each element of the second B<Arg>, settinmg the
+first B<Arg> accordingly.
+
+ Example:
+
+ [- @arr = (1, 3, 5) -]
+ [$ foreach $v @arr $]
+     [+ $v +] <BR>
+ [$ endforeach $]
+
 
 =item B<hidden>
 
@@ -2366,8 +2709,85 @@ adress which was entered in the field with the name 'email'.
 B<NOTE:> You must have Net::SMTP (from the libnet package) installed
 to use this function.
 
+=item B<exit>
+
+B<exit> will override the normal perl exit in every Embperl document. Calling
+exit will immediately stop any further processing of that page and send the
+already done work to the output/browser. 
+
+B<NOTE 1:> This currently works only under mod_perl.
+B<NOTE 2:> If you write a module which should work with Embperl under mod_perl, 
+you must use Apache::exit, instead of the normal perl exit (just like always 
+when running under mod_perl).
+
 =back
 
+=head1 INPUT/OUTPUT FUNCTIONS
+
+=over 4
+
+=item C<ProxyInput ($r, $in, $mtime, $src, $dest)> 
+
+ B<USAGE in srm.conf:>
+
+ <Location /embperl/ifunc>
+ SetHandler perl-script
+ PerlHandler HTML::Embperl
+ Options ExecCGI
+ PerlSetEnv EMBPERL_INPUT_FUNC "ProxyInput, /embperl/ifunc, http://otherhost/otherpath"
+ </Location>
+
+
+This input function will request the source from another url instead of
+reading it from the disk.
+In the above USAGE Example a request to /embperl/ifunc/foo.html, will first fetch the
+url http://otherhost/otherpath/foo.html, will then process this document by Embperl and
+the send it to the browser.
+
+This could be used to process documents by mod_include B<and> Embperl, so in one
+document there can by Server Side Includes and Embperl Commands.
+
+ Example B<srm.conf> for B<SSI> and B<Embperl>:
+
+ <Location /embperl>
+ SetHandler perl-script
+ PerlHandler HTML::Embperl
+ Options ExecCGI
+ PerlSetEnv EMBPERL_INPUT_FUNC "ProxyInput, /embperl, http://localhost/src"
+ </Location>
+
+
+ <Location /src>
+ SetHandler server-parsed
+ Options +Includes
+ </Location>
+
+
+The source files must be in the location /src, but they will be requested via the
+uri /embperl. Every request to /embperl/foo.html will do a proxy-request to /src/foo.html
+the /src/foo.html will be processed by mod_include and then send to Embperl, now it
+could be processed by Embperl and send to the browser. It would be also possible to use
+two httpd's on differnet ports. In this configuration the source and the uri location
+could be the same.
+
+
+=item C<LogOutput ($r, $out, $basepath)>
+
+ B<USAGE in srm.conf:>
+
+ <Location /embperl/ofunc>
+ SetHandler perl-script
+ PerlHandler HTML::Embperl
+ Options ExecCGI
+ PerlSetEnv EMBPERL_OUTPUT_FUNC "LogOutput, /usr/msrc/embperl/test/tmp/log.out"
+ </Location>
+
+LogOutput is a custom output function. It sends the output to the browser B<and>
+writes the output to a unique file. The filename has the the form
+"$basepath.$$.$LogOutputFileno".
+
+
+=back
 
 =head1 Inside Embperl - How the embedded perl code is actually processed
 
@@ -2506,6 +2926,14 @@ code as it is.  It is highly recommended to set this options if you
 are writing your HTML in an ASCII editor. You normally don't want to
 set it if you use some sort of high level HTML editor.
 
+You can also set the optRawInput in your document by using B<$optRawInput>,
+but you must be aware that it does not have any consequences for the current
+block, because the current block translated before it is executed. So write:
+
+ [- $optRawInput = 1 -]
+ [- $line = <FILEHANDLE> -]
+
+
 
 =head2 3. Remove all carriage returns
 
@@ -2591,6 +3019,11 @@ steps 1-3.)
     This will (locally) turn off escaping and send the text as a plain
     HTML tag to the browser, so the color of the output will change.
 
+    NOTE: You cannot set $escmode more than once inside a [+ ... +] block.
+    Embperl uses the first setting of $escmode it encounters inside the block.
+    If you need to change $escmode more than once, you must use muliple
+    [+ ... +] blocks.
+     
 
 =head2 7. Send the return value as output to the destination
 (browser/file)

@@ -2,9 +2,7 @@
 # Example for using HTML::Embperl::Execute
 #
 # run this under mod_perl / Apache::Registry
-# if you want to run it standalone you need to add
-#  HTML::Embperl::Init($Logfile) ; # at startup
-#  HTML::Embperl::Term () ;        # at the end
+# or standalone
 #
 
 

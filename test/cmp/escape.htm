@@ -22,7 +22,7 @@ Now lets look what we are getting from this:<BR>
 
 What is the EscMode? 3
 
-Now a Url: <A HREF="http://localhost/tests?id=abcdefghijklmnopqrstuvwxyz&text=This+is+a+text+%3F+%26+%2B+%2D+">Here it goes</A>
+Now a Url: <A HREF="http://localhost/tests?id=abcdefghijklmnopqrstuvwxyz&text=This+is+a+text+%3F+%26+%2B+-+">Here it goes</A>
 
 1
 
@@ -36,11 +36,11 @@ Now a Url: <A HREF="http://localhost/tests?id=abcdefghijklmnopqrstuvwxyz&text=Th
 2
 
 Now lets look what we are getting from this:<BR>
-(this+is+the+value+in+%24a) (this+is+the+value+in+%24a)+הצüהצü%3F%3F%3F%3C%26%2B++<BR>
+(this+is+the+value+in+$a) (this+is+the+value+in+$a)+הצüהצü%3F%3F%3F<%26%2B++<BR>
 
 What is the EscMode? 2
 
-Now a Url: <A HREF="http://localhost/tests?id=abcdefghijklmnopqrstuvwxyz&text=This+is+a+text+%3F+%26+%2B+%2D+">Here it goes</A>
+Now a Url: <A HREF="http://localhost/tests?id=abcdefghijklmnopqrstuvwxyz&text=This+is+a+text+%3F+%26+%2B+-+">Here it goes</A>
 
 0
 
@@ -58,7 +58,7 @@ Now lets look what we are getting from this:<BR>
 
 What is the EscMode? 3
 
-Now a Url: <A HREF="http://localhost/tests?id=abcdefghijklmnopqrstuvwxyz&text=This+is+a+text+%3F+%26+%2B+%2D+">Here it goes</A>
+Now a Url: <A HREF="http://localhost/tests?id=abcdefghijklmnopqrstuvwxyz&text=This+is+a+text+%3F+%26+%2B+-+">Here it goes</A>
 
 What is the EscMode? 3
 
@@ -66,6 +66,12 @@ What is the EscMode? 3
 
 
 file.html?name=abcd&amp;data=xyz
+
+Now we localy set $escmode:<BR>
+(this is the value in $a) הצüהצü???<&+  <BR>
+(this is the value in $a) &auml;&ouml;&uuml;&auml;&ouml;&uuml;???&lt;&amp;+  <BR>
+(this+is+the+value+in+$a)+הצüהצü%3F%3F%3F<%26%2B++<BR>
+(this is the value in $a) &auml;&ouml;&uuml;&auml;&ouml;&uuml;???&lt;&amp;+  <BR>
 
 
 

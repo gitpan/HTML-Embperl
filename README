@@ -49,7 +49,7 @@ See perldoc Embperl how it goes on.
 See the eg/ directory for examples.
 
 I have successfully tested this on Linux 2.0.27, mod_perl 0.96 and higher,
-with perl 5.004 and Apache 1.2.x and 1.3b3,5,6. It also works with Apache-SSL
+with perl 5.004 and Apache 1.2.x and 1.3.x. It also works with Apache-SSL
 and Stronghold. Since there is (as far as I can see)
 no system dependent stuff, it should work on other systems as well.
 As far as possible use perl 5.004_04, because 5.004 has memory leaks.
@@ -59,8 +59,10 @@ in Apache->push_handler in mod_perl versions before 1.07_02
 WIN 32
 
 I have tested the offline mode on Windows 95 with Microsoft Visual C++ 4.2
-compiler and I have succesfully run Embperl with apache_1.3b5 / mod_perl-1.08
-/ perl5.004_04 on Windows NT with VC++ 5.0. 
+compiler and I have succesfully run Embperl with apache_1.3b5-1.3.1 / 
+mod_perl-1.12-1.14 / perl5.004_04-perl5.005 (without threads) on Windows NT
+with VC++ 5.0. 
+
 NOTE: It was necessary for me to compile perl5.004_04 with the VC++ on my own
 to get it run with apache and mod_perl, while I was able to use the binary
 distribution (/authors/id/GSAR/perl5.00402-bindist04-bc.tar.gz) of perl for
@@ -86,13 +88,11 @@ to
 now rerun nmake and it should compile.
 
 "nmake test"
+
+NOTE: nmake test needs libwin32, libwww and HTML::Parser installed to work
+
 "nmake install"
 
-
-NOTE!
-
-In version 0.16 and above you need to set the 'Options ExecCGI' in your
-srm.conf for running under mod_perl!
 
 
 COMPATIBILITY
@@ -108,14 +108,17 @@ apache_1.3b3
 apache_1.3b5
 apache_1.3b6
 apache_1.3.0
+apache_1.3.1
 apache_ssl (Ben SSL)
 Stronghold 2.2
 
 on Windows NT 4.0 with
 
 perl5.004_04
+perl5.005 (only without threads!)
 apache_1.3b5
 apache_1.3.0
+apache_1.3.1
 
 on Windows 95 with
 perl5.004_02 (binary distribution)
@@ -159,7 +162,7 @@ REFERENCES
  mod_perl               http://perl.apache.org/
  mod_perl FAQ           http://perl.apache.org/faq
  Embperl                http://perl.apache.org/embperl.html
- DBIx::Recordset	http://ftp.dev.ecos.de/pub/perl/dbi
+ DBIx::Recordset        http://ftp.dev.ecos.de/pub/perl/dbi
  apache web server      http://www.apache.org/
  ben-ssl (free httpsd)  http://www.apache-ssl.org/
  stronghold (commerical httpsd) http://www.c2.net/

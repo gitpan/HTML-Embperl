@@ -4,7 +4,7 @@
 
 # avoid some warnings:
 
-use vars qw ($httpconfsrc $httpconf $EPPORT *SAVEERR *ERR $EPHTTPDDLL) ;
+use vars qw ($httpconfsrc $httpconf $EPPORT $EPPORT2 *SAVEERR *ERR $EPHTTPDDLL $EPSTARTUP) ;
 
     {
     local $^W = 0 ;
@@ -35,18 +35,20 @@ END   { print "\nTest terminated with fatal error\n" if ($fatal) ; }
     'tagscan.htm',
     'tagscan.htm??1',
     'if.htm',
-    'while.htm?erstes=Hallo&zweites=Leer+zeichen&drittes=%21%22%23&erstes=Wert2',
+    'loop.htm?erstes=Hallo&zweites=Leer+zeichen&drittes=%21%22%23&erstes=Wert2',
     'table.htm',
     'table.htm??1',
     'table.htm??32769',
 #   'table.htm??131085',
     'lists.htm?sel=2&SEL1=B&SEL3=D&SEL4=cc',
+    'nesting.htm',
     'object.htm???2',
     'discard.htm???12',
     'input.htm?feld5=Wert5&feld6=Wert6&feld7=Wert7&feld8=Wert8&cb5=cbv5&cb6=cbv6&cb7=cbv7&cb8=cbv8&cb9=ncbv9&cb10=ncbv10&cb11=ncbv11&mult=Wert3&mult=Wert6',
     'hidden.htm?feld1=Wert1&feld2=Wert2&feld3=Wert3&feld4=Wert4',
     'java.htm',
     'inputjava.htm',
+    'post.htm',
     'reqrec.htm',
     'reqrec.htm',
     'registry/Execute.htm',
@@ -54,13 +56,18 @@ END   { print "\nTest terminated with fatal error\n" if ($fatal) ; }
     'nph/div.htm????64',
     'nph/npherr.htm???7?64',
     'sub.htm',
+    'exit.htm',
+    'exit2.htm',
     'chdir.htm?a=1&b=2&c=&d=&f=5&g&h=7&=8&=',
     'allform/allform.htm?a=1&b=2&c=&d=&f=5&g&h=7&=8&=???8192',
     'stdout/stdout.htm????16384',
     'nochdir/nochdir.htm?a=1&b=2???384',
+    'match/div.htm',
+    'match/div.asc',
     'http.htm',
     'div.htm',
     'taint.htm???1',
+    'ofunc/div.htm',
     'safe/safe.htm???-1?4',
     'safe/safe.htm???-1?4',
     'safe/safe.htm???-1?4',
@@ -88,6 +95,8 @@ if ($cmdarg =~ /f/)
 else
     { do "$confpath/config.pl" ; }
 
+
+$EPPORT2 = ($EPPORT || 0) + 1 ;
 
 die "You must install libwin32 first" if ($EPWIN32 && $win32loaderr) ;
 
@@ -253,7 +262,7 @@ sub CmpFiles
 sub GET
 
     {
-    my ($loc, $file, $query, $ofile) = @_ ;
+    my ($loc, $file, $query, $ofile, $content) = @_ ;
 	
     eval 'require LWP::UserAgent' ;
     
@@ -272,6 +281,8 @@ sub GET
 
     $request = new HTTP::Request('GET', $url);
 
+    $request -> content ($content) if ($content) ;
+    
     #print "GET $url\n\n";
 
     $response = $ua->request($request, undef, undef);
@@ -461,10 +472,13 @@ do
 	    next if ($file eq 'taint.htm') ;
 	    next if ($file eq 'reqrec.htm') ;
 	    next if ($file eq 'http.htm') ;
+	    next if ($file eq 'post.htm') ;
+	    next if ($file =~ /^exit/) ;
 	    next if ($file =~ /registry/) ;
+	    next if ($file =~ /match/) ;
 	    next if ($DProf && ($file =~ /safe/)) ;
 	    next if ($DProf && ($file =~ /opmask/)) ;
-	    
+
 	    $debug ||= $defaultdebug ;  
 	    $page = "$inpath/$file" ;
 	    $errcnt ||= 0 ;
@@ -692,7 +706,8 @@ do
 	close IFH ;
 	open OFH, ">$httpdconf" or die "***Cannot open $httpconf" ;
 	eval "print OFH \"$cf\"" ;
-	close OFH ;
+	die "***Cannot print $httpconf ($@)" if ($@) ;
+        close OFH ;
 	$/ = $rs ;
     
 	#### Start httpd
@@ -714,7 +729,7 @@ do
 	    }
 	else
 	    {
-	    system ("$EPHTTPD $XX -f $EPPATH/$httpdconf &") and die "***Cannot start $EPHTTPD" ;
+            system ("$EPHTTPD $XX -f $EPPATH/$httpdconf &") and die "***Cannot start $EPHTTPD" ;
 	    }
 	sleep (3) ;
 	if (!open FH, "$tmppath/httpd.pid")
@@ -757,12 +772,15 @@ do
 	    next if ($file =~ /\// && $loc eq $cgiloc) ;        
 	    next if ($file eq 'taint.htm' && $loc eq $cgiloc) ;
 	    next if ($file eq 'reqrec.htm' && $loc eq $cgiloc) ;
+	    next if (($file =~ /^exit/) && $loc eq $cgiloc) ;
 	    #next if ($file eq 'error.htm' && $loc eq $cgiloc && $errcnt < 16) ;
 	    next if ($file eq 'varerr.htm' && $loc eq $cgiloc && $errcnt > 0) ;
 	    next if ($file eq 'varerr.htm' && $looptest) ;
  	    next if (($file =~ /registry/) && $loc eq $cgiloc) ;
+ 	    next if (($file =~ /match/) && $loc eq $cgiloc) ;
 	    next if ($file eq 'http.htm' && $loc eq $cgiloc) ;
 	    next if ($file eq 'chdir.htm' && $EPWIN32) ;
+	    next if ($file =~ /opmask/ && $EPSTARTUP =~ /_dso/) ;
      
 	    $debug ||= $defaultdebug ;  
 	    $errcnt ||= 0 ;
@@ -788,7 +806,11 @@ do
 	    print $^A ; 
 	    $^A = '' ;
 	    unlink ($outfile) ;
-	    $m = GET ($loc, $file, $query_info, $outfile) ;
+            
+            $content = undef ;
+            $content = "f1=abc1&f2=1234567890&f3=" . 'X' x 8192 if ($file eq 'post.htm') ;
+
+            $m = GET ($loc, $file, $query_info, $outfile, $content) ;
 	    if ($memcheck)
 		{
 		my $vmsize = GetMem ($httpdpid) ;

@@ -75,10 +75,13 @@ int EvalDirect (/*in*/    SV * pArg)
 ------------------------------------------------------------------------------- */
 
 static int EvalAll (/*in*/  const char *  sArg,
+                    /*in*/  int           flags,
                     /*out*/ SV **         pRet)             
     {
     static char sFormat []       = "package %s ; sub { \n#line %d %s\n%s\n}" ;
     static char sFormatStrict [] = "package %s ; use strict ; sub {\n#line %d %s\n%s\n}" ; 
+    static char sFormatArray []       = "package %s ; sub { \n#line %d %s\n[%s]\n}" ;
+    static char sFormatStrictArray [] = "package %s ; use strict ; sub {\n#line %d %s\n[%s]\n}" ; 
     SV *   pSVCmd ;
     dSP;
     
@@ -92,9 +95,15 @@ static int EvalAll (/*in*/  const char *  sArg,
     tainted = 0 ;
 
     if (bStrict)
-        pSVCmd = newSVpvf(sFormatStrict, sEvalPackage, nSourceline, sSourcefile, sArg) ;
+        if (flags & G_ARRAY)
+            pSVCmd = newSVpvf(sFormatStrictArray, sEvalPackage, nSourceline, sSourcefile, sArg) ;
+        else
+            pSVCmd = newSVpvf(sFormatStrict, sEvalPackage, nSourceline, sSourcefile, sArg) ;
     else
-        pSVCmd = newSVpvf(sFormat, sEvalPackage, nSourceline, sSourcefile, sArg) ;
+        if (flags & G_ARRAY)
+            pSVCmd = newSVpvf(sFormatArray, sEvalPackage, nSourceline, sSourcefile, sArg) ;
+        else
+            pSVCmd = newSVpvf(sFormat, sEvalPackage, nSourceline, sSourcefile, sArg) ;
 
     PUSHMARK(sp);
     perl_eval_sv(pSVCmd, G_SCALAR | G_KEEPERR);
@@ -269,6 +278,7 @@ static int Watch  ()
 
 static int CallCV  (/*in*/  const char *  sArg,
                     /*in*/  CV *          pSub,
+                    /*in*/  int           flags,
                     /*out*/ SV **         pRet)             
     {
     int   num ;         
@@ -276,6 +286,7 @@ static int CallCV  (/*in*/  const char *  sArg,
     int   nRowUsed   = TableState.nRowUsed ;
     int   nColUsed   = TableState.nColUsed ;
     int   bDynTab    = 0 ;
+    SV *  pErr ;
 
     SV *  pSVArg ;
     dSP;                            /* initialize stack pointer      */
@@ -292,7 +303,7 @@ static int CallCV  (/*in*/  const char *  sArg,
     SAVETMPS ;
     PUSHMARK(sp);                   /* remember the stack pointer    */
 
-    num = perl_call_sv ((SV *)pSub, G_SCALAR | G_EVAL | G_NOARGS) ; /* call the function             */
+    num = perl_call_sv ((SV *)pSub, flags | G_EVAL | G_NOARGS) ; /* call the function             */
     
     SPAGAIN;                        /* refresh stack pointer         */
     
@@ -356,10 +367,28 @@ static int CallCV  (/*in*/  const char *  sArg,
      FREETMPS ;
      LEAVE ;
 
-     if (SvTRUE (GvSV(errgv)))
-         {
-         STRLEN l ;
-         char * p = SvPV (GvSV(errgv), l) ;
+     
+     pErr = GvSV(errgv) ;
+     if (SvTRUE (pErr))
+        {
+        STRLEN l ;
+        char * p ;
+
+        if (SvMAGICAL (pErr) && mg_find (pErr, 'U'))
+            {
+ 	    /* On an Apache::exit call, the function croaks with error having 'U' magic.
+ 	     * When we get this return, we'll just give up and quit this file completely,
+ 	     * without error. */
+             
+            struct magic * m = SvMAGIC (pErr) ;
+
+            sv_unmagic(pErr,'U');
+ 	    sv_setpv(pErr,"");
+
+            return rcExit ;
+            }
+
+         p = SvPV (pErr, l) ;
          if (l > sizeof (errdat1) - 1)
              l = sizeof (errdat1) - 1 ;
          strncpy (errdat1, p, l) ;
@@ -369,14 +398,14 @@ static int CallCV  (/*in*/  const char *  sArg,
          
 	 LogError (rcEvalErr) ;
 
-	 sv_setpv(GvSV(errgv),"");
+	 sv_setpv(pErr,"");
          return rcEvalErr ;
          }
 
      if (bDebug & dbgWatchScalar)
          Watch () ;
 
-    return num ;
+    return ok ;
     }
 
 /* -------------------------------------------------------------------------------
@@ -392,6 +421,7 @@ static int CallCV  (/*in*/  const char *  sArg,
 
 static int EvalAndCall (/*in*/  const char *  sArg,
                         /*in*/  SV **         ppSV,
+                        /*in*/  int           flags,
                         /*out*/ SV **         pRet)             
 
 
@@ -404,7 +434,7 @@ static int EvalAndCall (/*in*/  const char *  sArg,
 
     lastwarn[0] = '\0' ;
     
-    rc = EvalAll (sArg, &pSub) ;
+    rc = EvalAll (sArg, flags, &pSub) ;
 
     if (rc == ok && pSub != NULL && SvTYPE (pSub) == SVt_RV)
         {
@@ -429,7 +459,7 @@ static int EvalAndCall (/*in*/  const char *  sArg,
 
     if (*ppSV && SvTYPE (*ppSV) == SVt_PVCV)
         { /* Call the compiled eval */
-        return CallCV (sArg, (CV *)*ppSV, pRet) ;
+        return CallCV (sArg, (CV *)*ppSV, flags, pRet) ;
         }
     
     *pRet = NULL ;
@@ -486,10 +516,10 @@ int Eval (/*in*/  const char *  sArg,
         }
 
     if (*ppSV == NULL || SvTYPE (*ppSV) != SVt_PVCV)
-        return EvalAndCall (sArg, ppSV, pRet) ;
+        return EvalAndCall (sArg, ppSV, G_SCALAR, pRet) ;
 
     numCacheHits++ ;
-    return CallCV (sArg, (CV *)*ppSV, pRet) ;
+    return CallCV (sArg, (CV *)*ppSV, G_SCALAR, pRet) ;
     }
 
 
@@ -505,9 +535,10 @@ int Eval (/*in*/  const char *  sArg,
 ------------------------------------------------------------------------------- */
 
 
-int EvalTrans (/*in*/  char *   sArg,
-               /*in*/  int      nFilepos,
-               /*out*/ SV **    pRet)             
+int EvalTransFlags (/*in*/  char *   sArg,
+                    /*in*/  int      nFilepos,
+                    /*in*/  int      flags,
+                    /*out*/ SV **    pRet)             
 
 
     {
@@ -546,14 +577,24 @@ int EvalTrans (/*in*/  char *   sArg,
         /* strip off all <HTML> Tags */
         TransHtml (sArg) ;
 
-        return EvalAndCall (sArg, ppSV, pRet) ;
+        return EvalAndCall (sArg, ppSV, flags, pRet) ;
         }
 
     numCacheHits++ ;
     
-    return CallCV (sArg, (CV *)*ppSV, pRet) ;
+    return CallCV (sArg, (CV *)*ppSV, flags, pRet) ;
     }
 
+
+int EvalTrans      (/*in*/  char *   sArg,
+                    /*in*/  int      nFilepos,
+                    /*out*/ SV **    pRet)             
+    
+    {
+    return EvalTransFlags (sArg, nFilepos, G_SCALAR, pRet) ;
+    }
+    
+    
 /* -------------------------------------------------------------------------------
 *
 * Eval PERL Statements and execute the evaled code, check if it's already compiled
@@ -600,7 +641,7 @@ int EvalTransOnFirstCall (/*in*/  char *   sArg,
         /* strip off all <HTML> Tags */
         TransHtml (sArg) ;
 
-        return EvalAndCall (sArg, ppSV, pRet) ;
+        return EvalAndCall (sArg, ppSV, G_SCALAR, pRet) ;
         }
 
     numCacheHits++ ;
@@ -663,12 +704,12 @@ int EvalBool (/*in*/  char *        sArg,
               /*out*/ int *         pTrue)             
     {
     SV * pRet ;
-    int  n ;
+    int  rc ;
 
     EPENTRY (EvalNum) ;
 
 
-    n = Eval (sArg, nFilepos, &pRet) ;
+    rc = Eval (sArg, nFilepos, &pRet) ;
     
     if (pRet)
         {
@@ -678,6 +719,6 @@ int EvalBool (/*in*/  char *        sArg,
     else
         *pTrue = 0 ;
 
-    return ok ;
+    return rc ;
     }
     

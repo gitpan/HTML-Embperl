@@ -21,9 +21,9 @@
 static struct tCmd * pCurrCmd ;    /* Current cmd which is excuted */
 
 
-/*
-   Stack 
-*/
+/* *************************
+*  Stack for meta commands
+*************************** */
 
 
 
@@ -37,10 +37,25 @@ char ArgStack [16384] ;
 
 char * pArgStack = ArgStack ;
 
+/* *************************
+*  Stack for html tags
+*************************** */
 
-/* */
+
+struct tStackEntry HtmlStack [nStackMax] ; /* Stack for if, while, etc. */
+
+int nHtmlStack = 0 ;                /* Stackpointer */
+
+struct tStackEntry HtmlState ;             /* current State */
+
+char ArgHtmlStack [16384] ;
+
+char * pArgHtmlStack = ArgHtmlStack ;
+
+
+/* **********************************
 /* Stack for dynamic table counters */
-/* */
+/********************************** */
 
 
 struct tTableStackEntry TableStack [nStackMax] ; /* Stack for table */
@@ -64,8 +79,13 @@ static int CmdElse (/*in*/ const char *   sArg) ;
 static int CmdElsif (/*in*/ const char *   sArg) ;
 static int CmdEndif (/*in*/ const char *   sArg) ;
 
-static int CmdWhile (/*in*/ const char *   sArg) ;
+static int CmdWhile    (/*in*/ const char *   sArg) ;
 static int CmdEndwhile (/*in*/ const char *   sArg) ;
+static int CmdDo       (/*in*/ const char *   sArg) ;
+static int CmdUntil    (/*in*/ const char *   sArg) ;
+static int CmdForeach  (/*in*/ const char *   sArg) ;
+static int CmdEndforeach(/*in*/ const char *   sArg) ;
+
 static int CmdHidden (/*in*/ const char *   sArg) ;
 static int CmdVar    (/*in*/ const char *   sArg) ;
 
@@ -87,39 +107,43 @@ static int HtmlMeta      (/*in*/ const char *   sArg) ;
 
 struct tCmd CmdTab [] =
     {
-        /* cmdname    function        push pop  type         scan save no      disable */
-        { "/dir",     HtmlEndtable,     0, 1, cmdTable,         0, 0, cnDir    , optDisableTableScan } ,
-        { "/dl",      HtmlEndtable,     0, 1, cmdTable,         0, 0, cnDl     , optDisableTableScan } ,
-        { "/menu",    HtmlEndtable,     0, 1, cmdTable,         0, 0, cnMenu   , optDisableTableScan } ,
-        { "/ol",      HtmlEndtable,     0, 1, cmdTable,         0, 0, cnOl     , optDisableTableScan } ,
-        { "/select",  HtmlEndtable,     0, 1, cmdTable,         0, 0, cnSelect , optDisableTableScan } ,
-        { "/table",   HtmlEndtable,     0, 1, cmdTable,         0, 0, cnTable  , optDisableTableScan } ,
-        { "/textarea", HtmlEndtextarea, 0, 1, cmdTextarea,      0, 0, cnNop    , optDisableInputScan } ,
-        { "/tr",      HtmlEndrow,       0, 1, cmdTablerow,      0, 0, cnTr     , optDisableTableScan } ,
-        { "/ul",      HtmlEndtable,     0, 1, cmdTable,         0, 0, cnUl     , optDisableTableScan } ,
-        { "a",        HtmlA,            0, 0, cmdNorm,          0, 0, cnNop    , 0 } ,
-        { "body",     HtmlBody,         0, 0, cmdNorm,          1, 0, cnNop    , 0 } ,
-        { "dir",      HtmlTable,        1, 0, cmdTable,         1, 0, cnDir    , optDisableTableScan } ,
-        { "dl",       HtmlTable,        1, 0, cmdTable,         1, 0, cnDl     , optDisableTableScan } ,
-        { "else",     CmdElse,          0, 0, cmdIf,            0, 0, cnNop    , 0 } ,
-        { "elsif",    CmdElsif,         0, 0, cmdIf,            0, 0, cnNop    , 0 } ,
-        { "endif",    CmdEndif,         0, 1, cmdIf | cmdEndif, 0, 0, cnNop    , 0 } ,
-        { "endwhile", CmdEndwhile,      0, 1, cmdWhile,         0, 0, cnNop    , 0 } ,
-        { "hidden",   CmdHidden,        0, 0, cmdNorm,          0, 0, cnNop    , 0 } ,
-        { "if",       CmdIf,            1, 0, cmdIf | cmdEndif, 0, 0, cnNop    , 0 } ,
-        { "input",    HtmlInput,        0, 0, cmdNorm,          1, 0, cnNop    , optDisableInputScan } ,
-        { "menu",     HtmlTable,        1, 0, cmdTable,         1, 0, cnMenu   , optDisableTableScan } ,
-        { "meta",     HtmlMeta,         0, 0, cmdNorm,          1, 0, cnNop    , optDisableMetaScan  } ,
-        { "ol",       HtmlTable,        1, 0, cmdTable,         1, 0, cnOl     , optDisableTableScan } ,
-        { "option",   HtmlOption,       0, 0, cmdNorm,          1, 0, cnNop    , optDisableInputScan } ,
-        { "select",   HtmlSelect,       1, 0, cmdTable,         1, 0, cnSelect , optDisableTableScan } ,
-        { "table",    HtmlTable,        1, 0, cmdTable,         1, 0, cnTable  , optDisableTableScan } ,
-        { "textarea", HtmlTextarea,     1, 0, cmdTextarea,      1, 1, cnNop    , optDisableInputScan } ,
-        { "th",       HtmlTableHead,    0, 0, cmdNorm,          1, 0, cnNop    , optDisableTableScan } ,
-        { "tr",       HtmlRow,          1, 0, cmdTablerow,      1, 0, cnTr     , optDisableTableScan } ,
-        { "ul",       HtmlTable,        1, 0, cmdTable,         1, 0, cnUl     , optDisableTableScan } ,
-        { "var",      CmdVar,           0, 0, cmdNorm,          0, 0, cnNop    , 0 } ,
-        { "while",    CmdWhile,         1, 0, cmdWhile,         0, 1, cnNop    , 0 } ,
+        /* cmdname    function        push pop  type         scan save no          disable            bHtml  */
+        { "/dir",     HtmlEndtable,     0, 1, cmdTable,         0, 0, cnDir    , optDisableTableScan, 1 } ,
+        { "/dl",      HtmlEndtable,     0, 1, cmdTable,         0, 0, cnDl     , optDisableTableScan, 1 } ,
+        { "/menu",    HtmlEndtable,     0, 1, cmdTable,         0, 0, cnMenu   , optDisableTableScan, 1 } ,
+        { "/ol",      HtmlEndtable,     0, 1, cmdTable,         0, 0, cnOl     , optDisableTableScan, 1 } ,
+        { "/select",  HtmlEndtable,     0, 1, cmdTable,         0, 0, cnSelect , optDisableTableScan, 1 } ,
+        { "/table",   HtmlEndtable,     0, 1, cmdTable,         0, 0, cnTable  , optDisableTableScan, 1 } ,
+        { "/textarea", HtmlEndtextarea, 0, 1, cmdTextarea,      0, 0, cnNop    , optDisableInputScan, 1 } ,
+        { "/tr",      HtmlEndrow,       0, 1, cmdTablerow,      0, 0, cnTr     , optDisableTableScan, 1 } ,
+        { "/ul",      HtmlEndtable,     0, 1, cmdTable,         0, 0, cnUl     , optDisableTableScan, 1 } ,
+        { "a",        HtmlA,            0, 0, cmdNorm,          0, 0, cnNop    , 0                  , 1 } ,
+        { "body",     HtmlBody,         0, 0, cmdNorm,          1, 0, cnNop    , 0                  , 1 } ,
+        { "dir",      HtmlTable,        1, 0, cmdTable,         1, 0, cnDir    , optDisableTableScan, 1 } ,
+        { "dl",       HtmlTable,        1, 0, cmdTable,         1, 0, cnDl     , optDisableTableScan, 1 } ,
+        { "do",       CmdDo,            1, 0, cmdDo,            0, 0, cnNop    , 0                  , 0 } ,
+        { "else",     CmdElse,          0, 0, cmdIf,            0, 0, cnNop    , 0                  , 0 } ,
+        { "elsif",    CmdElsif,         0, 0, cmdIf,            0, 0, cnNop    , 0                  , 0 } ,
+        { "endforeach", CmdEndforeach,  0, 1, cmdForeach,       0, 0, cnNop    , 0                  , 0 } ,
+        { "endif",    CmdEndif,         0, 1, (enum tCmdType)(cmdIf | cmdEndif), 0, 0, cnNop    , 0,  0 } ,
+        { "endwhile", CmdEndwhile,      0, 1, cmdWhile,         0, 0, cnNop    , 0                  , 0 } ,
+        { "foreach",  CmdForeach,       1, 0, cmdForeach,       0, 0, cnNop    , 0                  , 0 } ,
+        { "hidden",   CmdHidden,        0, 0, cmdNorm,          0, 0, cnNop    , 0                  , 0 } ,
+        { "if",       CmdIf,            1, 0, (enum tCmdType)(cmdIf | cmdEndif), 0, 0, cnNop    , 0,  0 } ,
+        { "input",    HtmlInput,        0, 0, cmdNorm,          1, 0, cnNop    , optDisableInputScan, 1 } ,
+        { "menu",     HtmlTable,        1, 0, cmdTable,         1, 0, cnMenu   , optDisableTableScan, 1 } ,
+        { "meta",     HtmlMeta,         0, 0, cmdNorm,          1, 0, cnNop    , optDisableMetaScan , 1 } ,
+        { "ol",       HtmlTable,        1, 0, cmdTable,         1, 0, cnOl     , optDisableTableScan, 1 } ,
+        { "option",   HtmlOption,       0, 0, cmdNorm,          1, 0, cnNop    , optDisableInputScan, 1 } ,
+        { "select",   HtmlSelect,       1, 0, cmdTable,         1, 0, cnSelect , optDisableTableScan, 1 } ,
+        { "table",    HtmlTable,        1, 0, cmdTable,         1, 0, cnTable  , optDisableTableScan, 1 } ,
+        { "textarea", HtmlTextarea,     1, 0, cmdTextarea,      1, 1, cnNop    , optDisableInputScan, 1 } ,
+        { "th",       HtmlTableHead,    0, 0, cmdNorm,          1, 0, cnNop    , optDisableTableScan, 1 } ,
+        { "tr",       HtmlRow,          1, 0, cmdTablerow,      1, 0, cnTr     , optDisableTableScan, 1 } ,
+        { "ul",       HtmlTable,        1, 0, cmdTable,         1, 0, cnUl     , optDisableTableScan, 1 } ,
+        { "until",    CmdUntil,         0, 1, cmdDo,            0, 0, cnNop    , 0                  , 0 } ,
+        { "var",      CmdVar,           0, 0, cmdNorm,          0, 0, cnNop    , 0                  , 0 } ,
+        { "while",    CmdWhile,         1, 0, cmdWhile,         0, 1, cnNop    , 0                  , 0 } ,
 
     } ;
 
@@ -206,20 +230,15 @@ int  SearchCmd          (/*in*/  const char *    sCmdName,
 
 
 
-int  ProcessCmd        (/*in*/ struct tCmd *  pCmd,
-                        /*in*/ const char *    sArg)
+static int  ProcessMetaCmd    (/*in*/ struct tCmd *  pCmd,
+                               /*in*/ const char *    sArg)
 
     {                        
     int            rc ;
     int            nArgLen ;
 
-    EPENTRY (ProcessCmd) ;
+    EPENTRY (ProcessMetaCmd) ;
     
-    
-    if ((pCmd -> nCmdType & State.bProcessCmds) == 0)
-        return ok ; /* ignore it */
-
-
     if (pCmd -> bPush)
         if (nStack > nStackMax - 2)
             return rcStackOverflow ;
@@ -248,6 +267,7 @@ int  ProcessCmd        (/*in*/ struct tCmd *  pCmd,
             else
                 State.sArg = NULL ;
             State.pSV       = NULL ;
+            State.pSV2      = NULL ;
             State.pBuf      = NULL ;
             State.pCmd      = pCmd ;
             }
@@ -255,7 +275,8 @@ int  ProcessCmd        (/*in*/ struct tCmd *  pCmd,
     pCurrCmd = pCmd ;
 
     rc = (*pCmd -> pProc)(sArg) ;
-    
+    if (rc == rcEvalErr)
+        rc = ok ;
 
     if (pCmd -> bPop && State.pStart == NULL)
         if (nStack < 1)
@@ -266,6 +287,8 @@ int  ProcessCmd        (/*in*/ struct tCmd *  pCmd,
                 pArgStack = State.sArg ;
             if (State.pSV)
                 SvREFCNT_dec (State.pSV) ;
+            if (State.pSV2)
+                SvREFCNT_dec (State.pSV2) ;
 
             State = Stack[--nStack];
             }
@@ -274,7 +297,89 @@ int  ProcessCmd        (/*in*/ struct tCmd *  pCmd,
     }
 
 
+static int  ProcessHtml   (/*in*/ struct tCmd *  pCmd,
+                           /*in*/ const char *    sArg)
 
+    {                        
+    int            rc ;
+    int            nArgLen ;
+
+    EPENTRY (ProcessHtml) ;
+
+    if (pCmd -> bPush)
+        if (nHtmlStack > nStackMax - 2)
+            return rcStackOverflow ;
+        else
+            {
+            if (pCmd -> bSaveArg)
+                {
+                nArgLen = strlen (sArg) + 1 ;
+                if (pArgHtmlStack + nArgLen >= ArgHtmlStack + sizeof (ArgHtmlStack))
+                    {
+                    sprintf (errdat1, "nArgLen=%d, pArgHtmlStack=%d",nArgLen,  pArgHtmlStack - ArgHtmlStack) ;
+                    return rcArgStackOverflow ;
+                    }
+                }
+
+            HtmlStack[nHtmlStack++] = HtmlState ;
+            
+            HtmlState.nCmdType  = pCmd -> nCmdType ;
+            /*HtmlState.bProcessCmds = HtmlStack[nHtmlStack-1].bProcessCmds ;*/
+            HtmlState.pStart    = pCurrPos ;
+            if (pCmd -> bSaveArg)
+                {
+                HtmlState.sArg      = strcpy (pArgHtmlStack, sArg) ;
+                pArgHtmlStack += nArgLen ;
+                }
+            else
+                HtmlState.sArg = NULL ;
+            HtmlState.pSV       = NULL ;
+            HtmlState.pSV2      = NULL ;
+            HtmlState.pBuf      = NULL ;
+            HtmlState.pCmd      = pCmd ;
+            }
+
+    pCurrCmd = pCmd ;
+
+    rc = (*pCmd -> pProc)(sArg) ;
+    if (rc == rcEvalErr)
+        rc = ok ;
+
+    if (pCmd -> bPop && HtmlState.pStart == NULL)
+        if (nHtmlStack < 1)
+            return rcStackUnderflow ;
+        else
+            {
+            if (HtmlState.sArg)
+                pArgHtmlStack = HtmlState.sArg ;
+            if (HtmlState.pSV)
+                SvREFCNT_dec (HtmlState.pSV) ;
+            if (HtmlState.pSV2)
+                SvREFCNT_dec (HtmlState.pSV2) ;
+
+            HtmlState = HtmlStack[--nHtmlStack];
+            }
+
+    return rc ;
+    }
+
+
+
+int  ProcessCmd        (/*in*/ struct tCmd *  pCmd,
+                        /*in*/ const char *    sArg)
+
+    {                        
+    EPENTRY (ProcessCmd) ;
+    
+    
+    if ((pCmd -> nCmdType & State.bProcessCmds) == 0)
+        return ok ; /* ignore it */
+
+    if (pCmd -> bHtml)
+        return ProcessHtml (pCmd, sArg) ;
+
+    return ProcessMetaCmd (pCmd, sArg) ;
+    }
 
 /* ---------------------------------------------------------------------------- */
 /*                                                                              */
@@ -292,7 +397,7 @@ static int CmdIf (/*in*/ const char *   sArg)
         {
         rc = EvalBool ((char *)sArg, (sArg - pBuf), &State.nResult) ;
     
-        if (State.nResult) 
+        if (State.nResult && rc == ok) 
             {
             State.bProcessCmds = cmdAll ;
             }
@@ -331,7 +436,7 @@ static int CmdElsif  (/*in*/ const char *   sArg)
         {    
         rc = EvalBool ((char *)sArg, (sArg - pBuf), &State.nResult) ;
     
-        if (State.nResult) 
+        if (State.nResult && rc == ok) 
             State.bProcessCmds = cmdAll ;
         else
             State.bProcessCmds = cmdIf ;
@@ -419,7 +524,7 @@ int CmdWhile (/*in*/ const char *   sArg)
 
     rc = EvalBool ((char *)sArg, (State.pStart - pBuf), &State.nResult) ;
     
-    if (State.nResult) 
+    if (State.nResult && rc == ok) 
         State.bProcessCmds = cmdAll ;
     else
         State.bProcessCmds = cmdWhile ;
@@ -448,7 +553,7 @@ static int CmdEndwhile (/*in*/ const char *   sArg)
         {
         rc = EvalBool (State.sArg, (State.pStart - pBuf), &State.nResult) ;
     
-        if (State.nResult) 
+        if (State.nResult && rc == ok) 
             {
             pCurrPos = State.pStart ;        
             return rc ;
@@ -460,6 +565,180 @@ static int CmdEndwhile (/*in*/ const char *   sArg)
     return rc ;
     }
 
+/* ---------------------------------------------------------------------------- */
+/*                                                                              */
+/* do command ...                                                            */
+/*                                                                              */
+/* ---------------------------------------------------------------------------- */
+
+int CmdDo (/*in*/ const char *   sArg)
+    {
+    EPENTRY (CmdDo) ;
+
+    return ok ;
+    }
+
+/* ---------------------------------------------------------------------------- */
+/*                                                                              */
+/* until command ...                                                            */
+/*                                                                              */
+/* ---------------------------------------------------------------------------- */
+
+static int CmdUntil (/*in*/ const char *   sArg)
+    {
+    int rc = ok ;
+
+    EPENTRY (CmdUntil) ;
+
+
+    if (State.nCmdType != cmdDo)
+        return rcUntilWithoutDo ;
+
+    
+    rc = EvalBool (sArg, (State.pStart - pBuf), &State.nResult) ;
+
+    if (!State.nResult && rc == ok) 
+        {
+        pCurrPos = State.pStart ;        
+        return rc ;
+        }
+
+    State.pStart    = NULL ;
+
+    return rc ;
+    }
+
+/* ---------------------------------------------------------------------------- */
+/*                                                                              */
+/* foreach command ...                                                          */
+/*                                                                              */
+/* ---------------------------------------------------------------------------- */
+
+int CmdForeach (/*in*/ const char *   sArg)
+    {
+    int rc ;
+    char *  sArgs ;
+    int     nArgLen ;
+    char *  sVarName ;
+    char    sVar[512] ;
+    SV * *  ppSV ;
+    SV *    pRV ;
+    int     nMax ;
+
+    EPENTRY (CmdForeach) ;
+
+    if (State.bProcessCmds == cmdForeach)
+        return ok ;
+
+    nArgLen = strlen (sArg) + 1 ;
+    if (pArgStack + nArgLen >= ArgStack + sizeof (ArgStack))
+        {
+        sprintf (errdat1, "nArgLen=%d, pArgStack=%d",nArgLen,  pArgStack - ArgStack) ;
+        return rcArgStackOverflow ;
+        }
+    
+    if (nArgLen > 1)
+        {            
+        sArgs = strcpy (pArgStack, sArg) ;
+        if (sVarName = strtok (sArgs, ", \t\n"))
+            {
+            if (*sVarName == '$')
+                sVarName++ ;
+        
+            if (!strstr (sVarName, "::"))
+                {            
+                strncpy (sVar, sEvalPackage, sizeof (sVar) - 5) ;
+                sVar[nEvalPackage] = ':' ;
+                sVar[nEvalPackage+1] = ':' ;
+                sVar[sizeof(sVar) - 1] = '\0' ;
+                nMax = sizeof(sVar) - nEvalPackage - 3 ;
+                nArgLen = strlen (sVarName) ;
+                strncpy (sVar + nEvalPackage + 2, sVarName, nMax) ;
+                if ((State.pSV = perl_get_sv (sVar, TRUE)) == NULL)
+                    return rcPerlVarError ;
+                }
+            else
+                if ((State.pSV = perl_get_sv (sVarName, TRUE)) == NULL)
+                    return rcPerlVarError ;
+ 
+            
+            SvREFCNT_inc (State.pSV) ;
+
+            if (sVarName = strtok (NULL, ""))
+                if ((rc = EvalTransFlags (sVarName, (State.pStart - pBuf), G_ARRAY, &pRV)) != ok)
+                    return rc ;
+
+            if (pRV == NULL)
+                return rcMissingArgs ;
+
+            if (SvTYPE (pRV) != SVt_RV)
+                {
+                SvREFCNT_dec (pRV) ;
+                return rcNotAnArray ;
+                }
+
+            State.pSV2 = SvRV (pRV) ;
+            SvREFCNT_inc (State.pSV2) ;
+            SvREFCNT_dec (pRV) ;
+
+            if (SvTYPE (State.pSV2) != SVt_PVAV)
+                return rcNotAnArray ;
+            }
+        }
+
+    
+    if (State.pSV == NULL || State.pSV2 == NULL)
+        return rcMissingArgs ;
+
+
+    State.nResult = 0 ; /* array index */
+
+    ppSV = av_fetch ((AV *)State.pSV2, State.nResult, 0) ;
+
+    if (ppSV != NULL && *ppSV != NULL)
+        {
+        State.bProcessCmds = cmdAll ;
+        sv_setsv (State.pSV, *ppSV) ;
+        State.nResult++ ;
+        }
+    else
+        State.bProcessCmds = cmdForeach ;
+
+    return ok ;
+    }
+
+/* ---------------------------------------------------------------------------- */
+/*                                                                              */
+/* endforeach command ...                                                       */
+/*                                                                              */
+/* ---------------------------------------------------------------------------- */
+
+static int CmdEndforeach (/*in*/ const char *   sArg)
+    {
+    SV ** ppSV ;        
+
+    EPENTRY (CmdEndforeach) ;
+
+
+    if (State.nCmdType != cmdForeach)
+        return rcEndforeachWithoutForeach ;
+
+    if (State.pSV == NULL)
+        return ok ;
+    
+    ppSV = av_fetch ((AV *)State.pSV2, State.nResult, 0) ;
+
+    if (ppSV != NULL && *ppSV != NULL)
+        {
+        sv_setsv (State.pSV, *ppSV) ;
+        State.nResult++ ;
+        pCurrPos = State.pStart ;        
+        }
+    else
+        State.pStart    = NULL ;
+
+    return ok ;
+    }
 
 /* ---------------------------------------------------------------------------- */
 /*                                                                              */
@@ -633,10 +912,10 @@ static int CmdVar (/*in*/ const char *   sArg)
     sv_setiv (*ppSV, 1) ;
     
     pSV = newSVpvf("package %s ; \n#line %d %s\n use vars qw(%s);\n",sEvalPackage, nSourceline, sSourcefile, sArg) ;
-    EvalDirect (pSV) ;
+    rc = EvalDirect (pSV) ;
     SvREFCNT_dec(pSV);
 
-    return ok ;
+    return rc ;
     }
 
 /* ---------------------------------------------------------------------------- */
@@ -733,8 +1012,8 @@ static int HtmlBody (/*in*/ const char *   sArg)
 static int HtmlA (/*in*/ const char *   sArg)
     {
     int    rc ;
-    char   ArgBuf [2048] ;
-    char * pArgBuf = ArgBuf ;
+    char * pArgBuf  = NULL ;
+    char * pFreeBuf = NULL ;
 
     
     EPENTRY (HtmlA) ;
@@ -748,9 +1027,12 @@ static int HtmlA (/*in*/ const char *   sArg)
         if (bEscMode & escUrl)
             pCurrEscape = Char2Url ;
         
-        if ((rc = ScanCmdEvalsInString ((char *)sArg, &pArgBuf, sizeof (ArgBuf))) != ok)
+        if ((rc = ScanCmdEvalsInString ((char *)sArg, &pArgBuf, nInitialScanOutputSize, &pFreeBuf)) != ok)
             {
             pCurrEscape = pCurrEscapeSave ;
+            if (pFreeBuf)
+                _free (pFreeBuf) ;
+            
             return rc ;
             }
         pCurrEscape = pCurrEscapeSave ;
@@ -766,6 +1048,8 @@ static int HtmlA (/*in*/ const char *   sArg)
         }
     oputc ('>') ;
     
+    if (pFreeBuf)
+        _free (pFreeBuf) ;
     
     pCurrPos = NULL ;
     	
@@ -800,10 +1084,10 @@ static int HtmlTable (/*in*/ const char *   sArg)
     TableState.nTabMode  = nTabMode ;
     TableState.nMaxRow   = nTabMaxRow ;
     TableState.nMaxCol   = nTabMaxCol ;
-    TableState.nStackTable = nStack ;
+    TableState.nStackTable = nHtmlStack ;
     
     if ((TableState.nTabMode & epTabRow) == epTabRowDef)
-        State.pBuf = oBegin () ;
+        HtmlState.pBuf = oBegin () ;
 
     pCurrPos = NULL ;
     	
@@ -821,11 +1105,11 @@ static int HtmlEndtable (/*in*/ const char *   sArg)
     {
     EPENTRY (HtmlEndtable) ;
 
-    if (State.nCmdType != cmdTable || State.pCmd -> nCmdNo != pCurrCmd -> nCmdNo)
+    if (HtmlState.nCmdType != cmdTable || HtmlState.pCmd -> nCmdNo != pCurrCmd -> nCmdNo)
         {
         strncpy (errdat1, pCurrTag + 1, sizeof (errdat1) - 1) ; 
-        if (State.pCmd)
-            strcpy (errdat2, State.pCmd -> sCmdName) ; 
+        if (HtmlState.pCmd)
+            strcpy (errdat2, HtmlState.pCmd -> sCmdName) ; 
         else
             strcpy (errdat2, "NO TAG") ; 
         
@@ -838,23 +1122,23 @@ static int HtmlEndtable (/*in*/ const char *   sArg)
 
     if ((TableState.nTabMode & epTabRow) == epTabRowDef)
         if (TableState.nResult || TableState.nCol > 0)
-            oCommit (State.pBuf) ;
+            oCommit (HtmlState.pBuf) ;
         else
-            oRollback (State.pBuf) ;
+            oRollback (HtmlState.pBuf) ;
 
     TableState.nRow++ ;
     if (((TableState.nTabMode & epTabRow) == epTabRowMax ||
          ((TableState.nResult || TableState.nCol > 0) && (TableState.nRowUsed || TableState.nCountUsed) )) &&
           TableState.nRow < TableState.nMaxRow)
         {
-        pCurrPos = State.pStart ;        
+        pCurrPos = HtmlState.pStart ;        
         if ((TableState.nTabMode & epTabRow) == epTabRowDef)
-            State.pBuf = oBegin () ;
+            HtmlState.pBuf = oBegin () ;
 
         return ok ;
         }
 
-    State.pStart    = NULL ;
+    HtmlState.pStart    = NULL ;
     TableState = TableStack[--nTableStack];
 
     return ok ;
@@ -872,8 +1156,8 @@ static int HtmlRow (/*in*/ const char *   sArg)
 
             
     if (TableState.nStackTable <= 0 || 
-        nStack <= TableState.nStackTable ||
-        Stack[TableState.nStackTable].pCmd -> nCmdNo  != cnTable)
+        nHtmlStack <= TableState.nStackTable ||
+        HtmlStack[TableState.nStackTable].pCmd -> nCmdNo  != cnTable)
         return rcTablerowOutsideOfTable ;
 
     
@@ -891,7 +1175,7 @@ static int HtmlRow (/*in*/ const char *   sArg)
     TableState.bHead      = TableState.bRowHead = 0 ;
 
     if ((TableState.nTabMode & epTabCol) == epTabColDef)
-        State.pBuf = oBegin () ;
+        HtmlState.pBuf = oBegin () ;
     
     pCurrPos = NULL ;
     
@@ -909,7 +1193,7 @@ int HtmlEndrow (/*in*/ const char *   sArg)
     EPENTRY (HtmlEndrow) ;
 
     
-    if (State.nCmdType != cmdTablerow)
+    if (HtmlState.nCmdType != cmdTablerow)
         return rcEndtableWithoutTablerow ;
 
     if (bDebug & dbgTab)
@@ -919,12 +1203,12 @@ int HtmlEndrow (/*in*/ const char *   sArg)
     
     if ((TableState.nTabMode & epTabCol) == epTabColDef)
         if (TableState.nResult || (!TableState.nColUsed && !TableState.nCountUsed && !TableState.nRowUsed))
-            oCommit (State.pBuf) ;
+            oCommit (HtmlState.pBuf) ;
         else
-            oRollback (State.pBuf), TableState.nCol-- ;
+            oRollback (HtmlState.pBuf), TableState.nCol-- ;
 
     if (TableState.bRowHead)    
-        Stack[TableState.nStackTable].pStart = pCurrPos ;
+        HtmlStack[TableState.nStackTable].pStart = pCurrPos ;
 
     TableState.nCount++ ;
     TableState.nCol++ ;
@@ -932,12 +1216,12 @@ int HtmlEndrow (/*in*/ const char *   sArg)
          (TableState.nResult && (TableState.nColUsed || TableState.nCountUsed)))
         && TableState.nCol < TableState.nMaxCol)
         {
-        pCurrPos = State.pStart ;        
+        pCurrPos = HtmlState.pStart ;        
         if ((TableState.nTabMode & epTabCol) == epTabColDef)
-            State.pBuf = oBegin () ;
+            HtmlState.pBuf = oBegin () ;
         }
     else
-        State.pStart    = NULL ;
+        HtmlState.pStart    = NULL ;
 
     return ok ;
     }
@@ -960,6 +1244,56 @@ static int HtmlTableHead (/*in*/ const char *   sArg)
     return ok ;
     }
 
+/* ---------------------------------------------------------------------------- */
+/*                                                                              */
+/* Split values in from %fdat                                                   */
+/*                                                                              */
+/* ---------------------------------------------------------------------------- */
+
+
+static void SplitFdat     (/*in*/  SV ** ppSVfdat,
+                           /*out*/ SV ** ppSVerg)
+
+    {
+    STRLEN dlen ;
+    char * pData ;
+    char * s ;
+    char * p ;
+    
+    if (SvOK (*ppSVerg))
+        return ;
+    
+    pData = SvPV (*ppSVfdat, dlen) ;
+    s = pData ;
+
+    if (p = strchr (s, cMultFieldSep))
+        { /* Multiple values -> put them into a hash */
+        HV * pHV = newHV () ;
+        SV * pSV ;
+        int l ;
+
+        while (p)
+            {
+            hv_store (pHV, s, p - s, &sv_undef, 0) ;
+            s = p + 1 ;
+            p = strchr (s, cMultFieldSep) ;
+            }
+
+        l = dlen - (s - pData) ;
+        if (l > 0)
+            hv_store (pHV, s, l, &sv_undef, 0) ;
+        *ppSVerg = (SV *)pHV ;
+        if (bDebug & dbgInput)
+            lprintf ("[%d]INPU: <mult values>\n", nPid) ; 
+        }
+    else
+        {
+        *ppSVerg = *ppSVfdat ;
+        SvREFCNT_inc (*ppSVerg) ;
+        if (bDebug & dbgInput)
+            lprintf ("[%d]INPU: value = %s\n", nPid, SvPV(*ppSVerg, na)) ; 
+        }
+   }    
 
 /* ---------------------------------------------------------------------------- */
 /*                                                                              */
@@ -984,54 +1318,31 @@ static int HtmlSelect (/*in*/ const char *   sArg)
         }
     else
         {
-        if (pArgStack + nlen + 1 >= ArgStack + sizeof (ArgStack))
+        if (pArgHtmlStack + nlen + 1 >= ArgHtmlStack + sizeof (ArgHtmlStack))
            {
-           sprintf (errdat1, "nArgLen=%d, pArgStack=%d",nlen + 1,  pArgStack - ArgStack) ;
+           sprintf (errdat1, "nArgLen=%d, pArgHtmlStack=%d",nlen + 1,  pArgHtmlStack - ArgHtmlStack) ;
            return rcArgStackOverflow ;
            }
-        State.sArg   = strncpy (pArgStack, pName, nlen) ;
-        State.sArg[nlen] = '\0' ;
-        pArgStack   += nlen + 1 ;
+        HtmlState.sArg   = strncpy (pArgHtmlStack, pName, nlen) ;
+        HtmlState.sArg[nlen] = '\0' ;
+        pArgHtmlStack   += nlen + 1 ;
 
         ppSV = hv_fetch(pFormHash, (char *)pName, nlen, 0) ;  
         if (ppSV == NULL)
             {
             if (bDebug & dbgInput)
-                lprintf ("[%d]INPU: Select %s: no data available in form data\n", nPid, State.sArg) ; 
+                lprintf ("[%d]INPU: Select %s: no data available in form data\n", nPid, HtmlState.sArg) ; 
             }
         else
             {
-            STRLEN dlen ;
-            char * pData = SvPV (*ppSV, dlen) ;
-            char * s = pData ;
-            char * p ;
-            if (p = strchr (s, cMultFieldSep))
-                { /* Multiple values -> put them into a hash */
-                HV * pHV = newHV () ;
-                SV * pSV ;
-                int l ;
+            SV * * ppSVerg = hv_fetch(pFormSplitHash, (char *)pName, nlen, 1) ;  
 
-                while (p)
-                    {
-                    hv_store (pHV, pData, p - pData, &sv_undef, 0) ;
-                    s = p + 1 ;
-                    p = strchr (s, cMultFieldSep) ;
-                    }
+            SplitFdat (ppSV, ppSVerg) ;
 
-                l = dlen - (s - pData) ;
-                if (l > 0)
-                    hv_store (pHV, s, l, &sv_undef, 0) ;
-                State.pSV = (SV *)pHV ;
-                if (bDebug & dbgInput)
-                    lprintf ("[%d]INPU: Select %s = <mult values>\n", nPid, State.sArg) ; 
-                }
-            else
-                {
-                State.pSV = *ppSV ;
-                SvREFCNT_inc (State.pSV) ;
-                if (bDebug & dbgInput)
-                    lprintf ("[%d]INPU: Select %s = %s\n", nPid, State.sArg, SvPV(State.pSV, na)) ; 
-                }
+            HtmlState.pSV = *ppSVerg ;
+            SvREFCNT_inc (HtmlState.pSV) ;
+            if (bDebug & dbgInput)
+                lprintf ("[%d]INPU: Select %s = %s\n", nPid, HtmlState.sArg, SvPV(HtmlState.pSV, na)) ; 
            }    
         }
 
@@ -1060,12 +1371,11 @@ static int HtmlOption (/*in*/ const char *   sArg)
     STRLEN        dlen ;
     int           bSel ;
 
-
     EPENTRY (HtmlOption) ;
 
-    pName = State.sArg?State.sArg:"" ;
+    pName = HtmlState.sArg?HtmlState.sArg:"" ;
 
-    if (State.pSV == NULL)
+    if (HtmlState.pSV == NULL)
         {
         /*if (bDebug & dbgInput)
             lprintf ("[%d]INPU: <Select>/<Option> no data available\n", nPid) ; */
@@ -1084,18 +1394,23 @@ static int HtmlOption (/*in*/ const char *   sArg)
 
     pSelected = GetHtmlArg (sArg, "SELECTED", &slen) ;
     bSel = 0 ;
-    if (SvTYPE (State.pSV) == SVt_PVHV)
+
+    
+    if (SvTYPE (HtmlState.pSV) == SVt_PVHV)
         { /* -> Hash -> check if key exists */
-        if (hv_exists ((HV *)State.pSV, (char *)pVal, vlen))
+        if (hv_exists ((HV *)HtmlState.pSV, (char *)pVal, vlen))
             bSel = 1 ;
         }
     else
         {
-        pData = SvPV (State.pSV, dlen) ;
+        pData = SvPV (HtmlState.pSV, dlen) ;
         if (dlen == vlen && strncmp (pVal, pData, dlen) == 0)
             bSel = 1 ;
         }
             
+    if (bDebug & dbgInput)
+        lprintf ("[%d]INPU: <Option> %s is now%s selected\n", nPid, pName, (bSel?"":" not")) ; 
+
     if (bSel)
         { /* -> selected */
         SV * pSV = newSVpv ((char *)pVal, vlen) ;
@@ -1205,30 +1520,55 @@ static int HtmlInput (/*in*/ const char *   sArg)
     ppSV = hv_fetch(pFormHash, (char *)pName, nlen, 0) ;  
     if (ppSV == NULL)
         {
-        if (bDebug & dbgInput)
-            lprintf ("[%d]INPU: %s: no data available in form data\n", nPid, sName) ; 
-
-        if (vlen != 0)    
+        if (bOptions & optUndefToEmptyValue)
             {
-            pSV = newSVpv ((char *)pVal, vlen) ;
-
-            if (hv_store (pInputHash, sName, strlen (sName), pSV, 0) == NULL)
-                return rcHashError ;
+            pData = "" ;
+            dlen = 0 ;
             }
+        else
+            {
+            if (bDebug & dbgInput)
+                lprintf ("[%d]INPU: %s: no data available in form data\n", nPid, sName) ; 
 
-        return ok ; /* no data available */
+            if (vlen != 0)    
+                {
+                pSV = newSVpv ((char *)pVal, vlen) ;
+
+                if (hv_store (pInputHash, sName, strlen (sName), pSV, 0) == NULL)
+                    return rcHashError ;
+                }
+
+            return ok ; /* no data available */
+            }
         }
-
-    pData = SvPV (*ppSV, dlen) ;
+    else
+        pData = SvPV (*ppSV, dlen) ;
     
 
     if (bCheck)
-        {
-        if (pVal && vlen == strlen (pData))
-            bEqual = strncmp (pData, pVal, vlen) == 0 ; 
-        else
-            bEqual = 0 ;
+        { /* check box */
+        bEqual = 0 ;
         
+        if (vlen > 0 && ppSV)
+            {
+            SV * * ppSVerg = hv_fetch(pFormSplitHash, (char *)pName, nlen, 1) ;  
+
+            SplitFdat (ppSV, ppSVerg) ;
+    
+            if (SvTYPE (*ppSVerg) == SVt_PVHV)
+                { /* -> Hash -> check if key exists */
+                if (hv_exists ((HV *)*ppSVerg, (char *)pVal, vlen))
+                    bEqual = 1 ;
+                }
+            else
+                {
+                pData = SvPV (*ppSVerg, dlen) ;
+                if (dlen == vlen && strncmp (pVal, pData, dlen) == 0)
+                    bEqual = 1 ;
+                }
+            
+            }
+       
         pCheck = GetHtmlArg (sArg, "CHECKED", &clen) ;
         if (pCheck)
             {
@@ -1256,35 +1596,37 @@ static int HtmlInput (/*in*/ const char *   sArg)
                 }
             }
         }
-    else if (pVal)
-        {
-        oputs ("<INPUT ") ;
+    else 
+        { /* text field */
+        if (pVal)
+            {
+            oputs ("<INPUT ") ;
 
-        owrite (sArg, pVal - sArg, 1) ;
+            owrite (sArg, pVal - sArg, 1) ;
 
-        oputs (" VALUE=\"") ;
-        OutputToHtml (pData) ;
-        oputs ("\" ") ;
+            oputs (" VALUE=\"") ;
+            OutputToHtml (pData) ;
+            oputs ("\" ") ;
 
-        while (*pVal && !isspace(*pVal))
-            pVal++ ;
+            while (*pVal && !isspace(*pVal))
+                pVal++ ;
         
-        oputs (pVal) ; /* write rest of html tag */
-        oputc ('>') ;
+            oputs (pVal) ; /* write rest of html tag */
+            oputc ('>') ;
 
-        pCurrPos = NULL ; /* nothing more left of html tag */
-        }
-    else
-        {
-        oputs ("<INPUT ") ;
-        oputs (sArg) ;
-        oputs (" VALUE=\"") ;
-        OutputToHtml (pData) ;
-        oputs ("\">") ;
+            pCurrPos = NULL ; /* nothing more left of html tag */
+            }
+        else
+            {
+            oputs ("<INPUT ") ;
+            oputs (sArg) ;
+            oputs (" VALUE=\"") ;
+            OutputToHtml (pData) ;
+            oputs ("\">") ;
     
-        pCurrPos = NULL ; /* nothing more left of html tag */
+            pCurrPos = NULL ; /* nothing more left of html tag */
+            }
         }
-
 
     if (bDebug & dbgInput)
         {
@@ -1336,15 +1678,15 @@ static int HtmlEndtextarea (/*in*/ const char *   sArg)
     EPENTRY (HtmlEndtextarea) ;
     
     
-    pVal = State.pStart ;
+    pVal = HtmlState.pStart ;
 
-    State.pStart = NULL ;
+    HtmlState.pStart = NULL ;
 
-    if (State.nCmdType != cmdTextarea)
+    if (HtmlState.nCmdType != cmdTextarea)
         return rcEndtextareaWithoutTextarea ;
 
 
-    pName = GetHtmlArg (State.sArg, "NAME", &nlen) ;
+    pName = GetHtmlArg (HtmlState.sArg, "NAME", &nlen) ;
     if (nlen == 0)
         {
         if (bDebug & dbgInput)

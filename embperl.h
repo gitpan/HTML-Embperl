@@ -55,6 +55,11 @@ enum tRc
     rcPerlWarn,
     rcVirtLogNotSet,
     rcMissingInput,
+    rcExit,
+    rcUntilWithoutDo, 
+    rcEndforeachWithoutForeach, 
+    rcMissingArgs,
+    rcNotAnArray,
     } ;
 
 
@@ -109,6 +114,7 @@ enum opt
     optDisableMetaScan         = 4096,
     optAllFormData             = 8192,
     optRedirectStdout          = 16384,
+    optUndefToEmptyValue       = 32768,
     } ;
 
 /*

@@ -210,7 +210,14 @@ if ($b && $apache && $apache_src ne '')
     if ($win32)
 	{ 
         $i = "-I. -I$inc_dir -I$apache_src/regex -I$apache_src/os/win32" ;
-        $o = " $apache_src/CoreR/ApacheCore.lib" ;
+	if (!-e "$apache_src/CoreR/ApacheCore.lib")
+            {
+	    $o = " $apache_src/CoreD/ApacheCore.lib" ;
+	    }
+	else
+	    {        
+	    $o = " $apache_src/CoreR/ApacheCore.lib" ;
+	    }
         }
     else
 	{
@@ -233,6 +240,7 @@ else
     $o = '' ;
     }
 		
+
 if ($win32 && $apache)
     {	# borrowed from mod_perl
     local *FH;
@@ -278,6 +286,7 @@ EOF
 
 $EPPATH    = cwd ;
 $EPMODPERL = '' ;
+$EPSTARTUP ='startup.pl' ;
 
 if ($b && $apache)
     {
@@ -306,7 +315,13 @@ if ($b && $apache)
             {
             $EPHTTPD = GetString ("Enter path and file to start as httpd", "$EPHTTPD") ;
             }
-
+	
+	$EPMODPERL="" ;
+	if (-e "$apache_src/modules/perl/libperl.so" ) 
+	    {
+	    $EPMODPERL="LoadModule perl_module $apache_src/modules/perl/libperl.so" ;
+            $EPSTARTUP ='startup_dso.pl' ;
+	    }
         }
     else
         {
@@ -367,14 +382,14 @@ if ($b && $apache)
     print FH "\$EPAPACHE_SSL='$EPAPACHE_SSL' ;\n" ;
     print FH "\$EPSTRONGHOLD='$EPSTRONGHOLD' ;\n" ;
     print FH "\$EPSTRONGHOLDKEY='$EPSTRONGHOLDKEY' ;\n" ;
+    print FH "\$EPMODPERL='$EPMODPERL';\n" ;
+    print FH "\$EPSTARTUP='$EPSTARTUP';\n" ;
     if ($win32)
         {
-        print FH "\$EPMODPERL='$EPMODPERL';\n" ;
         print FH "\$EPNULL='nul';\n" ;
         }
     else
         {
-        print FH "\$EPMODPERL='';\n" ;
         print FH "\$EPNULL='/dev/null';\n" ;
         }
 

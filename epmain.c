@@ -55,6 +55,7 @@ char cMultFieldSep = '\t' ;  /* Separator if a form filed is multiplie defined *
 
 static char sEnvHashName   [] = "ENV" ;
 static char sFormHashName  [] = "HTML::Embperl::fdat" ;
+static char sFormSplitHashName [] = "HTML::Embperl::fsplitdat" ;
 static char sFormArrayName [] = "HTML::Embperl::ffld" ;
 static char sInputHashName [] = "HTML::Embperl::idat" ;
 static char sErrArrayName  [] = "HTML::Embperl::errors" ;
@@ -77,6 +78,7 @@ static char sEvalPackageName[]= "HTML::Embperl::evalpackage" ;
 
 HV *    pEnvHash ;   /* environement from CGI Script */
 HV *    pFormHash ;  /* Formular data */
+HV *    pFormSplitHash ;  /* Formular data split up at \t */
 HV *    pInputHash ; /* Data of input fields */
 AV *    pFormArray ; /* Fieldnames */
 AV *    pErrArray ;  /* Errors to show on Error response */
@@ -185,6 +187,10 @@ char * LogError (/*in*/ int   rc)
         case rcPerlWarn:                msg ="[%d]ERR:  %d: Line %d: Warning in Perl code: %s%s" ; break ;
         case rcVirtLogNotSet:           msg ="[%d]ERR:  %d: Line %d: EMBPERL_VIRTLOG must be set, when dbgLogLink is set %s%s" ; break ;
         case rcMissingInput:            msg ="[%d]ERR:  %d: Line %d: Sourcedaten fehlen %s%s" ; break ;
+        case rcUntilWithoutDo:          msg ="[%d]ERR:  %d: Line %d: until without do%s%s" ; break ;
+        case rcEndforeachWithoutForeach:msg ="[%d]ERR:  %d: Line %d: endforeach without foreach%s%s" ; break ;
+        case rcMissingArgs:             msg ="[%d]ERR:  %d: Line %d: Too few arguments%s%s" ; break ;
+        case rcNotAnArray:              msg ="[%d]ERR:  %d: Line %d: Second Argument must be array/list%s%s" ; break ;
         default:                        msg ="[%d]ERR:  %d: Line %d: Error %s%s" ; break ; 
         }
 
@@ -319,15 +325,21 @@ void RollbackError ()
 /* Magic */
 /* */
 
-static void NewEscMode ()
+static void NewEscMode (SV * pSV)
 
     {
     if (bEscMode & escHtml)
-        pCurrEscape = Char2Html ;
+        pNextEscape = Char2Html ;
     else if (bEscMode & escUrl)
-        pCurrEscape = Char2Url ;
+        pNextEscape = Char2Url ;
     else 
-        pCurrEscape = NULL ;
+        pNextEscape = NULL ;
+
+    if (bEscModeSet < 1)
+        pCurrEscape = pNextEscape ;
+
+    if (bEscModeSet < 0 && SvOK (pSV))
+        bEscModeSet = 1 ;
     }
 
 
@@ -340,7 +352,7 @@ INTMG (TabCol, TableState.nCol, TableState.nColUsed, ;)
 INTMG (TabMaxRow, nTabMaxRow, notused,  ;) 
 INTMG (TabMaxCol, nTabMaxCol, notused, ;) 
 INTMG (TabMode, nTabMode, notused, ;) 
-INTMG (EscMode, bEscMode, notused, NewEscMode ()) 
+INTMG (EscMode, bEscMode, notused, NewEscMode (pSV)) 
 
 OPTMGRD (optDisableVarCleanup      , bOptions) ;
 OPTMG   (optDisableEmbperlErrorPage, bOptions) ;
@@ -357,6 +369,9 @@ OPTMG   (optDisableTableScan       , bOptions) ;
 OPTMG   (optDisableMetaScan        , bOptions) ;
 OPTMGRD (optAllFormData            , bOptions) ;
 OPTMGRD (optRedirectStdout         , bOptions) ;
+OPTMG   (optUndefToEmptyValue      , bOptions) ;
+
+
 
 OPTMG   (dbgStd          , bDebug) ;
 OPTMG   (dbgMem          , bDebug) ;
@@ -400,6 +415,7 @@ static int GetFormData (/*in*/ char * pQueryString,
     EPENTRY (GetFormData) ;
 
     hv_clear (pFormHash) ;
+    hv_clear (pFormSplitHash) ;
     
 
     if (nLen == 0)
@@ -415,15 +431,17 @@ static int GetFormData (/*in*/ char * pQueryString,
     pKey = pVal = p ;
     while (1)
         {
-        switch (*pQueryString)
+        switch (nLen > 0?*pQueryString:'\0')
             {
             case '+':
                 pQueryString++ ;
+                nLen-- ;
                 *p++ = ' ' ;
                 break ;
             
             case '%':
                 pQueryString++ ;
+                nLen-- ;
                 num = 0 ;
                 if (*pQueryString)
                     {
@@ -440,24 +458,40 @@ static int GetFormData (/*in*/ char * pQueryString,
                     else
                         num += (toupper (*pQueryString) - '0') ;
                     pQueryString++ ;
+                    nLen-- ;
                     }
                 *p++ = num ;
                 break ;
             case '=':
                 nKey = p - pKey ;
-                *p++ = '\0' ;
+                *p++ = cMultFieldSep ;
                 nVal = 0 ;
                 pVal = p ;
                 pQueryString++ ;
+                nLen-- ;
                 break ;
             case '&':
                 pQueryString++ ;
+                nLen-- ;
             case '\0':
                 nVal = p - pVal ;
                 *p++ = '\0' ;
             
                 if (nKey > 0 && (nVal > 0 || (bOptions & optAllFormData)))
                     {
+                    /* store the name\tvalue pair */
+                    pSVV = newSVpv (pVal, nVal) ;
+
+                    /*
+                    if (hv_store (pFormNameValueHash, pKey, p - pKey - 1, pSVV, 0) == NULL)
+                        {
+                        _free (pMem) ;
+                        return rcHashError ;
+                        }
+                    */
+                    if (pVal > pKey)
+                        pVal[-1] = '\0' ;
+                    
                     if (ppSV = hv_fetch (pFormHash, pKey, nKey, 0))
                         { /* Field exists already -> append separator and field value */
                         sv_catpvn (*ppSV, &cMultFieldSep, 1) ;
@@ -465,8 +499,7 @@ static int GetFormData (/*in*/ char * pQueryString,
                         }
                     else
                         { /* New Field -> store it */
-                        pSVV = newSVpv (pVal, nVal) ;
-
+                        /*SvREFCNT_inc (pSVV) ;*/
                         if (hv_store (pFormHash, pKey, nKey, pSVV, 0) == NULL)
                             {
                             _free (pMem) ;
@@ -496,6 +529,7 @@ static int GetFormData (/*in*/ char * pQueryString,
                 break ;
             default:
                 *p++ = *pQueryString++ ;
+                nLen-- ;
                 break ;
             }
         }
@@ -566,7 +600,7 @@ static int GetInputData_CGIProcess ()
             len = atoi (sLine) ;
             if ((p = _malloc (len + 1)) == NULL)
                 return rcOutOfMemory ;
-            iread (p, len, 1) ;
+            iread (p, len) ;
             p[len] = '\0' ;
             rc = GetFormData (p, len) ;
             _free (p) ;
@@ -594,8 +628,7 @@ static int GetInputData_CGIScript ()
     char *  p ;
     char *  f ;
     int     rc = ok ;
-    int     len   = 0 ;
-    char    sQuery [2048] ;
+    STRLEN  len   = 0 ;
     char    sLen [20] ;
     
 
@@ -640,9 +673,13 @@ static int GetInputData_CGIScript ()
 
     if ((len = atoi (sLen)) == 0)
         {
-        GetHashValue (pEnvHash, "QUERY_STRING", sizeof (sQuery) - 1, sQuery) ;
-        p = sQuery ;
-        len = strlen (sQuery) ;
+        SV * * ppSV = hv_fetch(pEnvHash, "QUERY_STRING", sizeof ("QUERY_STRING") - 1, 0) ;  
+        if (ppSV != NULL)
+            {
+            p = SvPV (*ppSV ,len) ;
+            }
+        else
+            len = 0 ;
         f = NULL ;
         }
     else
@@ -655,7 +692,7 @@ static int GetInputData_CGIScript ()
             _free (p) ;
             return rc ;
             }
-        iread (p, len, 1) ;
+        iread (p, len) ;
         CloseInput () ;
         
         p[len] = '\0' ;
@@ -741,13 +778,19 @@ static int ScanCmdEvals (/*in*/ char *   p)
         case '+':
             if (State.bProcessCmds == cmdAll)
                 {
-                EvalTrans (pCurrPos, (pCurrPos - pBuf), &pRet) ;
-        
+                bEscModeSet = -1 ;
+                pNextEscape = pCurrEscape ;
+                rc = EvalTrans (pCurrPos, (pCurrPos - pBuf), &pRet) ;
+                if (rc != ok && rc != rcEvalErr)
+                    return rc ;
+
                 if (pRet)
                     {
                     OutputToHtml (SvPV (pRet, na)) ;
                     SvREFCNT_dec (pRet) ;
                     }
+                pCurrEscape = pNextEscape ;
+                bEscModeSet = 0 ;
                 }
 
             p [-2] = nType ;
@@ -758,7 +801,9 @@ static int ScanCmdEvals (/*in*/ char *   p)
         case '-':
             if (State.bProcessCmds == cmdAll)
                 {
-                EvalTrans (pCurrPos, (pCurrPos - pBuf), &pRet) ;
+                rc = EvalTrans (pCurrPos, (pCurrPos - pBuf), &pRet) ;
+                if (rc != ok && rc != rcEvalErr)
+                    return rc ;
                 if (pRet)
                     SvREFCNT_dec (pRet) ;
                 }
@@ -770,7 +815,9 @@ static int ScanCmdEvals (/*in*/ char *   p)
         case '!':
             if (State.bProcessCmds == cmdAll)
                 {
-                EvalTransOnFirstCall (pCurrPos, (pCurrPos - pBuf), &pRet) ;
+                rc = EvalTransOnFirstCall (pCurrPos, (pCurrPos - pBuf), &pRet) ;
+                if (rc != ok && rc != rcEvalErr)
+                    return rc ;
                 if (pRet)
                     SvREFCNT_dec (pRet) ;
                 }
@@ -824,7 +871,8 @@ static int ScanCmdEvals (/*in*/ char *   p)
     
 int ScanCmdEvalsInString (/*in*/  char *   pIn,
                           /*out*/ char * * pOut,
-                          /*in*/  size_t   nSize)
+                          /*in*/  size_t   nSize,
+                          /*out*/ char * * pFree)
     
     
     { 
@@ -838,6 +886,7 @@ int ScanCmdEvalsInString (/*in*/  char *   pIn,
 
     EPENTRY (ScanCmdEvalsInString) ;
 
+    *pFree = NULL ;
     if (p == NULL)
         {
         /* lprintf ("SCEV nothing sArg = %s\n", pIn) ; */
@@ -857,6 +906,10 @@ int ScanCmdEvalsInString (/*in*/  char *   pIn,
 
     pCurrPos = pIn ;
     pEndPos  = pIn + strlen (pIn) ;
+
+    *pOut = _malloc (nSize) ;
+    if (*pOut == NULL)
+        return rcOutOfMemory ;
 
     OutputToMemBuf (*pOut, nSize) ;
 
@@ -902,14 +955,14 @@ int ScanCmdEvalsInString (/*in*/  char *   pIn,
         p = strchr (pCurrPos, '[') ;
         }
     
-    OutputToStd () ;
-    
+    *pFree = *pOut = OutputToStd () ;
+
     pCurrPos   = pSaveCurrPos ;
     pCurrStart = pSaveCurrStart ;
     pEndPos    = pSaveEndPos ;
     pLineNoCurrPos = pSaveLineNo ;
     
-    return ok ;
+    return rc ;
     }
             
 /* ---------------------------------------------------------------------------- */
@@ -930,8 +983,8 @@ static int ScanHtmlTag (/*in*/ char *   p)
     char * pea ;
     char * pCmd ;
     char * pArg ;
-    char   ArgBuf [2048] ;
-    char * pArgBuf = ArgBuf ;
+    char * pArgBuf  = NULL ;
+    char * pFreeBuf = NULL ;
     struct tCmd * pCmdInfo ;
 
 
@@ -1010,7 +1063,7 @@ static int ScanHtmlTag (/*in*/ char *   p)
     
     if (*pArg != '\0' && pCmdInfo -> bScanArg)
     	{
-        if ((rc = ScanCmdEvalsInString ((char *)pArg, &pArgBuf, sizeof (ArgBuf))) != ok)
+        if ((rc = ScanCmdEvalsInString ((char *)pArg, &pArgBuf, nInitialScanOutputSize, &pFreeBuf)) != ok)
             return rc ;
     	}
     else
@@ -1027,7 +1080,12 @@ static int ScanHtmlTag (/*in*/ char *   p)
             /*p = pCurrPos = pCurrTag + 1 ;   */    /* check if more to exceute within html tag */
             }
         else
+            {
+            if (pFreeBuf)
+                _free (pFreeBuf) ;
+            
             return rc ;
+            }
         }
 
 
@@ -1063,6 +1121,9 @@ static int ScanHtmlTag (/*in*/ char *   p)
 
     if (pCurrPos == NULL)
         pCurrPos = p ; /* html tag is written by command handler */
+
+    if (pFreeBuf)
+        _free (pFreeBuf) ;
 
     pCurrTag = NULL ;
 
@@ -1189,6 +1250,13 @@ int iembperl_init (/*in*/ int           _nIOType,
         }
 
 
+    if ((pFormSplitHash = perl_get_hv (sFormSplitHashName, TRUE)) == NULL)
+        {
+        LogError (rcHashError) ;
+        return 1 ;
+        }
+
+
     if ((pFormArray = perl_get_av (sFormArrayName, TRUE)) == NULL)
         {
         LogError (rcArrayError) ;
@@ -1268,6 +1336,7 @@ int iembperl_init (/*in*/ int           _nIOType,
     ADDOPTMG (optDisableMetaScan        ) ;
     ADDOPTMG (optAllFormData            ) ;
     ADDOPTMG (optRedirectStdout         ) ;
+    ADDOPTMG (optUndefToEmptyValue      ) ;
 
     ADDOPTMG   (dbgStd         ) ;
     ADDOPTMG   (dbgMem         ) ;
@@ -1324,7 +1393,7 @@ int iembperl_setreqrec  (/*in*/ SV *   pReqSV)
         }    
     
     pReq = (request_rec *)SvIV((SV*)SvRV(pReqSV));
-    bDebug = 0 ; /* set it to nothing for output of logfiles */
+    bDebug &= ~(dbgFlushLog) ; /* set Debugflags to no output to logfiles */
 #endif
 
     return ok ;
@@ -1332,9 +1401,12 @@ int iembperl_setreqrec  (/*in*/ SV *   pReqSV)
 
 
 
-int iembperl_resetreqrec  ()
+int iembperl_resetreqrec  (/*in*/ int bResetHandler)
     {
 #ifdef APACHE
+    if (pReq && bResetHandler)
+        pReq -> handler = NULL ;
+    
     pReq = NULL ;
 #endif
     bReqRunning = 0 ;
@@ -1344,6 +1416,7 @@ int iembperl_resetreqrec  ()
     pSourcelinePos = NULL ;    
     pLineNoCurrPos = NULL ;    
 
+    FlushLog () ;
 
     return ok ;
     }
@@ -1438,15 +1511,22 @@ static int SetupRequest   (/*in*/ char *  sInputfile,
 
     nStack          = 0 ;
     nTableStack     = 0 ;
+    nHtmlStack      = 0 ;
     pArgStack       = ArgStack ;
+    pArgHtmlStack   = ArgHtmlStack ;
 
     memset (&State, 0, sizeof (State)) ;
+    memset (&HtmlState, 0, sizeof (HtmlState)) ;
     memset (&TableState, 0, sizeof (TableState)) ;
     
     State.nCmdType      = cmdNorm ;
     State.bProcessCmds  = cmdAll ;
     State.sArg          = strcpy (pArgStack, "") ;
     pArgStack       += 1 ;
+    HtmlState.nCmdType      = cmdNorm ;
+    HtmlState.bProcessCmds  = cmdAll ;
+    HtmlState.sArg          = strcpy (pArgHtmlStack, "") ;
+    pArgHtmlStack       += 1 ;
     nTabMode        = epTabRowDef | epTabColDef ;
     nTabMaxRow      = 100 ;
     nTabMaxCol      = 10 ;
@@ -1860,7 +1940,7 @@ int iembperl_req  (/*in*/ char *  sInputfile,
                    /*in*/ char *  sOutputfile,
                    /*in*/ int     bDebugFlags,
                    /*in*/ int     bOptionFlags,
-                   /*in*/ int     nFileSize,
+                   /*in*/ STRLEN  nFileSize,
                    /*in*/ HV *    pCache, 
                    /*in*/ SV *    pInData,
                    /*in*/ SV *    pOutData) 
@@ -1950,7 +2030,10 @@ int iembperl_req  (/*in*/ char *  sInputfile,
 	    bOptions |= optDisableChdir ;
 	
 	if ((rc = ProcessFile (nFileSize)) != ok)
-            LogError (rc) ;
+            if (rc == rcExit)
+                rc = ok ;
+            else
+                LogError (rc) ;
 
 	/* --- restore working directory --- */
 	if ((bOptions & optDisableChdir) == 0)

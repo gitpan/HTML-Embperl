@@ -1,16 +1,15 @@
 TODO for Embperl
 
-- MAX_PATH
-- dbgLogOutput
-
 
 - Apache::Symbol::undef (avoid function redefinition warning)
 
-+- Mail Form Return Path
 
-- [$foreach$]
-?- docs
 - @param -> @_
 
 - delete empty lines
+
+
+- multiply checkboxes setup via %fdat
+
+- apache with DSO, make test
 

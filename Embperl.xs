@@ -152,10 +152,14 @@ CODE:
 OUTPUT:
     RETVAL
 
-int
-embperl_resetreqrec()
+void
+embperl_resetreqrec(bResetHandler=0)
+int bResetHandler
 CODE:
-    iembperl_resetreqrec() ;
+    iembperl_resetreqrec(bResetHandler) ;
+
+
+
 
 #if defined (__GNUC__) && defined (__i386__)
 
@@ -223,6 +227,7 @@ OUTPUT:
 long
 embperl_getlogfilepos()
 CODE:
+    OpenLog ("", 2) ;
     RETVAL = GetLogFilePos() ;
 OUTPUT:
     RETVAL
@@ -240,7 +245,13 @@ void
 embperl_log(sText)
     char * sText
 CODE:
+    OpenLog ("", 2) ;
     lwrite (sText, strlen (sText), 1) ;
+
+void
+embperl_flushlog()
+CODE:
+    FlushLog () ;
 
 
 

@@ -48,6 +48,11 @@
 #define State                  EMBPERL_State             
 #define ArgStack               EMBPERL_ArgStack          
 #define pArgStack              EMBPERL_pArgStack         
+#define HtmlStack              EMBPERL_HtmlStack             
+#define nHtmlStack             EMBPERL_nHtmlStack            
+#define HtmlState              EMBPERL_HtmlState             
+#define ArgHtmlStack           EMBPERL_ArgHtmlStack          
+#define pArgHtmlStack          EMBPERL_pArgHtmlStack         
 #define nTabMode               EMBPERL_nTabMode          
 #define nTabMaxRow             EMBPERL_nTabMaxRow        
 #define nTabMaxCol             EMBPERL_nTabMaxCol        
@@ -82,6 +87,7 @@
 #define pCurrTag               EMBPERL_pCurrTag      
 #define pEnvHash               EMBPERL_pEnvHash      
 #define pFormHash              EMBPERL_pFormHash     
+#define pFormSplitHash         EMBPERL_pFormSplitHash     
 #define pInputHash             EMBPERL_pInputHash    
 #define pNameSpaceHash         EMBPERL_pNameSpaceHash
 #define pFormArray             EMBPERL_pFormArray    
@@ -95,14 +101,17 @@
 #define Char2Url               EMBPERL_Char2Url            
 #define CmdTab                 EMBPERL_CmdTab              
 #define EvalTrans              EMBPERL_EvalTrans           
+#define EvalTransFlags         EMBPERL_EvalTransFlags
 #define EvalTransOnFirstCall   EMBPERL_EvalTransOnFirstCall           
 #define GetContentLength       EMBPERL_GetContentLength    
 #define GetLogFilePos          EMBPERL_GetLogFilePos       
 #define ReadHTML               EMBPERL_ReadHTML            
 #define ScanCmdEvalsInString   EMBPERL_ScanCmdEvalsInString
 #define bEscMode               EMBPERL_bEscMode            
+#define bEscModeSet            EMBPERL_bEscModeSet            
 #define nAllocSize             EMBPERL_nAllocSize          
 #define pCurrEscape            EMBPERL_pCurrEscape         
+#define pNextEscape            EMBPERL_pNextEscape         
 #define bStrict                EMBPERL_bStrict
 #define EvalDirect             EMBPERL_EvalDirect
 #define bOptions               EMBPERL_bOptions    
@@ -127,4 +136,91 @@
 #define RollbackError          EMBPERL_RollbackError
 #define pErrFill	       EMBPERL_pErrFill
 #define pErrState              EMBPERL_pErrState
+#define _memstrcat             EMBPERL__memstrcat
+#define _realloc               EMBPERL__realloc
 
+
+/* --> from mod_perl.h
+ * patchlevel.h causes a -Wall warning, 
+ * plus chance that another patchlevel.h might be in -I paths
+ * so try to avoid it if possible 
+ */ 
+#ifdef PERL_VERSION
+#if PERL_VERSION >= 500476
+#define PERL5_005
+#endif
+#else
+#include "patchlevel.h"
+#if ((PATCHLEVEL >= 4) && (SUBVERSION >= 76)) || (PATCHLEVEL >= 5)
+#define PERL5_005
+#endif
+#endif /*PERL_VERSION*/
+
+#ifdef PERL5_005
+#ifndef rs
+#define rs PL_rs
+#endif
+#ifndef beginav
+#define beginav PL_beginav
+#endif
+#ifndef defoutgv
+#define defoutgv PL_defoutgv
+#endif
+#ifndef defstash
+#define defstash PL_defstash
+#endif
+#ifndef egid
+#define egid PL_egid
+#endif
+#ifndef endav
+#define endav PL_endav
+#endif
+#ifndef envgv
+#define envgv PL_envgv
+#endif
+#ifndef euid
+#define euid PL_euid
+#endif
+#ifndef gid
+#define gid PL_gid
+#endif
+#ifndef hints
+#define hints PL_hints
+#endif
+#ifndef incgv
+#define incgv PL_incgv
+#endif
+#ifndef pidstatus
+#define pidstatus PL_pidstatus
+#endif
+#ifndef scopestack_ix
+#define scopestack_ix PL_scopestack_ix
+#endif
+#ifndef siggv
+#define siggv PL_siggv
+#endif
+#ifndef uid
+#define uid PL_uid
+#endif
+#ifndef warnhook
+#define warnhook PL_warnhook
+#endif
+#ifndef diehook
+#define diehook PL_diehook
+#endif
+#ifndef perl_destruct_level
+#define perl_destruct_level PL_perl_destruct_level 
+#endif
+#ifndef sv_count
+#define sv_count PL_sv_count
+#endif
+#ifndef sv_objcount
+#define sv_objcount PL_sv_objcount
+#endif
+#ifndef op_mask
+#define op_mask PL_op_mask
+#endif
+#ifndef maxo
+#define maxo PL_maxo
+#endif
+#endif /* PERL5_005 */

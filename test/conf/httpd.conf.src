@@ -32,7 +32,7 @@ SetEnv EMBPERL_VIRTLOG /embperl/log
 PerlSetEnv EMBPERL_LOG $EPPATH/test/tmp/test.log
 SetEnv EMBPERL_LOG $EPPATH/test/tmp/test.log
 
-PerlScript $EPPATH/test/conf/startup.pl
+PerlScript $EPPATH/test/conf/$EPSTARTUP
 
 <Location /embperl/log>
 SetHandler perl-script
@@ -117,6 +117,75 @@ PerlHandler HTML::Embperl
 Options ExecCGI
 PerlSetEnv EMBPERL_OPTIONS 2
 </Location>
+
+<Location /embperl/match>
+SetHandler perl-script
+PerlHandler HTML::Embperl
+Options ExecCGI
+PerlSetEnv EMBPERL_FILESMATCH \\.htm\$
+</Location>
+
+<Location /embperl/ifunc>
+SetHandler perl-script
+PerlHandler HTML::Embperl
+Options ExecCGI
+PerlSetEnv EMBPERL_INPUT_FUNC \"ProxyInput, /embperl/ifunc, http://localhost:$EPPORT/embperl/ifuncsrc\"
+</Location>
+
+
+<Location /embperl/ifuncsrc>
+SetHandler server-parsed
+Options +Includes
+</Location>
+
+AddType text/html .ehtml
+
+#<FilesMatch \".*\.ehtml$\">
+#SetHandler perl-script
+#PerlHandler HTML::Embperl
+#Options ExecCGI
+#PerlSetEnv EMBPERL_INPUT_FUNC \"ProxyInput, , http://localhost:8529/src\"
+#</FilesMatch>
+
+<Location /src>
+SetHandler server-parsed
+Options +Includes
+</Location>
+
+#
+# Configuration for mod_inlcude via ProxyInput on two ports
+#
+#Listen $EPPORT
+#Listen $EPPORT2
+#
+#<VirtualHost www:$EPPORT>
+#
+#<FilesMatch \".*\\.ehtml\$\">
+#SetHandler perl-script
+#PerlHandler HTML::Embperl
+#Options ExecCGI
+#PerlSetEnv EMBPERL_INPUT_FUNC \"ProxyInput, , http://www:$EPPORT2\"
+#</FilesMatch>
+#
+#</VirtualHost>
+#
+#
+#<VirtualHost www:$EPPORT2>
+#
+#AddType text/html .ehtml
+#AddHandler server-parsed .ehtml
+#Options +Includes
+#
+#</VirtualHost>
+#
+
+<Location /embperl/ofunc>
+SetHandler perl-script
+PerlHandler HTML::Embperl
+Options ExecCGI
+PerlSetEnv EMBPERL_OUTPUT_FUNC \"LogOutput, $EPPATH/test/tmp/log.out\"
+</Location>
+
 
 Alias /cgi-bin/ $EPPATH/test/html/
 Alias /cgi-bin-32/ $EPPATH/test/html/

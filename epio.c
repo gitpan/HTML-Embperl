@@ -95,8 +95,10 @@ static struct tBuf *    pFreeBuf  = NULL ;  /* List of unused buffers */
 static struct tBuf *    pLastFreeBuf  = NULL ;  /* End of list of unused buffers */
 
 
-static char * pMemBuf ;     /* temporary output */
-static size_t nMemBufSize ; /* remaining space in pMemBuf */
+static char * pMemBuf ;         /* temporary output */
+static char * pMemBufPtr ;      /* temporary output */
+static size_t nMemBufSize ;     /* size of pMemBuf */
+static size_t nMemBufSizeFree ; /* remaining space in pMemBuf */
 
 
 /*
@@ -442,12 +444,10 @@ int CloseInput ()
 /* ---------------------------------------------------------------------------- */
 
 
-int iread (/*in*/ void * ptr, size_t size, size_t nmemb) 
+int iread (/*in*/ void * ptr, size_t size) 
 
     {
-    int n = size * nmemb ;
-
-    if (n == 0)
+    if (size == 0)
         return 0 ;
 
 #if defined (APACHE)
@@ -456,15 +456,24 @@ int iread (/*in*/ void * ptr, size_t size, size_t nmemb)
         setup_client_block(pReq, REQUEST_CHUNKED_ERROR); 
         if(should_client_block(pReq))
             {
-            int c = get_client_block(pReq, ptr, n); 
-            return c / size ;
+            int c ;
+            int n = 0 ;
+            while (1)
+                {
+                c = get_client_block(pReq, ptr, size); 
+                if (c < 0 || c == 0)
+                    return n ;
+                n    	     += c ;
+                (char *)ptr  += c ;
+                size         -= c ;
+                }
             }
         else
             return 0 ;
         } 
 #endif
 
-    return PerlIO_read (ifd, ptr, n) ;
+    return PerlIO_read (ifd, ptr, size) ;
     }
 
 
@@ -672,8 +681,10 @@ void OutputToMemBuf (/*in*/ char *  pBuf,
                      /*in*/ size_t  nBufSize)
 
     {
-    pMemBuf     = pBuf ;
-    nMemBufSize = nBufSize ;
+    pMemBuf         = pBuf ;
+    pMemBufPtr      = pBuf ;
+    nMemBufSize     = nBufSize ;
+    nMemBufSizeFree = nBufSize ;
     }
 
 
@@ -684,11 +695,14 @@ void OutputToMemBuf (/*in*/ char *  pBuf,
 /* ---------------------------------------------------------------------------- */
 
 
-void OutputToStd    ()
+char * OutputToStd    ()
 
     {
-    pMemBuf     = NULL ;
-    nMemBufSize = 0 ;
+    char * p = pMemBuf ;
+    pMemBuf         = NULL ;
+    nMemBufSize     = 0 ;
+    nMemBufSizeFree = 0 ;
+    return p ;
     }
 
 
@@ -722,12 +736,31 @@ int owrite (/*in*/ const void * ptr, size_t size, size_t nmemb)
 
     if (pMemBuf)
         {
-        if (n >= nMemBufSize)
-            n = nMemBufSize - 1 ;
-        memcpy (pMemBuf, ptr, n) ;
-        pMemBuf += n ;
-        *pMemBuf = '\0' ;
-        nMemBufSize -= n ;
+        char * p ;
+        int s = nMemBufSize ;
+        if (n >= nMemBufSizeFree)
+            {
+            if (s < n)
+                s = n + nMemBufSize ;
+            
+            nMemBufSize      += s ;
+            nMemBufSizeFree  += s ;
+            /*lprintf ("[%d]MEM:  Realloc pMemBuf, nMemSize = %d\n", nPid, nMemBufSize) ; */
+            p = _realloc (pMemBuf, nMemBufSize) ;
+            if (p == NULL)
+                {
+                nMemBufSize      -= s ;
+                nMemBufSizeFree  -= s ;
+                return 0 ;
+                }
+            pMemBufPtr = p + (pMemBufPtr - pMemBuf) ;
+            pMemBuf = p ;
+            }
+                
+        memcpy (pMemBufPtr, ptr, n) ;
+        pMemBufPtr += n ;
+        *pMemBufPtr = '\0' ;
+        nMemBufSizeFree -= n ;
         return n / size ;
         }
 
@@ -986,14 +1019,22 @@ int lwrite (/*in*/ const void * ptr, size_t size, size_t nmemb)
 void _free (void * p)
 
     {
+    size_t size ;
+    size_t * ps ;
+
+#ifdef APACHE
+    if (pReq && !(bDebug & dbgMem))
+        return ;
+#endif
+
+
+    /* we do it a bit complicted so it compiles also on aix */
+    ps = (size_t *)p ;
+    ps-- ;
+    size = *ps ;
+    p = ps ;
     if (bDebug & dbgMem)
         {
-        size_t size ;
-	/* we do it a bit complicted so it compiles also on aix */
-	size_t * ps = (size_t *)p ;
-	ps-- ;
-        size = *ps ;
-        p = ps ;
         nAllocSize -= size ;
         lprintf ("[%d]MEM:  Free %d Bytes at %08x  Allocated so far %d Bytes\n" ,nPid, size, p, nAllocSize) ;
         }
@@ -1008,7 +1049,8 @@ void * _malloc (size_t  size)
 
     {
     void * p ;
-    
+    size_t * ps ;
+
 #ifdef APACHE
     if (pReq)
         {
@@ -1019,16 +1061,112 @@ void * _malloc (size_t  size)
         
         p = malloc (size + sizeof (size)) ;
 
+    /* we do it a bit complicted so it compiles also on aix */
+    ps = (size_t *)p ;
+    *ps = size ;
+    p = ps + 1 ;
+
     if (bDebug & dbgMem)
         {
-	/* we do it a bit complicted so it compiles also on aix */
-	size_t * ps = (size_t *)p ;
         nAllocSize += size ;
-        *ps = size ;
-        ps++ ;
-        p = ps ;
         lprintf ("[%d]MEM:  Alloc %d Bytes at %08x   Allocated so far %d Bytes\n" ,nPid, size, p, nAllocSize) ;
         }
 
     return p ;
     }
+
+void * _realloc (void * ptr, size_t  size)
+
+    {
+    void * p ;
+    size_t * ps ;
+    size_t sizeold ;
+    
+#ifdef APACHE
+    if (pReq)
+        {
+        p = palloc (pReq -> pool, size + sizeof (size)) ;
+        if (p == NULL)
+            return NULL ;
+        
+        /* we do it a bit complicted so it compiles also on aix */
+        ps = (size_t *)p ;
+        *ps = size ;
+        p = ps + 1;
+        
+        ps = (size_t *)ptr ;
+        ps-- ;
+        sizeold = *ps ;
+
+        memcpy (p, ptr, sizeold) ; 
+        }
+    else
+#endif
+        {        
+        ps = (size_t *)ptr ;
+        ps-- ;
+        p = realloc (ps, size + sizeof (size)) ;
+        if (p == NULL)
+            return NULL ;
+
+        /* we do it a bit complicted so it compiles also on aix */
+        ps = (size_t *)p ;
+        *ps = size ;
+        p = ps + 1;
+        }
+
+    if (bDebug & dbgMem)
+        {
+        nAllocSize += size ;
+        lprintf ("[%d]MEM:  ReAlloc %d Bytes at %08x   Allocated so far %d Bytes\n" ,nPid, size, p, nAllocSize) ;
+        }
+
+    return p ;
+    }
+
+
+char *  _memstrcat (const char *s, ...) 
+
+    {
+    va_list ap ;
+    char *  p ;
+    char *  str ;
+    char *  sp ;
+    int     l ;
+    int     sum ;
+
+    EPENTRY(_memstrcat) ;
+
+    va_start(ap, s) ;
+
+    p = (char *)s ;
+    sum = 0 ;
+    while (p)
+        {
+        sum += va_arg (ap, int) ;
+        p = va_arg (ap, char *) ;
+        }
+    sum++ ;
+
+    va_end (ap) ;
+
+    sp = str = _malloc (sum+1) ;
+
+    va_start(ap, s) ;
+
+    p = (char *)s ;
+    while (p)
+        {
+        l = va_arg (ap, int) ;
+        memcpy (str, p, l) ;
+        str += l ;
+        p = va_arg (ap, char *) ;
+        }
+    *str = '\0' ;
+
+    va_end (ap) ;
+
+
+    return sp ;
+    }
+

@@ -104,6 +104,36 @@ optDisableHtmlScan is now: [+ $optDisableHtmlScan +] <BR>
 	</tr>
 </table>
 
+[- $stuff = ("X" x 79 . "\n") x 26; -]
+Testing ... length of STUFF=[+ length($stuff); +]<p>
+<input type="hidden" name="STUFF" value="[+ $stuff +]">
+
+[- $stuff = "X" x 2046; -]
+Testing ... length of STUFF=[+ length($stuff); +]<p>
+<input type="hidden" name="STUFF" value="[+ $stuff +]">
+
+[- $stuff = "X" x 2047; -]
+Testing ... length of STUFF=[+ length($stuff); +]<p>
+<input type="hidden" name="STUFF" value="[+ $stuff +]">
+
+[- $stuff = "X" x 2048; -]
+Testing ... length of STUFF=[+ length($stuff); +]<p>
+<input type="hidden" name="STUFF" value="[+ $stuff +]">
+
+[- $stuff = "X" x 2049; -]
+Testing ... length of STUFF=[+ length($stuff); +]<p>
+<input type="hidden" name="STUFF" value="[+ $stuff +]">
+
+[- $stuff = "X" x 2050; -]
+Testing ... length of STUFF=[+ length($stuff); +]<p>
+<input type="hidden" name="STUFF" value="[+ $stuff +]">
+
+
+[- $stuff = "X" x 30000; -]
+Testing ... length of STUFF=[+ length($stuff); +]<p>
+<input type="hidden" name="STUFF" value="[+ $stuff +]">
+
+
 
 </body>
 </html>
