@@ -137,6 +137,14 @@ test/html/EmbperlObject/epofoot.htm
 test/html/EmbperlObject/epopage1.htm
 test/html/EmbperlObject/sub/epohead.htm
 test/html/EmbperlObject/sub/epopage2.htm
+test/html/EmbperlObject/epofallback.htm
+test/html/EmbperlObject/obj/epobase.htm
+test/html/EmbperlObject/obj/epohead.htm
+test/html/EmbperlObject/obj/epofoot.htm
+test/html/EmbperlObject/obj/epoobj1.htm
+test/html/EmbperlObject/obj/epoobj2.htm
+test/html/EmbperlObject/obj/epoobj3.htm
+test/html/EmbperlObject/obj/epoobj4.htm
 test/cmp/ascii
 test/cmp/pure.htm
 test/cmp/plain.htm
@@ -206,6 +214,11 @@ test/cmp/errdoc.htm
 test/cmp/clearsess.htm
 test/cmp/epopage1.htm
 test/cmp/epopage2.htm
+test/cmp/epoobj1.htm
+test/cmp/epoobj2.htm
+test/cmp/epoobj3.htm
+test/cmp/epoobj4.htm
+test/cmp/eponotfound.htm
 test/conf/httpd.conf.src
 test/conf/startup.pl
 test/conf/startup_dso.pl
@@ -214,6 +227,4 @@ test/conf/null
 Embperl/Module.pm
 Embperl/Session.pm
 Embperl/Mail.pm
-emacs/README
-emacs/embperl.el
 EmbperlLogo.gif

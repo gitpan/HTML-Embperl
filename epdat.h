@@ -42,6 +42,8 @@ typedef struct tConf
     char    cMultFieldSep ;
     char *  pOpenBracket  ;
     char *  pCloseBracket ;
+    char *  sPath ;	    /* file search path */
+    char *  sReqFilename ;  /* filename of original request */
     } tConf ;
 
 /*-----------------------------------------------------------------*/
@@ -292,7 +294,8 @@ struct tReq
 
     struct tCharTrans * pCurrEscape ;   /* pointer to current escape table */
     struct tCharTrans * pNextEscape ;   /* pointer to next escape table (after end of block) */
-    int                 nEscMode ;      /* current escape mode */
+    int                 nEscMode ;      /* escape mode set by the user */
+    int                 nCurrEscMode ;  /* current active escape mode */
     int                 bEscModeSet ;   /* escape mode already set in this block */
     int                 bEscInUrl ;     /* we are inside an url */
     

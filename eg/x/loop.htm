@@ -35,7 +35,14 @@ modules, with using an index</h3>
 [+ $v +]
 [$ endforeach $]
 
+[$ if $ENV{MOD_PERL} $]
+<hr><h3>This is a example of using the while metacommand in embperl to show the http headers send from the browser</h3>
 
+[- %hdr = $req_rec -> headers_in ; -]
+[$ while ($k, $v) = each (%hdr) $]
+	[+ $k +] = [+ $v +] <BR>
+[$ endwhile $]
+[$endif$]
 
 <p><hr>
 

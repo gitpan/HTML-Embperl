@@ -48,7 +48,6 @@ Full documentation:         perldoc Embperl.pod
 Frequent Asked Questions:   perldoc Faq.pod
 Changes:                    perldoc Changes.pod
 Examples:		    eg/x/README
-Emacs-Mode:		    emacs/README
 
 All the above and further information can be found at the Embperl website 
 

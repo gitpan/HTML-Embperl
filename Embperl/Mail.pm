@@ -32,7 +32,7 @@ use vars qw(
 @ISA = qw(HTML::Embperl);
 
 
-$VERSION = '0.01_dev-2';
+$VERSION = '1.3b4';
 
 
 
@@ -61,8 +61,13 @@ sub Execute
         
         $req -> {mailhost} ||= $ENV{'EMBPERL_MAILHOST'} || 'localhost' ;
 
+        my $helo = $req -> {mailhelo} || $ENV{'EMBPERL_MAILHELO'} ;
+
         my $smtp = Net::SMTP->new($req -> {mailhost},
-                                  Debug => $req -> {maildebug} || $ENV{'EMBPERL_MAILDEBUG'}) or die "Cannot connect to mailhost $req->{mailhost}" ;
+                                  Debug => ($req -> {maildebug} || $ENV{'EMBPERL_MAILDEBUG'} || 0),
+                                  $helo?(Hello => $helo):()) 
+                                  ) or die "Cannot connect to mailhost $req->{mailhost}" ;
+
         my $from =  $req -> {from} || $ENV{'EMBPERL_MAILFROM'} ;
         $smtp->mail($from || "WWW-Server\@$ENV{SERVER_NAME}");
 
@@ -200,6 +205,13 @@ Array ref of additional mail headers
 Specifies which host to use as SMTP server.
 Default is B<localhost>.
 
+=item mailhelo
+
+Specifies which host/domain to use in the HELO/EHLO command.
+A reasonable default is normaly choosen by I<Net::SMTP>, but
+depending on your installation it may neccessary to set it
+manualy.
+
 =item maildebug
 
 Set to 1 to enable debugging of mail transfer.
@@ -230,6 +242,13 @@ Some default values could be setup via environement variables
 
 Specifies which host to use as SMTP server.
 Default is B<localhost>.
+
+=head2 EMBPERL_MAILHELO
+
+Specifies which host/domain to use in the HELO/EHLO command.
+A reasonable default is normaly choosen by I<Net::SMTP>, but
+depending on your installation it may neccessary to set it
+manualy.
 
 =head2 EMBPERL_MAILFROM 
 

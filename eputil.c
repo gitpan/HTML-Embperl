@@ -44,7 +44,7 @@ void OutputToHtml (/*i/o*/ register req * r,
     
     while (*sData)
         {
-        if (*sData == '\\')
+        if (*sData == '\\' && (r -> nCurrEscMode & escEscape) == 0)
             {
             if (p != sData)
                 owrite (r, p, sData - p) ;

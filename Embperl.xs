@@ -170,6 +170,20 @@ OUTPUT:
 
 
 void
+embperl_GetPackageOfFile(sSourcefile, sPackage, mtime)
+    char * sSourcefile
+    char * sPackage
+    double mtime
+PPCODE:
+    tFile * pFile = GetFileData (sSourcefile, sPackage, mtime) ;
+    EXTEND(SP,2) ;
+    PUSHs(sv_2mortal(newSViv(pFile -> mtime == -1?1:0))) ;
+    PUSHs(sv_2mortal(newSVpv(pFile -> sCurrPackage, pFile -> nCurrPackage))) ;
+
+
+
+
+void
 embperl_logerror(code, sText, pApacheReqSV=NULL)
     int    code
     char * sText
@@ -320,6 +334,28 @@ embperl_Sourcefile(r)
 CODE:
     if (r -> Buf.pFile)
         RETVAL = r -> Buf.pFile -> sSourcefile ;
+    else
+        RETVAL = NULL;
+OUTPUT:
+    RETVAL
+
+char *
+embperl_Path(r)
+    tReq * r
+CODE:
+    if (r -> pConf && r -> pConf -> sPath)
+        RETVAL = r -> pConf -> sPath ;
+    else
+        RETVAL = NULL;
+OUTPUT:
+    RETVAL
+
+char *
+embperl_ReqFilename(r)
+    tReq * r
+CODE:
+    if (r -> pConf && r -> pConf -> sReqFilename)
+        RETVAL = r -> pConf -> sReqFilename ;
     else
         RETVAL = NULL;
 OUTPUT:

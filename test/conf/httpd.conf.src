@@ -53,6 +53,9 @@ PerlSetEnv EMBPERL_SESSION_CLASS $EPSESSIONCLASS
 SetEnv EMBPERL_SESSION_CLASS $EPSESSIONCLASS
 PerlSetEnv SESSION_FILE_DIRECTORY $EPPATH/test/tmp
 PerlSetEnv SESSION_DBI_DATASOURCE $EPSESSIONDS
+
+PerlSetEnv EMBPERL_MAILDEBUG 1
+
 EOD
 	}
 
@@ -268,6 +271,7 @@ Options ExecCGI
 
 <Location /embperl/EmbperlObject>
 PerlSetEnv EMBPERL_OBJECT_BASE epobase.htm
+PerlSetEnv EMBPERL_OBJECT_FALLBACK epofallback.htm
 PerlSetEnv EMBPERL_FILESMATCH \"\\.htm.?\$|\\.epl\$\"
 SetHandler perl-script
 PerlHandler HTML::EmbperlObject 

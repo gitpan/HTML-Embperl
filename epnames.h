@@ -96,7 +96,7 @@
 #define GetSubTextPos          EMBPERL_GetSubTextPos
 #define SetSubTextPos          EMBPERL_SetSubTextPos
 #define SetupDebugger          EMBPERL_SetupDebugger
-
+#define GetFileData            EMBPERL_GetFileData
 
 #define InitialReq             EMBPERL_InitialReq
 #define pCurrReq               EMBPERL_pCurrReq

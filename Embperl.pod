@@ -396,7 +396,7 @@ B<NOTE:> You do not need to call Init in version >= 0.27. The initialization
 of Embperl takes place automatically when it is loaded.
 
 
-=item B<HTML::Embperl::ScanEnvironement (\%params)>
+=item B<HTML::Embperl::ScanEnvironment (\%params)>
 
 Scans the B<%ENV> and setups B<%params> for use by B<Execute>. All
 Embperl runtime configuration options are recognized, except EMBPERL_LOG.
@@ -958,6 +958,15 @@ which provides you with the possibility to chain I<Embperl> and other modules to
 
 Specifies which host the L<MailFormTo|"MailFormTo($MailTo, $Subject, $ReturnField)"> function uses as SMTP server.
 Default is B<localhost>.
+
+=head2 EMBPERL_MAILHELO 
+
+(only 1.3b4 or above) Specifies which host/domain the 
+L<MailFormTo|"MailFormTo($MailTo, $Subject, $ReturnField)"> function uses
+in the HELO/EHLO command.
+A reasonable default is normaly choosen by I<Net::SMTP>, but
+depending on your installation it may neccessary to set it
+manualy.
 
 =head2 EMBPERL_MAILFROM 
 
@@ -1717,20 +1726,29 @@ together.
 Turn HTML and URL escaping on and off.  The default is on ($escmode =
 3).
 
+B<NOTE:> Normaly you can disable escaping by preceeding the item that
+normaly is escaped with a backslash. While this is a handy thing, it could
+be very dangerous in situations, where content that is inserted by some
+user is redisplayed, because they can enter arbitary HTML and preceed them
+with a backslash to avoid correct esaping when their input is redisplayed
+again. To avoid this problem, add 4 to the values below. This will cause
+Embperl to ignore the backslash when it does output escaping at all.
+(only 1.3b4 and above)
+
 =over 4
 
-=item B<$escmode = 3>
+=item B<$escmode = 3 (or 7)>
 
 The result of a Perl expression is HTML-escaped (e.g., `>' becomes
 `&gt;') in normal text and URL-escaped (e.g., `&' becomes `%26')
 within of C<A>, C<EMBED>, C<IMG>, C<IFRAME>, C<FRAME> and C<LAYER> tags.
 
-=item B<$escmode = 2>
+=item B<$escmode = 2 (or 6)>
 
 The result of a Perl expression is always URL-escaped (e.g., `&'
 becomes `%26').
 
-=item B<$escmode = 1>
+=item B<$escmode = 1 (or 5)>
 
 The result of a Perl expression is always HTML-escaped (e.g., `>'
 becomes `&gt;').
@@ -1740,6 +1758,8 @@ becomes `&gt;').
 No escaping takes place.
 
 =back
+
+
 
 =head2 $req_rec
 
@@ -2522,6 +2542,12 @@ You can reach us via http://www.ecos.de or info@ecos.de
  Win NT/95/98 binarys
  Apache/perl/
  mod_perl/Embperl	ftp://theoryx5.uwinnipeg.ca/pub/other/ 
+    europe              http://www.robert.cz/misc/
+
+ RPM
+    source              ftp://ftp.akopia.com/pub/support/srpm/
+    binary redhat 6.0   ftp://ftp.akopia.com/pub/support/6.0/
+    binary redhat 6.1   ftp://ftp.akopia.com/pub/support/6.1/
 
 
 =head2 CVS

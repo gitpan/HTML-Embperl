@@ -200,6 +200,11 @@ tFile * SetupFileData   (/*i/o*/ register req * r,
                          /*in*/ int     nFirstLine,
                          /*in*/ tConf * pConf) ;
 
+tFile * GetFileData     (/*in*/  char *  sSourcefile,
+                         /*in*/  char *  sPackage,
+                         /*in*/  double  mtime) ;
+
+			 
 tConf * SetupConfData   (/*in*/ HV *   pReqInfo,
                          /*in*/ SV *   pOpcodeMask) ;
 

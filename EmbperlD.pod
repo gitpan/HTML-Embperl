@@ -337,7 +337,7 @@ die Debugflags, die für die folgenden Aufrufe von C<Execute> genutzt werden,
 zu setzen. Es kann immer nur eine Logdatei existieren, der Pfad kann jedoch jederzeit
 geändert werden.
 
-=item B<HTML::Embperl::ScanEnvironement (\%params)>
+=item B<HTML::Embperl::ScanEnvironment (\%params)>
 
 Durchsucht alle Umgebungsvariablen (B<%ENV>) und setzt B<%params> für die Benutzung von C<Execute>. Alle
 Embperl Konfigurationsvariablen, außer EMBPERL_LOG, werden erkannt.
@@ -884,6 +884,14 @@ die die Möglichkeit bieten I<Embperl> und andere Module zu verketten.
 Gibt den Rechner an, der von der L<MailFormTo|"MailFormTo($MailTo, $Subject, $ReturnField)"> 
 Funktion als SMTP Server genutzt wird.
 Default ist B<localhost>.
+
+=head2 EMBPERL_MAILHELO (ab 1.3b4)
+
+Gibt den Rechner/die Domain an, der von der L<MailFormTo|"MailFormTo($MailTo, $Subject, $ReturnField)"> 
+Funktion im HELO/EHLO Befehl angegeben wird.
+Normalerweise setzt I<Net::SMTP> einen sinnvollen Defaultwert ein. In
+Abhänigkeit von der Installation kann es jedoch manchmal nötig sein
+diesen Wert von Hand zu setzen.
 
 =head2 EMBPERL_MAILFROM (ab 1.2.1)
 
@@ -1620,18 +1628,25 @@ sein diesen Wert zu ändern. Die Werte für Tabellen- und Spaltenende können addie
 Schaltet die HTML und URL Kodierung der Ausgabe ein und aus.
 Default ist ein (C<$escmode> = 3).
 
+B<Hinweis:> Normalerweise kann die Kodierung durch Voranstellen eines Backslashes ('\')
+vor das entsprechende Zeichen verhindert werden. Das ist recht nützlich, ist aber
+in Situation, wo eine Benutzereingabe nochmal angezeigt wird, sehr gefährlich, da dies
+dem Benuter ermöglich beliebiges HTML einzugeben. Um dies zu verhindern muß zu den
+unten aufgeführten Werten jeweils eine 4 addiert werden. Dies führt dazu, dass I<Embperl>
+den Backslash bei der Ausgabe nicht gesondert behandelt. (ab 1.3b4)
+
 =over 4
 
-=item $escmode = 3
+=item $escmode = 3 (oder 7)
 
 Das Resultat von Perlausdrücken wird HTML Kodiert (z.B. '>' wird zu '&gt;')
 und URL Kodiert ('&' wird zu '%26') innerhalb von C<A>, C<EMBED>, C<IMG>, C<IFRAME>, C<FRAME> und C<LAYER> Tags.
 
-=item $escmode = 2
+=item $escmode = 2 (oder 6)
 
 Das Resultat von Perlausdrücken wird immer URL Kodiert ('&' wird zu '%26').
 
-=item $escmode = 1
+=item $escmode = 1 (oder 5)
 
 Das Resultat von Perlausdrücken wird immer HTML Kodiert (z.B. '>' wird zu '&gt;').
 
@@ -2483,6 +2498,12 @@ Sie erreichen uns via http://www.ecos.de oder info@ecos.de
  Win NT/95/98 Binaries
  Apache/perl/
  mod_perl/Embperl	ftp://theoryx5.uwinnipeg.ca/pub/other/ 
+    europe              http://www.robert.cz/misc/
+
+ RPM
+    source              ftp://ftp.akopia.com/pub/support/srpm/
+    binary redhat 6.0   ftp://ftp.akopia.com/pub/support/6.0/
+    binary redhat 6.1   ftp://ftp.akopia.com/pub/support/6.1/
 
 
 =head2 CVS

@@ -176,7 +176,8 @@ enum tEscMode
     escNone = 0,
     escHtml = 1,
     escUrl  = 2,
-    escStd  = 3
+    escStd  = 3,
+    escEscape  = 4
     } ;
 
 

@@ -53,7 +53,8 @@ No.
 =head2 Is there a binary distribution of Embperl for Win32?
 
 Win NT/95/98 binarys for Apache/perl/mod_perl/Embperl are
-available from http://www.perl.com/CPAN/authors/Jeffrey_Baker/
+available from ftp://theoryx5.uwinnipeg.ca/pub/other/ . A
+european mirror is at http://www.robert.cz/misc/ .
 
 
 =head2 I want to run Embperl with mod_perl under Apache. In what order should I

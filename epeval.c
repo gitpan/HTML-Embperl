@@ -307,8 +307,15 @@ static int CallCV  (/*i/o*/ register req * r,
     int   nRowUsed   = r -> TableStack.State.nRowUsed ;
     int   nColUsed   = r -> TableStack.State.nColUsed ;
     SV *  pSVErr ;
-
     dSP;                            /* initialize stack pointer      */
+
+
+    if (r -> pImportStash)
+	{ /* do not execute any code on import */
+	*pRet = NULL ;
+	return ok ;
+	}
+    
 
     EPENTRY (CallCV) ;
 
@@ -730,11 +737,19 @@ int EvalTransOnFirstCall (/*i/o*/ register req * r,
 
     if (*ppSV == NULL || SvTYPE (*ppSV) != SVt_PVCV)
         {
-        /* strip off all <HTML> Tags */
+        int	rc ;
+	HV *  pImportStash = r -> pImportStash ;
+	r -> pImportStash = NULL ; /* temporarely disable import */
+
+	/* strip off all <HTML> Tags */
         TransHtml (r, sArg, 0) ;
 
-        return EvalAndCall (r, sArg, ppSV, G_SCALAR, pRet) ;
-        }
+	rc = EvalAndCall (r, sArg, ppSV, G_SCALAR, pRet) ;
+
+       	r -> pImportStash = pImportStash ; 
+
+	return rc ;	    
+	}
 
     r -> numCacheHits++ ;
     

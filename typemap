@@ -11,10 +11,14 @@ T_PTROBJ_CONF
         croak (\"$var is not of type HTML::Embperl::Conf\") ;
 
 T_PTROBJ_REQ
-    if (sv_derived_from ($arg, \"HTML::Embperl::Req\"))
-        $var = (tReq *)(SvIV((SV *)SvRV($arg))) ;
+    {
+    MAGIC * mg ;
+    if (mg = mg_find (SvRV($arg), '~'))
+        $var = (tReq *)(mg -> mg_len) ;
     else
         croak (\"$var is not of type HTML::Embperl::Req\") ;
+    }
+
 
 T_PTROBJ_FILE
     if (sv_derived_from ($arg, \"HTML::Embperl::File\"))
@@ -27,7 +31,13 @@ T_PTROBJ_CONF
     sv_setref_pv ($arg, \"HTML::Embperl::Conf\", (void *)$var) ;
 
 T_PTROBJ_REQ
-    sv_setref_pv ($arg, \"HTML::Embperl::Req\", (void *)$var) ;
+    {
+    SV * pSV = $var -> pReqSV ;
+    if (pSV == NULL)
+       $arg = &sv_undef ;
+    else
+        $arg = pSV ;
+    }
  
 T_PTROBJ_FILE
     sv_setref_pv ($arg, \"HTML::Embperl::File\", (void *)$var) ;

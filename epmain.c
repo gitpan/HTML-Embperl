@@ -294,14 +294,17 @@ void NewEscMode (/*i/o*/ register req * r,
 
     {
     if (r -> nEscMode & escHtml && !r -> bEscInUrl)
-        r -> pNextEscape = Char2Html ;
+	r -> pNextEscape = Char2Html ;
     else if (r -> nEscMode & escUrl)
         r -> pNextEscape = Char2Url ;
     else 
         r -> pNextEscape = NULL ;
 
     if (r -> bEscModeSet < 1)
+	{
         r -> pCurrEscape = r -> pNextEscape ;
+        r -> nCurrEscMode = r -> nEscMode ;
+	}
 
     if (r -> bEscModeSet < 0 && pSV && SvOK (pSV))
         r -> bEscModeSet = 1 ;
@@ -1252,6 +1255,7 @@ int Init        (/*in*/ int           _nIOType,
     r -> Buf.pLineNoCurrPos = NULL ;    
 
     r -> nEscMode = escStd ;
+    r -> nCurrEscMode = escStd ;
 
     if ((rc = OpenLog (r, sLogFile, ((r -> bDebug & dbgFunc) || (r -> bOptions & optOpenLogEarly))?1:0)) != ok)
         { 
@@ -1566,6 +1570,8 @@ tConf * SetupConfData   (/*in*/ HV *   pReqInfo,
     pConf -> cMultFieldSep = '\t' ;
     pConf -> pOpenBracket  = "[*" ;
     pConf -> pCloseBracket = "*]" ;
+    pConf -> sPath         = sstrdup (GetHashValueStr (pReqInfo, "path",  pCurrReq -> pConf?pCurrReq -> pConf -> sPath:NULL)) ;        /* file search path */
+    pConf -> sReqFilename  = sstrdup (GetHashValueStr (pReqInfo, "reqfilename",  pCurrReq -> pConf?pCurrReq -> pConf -> sReqFilename:NULL)) ;        /* filename of original request */
 
     return pConf ;
     }
@@ -1604,10 +1610,14 @@ void FreeConfData       (/*in*/ tConf *   pConf)
     if (pConf -> sCookiePath)
 	free (pConf -> sCookiePath) ;
 
+    if (pConf -> sPath)
+	free (pConf -> sPath) ;
+
+    if (pConf -> sReqFilename)
+	free (pConf -> sReqFilename) ;
 
     free (pConf) ;
     }
-
 
 /* ---------------------------------------------------------------------------- */
 /*                                                                              */
@@ -1705,6 +1715,89 @@ tFile * SetupFileData   (/*i/o*/ register req * r,
 
 /* ---------------------------------------------------------------------------- */
 /*                                                                              */
+/* Get file data from filename; preset if not present                           */
+/*                                                                              */
+/* ---------------------------------------------------------------------------- */
+
+
+tFile * GetFileData     (/*in*/  char *  sSourcefile,
+                         /*in*/  char *  sPackage,
+			 /*in*/  double  mtime)
+                        
+    {
+    SV * *      ppSV ;
+    tFile *     f ;
+    char	txt [sizeof (sDefaultPackageName) + 50] ;
+    char *	cache_key;
+    int		cache_key_len;
+    
+    EPENTRY (GetFileData) ;
+
+    /* Have we seen this sourcefile/package already ? */
+    cache_key_len = strlen( sSourcefile ) ;
+    if ( sPackage && *sPackage)
+	cache_key_len += strlen( sPackage );
+    
+    cache_key = malloc(cache_key_len + 1 );
+    strcpy( cache_key, sSourcefile );
+    if ( sPackage && *sPackage)
+	strcat( cache_key, sPackage );
+    ppSV = hv_fetch(pCacheHash, cache_key, cache_key_len, 0);  
+    
+    if (ppSV && *ppSV)
+        {
+        f = (tFile *)SvIV((SV*)SvRV(*ppSV)) ;
+        
+        if (mtime == 0 || f -> mtime != mtime)
+            {
+            hv_clear (f -> pCacheHash) ;
+        
+            f -> mtime       = -1 ;	 /* reset last modification time of file */
+	    if (f -> pExportHash)
+		{
+		SvREFCNT_dec (f -> pExportHash) ;
+		f -> pExportHash = NULL ;
+		}
+	    }
+        }
+    else
+        { /* create new file structure */
+        if ((f = malloc (sizeof (*f))) == NULL)
+	    {
+	    free(cache_key);
+            return NULL ;
+	    }
+
+        f -> sSourcefile = sstrdup (sSourcefile) ; /* Name of sourcefile */
+        f -> mtime       = -1 ;	 /* last modification time of file */
+        f -> nFilesize   = 0 ;	 /* size of File */
+	f -> pBufSV      = NULL ;
+	f -> pNext2Free  = NULL ;
+	f -> bKeep       = 0 ;
+	f -> pExportHash = NULL ;
+	f -> nFirstLine  = 0 ;
+
+        f -> pCacheHash  = newHV () ;    /* Hash containing CVs to precompiled subs */
+
+	if ( sPackage && *sPackage)
+            f -> sCurrPackage = strdup (sPackage) ; /* Package of file  */
+        else
+            {
+            sprintf (txt, sDefaultPackageName, nPackNo++ ) ;
+            f -> sCurrPackage = strdup (txt) ; /* Package of file  */
+            }
+        f -> nCurrPackage = strlen (f -> sCurrPackage); /* Package of file (length) */
+
+        hv_store(pCacheHash, cache_key, cache_key_len, newRV_noinc (newSViv ((IV)f)), 0) ;  
+    
+        }
+    free(cache_key);
+
+    return f ;
+    }
+
+/* ---------------------------------------------------------------------------- */
+/*                                                                              */
 /* Free File buffer								*/
 /*                                                                              */
 /* ---------------------------------------------------------------------------- */
@@ -1753,6 +1846,7 @@ tReq * SetupRequest (/*in*/ SV *    pApacheReqSV,
     tReq *  r = pCurrReq ;
     char *  sMode ;
     tFile * pFile ;
+    HV * pReqHV  ;
 
     dTHR ;
 
@@ -1794,6 +1888,21 @@ tReq * SetupRequest (/*in*/ SV *    pApacheReqSV,
         r -> pApacheReq = NULL ;
     r -> pApacheReqSV = pApacheReqSV ;
 #endif
+
+
+    if (!r -> pLastReq -> pReqSV)
+	pReqHV = newHV () ;
+    else
+	{
+	pReqHV = (HV *)SvRV (r -> pLastReq -> pReqSV) ;
+	SvREFCNT_inc (pReqHV) ;
+	}
+
+    sv_unmagic ((SV *)pReqHV, '~') ;
+    sv_magic ((SV *)pReqHV, NULL, '~', NULL, (STRLEN)r) ;
+    r -> pReqSV = newRV_noinc ((SV *)pReqHV) ;
+    if (!r -> pLastReq -> pReqSV)
+	sv_bless (r -> pReqSV, gv_stashpv ("HTML::Embperl::Req", 0)) ;
 
     r -> startclock      = clock () ;
     r -> stsv_count      = sv_count ;
@@ -1880,6 +1989,7 @@ tReq * SetupRequest (/*in*/ SV *    pApacheReqSV,
 	    strncpy (r -> errdat1, sImport, sizeof (r -> errdat1) - 1);
 	    LogError (r, rcImportStashErr) ;
 	    }
+	r -> bOptions |= optDisableHtmlScan ;
 	}
     else
 	r -> pImportStash = NULL ;
@@ -1994,8 +2104,15 @@ void FreeRequest (/*i/o*/ register req * r)
 #endif
 	}
 
+    SvREFCNT_dec (r -> pReqSV) ;
 
     pCurrReq = r -> pLastReq ;
+    if (pCurrReq && pCurrReq -> pReqSV)
+	{
+	SV * pReqHV = SvRV (pCurrReq -> pReqSV) ;
+	sv_unmagic (pReqHV, '~') ;
+	sv_magic (pReqHV, NULL, '~', NULL, (STRLEN)pCurrReq) ;
+	}
 
     r -> pNext = pReqFree ;
     pReqFree = r ;
@@ -2089,7 +2206,7 @@ static int StartOutput (/*i/o*/ register req * r)
     if (bOutToMem)
     	r -> bOptions &= ~optEarlyHttpHeader ;
 
-    if (r -> bSubReq)
+    if (r -> bSubReq || r -> pImportStash)
     	r -> bOptions &= ~optSendHttpHeader ;
 
 
@@ -2775,8 +2892,7 @@ int ExecuteReq (/*i/o*/ register req * r,
 
     EPENTRY (ExecuteReq) ;
 
-    
-    r -> pReqSV = pReqSV ;
+   
     if (!r -> Buf.pFile -> pExportHash)
 	r -> Buf.pFile -> pExportHash = newHV () ;
     
@@ -2827,20 +2943,30 @@ int ExecuteReq (/*i/o*/ register req * r,
 	char drive[_MAX_DRIVE];
 	char fname[_MAX_FNAME];
 	char ext[_MAX_EXT];
+	char * c = sInputfile ;
+
+	while (*c)
+	    { /* convert / to \ */
+ 	    if (*c == '/')
+		*c = '\\' ;
+	    c++ ;
+	    }
 
 	olddrive = _getdrive () ;
+	getcwd (olddir, sizeof (olddir) - 1) ;
+
 	_splitpath(sInputfile, drive, dir, fname, ext );
-   	_chdrive (drive[0] - 'A') ;
+   	_chdrive (drive[0] - 'A' + 1) ;
 #else
         Dirname (sInputfile, dir, sizeof (dir) - 1) ;
-#endif
 	getcwd (olddir, sizeof (olddir) - 1) ;
+#endif
 	
 	chdir (dir) ;
 	}
     else
 	r -> bOptions |= optDisableChdir ;
-    
+
     if ((rc = ProcessFile (r, r -> Buf.pFile -> nFilesize)) != ok)
         if (rc == rcExit)
             rc = ok ;

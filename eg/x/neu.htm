@@ -5,7 +5,7 @@
 <title>Example for creating a wizard with Embperl</title>
 </head>
 <body background="../images/jazzbkgd.gif">
-<p>[- $b = defined($fdat{back})-][- $c =
+<p>[- $escmode = 7 -][- $b = defined($fdat{back})-][- $c =
 defined($fdat{cont})-][-$kn = $fdat{Kundennummer} eq 'Ja'-][-$p =
 $fdat{page}<br>
 -][$if $p==0 or ($p==2 and $b) or ($p==4 and $b and !$kn)$]</p>

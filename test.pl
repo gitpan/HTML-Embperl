@@ -2,7 +2,6 @@
 # Before `make install' is performed this script should be runnable with
 # `make test'. After `make install' it should work as `perl test.pl'
 
-
 @tests = (
     'ascii',
     'pure.htm',
@@ -24,6 +23,7 @@
     'var.htm',
     'varerr.htm???-1',
     'varerr.htm???2',
+    'escape.htm',
     'escape.htm',
     'spaces.htm',
     'tagscan.htm',
@@ -96,13 +96,128 @@
     'clearsess.htm',
     'EmbperlObject/epopage1.htm',
     'EmbperlObject/sub/epopage2.htm',
+    'EmbperlObject/sub/epopage2.htm',
+    'EmbperlObject/sub/eponotfound.htm',
+    'EmbperlObject/obj/epoobj1.htm',
+    'EmbperlObject/obj/epoobj2.htm',
+    'EmbperlObject/obj/epoobj3.htm',
+    'EmbperlObject/obj/epoobj4.htm',
+    ) ;
+
+@tests2 = (
+    'ascii',
+#    'tmp/header.htm',
+    'pure.htm',
+##    'plainlong.htm',
+##    'plainlong.htm',
+##    'plainlong.htm',
+##    'plainlong.htm',
+    'plain.htm',
+    'plain.htm',
+    'plain.htm',
+    'plainblock.htm',
+    'plainblock.htm',
+    'error.htm???7',
+    'error.htm???7',
+    'error.htm???7',
+    'errormismatch.htm???1',
+    'errormismatchcmd.htm???1',
+    'unclosed.htm???1',
+#    'errorright.htm???1',
+    'notfound.htm???1',
+    'notallow.xhtm???1',
+##    'noerr/noerrpage.htm???6?2',
+##    'errdoc/errdoc.htm???8?262144',
+##    'rawinput/rawinput.htm????16',
+    'var.htm',
+    'varerr.htm???-1',
+##    'varerr.htm???2',
+    'escape.htm',
+    'escape.htm',
+##    'spaces.htm',
+    'tagscan.htm',
+    'tagscan.htm??1',
+    'if.htm',
+    'ifperl.htm',
+    'loop.htm?erstes=Hallo&zweites=Leer+zeichen&drittes=%21%22%23%2a%2B&erstes=Wert2',
+    'loop.htm?erstes=Hallo&zweites=Leer+zeichen&drittes=%21%22%23%2a%2B&erstes=Wert2',
+    'loopperl.htm?erstes=Hallo&zweites=Leer+zeichen&drittes=%21%22%23&erstes=Wert2',
+    'table.htm',
+    'table.htm??1',
+    'lists.htm?sel=2&SEL1=B&SEL3=D&SEL4=cc',
+    'lists.htm?sel=2&SEL1=B&SEL3=D&SEL4=cc',
+    'mix.htm',
+##    'nesting.htm',
+    'object.htm',
+##    'discard.htm???12',
+    'input.htm?feld5=Wert5&feld6=Wert6&feld7=Wert7&feld8=Wert8&cb5=cbv5&cb6=cbv6&cb7=cbv7&cb8=cbv8&cb9=ncbv9&cb10=ncbv10&cb11=ncbv11&mult=Wert3&mult=Wert6&esc=a<b&escmult=a>b&escmult=Wert3',
+    'hidden.htm?feld1=Wert1&feld2=Wert2&feld3=Wert3&feld4=Wert4',
+    'java.htm',
+    'inputjava.htm',
+    'post.htm',
+    'upload.htm?multval=A&multval=B&multval=C&single=S',
+    'reqrec.htm',
+    'reqrec.htm',
+    'rawinput/include.htm????16',
+    'includeerr1.htm???1',
+    'includeerr2.htm???1',
+    'registry/Execute.htm',
+##    'registry/errpage.htm???16',
+    'registry/tied.htm???3',
+    'registry/tied.htm???3',
+##    'callsub.htm',
+##    'callsub.htm',
+##    'importsub.htm',
+##    'importsub.htm',
+##    'importsub2.htm',
+##    'importmodule.htm',
+##    'recursexec.htm',
+    'nph/div.htm????64',
+##    'nph/npherr.htm???8?64',
+    'nph/nphinc.htm????64',
+    'sub.htm',
+    'sub.htm',
+##    'exit.htm',
+##    'exit2.htm',
+##    'exit3.htm',
+    'chdir.htm?a=1&b=2&c=&d=&f=5&g&h=7&=8&=',
+    'chdir.htm?a=1&b=2&c=&d=&f=5&g&h=7&=8&=',
+    'allform/allform.htm?a=1&b=2&c=&d=&f=5&g&h=7&=8&=???8192',
+##    'stdout/stdout.htm????16384',
+    'nochdir/nochdir.htm?a=1&b=2???384',
+    'match/div.htm',
+    'match/div.asc',
+##    'http.htm',
+    'div.htm',
+    'taint.htm???1',
+    'ofunc/div.htm',
+##    'safe/safe.htm???-1?4',
+##    'safe/safe.htm???-1?4',
+##    'safe/safe.htm???-1?4',
+##    'opmask/opmask.htm???-1?12?TEST',
+##    'opmask/opmasktrap.htm???2?12?TEST',
+    'mdatsess.htm?cnt=0',
+    'setsess.htm?a=1',
+    'mdatsess.htm?cnt=1',
+    'getnosess.htm?nocookie=2',
+    'mdatsess.htm?cnt=2',
+    'getsess.htm',
+    'mdatsess.htm?cnt=3',
+    'execgetsess.htm',
+    'clearsess.htm',
+    'EmbperlObject/epopage1.htm',
+##    'EmbperlObject/sub/epopage2.htm',
     ) ;
 
 
 # avoid some warnings:
 
 use vars qw ($httpconfsrc $httpconf $EPPORT $EPPORT2 *SAVEERR *ERR $EPHTTPDDLL $EPSTARTUP $EPDEBUG
-             $EPSESSIONDS $EPSESSIONCLASS $EPSESSIONVERSION) ;
+             $EPSESSIONDS $EPSESSIONCLASS $EPSESSIONVERSION $EP1COMPAT
+            $opt_offline $opt_ep1 $opt_cgi $opt_modperl $opt_execute $opt_nokill $opt_loop
+            $opt_multchild $opt_memcheck $opt_exitonmem $opt_exitonsv $opt_config $opt_nostart $opt_uniquefn
+            $opt_quite $opt_ignoreerror $opt_tests $opt_blib $opt_help $opt_dbgbreak $opt_finderr
+            $opt_ddd $opt_gdb $opt_ab $opt_start $opt_kill) ;
 
     {
     local $^W = 0 ;
@@ -118,13 +233,18 @@ BEGIN
     $^W     = 1 ;
     $|      = 1;
     
-    eval 'use ExtUtils::testlib' if (defined ($ARGV[0]) && $ARGV[0] =~ /b/) ;
+    if (($ARGV[0] || '') eq '--testlib') 
+        {
+        eval 'use ExtUtils::testlib' ;
+        shift @ARGV ;
+        $opt_testlib = 1 ;
+        }
 
     #### install handler which kill httpd when terminating ####
 
     $SIG{__DIE__} = sub { 
 	return unless $_[0] =~ /^\*\*\*/ ;
-	return unless $killhttpd ;
+	return if ($opt_nokill)  ;
 	if ($EPWIN32)
 	    {
 	    $HttpdObj->Kill(-1) if ($HttpdObj) ;
@@ -137,35 +257,55 @@ BEGIN
 
     print "\nloading...                    ";
     
+
+    $defaultdebug = 0x3f85ffd ;
+    #$defaultdebug = 1 ;
+
+    #### setup paths #####
+
+    $inpath  = 'test/html' ;
+    $tmppath = 'test/tmp' ;
+    $cmppath = 'test/cmp' ;
+
+    $logfile    = "$tmppath/test.log" ;
+
+    $ENV{EMBPERL_LOG} = $logfile ;
+    $ENV{EMBPERL_DEBUG} = $defaultdebug ;
+
+    unlink ($logfile) ;
     }
 
 END 
     { 
     print "\nTest terminated with fatal error\n" if ($fatal) ; 
-    system "kill `cat $tmppath/httpd.pid` 2> /dev/null" if ($EPHTTPD ne '' && $killhttpd && !$EPWIN32) ;
-    exit ($fatal || $err) ;	
+    system "kill `cat $tmppath/httpd.pid` 2> /dev/null" if ($EPHTTPD ne '' && !$opt_nokill && !$EPWIN32) ;
+    $? = $fatal || $err ;	
     }
 
+
+use Getopt::Long ;
+
+@ARGVSAVE = @ARGV ;
+
+eval { Getopt::Long::Configure ('bundling') } ;
+$@ = "" ;
+$ret = GetOptions ("offline|o", "ep1|1", "cgi|c", "modperl|httpd|h", "execute|e", "nokill|r", "loop|l:i",
+            "multchild|m", "memcheck|v", "exitonmem|g", "exitonsv", "config|f=s", "nostart|x", "uniquefn|u",
+            "quite|q", "ignoreerror|i", "tests|t", "blib|b", "help", "dbgbreak", "finderr",
+	    "ddd", "gdb", "ab:s", "start", "kill") ;
+
+$opt_help = 1 if ($ret == 0) ;
 
 
 
 $confpath = 'test/conf' ;
 
-$cmdarg   = $ARGV[0] || '' ;
-shift @ARGV ;
-$dbgbreak = 0 ;
-if ($cmdarg eq 'dbgbreak')
-	{
-	$dbgbreak = 1 ;
-	$cmdarg = shift @ARGV || '' ;
-	}
 
 #### read config ####
 
-if ($cmdarg =~ /f/)
-    { do $ARGV[0] ; shift @ARGV ; }
-else
-    { do "$confpath/config.pl" ; }
+do ($opt_config || "$confpath/config.pl") ; 
+
+die $@ if ($@) ;
 
 
 $EPPORT2 = ($EPPORT || 0) + 1 ;
@@ -173,12 +313,6 @@ $EPSESSIONCLASS = $ENV{EMBPERL_SESSION_CLASS} || (($EPSESSIONVERSION =~ /^0\.17/
 $EPSESSIONDS    = $ENV{EMBPERL_SESSION_DS} || 'dbi:mysql:session' ;
 
 die "You must install libwin32 first" if ($EPWIN32 && $win32loaderr && $EPHTTPD) ;
-
-#### setup paths #####
-
-$inpath  = 'test/html' ;
-$tmppath = 'test/tmp' ;
-$cmppath = 'test/cmp' ;
 
 
 #### setup files ####
@@ -188,58 +322,54 @@ $httpdconf = "$confpath/httpd.conf" ;
 $httpderr   = "$tmppath/httpd.err.log" ;
 $offlineerr = "$tmppath/test.err.log" ;
 $outfile    = "$tmppath/out.htm" ;
-$logfile    = "$tmppath/test.log" ;
 
 #### setup path in URL ####
 
 $embploc = 'embperl/' ;
-if ($EPWIN32)
-    {
-    $cgiloc  = 'cgi-bin/' ; #'cgi-bin-32/' ;
-    }
-else
-    {
-    $cgiloc  = 'cgi-bin/' ;
-    }
-
+$cgiloc  = 'cgi-bin/' ; 
 
 $port    = $EPPORT ;
 $host    = 'localhost' ;
 $httpdpid = 0 ;
-$defaultdebug = 0x785ffd ;
 
-
-if ($cmdarg =~ /\?/)
+if ($opt_help)
     {
     print "\n\n" ;
     print "test.pl [options] [files]\n" ;
     print "files: <filename>|<testnumber>|-<testnumber>\n\n" ;
     print "options:\n" ;
-    print "o	test offline\n" ;
-    print "c	test cgi\n" ;
-    print "h	test mod_perl\n" ;
-    print "e	test execute\n" ;
-    print "r	don't kill httpd at end of test\n" ;
-    print "l	loop forever\n" ;
-    print "m	start httpd with mulitple childs\n" ;
-    print "v    memory check\n" ;
-    print "g    exit if httpd grows after 2 loop\n" ;   
-    print "f    file to use for config.pl\n" ;
-    print "x    do not start httpd\n" ;
-    print "u    use unique filenames\n" ;
-    print "n    do not check httpd errorlog\n" ;
-    print "q    set debug to 0\n" ;
-    print "i    ignore errors\n" ;
-    print "t    list tests\n" ;
-    print "b    use uninstalled version (from blib/..)\n" ;
+    print "-o       test offline\n" ;
+    print "-1       test Embperl 1.x compatibility\n" ;
+    print "-c       test cgi\n" ;
+    print "-h       test mod_perl\n" ;
+    print "-e       test execute\n" ;
+    print "-r       don't kill httpd at end of test\n" ;
+    print "-l       loop forever\n" ;
+    print "-m       start httpd with mulitple childs\n" ;
+    print "-v       memory check (needs proc filesystem)\n" ;
+    print "-g       exit if httpd grows after 2 loop\n" ;   
+    print "-f       file to use for config.pl\n" ;
+    print "-x       do not start httpd\n" ;
+    print "-u       use unique filenames\n" ;
+    print "-n       do not check httpd errorlog\n" ;
+    print "-q       set debug to 0\n" ;
+    print "-i       ignore errors\n" ;
+    print "-t       list tests\n" ;
+#    print "-b      use uninstalled version (from blib/..)\n" ;
+    print "--ddd    start apache under ddd\n" ;
+    print "--gdb    start apache under gdb\n" ;
+    print "--ab <numreq>  run test thru ApacheBench\n" ;
+    print "--start  start apache only\n" ;
+    print "--kill   kill apache only\n" ;
     print "\n\n" ;
     print "path\t$EPPATH\n" ;
-    print "httpd\t$EPHTTPD\n" ;
-    print "port\t$port\n" ;
+    print "httpd\t" . ($EPHTTPD || '') . "\n" ;
+    print "port\t" . ($port || '') . "\n" ;
+    $fatal = 0 ;
     exit (1) ;
     }
 
-if ($cmdarg =~ /t/)
+if ($opt_tests)
     {
     $i = 0 ;
     foreach $t (@tests)
@@ -247,14 +377,18 @@ if ($cmdarg =~ /t/)
 	print "$i = $t\n" ;
 	$i++ ;
 	}
+    $fatal = 0 ;
     exit (1) ;
     }
 
+if ($opt_finderr && !$opt_testlib)
+    {
+    my $x = find_error () ;
+    $fatal = 0 ;
+    exit ($x) ;
+    }
 
-	
-$killhttpd = 1 ; # kill httpd at end of test
-$multhttpd = 0 ; # start httpd with child fork
-$looptest  = 0 ; # endless loop tests
+$opt_quite = 1 if (defined ($opt_ab)) ;	
 
 $vmmaxsize = 0 ;
 $vminitsize = 0 ;
@@ -334,7 +468,7 @@ sub CmpFiles
 		}
 	    else
 		{
-		$eq = $l1 eq $l2 ;
+		$eq = lc ($l1) eq lc ($l2) ;
 		}
 	    }
 
@@ -451,6 +585,8 @@ sub GetMem
     
     my @status ;
     
+    return 0 if ($EPWIN32) ;
+
     open FH, "/proc/$pid/status" or die "Cannot open /proc/$pid/status" ;
     @status = <FH> ;
     close FH ;
@@ -491,7 +627,7 @@ sub CheckError
 	    if ($cnt < 0)
 		{ 
 		print "\n\n" if ($cnt == -1) ;
-		print "[$cnt]$_\n" ;
+		print "[$cnt]$_\n" if (!defined ($opt_ab) || !(/Warn/));
 		$err = 1 ;
 		}
 	    }
@@ -533,7 +669,7 @@ sub CheckSVs
 		$max_sv = $num_sv ;
 		
 		}
-	    die "\n\nMemory problem (SVs)" if ($exitonmem && $loopcnt > 2 && $last_sv[$n] < $num_sv) ;
+	    die "\n\nMemory problem (SVs)" if ($opt_exitonsv && $loopcnt > 2 && $last_sv[$n] < $num_sv && $last_sv[$n] != 0 && $num_sv != 0) ;
 	    $last_sv[$n] = $num_sv  ;
 	    last ;
 	    }
@@ -555,31 +691,38 @@ sub CheckSVs
 
 
 use HTML::Embperl;
+use HTML::EmbperlObject ;
 require HTML::Embperl::Module ;
 
 print "ok\n";
 
 #### check commandline options #####
 
-if ($EPHTTPD ne '')
-    { $testtype = $cmdarg || 'ohce' ; }
-else
-    { $testtype = $cmdarg || 'oe' ; }
+if (!$opt_modperl && !$opt_cgi && !$opt_offline && !$opt_execute)
+    {
+    if (defined ($opt_ab))
+	{
+	$opt_modperl = 1 ;	
+	}
+    elsif ($EPHTTPD ne '')
+        { $opt_modperl = $opt_cgi = $opt_offline = $opt_execute = 1 }
+    else
+        { $opt_offline = $opt_execute = 1 }
+    }
 
-$checkerr = 1 ;
-$checkerr = 0 if ($cmdarg =~/n/) ;
-$starthttpd = 1 ;
-$starthttpd = 0 if ($cmdarg =~/x/) ;
-$killhttpd = 0 if (!$starthttpd) ;
-$killhttpd = 0 if ($cmdarg =~/r/) ;
-$multhttpd = 1 if ($cmdarg =~/m/) ;
-$looptest  = 1 if ($cmdarg =~/l/) ;
-$memcheck  = 1 if ($cmdarg =~/v/) ;
-$exitonmem = 1 if ($cmdarg =~/g/) ;
-$outfile .= ".$$" if ($cmdarg =~/u/) ;
-$defaultdebug = 0 if ($cmdarg =~/q/) ;
-$ignoreerror = 1 if ($cmdarg =~/i/) ;
 
+$opt_modperl = $opt_cgi = $opt_offline = $opt_execute = 0 if ($opt_start || $opt_kill) ;
+
+$opt_nokill = 1 if ($opt_nostart || $opt_start) ;
+$looptest  = defined ($opt_loop)?1:0 ; # endless loop tests
+
+$outfile .= ".$$" if ($opt_uniquefn) ;
+$defaultdebug = 0 if ($opt_quite) ;
+$opt_ep1 = 0 if (!$EP2) ;
+$EP1COMPAT = 1 if ($opt_ep1) ;
+
+@tests = @tests2 if ($EP2) ;
+$startnumber = 0 ;
 
 if ($#ARGV >= 0)
     {
@@ -587,11 +730,17 @@ if ($#ARGV >= 0)
 	{
 	$#tests = - $ARGV[0] ;
 	}
+    elsif ($ARGV[0] =~ /^(\d+)-/)
+	{
+	my $i = $1 ;
+        $startnumber = $i ;
+        shift @tests while ($i-- > 0) ;
+	}
     elsif ($ARGV[0] =~ /^\d/)
 	{
 	@savetests = @tests ;
 	@tests = () ;
-	while ($t = shift @ARGV)
+	while (defined ($t = shift @ARGV))
 	    {
 	    push @tests, $savetests[$t] ;
 	    }
@@ -611,7 +760,6 @@ mkdir $tmppath, 0777 ;
 chmod 0777, $tmppath ;
 umask $um ;
 
-unlink ($logfile) ;
 unlink ($outfile) ;
 unlink ($httpderr) ;
 unlink ($offlineerr) ;
@@ -631,7 +779,7 @@ $cp = HTML::Embperl::AddCompartment ('TEST') ;
 
 $cp -> deny (':base_loop') ;
 
-$ENV{EMBPERL_ALLOW} = 'asc|\\.htm$' ;
+$ENV{EMBPERL_ALLOW} = 'asc|\\.htm$|\\.htm-1$' ;
 
 do  
     {
@@ -641,7 +789,7 @@ do
     #
     #############
 
-    if ($testtype =~ /o/)
+    if ($opt_offline) # || $opt_ep1)
 	{
 	print "\nTesting offline mode...\n\n" ;
 
@@ -655,85 +803,96 @@ do
 	$n = 0 ;
 	$t_offline = 0 ;
 	$n_offline = 0 ;
-	$testnum = -1 ;
-        foreach $url (@tests)
-	    {
-	    $testnum++ ;
-            ($file, $query_info, $debug, $errcnt, $option, $ns) = split (/\?/, $url) ;
-	    next if ($file eq 'http.htm') ;
-	    next if ($file eq 'taint.htm') ;
-	    next if ($file eq 'reqrec.htm') ;
-	    next if ($file eq 'http.htm') ;
-	    next if ($file eq 'post.htm') ;
-	    next if ($file eq 'upload.htm') ;
-	    next if ($file =~ /^exit.htm/) ;
-	    next if ($file =~ /registry/) ;
-	    next if ($file =~ /match/) ;
-	    next if ($file =~ /sess\.htm/) ;
-	    next if ($file =~ /EmbperlObject/) ;
-	    next if ($DProf && ($file =~ /safe/)) ;
-	    next if ($DProf && ($file =~ /opmask/)) ;
-            $errcnt = 7 if ($file eq 'varerr.htm' && $^V && $^V ge v5.6.0) ;
+	$testnum = -1 + $startnumber ;
+        foreach $ep1compat (0, 1)
+            {
+            next if (($ep1compat && !($opt_ep1))  || (!$ep1compat && !($opt_offline)));
 
-	    $debug ||= $defaultdebug ;  
-	    $page = "$inpath/$file" ;
-	    $errcnt ||= 0 ;
-    
-	    $notseen = $seen{"o:$page"}?0:1 ;
-	    $seen{"o:$page"} = 1 ;
-    
-	    delete $ENV{EMBPERL_OPTIONS} if (defined ($ENV{EMBPERL_OPTIONS})) ;
-	    $ENV{EMBPERL_OPTIONS} = $option if (defined ($option)) ;
-	    $ENV{EMBPERL_COMPARTMENT} = $ns if (defined ($ns)) ;
-	    @testargs = ( '-o', $outfile ,
-			  '-l', $logfile,
-			  '-d', $debug,
-			   $page, $query_info || '') ;
-	    unshift (@testargs, 'dbgbreak') if ($dbgbreak) ;
-    
-	    $txt = "#$testnum ". $file . ($debug != $defaultdebug ?"-d $debug ":"") . '...' ;
-	    $txt .= ' ' x (30 - length ($txt)) ;
-	    print $txt ; 
-    
-    
-	    unlink ($outfile) ;
+            $ENV{EMBPERL_EP1COMPAT} = $ep1compat ;
+	    print "\nTesting Embperl 1.x compatibility mode...\n\n" if ($ep1compat) ;
+            
+            foreach $url (@tests)
+	        {
+	        $testnum++ ;
+                ($file, $query_info, $debug, $errcnt, $option, $ns) = split (/\?/, $url) ;
+	        next if ($file eq 'http.htm') ;
+	        next if ($file eq 'taint.htm') ;
+	        next if ($file eq 'reqrec.htm') ;
+	        next if ($file eq 'http.htm') ;
+	        next if ($file eq 'post.htm') ;
+	        next if ($file eq 'upload.htm') ;
+	        next if ($file =~ /^exit.htm/) ;
+	        next if ($file =~ /registry/) ;
+	        next if ($file =~ /match\//) ;
+	        next if ($file =~ /sess\.htm/) ;
+	        next if ($file =~ /EmbperlObject/) ;
+	        next if ($DProf && ($file =~ /safe/)) ;
+	        next if ($DProf && ($file =~ /opmask/)) ;
+                $errcnt = 7 if ($file eq 'varerr.htm' && $^V && $^V ge v5.6.0) ;
 
-	    $n_offline++ ;
-	    $t1 = HTML::Embperl::Clock () ;
-	    $err = HTML::Embperl::run (@testargs) ;
-	    $t_offline += HTML::Embperl::Clock () - $t1 ;
-
-	    if ($memcheck)
-		{
-		my $vmsize = GetMem ($$) ;
-		$vminitsize = $vmsize if $loopcnt == 2 ;
-		print "\#$loopcnt size=$vmsize init=$vminitsize " ;
-		print "GROWN! at iteration = $loopcnt  " if ($vmsize > $vmmaxsize) ;
-		$vmmaxsize = $vmsize if ($vmsize > $vmmaxsize) ;
-		CheckSVs ($loopcnt, $n) ;
-		}
-		
-	    $errin = $err ;
-	    $err = CheckError ($errcnt) if ($err == 0 || ($errcnt > 0 && $err == 500) || $file eq 'notfound.htm'  || $file eq 'notallow.xhtm') ;
+	        $debug ||= $defaultdebug ;  
+	        $page = "$inpath/$file" ;
+                $page .= '-1' if ($ep1compat && -e "$page-1") ;
+	        $errcnt ||= 0 ;
     
-	    
-	    if ($err == 0 && $errin != 500 && $file ne 'notfound.htm' && $file ne 'notallow.xhtm')
-		{
-		$page =~ /.*\/(.*)$/ ;
-		$org = "$cmppath/$1" ;
-                $org .= '56' if ($file eq 'varerr.htm' && $^V && $^V ge v5.6.0) ;
+	        $notseen = $seen{"o:$page"}?0:1 ;
+	        $seen{"o:$page"} = 1 ;
+    
+	        delete $ENV{EMBPERL_OPTIONS} if (defined ($ENV{EMBPERL_OPTIONS})) ;
+	        $ENV{EMBPERL_OPTIONS} = $option if (defined ($option)) ;
+	        $ENV{EMBPERL_COMPARTMENT} = $ns if (defined ($ns)) ;
+	        @testargs = ( '-o', $outfile ,
+			      '-l', $logfile,
+			      '-d', $debug,
+			       $page, $query_info || '') ;
+	        unshift (@testargs, 'dbgbreak') if ($opt_dbgbreak) ;
+    
+	        $txt = "#$testnum ". $file . ($debug != $defaultdebug ?"-d $debug ":"") . '...' ;
+	        $txt .= ' ' x (30 - length ($txt)) ;
+	        print $txt ; 
+    
+    
+	        unlink ($outfile) ;
 
-		$err = CmpFiles ($outfile, $org, $errin) ;
-		}
+	        $n_offline++ ;
+	        $t1 = HTML::Embperl::Clock () ;
+	        $err = HTML::Embperl::run (@testargs) ;
+	        $t_offline += HTML::Embperl::Clock () - $t1 ;
 
-	    print "ok\n" unless ($err) ;
-	    $err = 0 if ($ignoreerror) ;
-	    last if $err ;
-	    $n++ ;
-	    }
+	        if ($opt_memcheck)
+		    {
+		    my $vmsize = GetMem ($$) ;
+		    $vminitsize = $vmsize if $loopcnt == 2 ;
+		    print "\#$loopcnt size=$vmsize init=$vminitsize " ;
+		    print "GROWN! at iteration = $loopcnt  " if ($vmsize > $vmmaxsize) ;
+		    $vmmaxsize = $vmsize if ($vmsize > $vmmaxsize) ;
+		    CheckSVs ($loopcnt, $n) ;
+		    }
+		    
+	        $errin = $err ;
+	        $err = CheckError ($errcnt) if ($err == 0 || ($errcnt > 0 && $err == 500) || $file eq 'notfound.htm'  || $file eq 'notallow.xhtm') ;
+    
+	        
+	        if ($err == 0 && $errin != 500 && $file ne 'notfound.htm' && $file ne 'notallow.xhtm')
+		    {
+		    $page =~ /.*\/(.*)$/ ;
+		    $org = "$cmppath/$1" ;
+                    $org .= '56' if ($file eq 'varerr.htm' && $^V && $^V ge v5.6.0) ;
+                    $org .= '-1' if ($ep1compat && -e "$org-1") ;
+
+		    $err = CmpFiles ($outfile, $org, $errin) ;
+		    }
+
+	        print "ok\n" unless ($err) ;
+	        $err = 0 if ($opt_ignoreerror) ;
+	        last if $err ;
+	        $n++ ;
+	        }
+            last if $err ;
+            }
 	}
     
-    if ($testtype =~ /e/)
+    if ($opt_execute)
 	{
 	#############
 	#
@@ -887,11 +1046,11 @@ do
                 				}) ;
 		$t_exec += HTML::Embperl::Clock () - $t1 ; 
 		    
-                $err = CheckError (8) if ($err == 0) ;
+                $err = CheckError ($EP2?7:8) if ($err == 0) ;
 
-                if (@errors != 12)
+                if (@errors != ($EP2?2:12))
                     {
-                    print "\n\n\@errors does not return correct number of errors (is " . scalar(@errors) . ", should 12)\n" ;
+                    print "\n\n\@errors does not return correct number of errors (is " . scalar(@errors) . ", should 2)\n" ;
                     $err = 1 ;
                     }
 
@@ -902,11 +1061,42 @@ do
 		print "ok\n" unless ($err) ;
 		}
 
+            foreach $src ('EmbperlObject/epopage1.htm', 'EmbperlObject/sub/epopage2.htm', 'EmbperlObject/obj/epoobj3.htm')
+                {
+	        if ($err == 0)
+		    {
+                    $src =~ m#^.*/(.*?)$# ;
+		    $org = "$cmppath/$1" ;
+                    $page = $src ;
+                                    
+                    $txt2 = "$src ...";
+		    $txt2 .= ' ' x (30 - length ($txt2)) ;
+		    print $txt2 ; 
+
+		    my $outdata ;
+                    my @errors ;
+		    unlink ($outfile) ;
+		    $t1 = HTML::Embperl::Clock () ;
+		    $err = HTML::EmbperlObject::Execute ({'inputfile'  => "$EPPATH/$inpath/$src",
+						    'object_base' => 'epobase.htm',    
+                                                    'debug'      => $defaultdebug,
+					            'outputfile' => $outfile,
+		                                    'errors'     => \@errors,
+                				    }) ;
+		    $t_exec += HTML::Embperl::Clock () - $t1 ; 
+		        
+                    $err = CheckError (0) if ($err == 0) ;
+
+		    $err = CmpFiles ($outfile, $org)  if ($err == 0) ;
+		    print "ok\n" unless ($err) ;
+		    }
+                }
+
 	    HTML::Embperl::Term () ;
 	    }
 	}
 
-    if ((($testtype =~ /e/) || ($testtype =~ /o/)) && $looptest == 0)
+    if ((($opt_execute) || ($opt_offline)) && $looptest == 0)
 	{
 	close STDERR ;
 	open (STDERR, ">&SAVEERR") ;
@@ -918,15 +1108,15 @@ do
     #
     #############
 
-    if ($testtype =~ /h/)
+    if ($opt_modperl)
 	{ $loc = $embploc ; }
-    elsif ($testtype =~ /c/)   
+    elsif ($opt_cgi)   
 	{ $loc = $cgiloc ; }
     else
 	{ $loc = '' ; }
 
 
-    if ($loc ne '' && $err == 0 && $loopcnt == 0 && $starthttpd)
+    if (($loc ne '' && $err == 0 && $loopcnt == 0 && !$opt_nostart) || $opt_start)
 	{
 	#### Configure httpd conf file
 	$EPDEBUG = $defaultdebug ;
@@ -949,7 +1139,7 @@ do
 	print "\n\nStarting httpd...       " ;
 	unlink "$tmppath/httpd.pid" ;
 	chmod 0666, $logfile ;
-	$XX = $multhttpd?'':'-X' ;
+	$XX = $opt_multchild?'':'-X' ;
 
 
 	if ($EPWIN32)
@@ -965,7 +1155,19 @@ do
 	    }
 	else
 	    {
-	    system ("$EPHTTPD $XX -f $EPPATH/$httpdconf &") and die "***Cannot start $EPHTTPD" ;
+	    if ($opt_gdb || $opt_ddd)
+		{
+		open FH, ">dbinitembperlapache" or die "Cannot write to dbinitembperlapache ($!)" ;
+		print FH "set args $XX -f $EPPATH/$httpdconf\n" ;
+		print FH "r\n" ;
+		print FH "BT\n" if ($opt_gdb) ;
+		close FH ;
+	        system (($opt_ddd?'ddd':'gdb') . " -x dbinitembperlapache $EPHTTPD &") and die "***Cannot start $EPHTTPD" ;
+		}			
+	    else
+	        {
+		system ("$EPHTTPD $XX -f $EPPATH/$httpdconf &") and die "***Cannot start $EPHTTPD" ;
+		}
 	    }
 	sleep (3) ;
 	if (!open FH, "$tmppath/httpd.pid")
@@ -1014,7 +1216,7 @@ do
         $t_req = 0 ;
 	$n_req = 0 ;
 	$n = 0 ;
-	$testnum = -1 ;
+	$testnum = -1  + $startnumber;
         foreach $url (@tests)
 	    {
 	    $testnum++ ;
@@ -1053,7 +1255,7 @@ do
 	    $errcnt ||= 0 ;
 	    $errcnt = -1 if ($EPWIN32 && $loc eq $cgiloc) ;
 	    $page = "$inpath/$file" ;
-	    if (!$starthttpd)
+	    if ($opt_nostart)
 		{
 		$notseen = 0 ;
 		}
@@ -1082,7 +1284,7 @@ do
 		$content = "Hi there!" ;
 		}
 
-            if (!$EPWIN32 && $loc eq $embploc && $file ne 'notfound.htm')
+            if (!$EPWIN32 && $loc eq $embploc && !($file =~ /notfound\.htm/))
                 {
                 print "ERROR: Missing read permission for file $inpath/$file\n" if (!-r "$inpath/$file") ;
                 local $> = $httpduid ;
@@ -1091,16 +1293,28 @@ do
 
 	    $n_req++ ;
 	    $t1 = HTML::Embperl::Clock () ;
-	    $m = REQ ($loc, $file, $query_info, $outfile, $content, $upload) ;
+	    $page = "$inpath/$file" ;
+            $file .= '-1' if ($opt_ep1 && -e "$page-1") ;
+            if (defined ($opt_ab))
+		{
+		$opt_ab = 10 if (!$opt_ab) ;
+		my $cmd = "ab -n $opt_ab 'http://$host:$port/$loc$file?$query_info'";
+		print "$cmd\n" ;
+		system ($cmd) and die "Cannot start ab ($!)" ;
+		}
+	    else
+		{				
+	        $m = REQ ($loc, $file, $query_info, $outfile, $content, $upload) ;
+		}
 	    $t_req += HTML::Embperl::Clock () - $t1 ; 
 
-	    if ($memcheck)
+	    if ($opt_memcheck)
 		{
 		my $vmsize = GetMem ($httpdpid) ;
 		$vmhttpdinitsize = $vmsize if $loopcnt == 2 ;
 		print "\#$loopcnt size=$vmsize init=$vmhttpdinitsize " ;
 		print "GROWN! at iteration = $loopcnt  " if ($vmsize > $vmhttpdsize) ;
-		die "\n\nMemory problem (Total memory)" if ($exitonmem && $loopcnt > 2 && $vmsize > $vmhttpdsize) ;
+		die "\n\nMemory problem (Total memory)" if ($opt_exitonmem && $loopcnt > 2 && $vmsize > $vmhttpdsize) ;
 		$vmhttpdsize = $vmsize if ($vmsize > $vmhttpdsize) ;
 		CheckSVs ($loopcnt, $n) ;
 		
@@ -1113,19 +1327,20 @@ do
 		}
 
 	    #$errcnt++ if ($loc eq $cgiloc && $file eq 'notallow.xhtm') ;   
-	    $err = CheckError ($errcnt) if (($err == 0 || $file eq 'notfound.htm' || $file eq 'notallow.xhtm') && $checkerr ) ;
-	    if ($err == 0 && $file ne 'notfound.htm' && $file ne 'notallow.xhtm')
+	    $err = CheckError ($errcnt) if (($err == 0 || $file eq 'notfound.htm' || $file eq 'notallow.xhtm')) ;
+	    if ($err == 0 && $file ne 'notfound.htm' && $file ne 'notallow.xhtm' && !defined ($opt_ab))
 		{
 		$page =~ /.*\/(.*)$/ ;
 		$org = "$cmppath/$1" ;
                 $org .= '56' if ($file eq 'varerr.htm' && $^V && $^V ge v5.6.0) ;
+                $org .= '-1' if ($opt_ep1 && -e "$org-1") ;
 
 		#print "Compare $page with $org\n" ;
 		$err = CmpFiles ($outfile, $org) ;
 		}
 
 	    print "ok\n" unless ($err) ;
-	    $err = 0 if ($ignoreerror) ;
+	    $err = 0 if ($opt_ignoreerror) ;
 	    last if ($err) ;
 	    $n++ ;
 	    }
@@ -1141,9 +1356,9 @@ do
 	    $n_cgi = $n_req ;
 	    }
 
-	if ($testtype =~ /c/ && $err == 0 && $loc ne $cgiloc && $loopcnt == 0)   
+	if ($opt_cgi && $err == 0 && $loc ne $cgiloc && $loopcnt == 0)   
 	    { 
-	    $loc = $cgiloc ;
+	    $loc = $EP2?'':$cgiloc ; # currently disable cgi mode at all for Embperl 2.x
 	    }
 	else
 	    {
@@ -1161,7 +1376,7 @@ do
 
     $loopcnt++ ;
     }
-until ($looptest == 0 || $err != 0)     ;
+until ($looptest == 0 || $err != 0 || ($loopcnt >= $opt_loop && $opt_loop > 0))     ;
 
 
 if ($err)
@@ -1179,13 +1394,13 @@ else
     print "\nAll test have been passed successfully!\n\n" ;
     }
 
-if (defined ($line = <ERR>))
+if (defined ($line = <ERR>) && !defined ($opt_ab))
 	{
 	print "\nFound unexpected output in httpd errorlog:\n" ;
 	print $line ;
+	while (defined ($line = <ERR>))
+		{ print $line ; }
 	}
-while (defined ($line = <ERR>))
-	{ print $line ; }
 close ERR ;
 		
 $fatal = 0 ;
@@ -1197,7 +1412,46 @@ if ($EPWIN32)
     }
 else
     {
-    system "kill `cat $tmppath/httpd.pid`  2> /dev/null" if ($EPHTTPD ne '' && $killhttpd) ;
+    system "kill `cat $tmppath/httpd.pid`  2> /dev/null" if ($EPHTTPD ne '' && !$opt_nokill) ;
     }
 
 exit ($err) ;
+
+
+############################################################################################################
+
+sub find_error
+
+    {
+    my $max = @tests ;
+    my $min = 0 ;
+    my $n   = $max ;
+
+    my $ret ;
+    my $cmd ;
+    my $opt = " -h "if (!$opt_modperl && !$opt_cgi && !$opt_offline && !$opt_execute) ;
+
+    while ($min + 1 < $max)
+        {
+        $cmd = "perl test.pl --testlib @ARGVSAVE $opt -l10 -v --exitonsv -- -$n" ;
+        print "---> min = $min  max = $max\n$cmd\n" ;
+        $ret = system ($cmd) ;
+        last if ($ret == 0 && $n == $max) ;
+        $min = $n if ($ret == 0) ;
+        $max = $n if ($ret != 0) ;
+
+        $n = $min + int (($max - $min) / 2) ;
+        }
+
+    if ($max < @tests) 
+        {
+        print "############## -> error at #$max $tests[$max]\n" ;
+        $cmd = "perl test.pl --testlib @ARGVSAVE $opt -l10 -v --exitonsv -- $max" ;
+        print "---> min = $min  max = $max\n$cmd\n" ;
+        $ret = system ($cmd) ;
+        print "############## -> error at #$max $tests[$max]\n" ;
+        } 
+
+    return ($max == @tests)?0:1 ;
+    }
+

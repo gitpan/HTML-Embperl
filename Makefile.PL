@@ -17,6 +17,8 @@ $aix = ($Config{osname} =~ /aix/i);
 $dynlib = {};
 print "\nRunning on Win 32\n" if ($win32) ;
 
+$EP2 = -f "epcmd2.c" ; 
+
 ## ----------------------------------------------------------------------------
 
 
@@ -95,9 +97,52 @@ sub MY::test_via_script
 	$txt =~ s/PERL_DL_NONLAZY=1/PERL_DL_NONLAZY=0/ ;
 	#$txt =~ s/\$\(FULLPERL\)/\$\(FULLPERL\) \-T / ;
 	$txt =~ s/\$\(FULLPERL\)/SET PATH=\$\(PATH\)\;$EPHTTPDDLL\n\t\$\(FULLPERL\)/ if ($win32) ;
+
+	$txt =~ s/\$\(TEST_FILE\)/\$(TEST_FILE) \$(TESTARGS)/g ;
+
 	return $txt ;
 	}
 	
+
+sub MY::test
+
+	{
+	my ($txt) = shift -> MM::test (@_) ;
+
+
+        $txt .= qq{
+
+testdbinit : pure_all
+\t\@echo set args -I\$(INST_ARCHLIB) -I\$(INST_LIB) -I\$(PERL_ARCHLIB) -I\$(PERL_LIB) \$(TEST_FILE) \$(TESTARGS) > dbinitembperl
+
+testdbbreak : pure_all
+\t\@echo set args -I\$(INST_ARCHLIB) -I\$(INST_LIB) -I\$(PERL_ARCHLIB) -I\$(PERL_LIB) \$(TEST_FILE) --dbgbreak \$(TESTARGS) > dbinitembperl
+\t\@echo r >> dbinitembperl
+
+
+testddd : testdbinit
+\tPERL_DL_NONLAZY=0 ddd -x dbinitembperl \$(FULLPERL)  
+
+testgdb : testdbinit
+\tPERL_DL_NONLAZY=0 gdb -x dbinitembperl \$(FULLPERL)  
+
+testdddb : testdbbreak
+\tPERL_DL_NONLAZY=0 ddd -x dbinitembperl \$(FULLPERL)  
+
+testgdbb : testdbbreak
+\tPERL_DL_NONLAZY=0 gdb -x dbinitembperl \$(FULLPERL)  
+
+
+} ;
+
+	$txt =~ s/\r\n/\n/g ;  # make doesn't like \r\n!
+
+        
+        return $txt ;
+        }
+
+
+
 sub MY::xs_c 
 	{
 	my ($txt) = shift -> MM::xs_c (@_) ;
@@ -118,6 +163,15 @@ sub MY::dist_test
         return $txt ;
 	}
 	
+sub MY::cflags 
+	{
+	my $self = shift ;
+        
+        my $txt = $self -> MM::cflags (@_) ;
+	$txt =~ s/CCFLAGS\s*=/CCFLAGS = $ccdebug / ;
+        
+        return $txt ;
+	}
 
 	
 
@@ -273,7 +327,23 @@ sub CheckModule
 $apache = 0 ;
 $b = 0 ;
 
-if (defined ($ARGV[0]) && ($ARGV[0] =~ /^\W/))
+$ccdebug = '' ;
+$lddebug = '' ;
+
+if ($ARGV[0] eq 'debug')
+    {
+    if ($win32)
+        {
+        $ccdebug = '-Zi -W3' ;
+        $lddebug = '-debug -map -profile' ;
+        }
+    else
+        {
+        $ccdebug = '-g' ;
+        $lddebug = '-g' ;
+        }
+    }
+elsif (defined ($ARGV[0]) && ($ARGV[0] =~ /^\W/))
     {
     $apache = 2 ;
     $b = 1 ;
@@ -500,7 +570,7 @@ $EPSTARTUP ='startup.pl' ;
 
 if ($b && $apache)
     {
-    $EPPORT  = 8529 ;
+    $EPPORT  = 8531 ;
     if (!$win32)
         {
         $EPUSER  = getpwuid($>) ||  $> ;
@@ -741,6 +811,7 @@ if ($b && $apache)
     print FH "\$EPSTARTUP='" . cnvpath($EPSTARTUP) . "';\n" ;
     print FH "\$EPAPACHEVERSION='$EPAPACHEVERSION[0]';\n" ;
     print FH "\$EPSESSIONVERSION='$SessVer';\n" ;
+    print FH "\$EP2='$EP2';\n" ;
     if ($win32)
         {
         print FH "\$EPNULL='nul';\n" ;
@@ -778,6 +849,7 @@ else
     print FH "\$EPWIN32='$win32' ;\n" ;
     print FH "\$EPSESSIONVERSION='$SessVer';\n" ;
     print FH "\$EPSSLDISABLE='$EPSSLDISABLE' ;\n" ;
+    print FH "\$EP2='$EP2';\n" ;
     close FH ;
     }
 
@@ -808,11 +880,13 @@ if ($win32)
         }
     }
 
+$dynlib->{'OTHERLDFLAGS'} .= " $lddebug" ;
+
 
 WriteMakefile(
     'NAME'	   => 'HTML::Embperl',
     'VERSION_FROM' => 'Embperl.pm', 		# finds $VERSION
-    'OBJECT'     => 'Embperl$(OBJ_EXT) epmain$(OBJ_EXT) epio$(OBJ_EXT) epchar$(OBJ_EXT) epcmd$(OBJ_EXT) eputil$(OBJ_EXT) epeval$(OBJ_EXT) epdbg$(OBJ_EXT)' . $o,
+    'OBJECT'     => 'Embperl$(OBJ_EXT) epmain$(OBJ_EXT) epio$(OBJ_EXT) epchar$(OBJ_EXT) epcmd$(OBJ_EXT) eputil$(OBJ_EXT) epeval$(OBJ_EXT) epdbg$(OBJ_EXT) ' . ($EP2?'epcmd2$(OBJ_EXT) epparse$(OBJ_EXT) epdom$(OBJ_EXT) epcomp$(OBJ_EXT)':'') . $o,
     'LIBS'	   => [''],   			 
     'DEFINE'	   => "$d \$(DEFS)", 			 
     'INC'	   => $i,     			 
@@ -823,6 +897,7 @@ WriteMakefile(
     'clean'        => { FILES => 'dirent.h test/tmp/*' },
     'dist'         => { COMPRESS => 'gzip', SUFFIX => 'gz'},
     'dynamic_lib'  => $dynlib,
+    'PREREQ_PM'    => { 'File::Spec' => 0 },
 );
 
 

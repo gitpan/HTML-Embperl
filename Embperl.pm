@@ -79,7 +79,7 @@ use vars qw(
 @ISA = qw(Exporter DynaLoader);
 
 
-$VERSION = '1.3b3';
+$VERSION = '1.3b4';
 
 
 # HTML::Embperl cannot be bootstrapped in nonlazy mode except
@@ -142,6 +142,8 @@ use constant dbgStd                 => 1 ;
 use constant dbgSession             => 0x200000 ;
 use constant dbgTab                 => 64 ;
 use constant dbgWatchScalar         => 131072 ;
+use constant dbgParse               => 0x100000 ; # reserved for Embperl 2.x
+use constant dbgObjectSearch        => 0x200000 ;
 
 use constant epIOCGI                => 1 ;
 use constant epIOMod_Perl           => 3 ;
@@ -152,6 +154,7 @@ use constant escHtml                => 1 ;
 use constant escNone                => 0 ;
 use constant escStd                 => 3 ;
 use constant escUrl                 => 2 ;
+use constant escEscape              => 4 ;
 
 
 use constant optDisableChdir            => 128 ;
@@ -319,14 +322,10 @@ if (defined ($ENV{MOD_PERL}))
     { 
     eval 'use Apache' ; # make sure Apache.pm is loaded (is not at server startup in mod_perl < 1.11)
     die "use Apache failed: $@" if ($@); 
-    #eval 'use Apache::Constants qw(:common &OPT_EXECCGI)' ;
-    eval 'use Apache::Constants qw(&OPT_EXECCGI &DECLINED &OK &FORBIDDEN)' ;
+    eval 'use Apache::Constants qw(&OPT_EXECCGI &DECLINED &OK &FORBIDDEN &NOT_FOUND) ;' ;
     die "use Apache::Constants failed: $@" if ($@); 
-    XS_Init (epIOMod_Perl, $DefaultLog, $DebugDefault) ;
-#    eval 'sub OK        { 0 ;   }' if (!defined (&OK)) ;
-    eval 'sub NOT_FOUND { 404 ; }' if (!defined (&NOT_FOUND)) ;
-#    eval 'sub FORBIDDEN { 403 ; }' if (!defined (&FORBIDDEN)) ;
 
+    XS_Init (epIOMod_Perl, $DefaultLog, $DebugDefault) ;
     }
 else
     {
@@ -561,7 +560,7 @@ sub SendLogFile ($$$)
 sub CheckFile
 
     {
-    my ($filename, $req_rec, $AllowZeroFilesize, $allow, $path) = @_ ;
+    my ($filename, $req_rec, $AllowZeroFilesize, $allow, $path, $debug) = @_ ;
 
     if (-d $filename)
         {
@@ -581,9 +580,6 @@ sub CheckFile
 	return &FORBIDDEN ;
  	}
 
-    $path ||= $req_rec -> notes('EMBPERL_searchpath') if ($req_rec) ;
-    $path ||= $ENV{EMBPERL_PATH} ;
-
     if ($path && !($filename =~ /\//))
         {
         my @path = split /$pathsplit/o, $path ;
@@ -593,7 +589,7 @@ sub CheckFile
             {
             next if (!$_) ;
             $fn = "$_/$filename" ;
-            warn "Embperl path search $fn\n" ;
+            print LOG "[$$]Embperl path search Check: $fn\n" if ($debug);
             if (-r $fn && (-s _ || $AllowZeroFilesize))
                 {
                 if (defined ($allow) && !($fn =~ /$allow/))
@@ -621,7 +617,7 @@ sub CheckFile
 
 ##########################################################################################
 
-sub ScanEnvironement
+sub ScanEnvironment
 
     {
     my ($req, $req_rec) = @_ ; 
@@ -643,6 +639,8 @@ sub ScanEnvironement
     $$req{'input_func'}  = $ENV{EMBPERL_INPUT_FUNC}  if (exists ($ENV{EMBPERL_INPUT_FUNC})) ;
     $$req{'output_func'} = $ENV{EMBPERL_OUTPUT_FUNC} if (exists ($ENV{EMBPERL_OUTPUT_FUNC})) ;
     $$req{'allow'}       = $ENV{EMBPERL_ALLOW}       if (exists ($ENV{EMBPERL_ALLOW})) ;
+    $$req{'filesmatch'}  = $ENV{EMBPERL_FILESMATCH}  if (exists ($ENV{EMBPERL_FILESMATCH})) ;
+    $$req{'decline'}     = $ENV{EMBPERL_DECLINE}     if (exists ($ENV{EMBPERL_DECLINE})) ;
     $$req{'debug'}       = $ENV{EMBPERL_DEBUG}   || 0 ;
     $$req{'options'}     = $ENV{EMBPERL_OPTIONS} || 0 ;
     $$req{'log'}         = $ENV{EMBPERL_LOG}     || $DefaultLog ;
@@ -659,6 +657,8 @@ sub ScanEnvironement
     $$req{'cookie_expires'} = $ENV{EMBPERL_COOKIE_EXPIRES} if (exists ($ENV{EMBPERL_COOKIE_EXPIRES})) ;
     }
 
+
+*ScanEnvironement = \&ScanEnvironment ; # for backward compatibility (was typo)
 
 
 #######################################################################################
@@ -768,8 +768,10 @@ use strict ;
 
     my $Inputfile    = $$req{'inputfile'} || '?' ;
     my $Sub          = $$req{'sub'} || '' ;
-
-    $Inputfile = $req_rec -> notes ('EMBPERL_orgfilename') if ($req_rec && $Inputfile eq '*') ;
+    my $lastreq      = CurrReq () ;
+    
+    $Inputfile = $lastreq -> ReqFilename if ($lastreq && $Inputfile eq '*') ;
+    $$req{'path'} ||= $lastreq -> Path if ($lastreq) ;
     
     if (defined ($In))
         {
@@ -778,7 +780,10 @@ use strict ;
         }
    elsif (!$Sub || $Inputfile ne '?')
         {
-        if ($rc = CheckFile ($Inputfile, $req_rec, (($$req{options} || 0) & optAllowZeroFilesize), $$req{'allow'}, $$req{path})) 
+        #my ($k, $v) ;
+        #while (($k, $v) = each (%$req))
+        #    { warn "$k = $v" ; }
+        if ($rc = CheckFile ($Inputfile, $req_rec, (($$req{options} || 0) & optAllowZeroFilesize), $$req{'allow'}, $$req{path}, (($$req{debug} || 0) & dbgObjectSearch))) 
             {
 	    FreeConfData ($conf) ;
             return $rc ;
@@ -797,6 +802,8 @@ use strict ;
     my $r = SetupRequest ($ar, $Inputfile, $mtime, $filesize, ($$req{firstline} || 1), $Outputfile, $conf,
                           &epIOMod_Perl, $In, $Out, $Sub, exists ($$req{import})?scalar(caller ($$req{import} > 0?$$req{import} - 1:0)):'',$SessionMgnt) ;
     
+    bless $r, $$req{'bless'} if (exists ($$req{'bless'})) ;
+
     my $package = $r -> CurrPackage ;
     $evalpackage = $package ;   
     my $exports ;
@@ -1432,8 +1439,12 @@ sub MailFormTo
     #die "require Net::SMTP failed: $@" if ($@); 
     require Net::SMTP ;
 
-    $smtp = Net::SMTP->new($ENV{'EMBPERL_MAILHOST'} || 'localhost', Debug => $ENV{'EMBPERL_MAILDEBUG'}) or die "Cannot connect to mailhost" ;
-    { $smtp->mail($ENV{'EMBPERL_MAILFROM'} || "WWW-Server\@$ENV{SERVER_NAME}");}
+    $smtp = Net::SMTP->new($ENV{'EMBPERL_MAILHOST'} || 'localhost', 
+                           Debug => $ENV{'EMBPERL_MAILDEBUG'} || 0,
+                           $ENV{'EMBPERL_MAILHELO'}?(Hello => $ENV{'EMBPERL_MAILDEBUG'}):()) 
+             or die "Cannot connect to mailhost" ;
+    
+    $smtp->mail($ENV{'EMBPERL_MAILFROM'} || "WWW-Server\@$ENV{SERVER_NAME}");
     $smtp->to($to);
     $ok = $smtp->data();
     $ok = $smtp->datasend("Reply-To: $ret\n") if ($ok && $ret) ;

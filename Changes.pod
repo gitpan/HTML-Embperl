@@ -1,5 +1,56 @@
 =pod
 
+=head1 1.3b4 (BETA)  17.07.2000
+
+   - New $escmode (or EMBPERL_ESCMODE) to disable the possiblilty
+     to turn off escaping with a leading backslash. Adding 4 to
+     any escmode will cause Embperl to do no special processing
+     on the backslash. This is mainly to avoid problems with
+     cross site scripting issuse, where people are able to enter
+     aribtary HTML. Spotted by Dirk Lutzebaeck.
+   - Characters between 128 and 159 are all HTML escaped now to
+     avoid problems with buggy browser, which were reported to
+     treat the chars 139 and 141 as < and >.  Spotted by Dirk Lutzebaeck.
+   - If a requested file is not found when using EmbperlObject as handler,
+     the file given by C<EMBPERL_OBJECT_FALLBACK> is displayed instead. 
+     If C<EMBPERL_OBJECT_FALLBACK> isn't set a staus 404, NOT_FOUND is
+     returned as usual.
+   - "perl Makefile.PL debug" will build debugging information for
+     gdb/ms-vc++ into Embperl library.
+   - test.pl can take a bunch of new options for debugging Embperl itself.
+     See make test TESTARGS="--help".
+   - Embperl 1.x and 2.x share now the same Makefile.PL and test.pl
+   - Added new debug flag dbgObjectSerach which logs the EmbperlObjects
+     work when searching the correct file.
+   - If import parameter is given to Execute, Perl code is compiled, but
+     only [!  !] blocks are executed (to allow sub definitions on import)
+   - Space is converted to %20 instead of +, because that is more generic.
+     Suggested by Michael Blakely.
+   - EmbperlObject now automaticly defines all subs that are declared
+     inside the base template and inside the requested page, so it isn't
+     neccessary anymore to call Execute with import => 0 for them.
+   - Every Embperl Page now get passed a request object (which can be obtained
+     from $_[0]). The request object is a hash reference which is blessed
+     into the package HTML::Embperl::Req. Embperl itself don't uses the hash, so
+     you are free to populate it and pass data between different pages of one request.
+   - EmbperlObject now setup the inherence so that 
+       request page -ISA->
+       base template -ISA-> 
+       EMBPERL_OBJECT_HANDLER_CLASS (if defined) -ISA->
+       HTML::Embperl::Req
+     and the Embperl request object is blessed into the packages of the
+     requested page, so you can do methods calls to subs that are defined
+     inside the requested page.
+   - correct spelling error and renamed ScanEnvironement to ScanEnvironment.
+     (ScanEnvironement still works).
+   - EmbperlObject can now be used also offline (via HTML::EmbperlObject::Execute)   
+   - MailFormTo and HTML::Embperl::Mail::Execute now have a configuration
+     directive EMBPERL_MAILHELO, can be used to specify the host/domain for the 
+     HELO/EHLO command. Suggested by Remco Brink.
+   - Fixed a bug that caused the default drive to be incorrectly set on Win 32.
+
+ 
+
 =head1 1.3b3 (BETA)  25.04.2000
 
    - Fixed SIGSEGV which occurs in cleanup with Perl 5.6. Spotted by 

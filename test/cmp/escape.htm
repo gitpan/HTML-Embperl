@@ -18,10 +18,10 @@ Now lets look what we are getting from this:<BR>
 (this is the value in $a) (this is the value in $a) &auml;&ouml;&uuml;&auml;&ouml;&uuml;???&lt;&amp;+  <BR>
 
 What is the EscMode? 3
-Now a Url: <A HREF="http://localhost/tests?id=abcdefghijklmnopqrstuvwxyz&text=This+is+a+text+%3F+%26+%2B+-+%2521">Here it goes</A>
-A Tag 2:   <A HREF="http://localhost/tests?id=abcdefghijklmnopqrstuvwxyz&text=This+is+a+text+%3F+%26+%2B+-+%2521" TARGET="http://localhost/tests?id=abcdefghijklmnopqrstuvwxyz&text=This is a text ? &amp; + - %21">a2</A>
-A Tag 3:   <A  TARGET="http://localhost/tests?id=abcdefghijklmnopqrstuvwxyz&text=This is a text ? &amp; + - %21" HREF="http://localhost/tests?id=abcdefghijklmnopqrstuvwxyz&text=This+is+a+text+%3F+%26+%2B+-+%2521" TARGET="http://localhost/tests?id=abcdefghijklmnopqrstuvwxyz&text=This is a text ? &amp; + - %21">a3</A>
-A Tag 4:   <A TARGET="http://localhost/tests?id=abcdefghijklmnopqrstuvwxyz&text=This is a text ? &amp; + - %21" HREF="http://localhost/tests?id=abcdefghijklmnopqrstuvwxyz&text=This+is+a+text+%3F+%26+%2B+-+%2521">a4</A>
+Now a Url: <A HREF="http://localhost/tests?id=abcdefghijklmnopqrstuvwxyz&text=This%20is%20a%20text%20%3F%20%26%20%2B%20-%20%2521">Here it goes</A>
+A Tag 2:   <A HREF="http://localhost/tests?id=abcdefghijklmnopqrstuvwxyz&text=This%20is%20a%20text%20%3F%20%26%20%2B%20-%20%2521" TARGET="http://localhost/tests?id=abcdefghijklmnopqrstuvwxyz&text=This is a text ? &amp; + - %21">a2</A>
+A Tag 3:   <A  TARGET="http://localhost/tests?id=abcdefghijklmnopqrstuvwxyz&text=This is a text ? &amp; + - %21" HREF="http://localhost/tests?id=abcdefghijklmnopqrstuvwxyz&text=This%20is%20a%20text%20%3F%20%26%20%2B%20-%20%2521" TARGET="http://localhost/tests?id=abcdefghijklmnopqrstuvwxyz&text=This is a text ? &amp; + - %21">a3</A>
+A Tag 4:   <A TARGET="http://localhost/tests?id=abcdefghijklmnopqrstuvwxyz&text=This is a text ? &amp; + - %21" HREF="http://localhost/tests?id=abcdefghijklmnopqrstuvwxyz&text=This%20is%20a%20text%20%3F%20%26%20%2B%20-%20%2521">a4</A>
 A Tag 5:   <A  TARGET="http://localhost/tests?id=abcdefghijklmnopqrstuvwxyz&text=This is a text ? &amp; + - %21">a5</A>
 A Tag 6:   <A >a6</A>
 A Tag 7:   <A  HREF="7">x</A>
@@ -32,12 +32,12 @@ A Tag 11:  <A  HREF="11"  >x</A>
 A Tag 12:  <A HREF=12>x</A>
 A Tag 13:  <A HREF="abcd%20%3E">x</A>
 A Tag 14:  <A HREF="abcd%20%3E">x</A>
-FRAME:	   <FRAME SRC="http://localhost/tests?id=abcdefghijklmnopqrstuvwxyz&text=This+is+a+text+%3F+%26+%2B+-+%2521"  name="%20foo">
-IFRAME:    <IFRAME SRC="http://localhost/tests?id=abcdefghijklmnopqrstuvwxyz&text=This+is+a+text+%3F+%26+%2B+-+%2521" name="%20foo">
-EMBED:     <EMBED SRC="http://localhost/tests?id=abcdefghijklmnopqrstuvwxyz&text=This+is+a+text+%3F+%26+%2B+-+%2521"  name="%20foo">
-LAYER:	   <LAYER SRC="http://localhost/tests?id=abcdefghijklmnopqrstuvwxyz&text=This+is+a+text+%3F+%26+%2B+-+%2521"  name="%20foo">
-IMG:	   <IMG SRC="http://localhost/tests?id=abcdefghijklmnopqrstuvwxyz&text=This+is+a+text+%3F+%26+%2B+-+%2521"    name="%20foo">
-FORM:	   <FORM action="http://localhost/tests?id=abcdefghijklmnopqrstuvwxyz&text=This+is+a+text+%3F+%26+%2B+-+%2521"    name="%20foo">
+FRAME:	   <FRAME SRC="http://localhost/tests?id=abcdefghijklmnopqrstuvwxyz&text=This%20is%20a%20text%20%3F%20%26%20%2B%20-%20%2521"  name="%20foo">
+IFRAME:    <IFRAME SRC="http://localhost/tests?id=abcdefghijklmnopqrstuvwxyz&text=This%20is%20a%20text%20%3F%20%26%20%2B%20-%20%2521" name="%20foo">
+EMBED:     <EMBED SRC="http://localhost/tests?id=abcdefghijklmnopqrstuvwxyz&text=This%20is%20a%20text%20%3F%20%26%20%2B%20-%20%2521"  name="%20foo">
+LAYER:	   <LAYER SRC="http://localhost/tests?id=abcdefghijklmnopqrstuvwxyz&text=This%20is%20a%20text%20%3F%20%26%20%2B%20-%20%2521"  name="%20foo">
+IMG:	   <IMG SRC="http://localhost/tests?id=abcdefghijklmnopqrstuvwxyz&text=This%20is%20a%20text%20%3F%20%26%20%2B%20-%20%2521"    name="%20foo">
+FORM:	   <FORM action="http://localhost/tests?id=abcdefghijklmnopqrstuvwxyz&text=This%20is%20a%20text%20%3F%20%26%20%2B%20-%20%2521"    name="%20foo">
 
 Hash in  A <A HREF="http://localhost/tests?A=1&B=2">
 Array in A <A HREF="http://localhost/tests?X=9&Y=8&Z=7">
@@ -52,10 +52,10 @@ Now a Url: <A HREF="http://localhost/tests?id=abcdefghijklmnopqrstuvwxyz&text=Th
 
 2
 Now lets look what we are getting from this:<BR>
-(this+is+the+value+in+$a) (this+is+the+value+in+$a)+הצüהצü%3F%3F%3F%3C%26%2B++<BR>
+(this%20is%20the%20value%20in%20$a) (this%20is%20the%20value%20in%20$a)%20הצüהצü%3F%3F%3F%3C%26%2B%20%20<BR>
 
 What is the EscMode? 2
-Now a Url: <A HREF="http://localhost/tests?id=abcdefghijklmnopqrstuvwxyz&text=This+is+a+text+%3F+%26+%2B+-+%2521">Here it goes</A>
+Now a Url: <A HREF="http://localhost/tests?id=abcdefghijklmnopqrstuvwxyz&text=This%20is%20a%20text%20%3F%20%26%20%2B%20-%20%2521">Here it goes</A>
 
 0
 Now lets look what we are getting from this:<BR>
@@ -69,23 +69,44 @@ Now lets look what we are getting from this:<BR>
 (this is the value in $a) (this is the value in $a) &auml;&ouml;&uuml;&auml;&ouml;&uuml;???&lt;&amp;+  <BR>
 
 What is the EscMode? 3
-Now a Url: <A HREF="http://localhost/tests?id=abcdefghijklmnopqrstuvwxyz&text=This+is+a+text+%3F+%26+%2B+-+%2521">Here it goes</A>
+Now a Url: <A HREF="http://localhost/tests?id=abcdefghijklmnopqrstuvwxyz&text=This%20is%20a%20text%20%3F%20%26%20%2B%20-%20%2521">Here it goes</A>
 
 What is the EscMode? 3
 file.html?name=abcd&amp;data=xyz
 Now we localy set $escmode:<BR>
-(this is the value in $a) הצüהצü???<&+  <BR>
-(this is the value in $a) &auml;&ouml;&uuml;&auml;&ouml;&uuml;???&lt;&amp;+  <BR>
-(this+is+the+value+in+$a)+הצüהצü%3F%3F%3F%3C%26%2B++<BR>
-(this is the value in $a) &auml;&ouml;&uuml;&auml;&ouml;&uuml;???&lt;&amp;+  <BR>
+(this is the value in $a) הצüהצü???<&+    \<a><BR>
+(this is the value in $a) &auml;&ouml;&uuml;&auml;&ouml;&uuml;???&lt;&amp;+    <a&gt;<BR>
+(this%20is%20the%20value%20in%20$a)%20הצüהצü%3F%3F%3F%3C%26%2B%20%20%20%20<a%3E<BR>
+(this is the value in $a) &auml;&ouml;&uuml;&auml;&ouml;&uuml;???&lt;&amp;+    <a&gt;<BR>
+(this is the value in $a) הצüהצü???<&+    \<a><BR>
+(this is the value in $a) &auml;&ouml;&uuml;&auml;&ouml;&uuml;???&lt;&amp;+    \&lt;a&gt;<BR>
+(this%20is%20the%20value%20in%20$a)%20הצüהצü%3F%3F%3F%3C%26%2B%20%20%20%20\%3Ca%3E<BR>
+(this is the value in $a) &auml;&ouml;&uuml;&auml;&ouml;&uuml;???&lt;&amp;+    \&lt;a&gt;<BR>
+
+Same without local:
+(this is the value in $a) הצüהצü???<&+    \<a><BR>
+(this is the value in $a) &auml;&ouml;&uuml;&auml;&ouml;&uuml;???&lt;&amp;+    <a&gt;<BR>
+(this%20is%20the%20value%20in%20$a)%20הצüהצü%3F%3F%3F%3C%26%2B%20%20%20%20<a%3E<BR>
+(this is the value in $a) &auml;&ouml;&uuml;&auml;&ouml;&uuml;???&lt;&amp;+    <a&gt;<BR>
+(this is the value in $a) הצüהצü???<&+    \<a><BR>
+(this is the value in $a) &auml;&ouml;&uuml;&auml;&ouml;&uuml;???&lt;&amp;+    \&lt;a&gt;<BR>
+(this%20is%20the%20value%20in%20$a)%20הצüהצü%3F%3F%3F%3C%26%2B%20%20%20%20\%3Ca%3E<BR>
+(this is the value in $a) &auml;&ouml;&uuml;&auml;&ouml;&uuml;???&lt;&amp;+    \&lt;a&gt;<BR>
+
+
+Control Chars 0x80-0x9f:
+&#128;&#129;&#130;&#131;&#132;&#133;&#134;&#135;&#136;&#137;&#138;&#139;&#140;&#141;&#142;&#143;&#144;&#145;&#146;&#147;&#148;&#149;&#150;&#151;&#152;&#153;&#154;&#155;&#156;&#157;&#158;&#159;&nbsp;<BR>
+
+Control Chars 129 & 130:
+&amp;#129;&amp;#130;<BR>
 
 0
-<A HREF='http://host/script?name=My+Name+צהü'>
+<A HREF='http://host/script?name=My%20Name%20צהü'>
 
-<A HREF='http://host/script?name=My+Name+צהü'>
+<A HREF='http://host/script?name=My%20Name%20צהü'>
 
 0
-<A HREF='http://host/script?name=My+Name+צהü'>
+<A HREF='http://host/script?name=My%20Name%20צהü'>
 
 <A HREF='http://host/script?name=My Name צהü'>
 

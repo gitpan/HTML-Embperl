@@ -104,10 +104,31 @@ What is the EscMode? [+ $escmode +]
 [+ foo (0) +]
 
 Now we localy set $escmode:<BR>
-[+  local $escmode = 0 ; $b +]<BR>
-[+  local $escmode = 1 ; $b +]<BR>
-[+  local $escmode = 2 ; $b +]<BR>
-[+  local $escmode = 3 ; $b +]<BR>
+[+  local $escmode = 0 ; $b . "  \\\\<a>" +]<BR>
+[+  local $escmode = 1 ; $b . "  \\\\<a>"  +]<BR>
+[+  local $escmode = 2 ; $b . "  \\\\<a>"  +]<BR>
+[+  local $escmode = 3 ; $b . "  \\\\<a>"  +]<BR>
+[+  local $escmode = 4 ; $b . "  \\\\<a>"  +]<BR>
+[+  local $escmode = 5 ; $b . "  \\\\<a>"  +]<BR>
+[+  local $escmode = 6 ; $b . "  \\\\<a>"  +]<BR>
+[+  local $escmode = 7 ; $b . "  \\\\<a>"  +]<BR>
+
+Same without local:
+[+  $escmode = 0 ; $b . "  \\\\<a>" +]<BR>
+[+  $escmode = 1 ; $b . "  \\\\<a>"  +]<BR>
+[+  $escmode = 2 ; $b . "  \\\\<a>"  +]<BR>
+[+  $escmode = 3 ; $b . "  \\\\<a>"  +]<BR>
+[+  $escmode = 4 ; $b . "  \\\\<a>"  +]<BR>
+[+  $escmode = 5 ; $b . "  \\\\<a>"  +]<BR>
+[+  $escmode = 6 ; $b . "  \\\\<a>"  +]<BR>
+[+  $escmode = 7 ; $b . "  \\\\<a>"  +]<BR>
+
+
+Control Chars 0x80-0x9f:
+[+  local $escmode = 7 ; foreach (127..160) { $cc .= chr ($_) }; $cc +]<BR>
+
+Control Chars 129 & 130:
+[+  local $escmode = 7 ; "&#129;&#130;" +]<BR>
 
 [+ $n = 'My Name צהü' ; $escmode = 0 +]
 
