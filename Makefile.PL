@@ -3,7 +3,7 @@
 #
 # (C) 1997-2001 G.Richter (richter@dev.ecos.de) / ECOS
 #
-# $Id: Makefile.PL,v 1.55 2001/12/04 07:43:15 richter Exp $
+# $Id: Makefile.PL,v 1.56 2002/03/12 05:05:16 richter Exp $
 #
 
 
@@ -11,7 +11,7 @@ use ExtUtils::MakeMaker;
 use Cwd qw {abs_path cwd} ;
 use Config ;
 use File::Basename ;
-
+use Data::Dumper ;
 
 $win32 = ($Config{osname} =~ /win32/i) ;
 $aix = ($Config{osname} =~ /aix/i);
@@ -142,6 +142,9 @@ stop : pure_all
 
 
 } ;
+	$txt =~ s/\tPERL_DL_NONLAZY=0 /\tSET PATH=\$\(PATH\)\;$EPENVPATH\n\t/g if ($win32) ;
+        
+        $txt =~ s/\@cd/\n#\t\@cd/ ;  # remove tests for subdirs
 
 	$txt =~ s/\r\n/\n/g ;  # make doesn't like \r\n!
 
@@ -187,8 +190,9 @@ sub MY::c_o
 	my $self = shift ;
         
         my $txt = $self -> MM::c_o (@_) ;
+        my $opt = $win32?'Fo':'o ' ;
 
-        $txt =~ s/\$\*/-o \$*\$(OBJ_EXT) \$*/g ;
+        $txt =~ s/\$\*/-$opt\$*\$(OBJ_EXT) \$*/g ;
         my @txt = split (/\n/, $txt) ;
         my $cpp = 0 ;
         foreach (@txt)
@@ -284,8 +288,9 @@ sub GetString
 	my ($prompt, $default) = @_ ;
 
 	printf ("%s [%s]", $prompt, $default) ;
-	chop ($_ = <STDIN>) ;
-	if (!/^\s*$/)
+	chomp ($_ = <STDIN>) ;
+	s/\s+$//;
+        if (!/^\s*$/)
 	    {return $_ ;}
 	else
     	{
@@ -442,6 +447,7 @@ sub CheckModule
 $apache = 0 ;
 $b = 0 ;
 
+$optdebug = '' ;
 $ccdebug = '' ;
 $lddebug = '' ;
 $libs    = '' ;
@@ -450,6 +456,7 @@ $d       = '' ;
 if ($ARGV[0] eq 'debug')
     {
     shift @ARGV;
+    $optdebug = '-g -O0' ;
     if ($win32)
         {
         $ccdebug = '-Zi -W3' ;
@@ -457,7 +464,7 @@ if ($ARGV[0] eq 'debug')
         }
     else
         {
-        $ccdebug = '-ggdb' ;
+        $ccdebug = '-ggdb -O0' ;
         $lddebug = '-g' ;
         }
     }
@@ -513,7 +520,7 @@ if (!$apache && $apache_src eq '')
     }
 
 $base = '..' ;
-
+$base = $ENV{'ProgramFiles'} if ($win32) ;
 
 
 $apache = GetYesNo ("Build with support for Apache mod_perl?", 'y') if (!$apache) ;
@@ -541,6 +548,8 @@ while ($apache && !$b)
     foreach $src_dir ($base,
 		      "$base/src",
 		      <$base/apache*/src>,
+		      <$base\\apache*\\include>,
+		      <$base\\apache*\\apache*\\include>,
 		      <./src>)
        {
 	print "Look at $src_dir\n" ;
@@ -760,8 +769,8 @@ if ($b && $apache)
     $EPENVPATH = ";$Config{bin};$EPHTTPDDLL;$EPHTTPDPATH;$EPHTTPDDLL/../os/win32/release;$EPHTTPDDLL/../os/win32/debug" ;
     $ENV{PATH} .= $EPENVPATH if ($win32) ;
     
-    @EPAPACHEVERSION = start ("$EPHTTPD -v") ;
-    @modules         = start ("$EPHTTPD -l") ;
+    @EPAPACHEVERSION = start ("\"$EPHTTPD\" -v") ;
+    @modules         = start ("\"$EPHTTPD\" -l") ;
 
     chomp ($EPAPACHEVERSION[0]) ;
     print "Apache Version $EPAPACHEVERSION[0]\n" ;
@@ -869,7 +878,7 @@ if ($b && $apache)
         $sslbase = search_config ('SSL_BASE', "$apache_src/Configuration.apaci") ;
         $sslbase = search_config ('SSL_BASE', "$apache_src/Configuration") if (!$sslbase) ;
         print " + found mod_ssl\n" ;
-        $EPSSLDISABLE = !start_errcode ("$EPHTTPD -t -f $EPPATH/test/conf/ssldisable.conf") ;
+        $EPSSLDISABLE = !start_errcode ("\"$EPHTTPD\" -t -f $EPPATH/test/conf/ssldisable.conf") ;
         }
 
 
@@ -1140,13 +1149,48 @@ if ($EP2)
 
 close FH ;
 
+$i .= " -I$EPPATH/xs" ;
 
+%MMARGS = (
+    'LIBS'	   => [$libs || ''],   			 
+    'DEFINE'	   => "$d \$(DEFS)", 			 
+    'INC'	   => "-I$EPPATH $i",     			 
+    'VERSION'      => undef,
+    'VERSION_FROM' => "$EPPATH/Embperl.pm",
+    $optdebug?('OPTIMIZE' => $ccdebug):(),
+    ) ;
+
+
+if ($EP2)
+    {
+    open FH, ">xs/mmargs.pl" or die "Cannot open xs/mmargs.pl ($!)" ;
+    print FH Data::Dumper -> Dump ([\%MMARGS], ['MMARGS']) ;
+    close FH ;
+    }
+
+my $sublibs .= ' ' . 
+join ('$(OBJ_EXT) ', qw{
+xs/Embperl/App/App
+xs/Embperl/App/Config/Config
+xs/Embperl/Component/Component
+xs/Embperl/Component/Config/Config
+xs/Embperl/Component/Param/Param
+xs/Embperl/Component/Output/Output
+xs/Embperl/Req/Req
+xs/Embperl/Req/Config/Config
+xs/Embperl/Req/Param/Param
+xs/Embperl/Thread/Thread
+xs/Embperl/Syntax/Syntax
+}) . '$(OBJ_EXT)';
+
+$sublibs =~ s/\//\\/g if ($win32) ;
+$o .= $sublibs if ($EP2) ;
 
 WriteMakefile(
     'NAME'	   => 'HTML::Embperl',
     'VERSION_FROM' => 'Embperl.pm', 		# finds $VERSION
-    'OBJECT'       => 'Embperl$(OBJ_EXT) epmain$(OBJ_EXT) epio$(OBJ_EXT) epchar$(OBJ_EXT) epcmd$(OBJ_EXT) eputil$(OBJ_EXT) epeval$(OBJ_EXT) epapinit$(OBJ_EXT) ' . 
-                       ($EP2?'epcmd2$(OBJ_EXT) epparse$(OBJ_EXT) epdom$(OBJ_EXT) epcomp$(OBJ_EXT) epcache$(OBJ_EXT) epprovider$(OBJ_EXT)':'') . $o,
+    'OBJECT'       => 'Embperl$(OBJ_EXT) epmain$(OBJ_EXT) epio$(OBJ_EXT) epchar$(OBJ_EXT) eputil$(OBJ_EXT) epeval$(OBJ_EXT) epapinit$(OBJ_EXT) ' . 
+                       ($EP2?'epmem$(OBJ_EXT) epinit$(OBJ_EXT) epcgiinit$(OBJ_EXT) epcmd2$(OBJ_EXT) epparse$(OBJ_EXT) epdom$(OBJ_EXT) epcomp$(OBJ_EXT) epcache$(OBJ_EXT) epprovider$(OBJ_EXT)':'epcmd$(OBJ_EXT) ') . $o,
     'LIBS'	   => [$libs || ''],   			 
     'DEFINE'	   => "$d \$(DEFS)", 			 
     'INC'	   => $i,     			 
@@ -1159,7 +1203,7 @@ WriteMakefile(
     'ABSTRACT'     => 'Embed Perl code in HTML documents',
     'AUTHOR'       => 'Gerald Richter <richter@dev.ecos.de>',
     'macro'        => $makemacros,
-    $EP2?('depend'       => { 'Embperl.c' => 'Embperl.xs DOM.xs Cmd.xs Syntax.xs' }):(),
+    $EP2?('depend'       => { 'Embperl.c' => 'Embperl.xs DOM.xs Cmd.xs Syntax.xs Old.xs' }):(),
 );
 
 
@@ -1170,8 +1214,11 @@ WriteMakefile(
 
 @bins = ('embpexec.pl','embpexec.bat', 
          'embpcgi.pl', 'embpcgi.test.pl', 'embpcgi.bat',
-	 'embpfastcgi.pl',
-         'epocgi.pl', 'epocgi.test.pl', 'epocgi.bat') ;
+	 'embpfastcgi.pl', 
+         'epocgi.pl', 'epocgi.test.pl', 'epocgi.bat',
+         $EP2?('embpmsgid.pl'):(),
+         
+         ) ;
 
 
 die "Missing path to perl binary" if (!$perlbinpath) ;

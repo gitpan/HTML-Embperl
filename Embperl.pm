@@ -10,7 +10,7 @@
 #   IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 #   WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 #
-#   $Id: Embperl.pm,v 1.176 2001/12/05 07:32:54 richter Exp $
+#   $Id: Embperl.pm,v 1.177 2002/05/23 03:36:15 richter Exp $
 #
 ###################################################################################
 
@@ -64,7 +64,7 @@ use vars qw(
 @ISA = qw(Exporter DynaLoader);
 
 
-$VERSION = '1.3.4';
+$VERSION = '1.3.5';
 
 # HTML::Embperl cannot be bootstrapped in nonlazy mode except
 # under mod_perl, because its dependencies import symbols like ap_palloc
@@ -615,6 +615,7 @@ sub CheckFile
             }
         my $pathskip = $skip ;
         $skip += $pathndx if ($skip) ;
+	$pathndx = 0 if (!$skip) ;
         my @path = split /$pathsplit/o, $path ;
         shift @path while (!$path[0]) ;
         shift @path while ($skip--) ;

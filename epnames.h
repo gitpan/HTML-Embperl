@@ -326,6 +326,8 @@
 #define SvGETMAGIC(x) STMT_START { if (SvGMAGICAL(x)) mg_get(x); } STMT_END
 #define SvGETMAGIC_P4(x) SvGETMAGIC(x)
 
+#define ep_sv_undef sv_undef
+
 #endif /* PERL_VERSION > 5 */
 
 

@@ -57,6 +57,21 @@ static char sLogFilename [512] = "" ;
 #endif
 
 
+/* Some helper macros for tied handles, taken from mod_perl 2.0 :-) */
+/*
+ * bleedperl change #11639 switch tied handle magic
+ * from living in the gv to the GvIOp(gv), so we have to deal
+ * with both to support 5.6.x
+ */
+#if ((PERL_REVISION == 5) && (PERL_VERSION >= 7))
+#   define TIEHANDLE_SV(handle) (SV*)GvIOp((SV*)handle)
+#else
+#   define TIEHANDLE_SV(handle) (SV*)handle
+#endif
+
+#define HANDLE_GV(name) gv_fetchpv(name, TRUE, SVt_PVIO)
+
+
 
 #ifdef APACHE
 #define DefaultLog "/tmp/embperl.log"
@@ -346,17 +361,22 @@ int OpenInput (/*i/o*/ register req * r,
         return ok ;
 #endif
     
-    handle = gv_fetchpv("STDIN", TRUE, SVt_PVIO) ;
-    if (handle && SvMAGICAL(handle) && (mg = mg_find((SV*)handle, 'q')) && mg->mg_obj) 
-	{
-	r -> ifdobj = mg->mg_obj ;
-	if (r -> bDebug)
-	    {
-	    char *package = HvNAME(SvSTASH((SV*)SvRV(mg->mg_obj)));
-	    lprintf (r, "[%d]Open TIED STDIN %s...\n", r -> nPid, package) ;
-	    }
-	return ok ;
-	}
+    handle = HANDLE_GV("STDIN") ;
+    if (handle)
+        {
+        SV *iohandle = TIEHANDLE_SV(handle) ;
+ 
+        if (iohandle && SvMAGICAL(iohandle) && (mg = mg_find((SV*)iohandle, 'q')) && mg->mg_obj) 
+            {
+            r -> ifdobj = mg->mg_obj ;
+            if (r -> bDebug)
+                {
+                char *package = HvNAME(SvSTASH((SV*)SvRV(mg->mg_obj)));
+                lprintf (r, "[%d]Open TIED STDIN %s...\n", r -> nPid, package) ;
+                }
+            return ok ;
+            }
+        }
 
     if (r -> ifd && r -> ifd != PerlIO_stdinF)
         PerlIO_close (r -> ifd) ;
@@ -410,6 +430,7 @@ int CloseInput (/*i/o*/ register req * r)
 	XPUSHs(r -> ifdobj);
 	PUTBACK;
 	perl_call_method ("CLOSE", G_VOID | G_EVAL) ; 
+        SPAGAIN ;
 	FREETMPS;
 	LEAVE;
 	r -> ifdobj = NULL ;
@@ -465,7 +486,7 @@ int iread (/*i/o*/ register req * r,
 	n = 0 ;
 	if (num > 0)
 	    {
-	    int  n = POPi ;
+	    STRLEN  n = POPi ;
 	    char * p ;
 	    STRLEN l ;
 	    if (n >= 0)
@@ -576,7 +597,7 @@ int ReadHTML (/*i/o*/ register req * r,
         return rcFileOpenErr ;
         }
 
-    if ((long)nFileSize < 0)
+    if ((long)*nFileSize < 0)
 	return rcFileOpenErr ;
 
 
@@ -671,17 +692,22 @@ int OpenOutput (/*i/o*/ register req * r,
 	    }
 #endif
 
-	handle = gv_fetchpv("STDOUT", TRUE, SVt_PVIO) ;
-	if (handle && SvMAGICAL(handle) && (mg = mg_find((SV*)handle, 'q')) && mg->mg_obj) 
-	    {
-	    r -> ofdobj = mg->mg_obj ;
-	    if (r -> bDebug)
-		{
-		char *package = HvNAME(SvSTASH((SV*)SvRV(mg->mg_obj)));
-		lprintf (r, "[%d]Open TIED STDOUT %s for output...\n", r -> nPid, package) ;
-		}
-	    return ok ;
-	    }
+        handle = HANDLE_GV("STDOUT") ;
+        if (handle)
+            {
+            SV *iohandle = TIEHANDLE_SV(handle) ;
+ 
+            if (iohandle && SvMAGICAL(iohandle) && (mg = mg_find((SV*)iohandle, 'q')) && mg->mg_obj) 
+                {
+                r -> ofdobj = mg->mg_obj ;
+                if (r -> bDebug)
+                    {
+                    char *package = HvNAME(SvSTASH((SV*)SvRV(mg->mg_obj)));
+                    lprintf (r,  "[%d]Open TIED STDOUT %s for output...\n", r -> nPid, package) ;
+                    }
+                return ok ;
+                }
+            }
 	
 	r -> ofd = PerlIO_stdoutF ;
         
@@ -744,6 +770,7 @@ int CloseOutput (/*i/o*/ register req * r)
 	XPUSHs(r -> ifdobj);
 	PUTBACK;
 	perl_call_method ("CLOSE", G_VOID | G_EVAL) ; 
+        SPAGAIN ;
 	FREETMPS;
 	LEAVE;
 	r -> ofdobj = NULL ;
@@ -825,7 +852,7 @@ int owrite (/*i/o*/ register req * r,
 	    /*in*/ const void * ptr, size_t size) 
 
     {
-    int n = size ;
+    size_t n = size ;
 
     if (n == 0 || r -> bDisableOutput)
         return 0 ;
@@ -833,10 +860,10 @@ int owrite (/*i/o*/ register req * r,
     if (r -> pMemBuf)
         {
         char * p ;
-        int s = r -> nMemBufSize ;
+        size_t s = r -> nMemBufSize ;
         if (n >= r -> nMemBufSizeFree)
             {
-            int oldsize = s ;
+            size_t oldsize = s ;
             if (s < n)
                 s = n + r -> nMemBufSize ;
             
@@ -875,6 +902,7 @@ int owrite (/*i/o*/ register req * r,
 	XPUSHs(sv_2mortal(newSVpv((char *)ptr,size)));
 	PUTBACK;
 	perl_call_method ("PRINT", G_SCALAR) ; 
+        SPAGAIN ;
 	FREETMPS;
 	LEAVE;
 	return size ;
@@ -895,7 +923,7 @@ int owrite (/*i/o*/ register req * r,
             return 0 ;
         }
 #endif
-    if (n > 0)
+    if (n > 0 && r -> ofd)
         {
         n = PerlIO_write (r -> ofd, (void *)ptr, size) ;
 

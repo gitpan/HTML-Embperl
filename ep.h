@@ -21,7 +21,15 @@
 #include <ctype.h>
 #include <time.h>
 
-#if !defined(PERLIO_IS_STDIO)
+#ifndef PERL_VERSION
+#include <patchlevel.h>
+#ifndef PERL_VERSION
+#define PERL_VERSION PATCHLEVEL
+#define PERL_SUBVERSION SUBVERSION
+#endif
+#endif
+
+#if !defined(PERLIO_IS_STDIO) && PERL_VERSION < 8
 #define PERLIO_IS_STDIO
 #endif
 
@@ -96,12 +104,6 @@ extern "C" {
 #undef sleep
 #endif
 
-#ifndef PERL_VERSION
-#include <patchlevel.h>
-#define PERL_VERSION PATCHLEVEL
-#define PERL_SUBVERSION SUBVERSION
-#endif
-
 #if PERL_VERSION >= 6
 
 #ifdef opendir
@@ -171,6 +173,14 @@ typedef struct tReq tReq ;
 #define PATH_MAX 512
 #endif
 
+
+#if PERL_VERSION >= 8
+#ifdef sv_undef
+#undef sv_undef 
+#endif
+#define sv_undef ep_sv_undef
+extern SV ep_sv_undef ;
+#endif
 
 /* ---- global variables ---- */
 

@@ -1,10 +1,16 @@
 =pod
 
+=head1 1.3.5 (RELEASE)   23. Dec 2002
+
+   - Runs now with Perl 5.8.0. Thanks to Angus Lees who 
+     backported the 5.8.0 patches from 2.0.
+   - Fixed Path search problem. Reported by Gavin Carr.
+
 =head1 1.3.4 (RELEASE)   5. Dec 2001
 
    - Added method $r -> Espace for html & url escaping
    - URL escpage # to %23
-   - use Content-Lenght HTTP Header instead of $ENV{CONTENT_LENGTH}
+   - use Content-Length HTTP Header instead of $ENV{CONTENT_LENGTH}
      when running under mod_perl and win32. This fixes a bug
      with POSTed data reported by Lukas Zapletal.
    - Display correct Apache module name in Makefile.PL when
@@ -22,7 +28,7 @@
    - Make sure the HTML::Embperl::Mail generates correct line endings
    - If Perl's STDOUT and/or STDIN are tied to any package, Embperl now
      calls the Perl methods PRINT and READ for doing I/O. This currently
-     only works, when not running under mod_perl.
+     only works when not running under mod_perl.
    - Embperl can now run under FastCGI. Use embpfastcgi.pl instead of
      embpcgi.pl.
    - Delete unnecessary PerlFixupHandler from httpd.conf.src for make test.
@@ -42,7 +48,7 @@
    - Added optShowBacktrace to enable backtrace of filename in error messages
    - Removed obsolete debug flags dbgDisableCache, dbgWatchScalar,
      dbgEarlyHttpHeader
-   - Fixed problem with changeing to page directory on win32. Reported by
+   - Fixed problem with changing to page directory on win32. Reported by
      Hans de Groot.
    - Fixed problems with mod_perl environement handling with ActiveState Perl 
      on win32.

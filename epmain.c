@@ -64,6 +64,14 @@ static HV * pCacheHash ;            /* Hash which holds all cached data
 					      filename + packagename, 
 				       value=>cache hash for file) */
 
+#if PERL_VERSION >= 8
+SV   ep_sv_undef ; /* we need our own undef value, because when
+                      storing a PL_sv_undef with Perl 5.8.0 in a hash
+                      Perl takes it as a placeholder and pretents it
+                      isn't there :-( */
+#endif
+
+
 /* */
 /* print error */
 /* */
@@ -1429,6 +1437,14 @@ int Init        (/*in*/ int           _nIOType,
     pCurrReq = r ;
 
     r -> nIOType = _nIOType ;
+
+#if PERL_VERSION >= 8
+#if PERL_SUBVERSION >= 50 || PERL_VERSION >= 6
+    memcpy (&ep_sv_undef, &PL_sv_undef, sizeof(PL_sv_undef)) ;
+#else
+    memcpy (&ep_sv_undef, &sv_undef, sizeof(sv_undef)) ;
+#endif
+#endif
 
 #ifdef APACHE
     r -> pApacheReq = NULL ;
