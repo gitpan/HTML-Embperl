@@ -309,7 +309,7 @@ die $@ if ($@) ;
 
 
 $EPPORT2 = ($EPPORT || 0) + 1 ;
-$EPSESSIONCLASS = $ENV{EMBPERL_SESSION_CLASS} || (($EPSESSIONVERSION =~ /^0\.17/)?'Win32':'0')  || ($EPSESSIONVERSION > 1.00?'Embperl':'0') ;
+$EPSESSIONCLASS = $ENV{EMBPERL_SESSION_CLASS} || (($EPSESSIONVERSION =~ /^0\.17/)?'Win32':'0')  || ($EPSESSIONVERSION >= 1.00?'Embperl':'0') ;
 $EPSESSIONDS    = $ENV{EMBPERL_SESSION_DS} || 'dbi:mysql:session' ;
 
 die "You must install libwin32 first" if ($EPWIN32 && $win32loaderr && $EPHTTPD) ;
@@ -669,7 +669,11 @@ sub CheckSVs
 		$max_sv = $num_sv ;
 		
 		}
-	    die "\n\nMemory problem (SVs)" if ($opt_exitonsv && $loopcnt > 2 && $last_sv[$n] < $num_sv && $last_sv[$n] != 0 && $num_sv != 0) ;
+	    die "\n\nMemory problem (SVs)" if ($opt_exitonsv && $loopcnt > 2 &&
+					       $testnum == $startnumber && 
+                                               $last_sv[$n] < $num_sv && 
+                                               $last_sv[$n] != 0 && 
+                                               $num_sv != 0) ;
 	    $last_sv[$n] = $num_sv  ;
 	    last ;
 	    }
@@ -763,6 +767,13 @@ umask $um ;
 unlink ($outfile) ;
 unlink ($httpderr) ;
 unlink ($offlineerr) ;
+
+#remove old sessions
+foreach (<$tmppath/*>)
+    {
+    unlink ($_) if ($_ =~ /^$tmppath\/[0-9a-f]+$/) ;
+    }
+
 
 -w $tmppath or die "***Cannot write to $tmppath" ;
 
@@ -1423,7 +1434,7 @@ exit ($err) ;
 sub find_error
 
     {
-    my $max = @tests ;
+    my $max = @tests - 1;
     my $min = 0 ;
     my $n   = $max ;
 

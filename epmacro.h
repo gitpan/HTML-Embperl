@@ -25,7 +25,7 @@
 
 #define INTMG(name,var,used,sub) \
     \
-int EMBPERL_mgGet##name (SV * pSV, MAGIC * mg) \
+int EMBPERL_mgGet##name (pTHX_ SV * pSV, MAGIC * mg) \
 \
     { \
 \
@@ -36,7 +36,7 @@ int EMBPERL_mgGet##name (SV * pSV, MAGIC * mg) \
     return 0 ; \
     } \
 \
-    int EMBPERL_mgSet##name (SV * pSV, MAGIC * mg) \
+    int EMBPERL_mgSet##name (pTHX_ SV * pSV, MAGIC * mg) \
 \
     { \
 \
@@ -52,7 +52,7 @@ int EMBPERL_mgGet##name (SV * pSV, MAGIC * mg) \
 
 #define OPTMGRD(name,var) \
     \
-int EMBPERL_mgGet##name (SV * pSV, MAGIC * mg) \
+int EMBPERL_mgGet##name (pTHX_ SV * pSV, MAGIC * mg) \
 \
     { \
 \
@@ -71,7 +71,7 @@ int EMBPERL_mgGet##name (SV * pSV, MAGIC * mg) \
 
 #define OPTMG(name,var) \
     \
-int EMBPERL_mgGet##name (SV * pSV, MAGIC * mg) \
+int EMBPERL_mgGet##name (pTHX_ SV * pSV, MAGIC * mg) \
 \
     { \
 \
@@ -79,7 +79,7 @@ int EMBPERL_mgGet##name (SV * pSV, MAGIC * mg) \
     return 0 ; \
     } \
 \
-    int EMBPERL_mgSet##name (SV * pSV, MAGIC * mg) \
+    int EMBPERL_mgSet##name (pTHX_ SV * pSV, MAGIC * mg) \
 \
     { \
 \

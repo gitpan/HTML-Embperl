@@ -23,7 +23,7 @@ Features
 
 - custom html tags -> done in 2.0
 
-- url rewriting for session id
+- url rewriting for session id -> planned for 2.x
 
 - disableHTMLScan inside <script>
 
@@ -51,7 +51,7 @@ Features
 
 - move default logfile to a safer place then /tmp [Christain Gilmore 20.01.00]
 
-- last, next for Embperl loops [Christian Gilmore 4.2.2000]
+- last, next for Embperl loops [Christian Gilmore 4.2.2000] -> planned for 2.0
 
 - return custom error code to Apache [Alan Gutierrez 11.2.00]
 
@@ -64,7 +64,7 @@ Features
 
 - optDisableSelectScan [ Robert 14.5.00]
 
-- APache::Session 1.5
+- Execute backtrace [Jon Brisbin 12.8.00]
 
 Test
 ----
@@ -78,8 +78,6 @@ Bugs
 
 - [* *] inside if [Vasco Chita 1.5.99] -> done in 2.0
 
-- use Embperl Module later than startup -> cleanup fails on first request
-
 - StackFree in offline mode
 
 - SIG DIE missing message arg [Alex Schmelkin 24.8.99]
@@ -90,22 +88,17 @@ Bugs
 
 - using outputfile inside a outputfile crashs
 
-- entity decoding radi/checkboxes [Chris Thorman 20.6.00]
 
 Docs
 ----
 - [- -] [+ +] etc all turns into _perl_code_ in html [S Page 13.9.99]
-
-- File::Spec for EmbperlObject
-
-- bless
 
 1.3
 ---
 
 - restrict number of iterations in search
 
-- make [+ +] configurable [ Christian Gilmore 16.10.99]
+- make [+ +] configurable [ Christian Gilmore 16.10.99] -> done in 2.0
 
 - "$urlprefix" [Steve Willer 14.2.99]
 

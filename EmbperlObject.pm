@@ -23,7 +23,7 @@ require File::Basename ;
 require Exporter;
 require DynaLoader;
 
-require HTML::Embperl ;
+use HTML::Embperl ;
 
 if (defined ($ENV{MOD_PERL}))
     { 
@@ -529,9 +529,7 @@ If you now request B<http://host/foo/sub/> you will get the following page
 B</foo/base.htm:>
 
  [!
- 
- $req = shift ;
- 
+
  sub new
     {
     my $self = shift ; 
@@ -543,10 +541,17 @@ B</foo/base.htm:>
  # Here we give a default title
  sub title { 'Title not given' } ;
 
+ !]
+
+ [-
+  
+ # get the request object of the current request
+ $req = shift ;
+
  # here we call the method new
  $req -> new ;
- 
- !]
+
+ -]
 
  <html>
  <head>

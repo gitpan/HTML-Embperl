@@ -65,7 +65,7 @@ sub Execute
 
         my $smtp = Net::SMTP->new($req -> {mailhost},
                                   Debug => ($req -> {maildebug} || $ENV{'EMBPERL_MAILDEBUG'} || 0),
-                                  $helo?(Hello => $helo):()) 
+                                  ($helo?(Hello => $helo):()) 
                                   ) or die "Cannot connect to mailhost $req->{mailhost}" ;
 
         my $from =  $req -> {from} || $ENV{'EMBPERL_MAILFROM'} ;

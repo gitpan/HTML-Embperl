@@ -341,6 +341,126 @@ startup.pl)
 
 
 
+=head2 Is it possible to install EmbPerl into a private directory on my Unix/Linux Internet Service Provider account of which I have no root privilege?
+
+Like any other Perl module it can. Read "perldoc ExtUtils::MakeMaker",
+to see which parameters are needed for Makefile.PL to change the installation
+directory. Additionally, you have to change the @INC path to contain your 
+private directory and possibly paths to other object files.
+
+Here are the brief details:
+
+B<Requirements>:
+
+=over 4
+
+=item *	At least Perl 5.004_04
+
+=item *	cc or gcc (your isp must give you access to the gcc compiler)
+
+=item *	URI
+
+=item *	MIME::Base64 
+
+=item *	HTML::Parser 
+
+=item *	HTML::HeadParser 
+
+=item *	Digest::MD5 
+
+=item *	libnet 
+
+=item *	libwww 
+
+=item *	File::Spec (I believe you may have to install this too if you are using Perl 5.004_04 as it may not be a standard module)
+
+=back
+
+B<Direction>:
+
+=over 4
+
+=item *	Get your copy of EmbPerl (HTML-Embperl-x.x.tar.gz)
+
+
+=item *	% tar -xvzf HTML-Embperl-x.x.tar.gz
+
+=item *	% cd HTML-Embperl-x.x
+
+=item *	% perl Makefile.PL PREFIX=/to/your/private/dir
+
+=item *	% make
+
+=item *	% make test
+
+=item *	% make install
+
+=back
+
+
+Replace /to/your/private/dir with the path to the directory you want the  module to be placed in. Now preface your CGI scripts with something like  this:
+
+
+
+[Alternative 1]
+
+	#!/usr/bin/perl -wT
+	use CGI::Carp qw( fatalsToBrowser ); #recommend using this to report errors on die or warn to browser
+	
+	use lib '/to/your/private/dir/lib'; #for FILE::Spec
+	use lib '/to/your/private/dir/'; #to find Embperl
+	use lib '/to/your/private/dir/i386-linux/auto/HTML/Embperl'; #to find Embperl compiled stuff
+	
+	#if for some very weird reason the above 'use lib' pragma directive doesn't work, see Alternative 2
+	
+	use HTML::Embperl;
+	
+	#your code below ...
+
+
+
+[Alternative 2]
+
+	#!/usr/bin/perl -wT
+	use CGI::Carp qw( fatalsToBrowser ); #recommend using this to report errors on die or warn to browser
+	
+	BEGIN {
+		unshift @INC, '/to/your/private/dir/lib'; #for FILE::Spec
+		unshift @INC, '/to/your/private/dir/'; #to find Embperl
+		unshift @INC, '/to/your/private/dir/i386-linux/auto/HTML/Embperl'; #to find Embperl compiled stuff
+	}
+	
+	use HTML::Embperl;
+	
+	#your code below ...
+
+
+When you make test, you may encounter superfluous warnings, you may want to change the test.pl that ships with EmbPerl from
+
+
+	BEGIN 
+	    { 
+	    $fatal  = 1 ;
+
+to
+
+	BEGIN 
+	    { 
+	    unshift @INC, '/to/your/private/dir/lib';
+	    $fatal  = 1 ;
+	    ...
+
+because the test.pl may not be able to find FILE::Spec if you have it installed on a private directory for Perl 5.004_04.
+
+Do something similar to the important file embpcgi.pl as you do for all your CGI scripts, like modifying the @INC as shown above, to allow perl to find in particular the EmbPerl shared obj files...
+
+And when you invoke your CGI scripts like so,
+
+http://www.yourdomain.com/cgi-bin/embpcgi.pl/templateFiles/myNifty.epl
+
+the script should work.
+
+
 
 =head1 Common Problems
 

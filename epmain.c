@@ -706,6 +706,9 @@ static int ScanCmdEvals (/*i/o*/ register req * r,
     int     nFilepos = p - r -> Buf.pBuf ;
     SV **   ppSV ;
     AV *    pAV ;
+    HV *    pHV ;
+    STRLEN  l ;
+    I32     li ;
 
     EPENTRY (ScanCmdEvals) ;
     
@@ -797,15 +800,36 @@ static int ScanCmdEvals (/*i/o*/ register req * r,
 			    ppSV = av_fetch (pAV, i, 0) ;
 			    if (ppSV && *ppSV)
 				{
-				OutputToHtml (r, SvPV (*ppSV, na)) ;
+				OutputToHtml (r, SvPV (*ppSV, l)) ;
 				}
 			    if ((i & 1) == 0)
 				oputc (r, '=' ) ;
 			    else if (i < f)
-				oputc (r, '&' ) ;
+				oputs (r, "&amp;") ;
 			    }
 		    
 			}
+		    else if (r -> bEscInUrl && SvTYPE(pRet) == SVt_RV && SvTYPE((pHV = (HV *)SvRV(pRet))) == SVt_PVHV)
+			{ /* Hash reference inside URL */
+		        int         i = 0 ;
+			HE *	    pEntry ;
+			char *	    pKey ;
+			SV * 	    pSVValue ;
+
+			hv_iterinit (pHV) ;
+			while (pEntry = hv_iternext (pHV))
+			    {
+			    if (i++ > 0)
+				oputs (r, "&amp;") ;
+			    pKey     = hv_iterkey (pEntry, &li) ;
+			    OutputToHtml (r, pKey) ;
+			    oputc (r, '=' ) ;
+
+			    pSVValue = hv_iterval (pHV , pEntry) ;
+			    if (pSVValue)
+				OutputToHtml (r, SvPV (pSVValue, l)) ;
+			    }
+			}	
 		    else
 			{
 			OutputToHtml (r, SvPV (pRet, na)) ;
@@ -2902,7 +2926,9 @@ int ExecuteReq (/*i/o*/ register req * r,
     SetupSafeNamespace (r) ;
 
     /* --- read form data from browser if not already read by perl part --- */
-    if (rc == ok && !(r -> bOptions & optDisableFormData) && av_len (r -> pFormArray) == -1 && !r -> bSubReq) 
+    if (rc == ok && !(r -> bOptions & optDisableFormData) && 
+	            av_len (r -> pFormArray) == -1 && !r -> bSubReq && 
+		    r -> pImportStash == NULL) 
         rc = GetInputData_CGIScript (r) ;
     
     /* --- open output and send http header if EarlyHttpHeaders --- */

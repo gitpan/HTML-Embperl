@@ -1,5 +1,35 @@
 =pod
 
+=head1 1.3b5 /BETA)  20. Aug 2000
+
+   - Embperl now supports Apache::Session 1.52. See "Session handling"
+     in the docs, how the setup has changed.
+   - Fixed a problem with POSTed data, which had got lost for the first,
+     request when using EmbperlObject handler. Spotted by
+     Kaare Rasmussen.
+   - Fixed a typo in HTML::Embperl::Mail, spotted by Robert.
+   - changed require to use HTML::Embperl in EmbperlObject to avoid problems
+     with dynamic loading. Spotted by Robert.
+   - Embperl takes the cookie for session handling from the Apache 
+     request record to make it available in earlier phases then the
+     content handler. Suggested by Jack Cushman.
+   - added entity decoding for value attribute of radio/checkboxes.
+     Spotted by Chris Thorman.
+   - %fdat is not resetup when already done and formtype is 
+     multipart/formdata. Spotted by Michael Slade.
+   - Embperl inserts &amp; instead of a signle & inside query strings
+     when expaned from array or hash refs.
+   - Embperl now also accepts hashref inside a url and expand it
+     to a query_string i.e. <a href="foo.html?[+ { a=>1, b=>2 }+]"> will become
+     <a href="foo.html?a=1&amp;b=>2">.
+   - EMBPERL_COOKIE_EXPIRES now also supports relativ times like: 
+     +30s +10m +1h -1d +3M +10y
+   - $req_rec -> pnotes ('EMBPERL_ERRORS') could be used to retrieve 
+     error message inside a error document
+   - make Embperl compile and run with threaded Perl 5.6. With help
+     from Jason Bodnar. NOTE: That doesn't mean that Embperl is
+     threadsafe!
+
 =head1 1.3b4 (BETA)  17.07.2000
 
    - New $escmode (or EMBPERL_ESCMODE) to disable the possiblilty

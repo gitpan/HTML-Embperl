@@ -107,6 +107,25 @@
 #define PERL_SUBVERSION SUBVERSION
 #endif
 
+#ifndef pTHX_
+#define pTHX_
+#endif
+#ifndef pTHX
+#define pTHX
+#endif
+#ifndef aTHX_
+#define aTHX_
+#endif
+#ifndef aTHX
+#define aTHX
+#endif
+#ifndef dTHX
+#define dTHX
+#define dTHXsem
+#else
+#define dTHXsem dTHX ;
+#endif
+
 
 #if PERL_VERSION >= 5
 

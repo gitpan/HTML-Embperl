@@ -59,7 +59,7 @@ PerlSetEnv EMBPERL_MAILDEBUG 1
 EOD
 	}
 
-if ($EPSESSIONVERSION && $EPSESSIONVERSION >= 1)
+if ($EPSESSIONVERSION && ($EPSESSIONVERSION =~ /^1\.0\d$/))
 	{
 print OFH <<EOD ;
 
@@ -69,6 +69,19 @@ SetEnv EMBPERL_SESSION_CLASSES "FileStore NullLocker"
 SetEnv EMBPERL_SESSION_ARGS "Directory=$EPPATH/test/tmp"
 EOD
 	}
+elsif ($EPSESSIONVERSION && ($EPSESSIONVERSION > 1))
+	{
+print OFH <<EOD ;
+
+PerlSetEnv EMBPERL_SESSION_CLASSES "File Null"
+PerlSetEnv EMBPERL_SESSION_ARGS "Directory=$EPPATH/test/tmp"
+SetEnv EMBPERL_SESSION_CLASSES "File Null"
+SetEnv EMBPERL_SESSION_ARGS "Directory=$EPPATH/test/tmp"
+EOD
+	}
+
+
+
 print OFH <<EOD ;
 
 SetEnv EMBPERL_ALLOW asc|\\.htm\$

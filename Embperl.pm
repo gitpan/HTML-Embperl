@@ -67,6 +67,7 @@ use vars qw(
     $escmode
 
     $SessionMgnt
+    $DefaultIDLength
 
     $req_rec
 
@@ -79,7 +80,7 @@ use vars qw(
 @ISA = qw(Exporter DynaLoader);
 
 
-$VERSION = '1.3b4';
+$VERSION = '1.3b5';
 
 
 # HTML::Embperl cannot be bootstrapped in nonlazy mode except
@@ -351,14 +352,16 @@ tie *OUT, 'HTML::Embperl::Out' ;
 $SessionMgnt = 0 ;
 if (defined ($ENV{EMBPERL_SESSION_CLASSES}))
     { # Apache::Session 1.xx
-    my ($os, $lm) = split /\s*,\s*|\s+/, $ENV{EMBPERL_SESSION_CLASSES} ;
+    my ($os, $lm, $ser, $gen) = split /\s*,\s*|\s+/, $ENV{EMBPERL_SESSION_CLASSES} ;
     if (!$os || !$lm)
         {
         warn "[$$]SES:  EMBPERL_SESSION_CLASSES must be set properly (is $ENV{EMBPERL_SESSION_CLASSES})" ;
         }
     else
         {
-	my @args  ;
+	$ser ||= 'Storable' ;
+	$gen ||= 'MD5' ;
+        my @args  ;
         if (defined ($ENV{EMBPERL_SESSION_ARGS}))
             {
 	    my @arglist = split /\s+/, $ENV{EMBPERL_SESSION_ARGS} ;
@@ -374,9 +377,25 @@ if (defined ($ENV{EMBPERL_SESSION_CLASSES}))
 	    @args,
             lazy	   => 1,
 	    create_unknown => 1,
-	    object_store   => $os,
-	    lock_manager   => $lm
 	    ) ;
+        
+        my $ver  ;
+        if ($Apache::Session::VERSION =~ /^1\.0\d$/)
+            {
+	    $sargs{object_store} = $os ;
+	    $sargs{lock_manager} = $lm ;
+            $ver = '1.0x' ;
+	    $DefaultIDLength = 16 ; 	
+            }
+        else
+            { # Apache::Session >= 1.50
+	    $sargs{Store} = $os ;
+	    $sargs{Lock} = $lm ;
+	    $sargs{Generate} = $gen ;
+	    $sargs{Serialize} = $ser ;
+            $ver = '>= 1.50' ;
+	    $DefaultIDLength = 32 ; 	
+            }
 
         my $session_handler = $ENV{EMBPERL_SESSION_HANDLER_CLASS} || 'HTML::Embperl::Session' ; 
         eval "require $session_handler" ; 
@@ -385,7 +404,7 @@ if (defined ($ENV{EMBPERL_SESSION_CLASSES}))
 	tie %udat, $session_handler, undef, \%sargs ;
 	tie %mdat, $session_handler, undef, \%sargs ;
 	$SessionMgnt = 2 ;
-	warn "[$$]SES:  Embperl Session management enabled (1.xx)\n" if ($ENV{MOD_PERL}) ;
+	warn "[$$]SES:  Embperl Session management enabled ($ver)\n" if ($ENV{MOD_PERL}) ;
         }
     }
 elsif (exists $INC{'Apache/Session.pm'})
@@ -712,6 +731,13 @@ sub Execute
         $opcodemask = $cp -> mask ;
         }
 
+    if (exists ($req -> {'cookie_expires'}) && ($$req{'cookie_expires'} =~ /^\+|\-/))
+        {
+        require CGI ;
+
+        $req -> {'cookie_expires'} = CGI::expires($req -> {'cookie_expires'}, 'cookie') ;
+        }
+
     my $conf = SetupConfData ($req, $opcodemask) ;
 
     
@@ -797,6 +823,7 @@ use strict ;
         $mtime = 0 ;
 	}
 
+
     my $ar  ;
     $ar = Apache->request if (defined ($req_rec)) ; # workaround that Apache::Request has another C Interface, than Apache
     my $r = SetupRequest ($ar, $Inputfile, $mtime, $filesize, ($$req{firstline} || 1), $Outputfile, $conf,
@@ -825,6 +852,7 @@ use strict ;
 	    @ffld = keys %fdat if (!defined ($$req{'ffld'})) ;
 	    }
 	elsif (!($optDisableFormData) &&
+	       !($r -> SubReq) &&
 	       defined($ENV{'CONTENT_TYPE'}) &&
 	       $ENV{'CONTENT_TYPE'}=~m|^multipart/form-data|)
 	    { # just let CGI.pm read the multipart form data, see cgi docu
@@ -883,8 +911,9 @@ use strict ;
 	    $mdat = tied(%mdat) ;
 	    my $sessid ;
 	    my $cookie_name = $r -> CookieName ;
+            my $cookie_val  = $ENV{HTTP_COOKIE} || ($req_rec?$req_rec->header_in('Cookie'):undef) ;
 
-	    if (defined ($ENV{HTTP_COOKIE}) && ($ENV{HTTP_COOKIE} =~ /$cookie_name=(.*?)(\;|\s|$)/))
+	    if (defined ($cookie_val) && ($cookie_val =~ /$cookie_name=(.*?)(\;|\s|$)/))
 		{
 		$sessid = $1 ;
 		print LOG "[$$]SES:  Received session cookie $1\n" if ($dbgSession) ;
@@ -902,7 +931,7 @@ use strict ;
 	    else
 		{
 		$udat -> setid ($sessid) ;
-		$mdat -> setid (substr(MD5 -> hexhash ($Inputfile), 0, 16));
+		$mdat -> setid (substr(MD5 -> hexhash ($Inputfile), 0, $mdat -> {args} -> {IDLength} || $DefaultIDLength));
 		}
 	    }
 
@@ -1208,9 +1237,12 @@ sub handler
 
     #warn "ok inputfile = $req{'inputfile'}\n" ;
 
-    $req{'cleanup'} = -1 if (($req{'options'} & optDisableVarCleanup)) ;
+    $req{'cleanup'} = -1 if (($req{'options'} & optDisableVarCleanup));
     $req{'options'} |= optSendHttpHeader ;
     $req{'req_rec'} = $req_rec ;
+    my @errors ;
+    $req{'errors'} = \@errors ;
+    $req_rec -> pnotes ('EMBPERL_ERRORS', \@errors) if (defined (&Apache::pnotes)) ;      
 
     my $rc = Execute (\%req) ;
 

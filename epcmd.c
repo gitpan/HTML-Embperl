@@ -867,10 +867,14 @@ static int CmdVar (/*i/o*/ register req * r,
         return ok ;
     
     sv_setiv (*ppSV, 1) ;
-    
+
+    tainted = 0 ;
+
     pSV = newSVpvf("package %s ; \n#line %d %s\n use vars qw(%s); map { $%s::CLEANUP{substr ($_, 1)} = 1 } qw(%s) ;\n",
 	           r -> Buf.sEvalPackage, r -> Buf.nSourceline, r -> Buf.pFile -> sSourcefile, sArg,
 		   r -> Buf.sEvalPackage, sArg) ;
+
+    lprintf (r, SvPV (pSV, na)) ;
     rc = EvalDirect (r, pSV) ;
     SvREFCNT_dec(pSV);
 
@@ -1758,21 +1762,30 @@ static int HtmlInput (/*i/o*/ register req * r,
         if (vlen > 0 && ppSV)
             {
             SV * pSV ;
-            SV * * ppSVerg = hv_fetch(r -> pFormSplitHash, (char *)pName, nlen, 0) ;  
+            SV * pSVVal ;
+            char * pTVal ;
+	    STRLEN vtlen ;
+	    
+	    SV * * ppSVerg = hv_fetch(r -> pFormSplitHash, (char *)pName, nlen, 0) ;  
             pSV = SplitFdat (r, ppSV, ppSVerg, (char *)pName, nlen) ;
     
+	    pSVVal = newSVpv ((char *)pVal, vlen) ;
+	    TransHtmlSV (r, pSVVal) ;
+	    pTVal = SvPV (pSVVal, vtlen) ;
+
             if (SvTYPE (pSV) == SVt_PVHV)
                 { /* -> Hash -> check if key exists */
-                if (hv_exists ((HV *)pSV, (char *)pVal, vlen))
+                if (hv_exists ((HV *)pSV, (char *)pTVal, vtlen))
                     bEqual = 1 ;
                 }
             else
                 {
                 pData = SvPV (pSV, dlen) ;
-                if (dlen == vlen && strncmp (pVal, pData, dlen) == 0)
+                if (dlen == vtlen && strncmp (pTVal, pData, dlen) == 0)
                     bEqual = 1 ;
                 }
-            }
+            SvREFCNT_dec (pSVVal) ;
+	    }
        
         pCheck = GetHtmlArg (sArg, "CHECKED", &clen) ;
         if (pCheck)

@@ -18,6 +18,8 @@
 BEGIN 
     {
     use ExtUtils::testlib ;
+    eval { require Apache::Session; } if ($ENV{EMBPERL_SESSION_CLASSES}) ;	
+    $@ = '' ;
     }	
 
 

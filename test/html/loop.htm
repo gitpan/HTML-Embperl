@@ -58,6 +58,11 @@
 	2:[+ $v +] <br>
 [$ endforeach $]
 
+[- %hash = ( a=>1, b=>2, c=>3) -]
+[$ foreach $v(keys %hash) $]
+	3:[+ $v +] <br>
+[$ endforeach $]
+
 [- $i = 0 -]
 [$ do $]
     [+ "\@a[$i] = $a[$i]" +]<br>

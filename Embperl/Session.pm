@@ -37,12 +37,33 @@ when the specified session id does not exists. Otherwise it will die.
 =item object_store
 
 Specify the class for the object store. (The Apache::Session:: prefix is
-optional)
+optional) Only for Apache::Session 1.00.
 
 =item lock_manager
 
 Specify the class for the lock manager. (The Apache::Session:: prefix is
-optional)
+optional) Only for Apache::Session 1.00.
+
+=item Store
+
+Specify the class for the object store. (The Apache::Session::Store prefix is
+optional) Only for Apache::Session 1.5x.
+
+=item Lock
+
+Specify the class for the lock manager. (The Apache::Session::Lock prefix is
+optional) Only for Apache::Session 1.5x.
+
+=item Generate
+
+Specify the class for the id generator. (The Apache::Session::Generate prefix is
+optional) Only for Apache::Session 1.5x.
+
+=item Serialize
+
+Specify the class for the data serializer. (The Apache::Session::Serialize prefix is
+optional) Only for Apache::Session 1.5x.
+
 
 =back
 
@@ -97,15 +118,15 @@ package HTML::Embperl::Session;
 use strict;
 use vars qw(@ISA $VERSION);
 
-$VERSION = '1.00';
+$VERSION = '1.50';
 @ISA = qw(Apache::Session);
 
 use Apache::Session;
 
-use constant NEW      => Apache::Session::NEW ;
-use constant MODIFIED => Apache::Session::MODIFIED ;
-use constant DELETED  => Apache::Session::DELETED ;
-use constant SYNCED   => Apache::Session::SYNCED ;
+use constant NEW      => Apache::Session::NEW () ;
+use constant MODIFIED => Apache::Session::MODIFIED () ;
+use constant DELETED  => Apache::Session::DELETED () ;
+use constant SYNCED   => Apache::Session::SYNCED () ;
 
 
 sub TIEHASH {
@@ -114,11 +135,44 @@ sub TIEHASH {
     my $session_id = shift;
     my $args       = shift || {};
 
-    if(ref $args ne "HASH") {
+    if(ref $args ne "HASH") 
+        {
         die "Additional arguments should be in the form of a hash reference";
+        }
+
+    #Set-up the data structure and make it an object
+    #of our class
+
+
+    #$args -> {IDLength} ||= 32 ;
+    my $self = 
+        {
+        args         => $args,
+        data         => { _session_id => $session_id },
+        lock         => 0,
+        lock_manager => undef,
+        object_store => undef,
+        status       => 0,
+        serialized   => undef,
+        };
+    
+    bless $self, $class;
+
+    $self -> require_modules ($args) ;
+
+    $self -> init if (!$args -> {'lazy'}) ;
+
+
+    return $self ;
     }
 
-    # check object_store and lock_manager classes
+
+sub require_modules
+    {
+    my $self = shift ;
+    my $args = shift ;
+
+    # check object_store and lock_manager classes (Apache::Session 1.00)
     
     if ($args -> {'object_store'})
         {
@@ -133,26 +187,40 @@ sub TIEHASH {
         eval "require $args->{'lock_manager'}" ;
         die "Cannot require $args->{'lock_manager'}" if ($@) ;
         }
-        
-    #Set-up the data structure and make it an object
-    #of our class
 
-    my $self = {
-        args         => $args,
-        data         => { _session_id => $session_id },
-        lock         => 0,
-        lock_manager => undef,
-        object_store => undef,
-        status       => 0
-    };
+    # check Store, Lock, Generate, Serialize classes (Apache::Session 1.5x)
     
-    bless $self, $class;
+    if ($args -> {'Store'})
+        {
+        $args -> {'Store'} = "Apache::Session::Store::$args->{'Store'}" if (!($args -> {'Store'} =~ /::/)) ;
+        eval "require $args->{'Store'}" ;
+        die "Cannot require $args->{'Store'}" if ($@) ;
+        }
 
-    $self -> init if (!$args -> {'lazy'}) ;
+    if ($args -> {'Lock'})
+        {
+        $args -> {'Lock'} = "Apache::Session::Lock::$args->{'Lock'}" if (!($args -> {'Lock'} =~ /::/)) ;
+        eval "require $args->{'Lock'}" ;
+        die "Cannot require $args->{'Lock'}" if ($@) ;
+        }
 
+    if ($args -> {'Generate'})
+        {
+        $args -> {'Generate'} = "Apache::Session::Generate::$args->{'Generate'}" if (!($args -> {'Generate'} =~ /::/)) ;
+        eval "require $args->{'Generate'}" ;
+        die "Cannot require $args->{'Generate'}" if ($@) ;
+        }
 
-    return $self ;
+    if ($args -> {'Serialize'})
+        {
+        $args -> {'Serialize'} = "Apache::Session::Serialize::$args->{'Serialize'}" if (!($args -> {'Serialize'} =~ /::/)) ;
+        eval "require $args->{'Serialize'}" ;
+        die "Cannot require $args->{'Serialize'}" if ($@) ;
+        }
     }
+
+
+
 
 
 sub init
@@ -164,29 +232,49 @@ sub init
 
     my $session_id = $self->{data}->{_session_id} ;
 
-    if (defined $session_id) {
+    $self->populate;
+
+    if (defined $session_id  && $session_id) 
+        {
+        if (exists $self -> {'args'}->{Transaction} && $self -> {'args'}->{Transaction}) 
+            {
+            $self->acquire_write_lock;
+            }
+
         $self->{status} &= ($self->{status} ^ NEW);
 
 	if ($self -> {'args'}{'create_unknown'})
 	    {
             eval { $self -> restore } ;
+	    #warn "Try to load session: $@" if ($@) ;
+	    $@ = "" ;
 	    $session_id = $self->{data}->{_session_id} ;
 	    }
 	else
 	    {
 	    $self->restore;
 	    }
-    }
+        }
 
     if (!($self->{status} & SYNCED))
         {
         $self->{status} |= NEW();
-	$self->{data}->{_session_id} = $self -> generate_id() if (!$self->{data}->{_session_id}) ;
+        if (!$self->{data}->{_session_id})
+            {
+            if (exists ($self->{generate}))
+                { # Apache::Session >= 1.50
+	        $self->{data}->{_session_id} = &{$self->{generate}}($self)  ;
+                }
+            else
+                {
+	        $self->{data}->{_session_id} = $self -> generate_id() if (!$self->{data}->{_session_id}) ;
+                }
+            }
         $self->save;
-    }
+        }
     
     return $self;
-}
+    }
 
 sub FETCH {
     my $self = shift;
@@ -267,21 +355,26 @@ sub DESTROY {
     $self->release_all_locks;
 }
 
-sub cleanup {
+sub cleanup 
+    {
     my $self = shift;
     
     if (!$self -> {'status'})
 	{
 	$self->{data} = {} ;
+        $self->{serialized} = undef ;
 	return ;
 	}
 
     $self->save;
+    eval { $self -> {object_store} -> close } ; # Try to close file storage 
+    $@ = "" ;
     $self->release_all_locks;
 
     $self->{'status'} = 0 ;
     $self->{data} = {} ;
-}
+    $self->{serialized} = undef ;
+    }
 
 
 sub setid {
@@ -297,6 +390,21 @@ sub getid {
     return $self->{data}->{_session_id} ;
 }
 
+sub delete {
+    my $self = shift;
+    
+    return if ($self->{status} & NEW);
+    
+    $self -> init if (!$self -> {'status'}) ;
+
+    $self->{status} |= DELETED;
+    $self->save;
+}    
+
+
+#
+# For Apache::Session 1.00
+#
 
 sub get_object_store {
     my $self = shift;
@@ -310,4 +418,30 @@ sub get_lock_manager {
     return new {$self -> {'args'}{'lock_manager'}} $self;
 }
 
-1
+
+#
+# For Apache::Session >= 1.50
+#
+
+sub populate 
+    {
+    my $self = shift;
+
+    my $store = $self->{args}->{Store};
+    my $lock  = $self->{args}->{Lock};
+    my $gen   = $self->{args}->{Generate};
+    my $ser   = $self->{args}->{Serialize};
+
+
+    $self->{object_store} = new $store $self if ($store) ;
+    $self->{lock_manager} = new $lock $self if ($lock);
+    $self->{generate}     = \&{$gen . '::generate'} if ($gen);
+    $self->{serialize}    = \&{$ser . '::serialize'} if ($ser);
+    $self->{unserialize}  = \&{$ser . '::unserialize'} if ($ser) ;
+
+    return $self;
+    }
+
+
+
+1 ;

@@ -29,6 +29,7 @@
 int EvalDirect (/*i/o*/ register req * r,
 			/*in*/    SV * pArg) 
     {
+    dTHXsem 
     dSP;
     SV *  pSVErr  ;
 
@@ -79,6 +80,7 @@ static int EvalAll (/*i/o*/ register req * r,
                     /*in*/  const char *  sName,
 		    /*out*/ SV **         pRet)             
     {
+    dTHXsem 
     static char sFormat []       = "package %s ; sub %s { \n#line %d \"%s\"\n%s\n} %s%s" ;
     static char sFormatStrict [] = "package %s ; use strict ; sub %s {\n#line %d \"%s\"\n%s\n} %s%s" ; 
     static char sFormatArray []       = "package %s ; sub %s { \n#line %d \"%s\"\n[%s]\n} %s%s" ;
@@ -169,6 +171,7 @@ static int EvalAllNoCache (/*i/o*/ register req * r,
 			/*in*/  const char *  sArg,
                            /*out*/ SV **         pRet)             
     {
+    dTHXsem 
     int   num ;         
     int   nCountUsed = r -> TableStack.State.nCountUsed ;
     int   nRowUsed   = r -> TableStack.State.nRowUsed ;
@@ -302,6 +305,7 @@ static int CallCV  (/*i/o*/ register req * r,
                     /*in*/  int           flags,
                     /*out*/ SV **         pRet)             
     {
+    dTHXsem 
     int   num ;         
     int   nCountUsed = r -> TableStack.State.nCountUsed ;
     int   nRowUsed   = r -> TableStack.State.nRowUsed ;

@@ -6,7 +6,16 @@ HTML::Embperl - einbetten von Perlcode in HTML Dokumente
 
 =head1 SYNOPSIS
 
-I<Embperl> ist ein Perlmodul welches es erlaubt beliebigen Perlcode in HTML Dokumente einzufügen.
+=head1 DESCRIPTION
+
+I<Embperl> ist ein Perlmodul welches es erlaubt beliebigen Perlcode
+in HTML Dokumente einzufügen.
+
+Wenn Sie mehr als eine einzelne Webseite erstellen, sollten Sie auch
+einen Blick auf L<"perldoc EmbperlObject"|"EmbperlObject.pod">  werfen,
+welches es erlaubt Websites aus kleinen Objketen zusammenzusetzen.
+Zusätzlich erlaubt es L<"perldoc HTML::Embperl::Mail"|"Mail.pod"> die
+resultierenden Seiten per EMail zu verschicken.
 
 =head1 Aufrufen/Konfigurieren von Embperl
 
@@ -911,7 +920,8 @@ Fehlermeldungen an diese Adresse versandt.
 
 =head2 EMBPERL_SESSION_CLASSES
 
-Hier wird, durch Leerzeichen getrennt, die Klasse für Object Store und Lock Manager von 
+Hier wird, durch Leerzeichen getrennt, die Klasse für Object Store und Lock Manager (und
+optional für die Serialisierung und das Generieren der ID) von 
 I<Apache::Session> angegeben (siehe L<"Session Handling"|"Session Handling (ab 1.2b2)">)
 
 =head2 EMBPERL_SESSION_ARGS
@@ -946,6 +956,8 @@ Default ist kein Pfad.
 =head2 EMBPERL_COOKIE_EXPIRES (ab 1.2b4) 
 
 Gibt den Ablaufzeitpunkt des Cookies an, das I<Embperl> benutzt, um die Session Id zu senden.
+Es kann ein vollständiges Datum oder (ab 1.3b5) relative Werte angegeben werden.
+Beispiele: +30s +10m +1h -1d +3M +10y
 Default ist kein Ablaufzeitpunkt.
 
 
@@ -1399,15 +1411,15 @@ Das entspricht der Apachefunktion:
 
 Die Ausgaben von Perlblöcken innerhalb des C<HREF> Attributes des C<A> Tags und des
 C<SRC> Attributes der anderen Tags werden URL Kodiert, statt HTML Kodiert.
-(siehe auch L<$escmode>). Des weiteren expandiert I<Embperl> Arrayreferenzen
+(siehe auch L<$escmode>). Des weiteren expandiert I<Embperl> Array- und Hashreferenzen
 innerhalb solcher URLs zur URL Parametersyntax. Beispiel:
 
   [-
-  %A = (A => 1, B => 2) ;
+  $A = {A => 1, B => 2} ;  # Hashreference
   @A = (X, 9, Y, 8, Z, 7)
   -]
 
-  <A HREF="http://localhost/tests?[+ [ %A ] +]">
+  <A HREF="http://localhost/tests?[+ $A  +]">
   <A HREF="http://localhost/tests?[+ \@A +]">
 
 wird von I<Embperl> zu Folgendem expandiert:
@@ -1528,6 +1540,10 @@ Beispiel:
 
 B<HINWEIS:> Der Zugriff auf die B<Upload-Infos> erfolgte vor 1.2b11 auf andere
 Art und Weise, die nicht mehr unterstützt wird.
+
+B<HINWEIS:> Dies funktioniert ebenfalls in die andere Richtung. Bei Inputtags deren
+Name einem %fdat Schlüssel entspricht und die kein Value Attribute haben wird
+automatisch der Wert aus %fdat als Value eingesetzt. Siehe L<"HTML Tags"> C<INPUT/OPTION/TEXTAREA>. 
 
 =head2 @ffld
 
@@ -1765,40 +1781,55 @@ des Perlmodules I<Apache::Session>.
 
 Um das Session Management zu aktivieren muß I<Apache::Session> (Version 1.00
 oder höher) installiert sein. Außerdem müssen Sie I<Embperl>, via 
-C<EMBPERL_SESSION_ARGS>, mitteilen, welcher
+C<EMBPERL_SESSION_CLASSES>, mitteilen, welcher
 Speicher- und Lockingmechanismus genutzt werden soll, ggf. müssen Sie
 auch weitere Argumente für I<Apache::Session> setzen.
-Eine Beispiel F<startup.pl> Datei, könnte folgendermaßen aussehen:
+Um z.B. eine MySQL Datenbank zur Speicherung der Sessions zu benutzen, könnte
+die Datei F<startup.pl> folgendermaßen aussehen:
 
  BEGIN
     {
-    $ENV{EMBPERL_SESSION_CLASSES} = "DBIStore SysVSemaphoreLocker" ;
+    $ENV{EMBPERL_SESSION_CLASSES} = "MySQL Semaphore" ;
     $ENV{EMBPERL_SESSION_ARGS}    = "DataSource=dbi:mysql:session UserName=test" ;
     } ;
  use HTML::Embperl ;
 
-Für B<Solaris> ist es bei der Benutzung von SysVSemaphoreLocker nötig
-zusätzlich das C<nsems> Argument zu setzen:
 
- $Apache::Session::SysVSemaphoreLocker::nsems = 16;
+Dass selbe kann stattdessen auch direkt in die F<httpd.conf> eingetragen werden:
 
-
-Dass selbe kann auch direkt in die F<httpd.conf> eingetragen werden:
-
- PerlSetEnv EMBPERL_SESSION_CLASSES "DBIStore SysVSemaphoreLocker"
+ PerlSetEnv EMBPERL_SESSION_CLASSES "MySQL Semaphore"
  PerlSetEnv EMBPERL_SESSION_ARGS "DataSource=dbi:mysql:session UserName=test"
  PerlModule HTML::Embperl ;
+
+
+Konsultieren Sie die Dokumentation von I<Apache::Session> (in diesem Fall
+I<Apache::Session::Store::MySQL>) für Informationen wie die Datenbanktabellen
+dazu aussehen müssen.
 
 C<EMBPERL_SESSION_ARGS> ist eine Leerzeichen separierte Liste von Name/Wert Paaren
 die zusätzlich Parameter für die I<Apache::Session> Klassen angeben können.
 
-B<HINWEIS:> Die obige Konfiguration funktioniert nur mit I<Embperl> 1.2b11 oder
+Hier ist ein weiteres Beispiel für die Speicherung der Sessiondaten im Dataisystem:
+
+PerlSetEnv EMBPERL_SESSION_CLASSES "File Semaphore"
+PerlSetEnv EMBPERL_SESSION_ARGS "Directory=/path/to/your/sessions"
+
+Konsultieren Sie die Dokumentation von I<Apache::Session> um zu erfahren welche
+weiteren Speichermöglichkeiten es gibt.
+
+Zusätzlich (optional) zur zur Speicher- und Lockingklasse können in C<EMBPERL_SESSION_CLASSES>
+zwei weitere Klassen angegeben werden. Die erste ist für die Serialisierung der Daten zuständig
+(Default: C<Storable>) und die zweite für sas erzeugen der ID
+(Default: C<MD5>).
+
+
+B<HINWEIS:> Die obige Konfiguration funktioniert nur mit I<Apache::Session> 1.52 und 
+I<Embperl> 1.3b5 oder
 höher. Ältere Konfigurationen mit I<Apache::Session> werden weiterhin unterstützt,
-die Dokumentation dazu jedoch entferent. Es ist nun nicht mehr nötig 
-I<Apache::Session> vor I<Embperl> zu laden.
-Bitte beachten Sie das I<Apache::Session>
-0.17 und 1.xx nicht kompatibel zueinander sind und eine andere
-Konfiguration erfordern.
+Ältere Versionen von Embperl unterstützen nur I<Apache::Session> 1.0x, welches
+eine andere Konfiguartion von C<$ENV{EMBPERL_SESSION_CLASSES}> erfordert
+(z.B. C<$ENV{EMBPERL_SESSION_CLASSES} = "DBIStore SysVSemaphoreLocker" ; >).
+
 
 
 Damit ist das Session Handling eingerichtet und der Benutzung der
