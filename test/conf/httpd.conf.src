@@ -111,6 +111,13 @@ Options ExecCGI
 PerlSetEnv EMBPERL_OPTIONS 8192
 </Location>
 
+<Location /embperl/noerr>
+SetHandler perl-script
+PerlHandler HTML::Embperl
+Options ExecCGI
+PerlSetEnv EMBPERL_OPTIONS 2
+</Location>
+
 Alias /cgi-bin/ $EPPATH/test/html/
 Alias /cgi-bin-32/ $EPPATH/test/html/
 ScriptAlias /cgi/ $EPPATH/
@@ -139,11 +146,11 @@ Options ExecCGI
 
 ErrorLog tmp/httpd.err.log
 PidFile tmp/httpd.pid
-AccessConfig $EPNULL
-ResourceConfig $EPNULL
-TypesConfig $EPNULL
-TransferLog $EPNULL
-ScoreBoardFile $EPNULL
+AccessConfig conf/null
+ResourceConfig conf/null
+TypesConfig conf/null
+#TransferLog $EPNULL
+#ScoreBoardFile $EPNULL
 LockFile tmp/httpd.lock
 
 <IfModule apache_ssl.c>

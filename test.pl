@@ -26,6 +26,7 @@ END   { print "\nTest terminated with fatal error\n" if ($fatal) ; }
     'error.htm???7',
     'error.htm???7',
     'error.htm???7',
+    'noerr/noerrpage.htm???7?2',
     'rawinput/rawinput.htm????16',
     'var.htm',
     'varerr.htm???-1',
@@ -759,10 +760,10 @@ do
 	    #next if ($file eq 'error.htm' && $loc eq $cgiloc && $errcnt < 16) ;
 	    next if ($file eq 'varerr.htm' && $loc eq $cgiloc && $errcnt > 0) ;
 	    next if ($file eq 'varerr.htm' && $looptest) ;
-	    next if (($file =~ /registry/) && $loc eq $cgiloc) ;
+ 	    next if (($file =~ /registry/) && $loc eq $cgiloc) ;
 	    next if ($file eq 'http.htm' && $loc eq $cgiloc) ;
 	    next if ($file eq 'chdir.htm' && $EPWIN32) ;
-    
+     
 	    $debug ||= $defaultdebug ;  
 	    $errcnt ||= 0 ;
 	    $errcnt = -1 if ($EPWIN32 && $loc eq $cgiloc) ;
@@ -775,6 +776,7 @@ do
 		{
 		$notseen = $seen{"$loc:$page"}?0:1 ;
 		$seen{"$loc:$page"} = 1 ;
+		$notseen = 0 if ($file eq 'registry/errpage.htm') ;
 		}
 	    else
 		{

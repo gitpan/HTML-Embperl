@@ -85,11 +85,11 @@ sub GetYesNo
 $apache = 0 ;
 $b = 0 ;
 
-if (defined ($ARGV[0]))
+if (defined ($ARGV[0]) && ($ARGV[0] =~ /^\W/))
     {
     $apache = 2 ;
     $b = 1 ;
-    $apache_src = $ARGV[0] ;
+    $apache_src = shift @ARGV ;
     }
 elsif (defined ($ENV{APACHE_SRC}))
     {

@@ -1,6 +1,16 @@
 Revision history for Perl extension HTML::Embperl.
 
-0.27-beta 19 May 1998
+1.0.0  12 Jun 98
+   - Make tests run with Apache 1.3.0, spotted by Eric Cholet
+   - Added a definition for MAX_PATH, which is not there on SunOS 4.1.4
+     spotted by Dan Peterson
+   - Fixed a bug that causes Makefile.PL interpret MakeMaker parameters
+     spotted by Jason Bodnar
+   - Fixed a bug that caused EMBPERL_PACKAGE not to be recognized
+   - Fixed a bug that caused optDisableFormData not to be recognized for
+     multipart formdata
+
+0.28-beta 19 May 1998 
    - I have added a chapter "Inside Embperl" to the docs, I hope this
      will make it clearer how escaping and unescaping works and how you
      can get which result. Highly recommended! (Thanks for spell- and gramar-
@@ -74,6 +84,7 @@ Revision history for Perl extension HTML::Embperl.
      evaled expression, so behave like the perl ones do. Spotted by Jason 
      Bondar
 
+0.27-beta not available
 
 0.26-beta 16 Mar 98
    - Adapt include pass to compile with apache_1.3b5

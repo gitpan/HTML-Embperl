@@ -32,6 +32,7 @@ test/html/ascii
 test/html/pure.htm
 test/html/plain.htm
 test/html/error.htm
+test/html/noerr/noerrpage.htm
 test/html/escape.htm
 test/html/if.htm
 test/html/table.htm
@@ -69,6 +70,7 @@ test/cmp/ascii
 test/cmp/pure.htm
 test/cmp/plain.htm
 test/cmp/error.htm
+test/cmp/noerrpage.htm
 test/cmp/escape.htm
 test/cmp/if.htm
 test/cmp/table.htm
@@ -105,3 +107,4 @@ test/conf/startup.pl
 embpexec.test.pl
 embpexec.test.bat
 win32.patch
+test/conf/null

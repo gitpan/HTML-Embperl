@@ -6,8 +6,6 @@ You may distribute under the terms of either the GNU General Public
 License or the Artistic License, as specified in the Perl README file.
 For use with Apache httpd and mod_perl, see also Apache copyright.
 
-THIS IS BETA SOFTWARE!
-
 THIS PACKAGE IS PROVIDED "AS IS" AND WITHOUT ANY EXPRESS OR IMPLIED 
 WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF 
 MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
@@ -29,6 +27,8 @@ interpreted. This allows dynamic table creation and an easier form processing.
 Embperl can run offline, as CGI script or as module using mod_perl of the 
 Apache httpd (which is the fastest approach).
 
+There is also a database module (DBIx::Recordset) available for (not only)
+use with Embperl (see below).
 
 INSTALLATION
 
@@ -107,13 +107,15 @@ apache_1.2.6
 apache_1.3b3
 apache_1.3b5
 apache_1.3b6
+apache_1.3.0
 apache_ssl (Ben SSL)
-Stringhold 2.2
+Stronghold 2.2
 
 on Windows NT 4.0 with
 
 perl5.004_04
 apache_1.3b5
+apache_1.3.0
 
 on Windows 95 with
 perl5.004_02 (binary distribution)
@@ -157,6 +159,7 @@ REFERENCES
  mod_perl               http://perl.apache.org/
  mod_perl FAQ           http://perl.apache.org/faq
  Embperl                http://perl.apache.org/embperl.html
+ DBIx::Recordset	http://ftp.dev.ecos.de/pub/perl/dbi
  apache web server      http://www.apache.org/
  ben-ssl (free httpsd)  http://www.apache-ssl.org/
  stronghold (commerical httpsd) http://www.c2.net/

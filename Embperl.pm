@@ -7,8 +7,6 @@
 #   License or the Artistic License, as specified in the Perl README file.
 #   For use with Apache httpd and mod_perl, see also Apache copyright.
 #
-#   THIS IS BETA SOFTWARE!
-#
 #   THIS PACKAGE IS PROVIDED "AS IS" AND WITHOUT ANY EXPRESS OR
 #   IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 #   WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
@@ -33,7 +31,7 @@ require DynaLoader;
 @ISA = qw(Exporter DynaLoader);
 
 
-$VERSION = '0.28-beta';
+$VERSION = '1.0.0';
 
 
 bootstrap HTML::Embperl $VERSION;
@@ -592,7 +590,7 @@ sub ScanEnvironement
     
     $$req{'virtlog'}     = $ENV{EMBPERL_VIRTLOG}     if (exists ($ENV{EMBPERL_VIRTLOG})) ;
     $$req{'compartment'} = $ENV{EMBPERL_COMPARTMENT} if (exists ($ENV{EMBPERL_COMPARTMENT})) ;
-    $$req{'package'}     = $ENV{EMBPERL_PACKAGE}     if (exists ($ENV{EMBPERL_COMPARTMENT})) ;
+    $$req{'package'}     = $ENV{EMBPERL_PACKAGE}     if (exists ($ENV{EMBPERL_PACKAGE})) ;
     $$req{'debug'}       = $ENV{EMBPERL_DEBUG}   || 0 ;
     $$req{'options'}     = $ENV{EMBPERL_OPTIONS} || 0 ;
     $$req{'log'}         = $ENV{EMBPERL_LOG}     || $DefaultLog ;
@@ -687,7 +685,9 @@ sub Execute
 	{ $evalpackage = $package ; }
 
 
-    if (defined($ENV{'CONTENT_TYPE'}) && $ENV{'CONTENT_TYPE'}=~m|^multipart/form-data|)
+    if (!($Options & optDisableFormData) && 
+           defined($ENV{'CONTENT_TYPE'}) &&
+           $ENV{'CONTENT_TYPE'}=~m|^multipart/form-data|)
         { # just let CGI.pm read the multipart form data, see cgi docu
 	$cgi = new CGI;
 	    
@@ -706,9 +706,7 @@ sub Execute
         %fdat = %{$$req{'fdat'}} ;
         }
 
-    # pass parameters via @_
-    *{"$package\:\:_"}       = $$req{'param'} if (exists $$req{'param'}) ;
-    # for compability we let @param here, but this will be removed in 1.00
+    # pass parameters via @param
     *{"$package\:\:param"}   = $$req{'param'} if (exists $$req{'param'}) ;
     
     @errors = () ;
@@ -1079,6 +1077,12 @@ HTML file.
 B<embpexec.pl [-o outputfile] [-l logfile] [-d debugflags] htmlfile
 [query_string]>
 
+B<embpexec.bat [-o outputfile] [-l logfile] [-d debugflags] htmlfile
+[query_string]>
+
+
+Use embpexec.pl on unix systems and embpexec.bat on win32 systems.
+
 =over 4
 
 =item B<htmlfile>
@@ -1118,7 +1122,11 @@ is processed by the CGI script and the result is sent to the client.
 
 B<embpexec.pl>
 
-If C<embpexec.pl> is invoked without any parameters and the
+B<embpexec.bat>
+
+Use embpexec.pl on unix systems and embpexec.bat on win32 systems.
+
+If C<embpexec.pl/embpexec.bat> is invoked without any parameters and the
 environment variable PATH_TRANSLATED is set, it runs itself as a CGI
 script.  This means that form data is taken either from the
 environment variable QUERY_STRING or from stdin, depending on whether
@@ -1313,6 +1321,10 @@ The URI of the request. Only needed for the virtlog feature.
 
 Same as EMBPERL_COMPARTMENT (see below).
 
+
+B<NOTE:> You should set the B<optDisableFormData> if you have already
+read the form data from stdin, while in a POST request, otherwise
+Execute will hang and try to read the data a second time.
 
 =back
 
@@ -2683,6 +2695,7 @@ please send email to info@ecos.de.
  mod_perl               http://perl.apache.org/
  mod_perl FAQ           http://perl.apache.org/faq
  Embperl                http://perl.apache.org/embperl.html
+ DBIx::Recordset	http://ftp.dev.ecos.de/pub/perl/dbi
  apache web server      http://www.apache.org/
  ben-ssl (free httpsd)  http://www.apache-ssl.org/
  stronghold (commerical httpsd) http://www.c2.net/

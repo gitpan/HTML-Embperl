@@ -1,5 +1,8 @@
 TODO for Embperl
 
+- MAX_PATH
+- dbgLogOutput
+
 
 - Apache::Symbol::undef (avoid function redefinition warning)
 

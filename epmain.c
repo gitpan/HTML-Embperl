@@ -6,8 +6,6 @@
 #   License or the Artistic License, as specified in the Perl README file.
 #   For use with Apache httpd and mod_perl, see also Apache copyright.
 #
-#   THIS IS BETA SOFTWARE!
-#
 #   THIS PACKAGE IS PROVIDED "AS IS" AND WITHOUT ANY EXPRESS OR
 #   IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 #   WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
@@ -1615,19 +1613,22 @@ static int EndOutput (/*in*/ int    rc,
     int  bOutToMem = SvROK (pOutData) ;
 
     
-    if ((rc != ok ||  bError) && !(bOptions & optDisableEmbperlErrorPage))
+    if (rc != ok ||  bError)
         { /* --- generate error page if necessary --- */
-        dSP;                            /* initialize stack pointer      */
-
-        oRollbackOutput (NULL) ; /* forget everything outputed so far */
-        oBegin () ;
-
 #ifdef APACHE
         if (pReq)
             pReq -> status = 500 ;
 #endif
-        PUSHMARK(sp);                   /* remember the stack pointer    */
-        perl_call_pv ("HTML::Embperl::SendErrorDoc", G_DISCARD | G_NOARGS) ; /* call the function             */
+        if (!(bOptions & optDisableEmbperlErrorPage))
+            {
+            dSP;                            /* initialize stack pointer      */
+
+            oRollbackOutput (NULL) ; /* forget everything outputed so far */
+            oBegin () ;
+
+            PUSHMARK(sp);                   /* remember the stack pointer    */
+            perl_call_pv ("HTML::Embperl::SendErrorDoc", G_DISCARD | G_NOARGS) ; /* call the function             */
+            }
         }
     
 
@@ -1949,7 +1950,7 @@ int iembperl_req  (/*in*/ char *  sInputfile,
 	    bOptions |= optDisableChdir ;
 	
 	if ((rc = ProcessFile (nFileSize)) != ok)
-        LogError (rc) ;
+            LogError (rc) ;
 
 	/* --- restore working directory --- */
 	if ((bOptions & optDisableChdir) == 0)
