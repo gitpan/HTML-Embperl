@@ -1,6 +1,6 @@
 /*###################################################################################
 #
-#   Embperl - Copyright (c) 1997 Gerald Richter / ECOS
+#   Embperl - Copyright (c) 1997-1998 Gerald Richter / ECOS
 #
 #   You may distribute under the terms of either the GNU General Public
 #   License or the Artistic License, as specified in the Perl README file.
@@ -66,9 +66,6 @@ int EvalDirect (/*in*/    SV * pArg)
     }
 
 
-#define EVAL_SUB
-
-#ifndef EVAL_BY_SUB
 
 /* -------------------------------------------------------------------------------
 *
@@ -82,22 +79,24 @@ int EvalDirect (/*in*/    SV * pArg)
 static int EvalAll (/*in*/  const char *  sArg,
                     /*out*/ SV **         pRet)             
     {
-    static char sFormat []       = "package %s ; sub { %s }" ;
-    static char sFormatStrict [] = "package %s ; use strict ; sub { %s }" ; 
+    static char sFormat []       = "package %s ; sub { \n#line %d %s\n%s\n}" ;
+    static char sFormatStrict [] = "package %s ; use strict ; sub {\n#line %d %s\n%s\n}" ; 
     SV *   pSVCmd ;
     dSP;
     
     EPENTRY (EvalAll) ;
 
+    GetLineNo () ;
+
     if (bDebug & dbgDefEval)
-        lprintf ("[%d]DEF:  %s\n", nPid, sArg) ;
+        lprintf ("[%d]DEF:  Line %d: %s\n", nPid, nSourceline, sArg) ;
 
     tainted = 0 ;
 
     if (bStrict)
-        pSVCmd = newSVpvf(sFormatStrict, sEvalPackage,  sArg) ;
+        pSVCmd = newSVpvf(sFormatStrict, sEvalPackage, nSourceline, sSourcefile, sArg) ;
     else
-        pSVCmd = newSVpvf(sFormat, sEvalPackage,  sArg) ;
+        pSVCmd = newSVpvf(sFormat, sEvalPackage, nSourceline, sSourcefile, sArg) ;
 
     PUSHMARK(sp);
     perl_eval_sv(pSVCmd, G_SCALAR | G_KEEPERR);
@@ -121,8 +120,9 @@ static int EvalAll (/*in*/  const char *  sArg,
              l-- ;
          errdat1[l] = '\0' ;
          
-	 *pRet = newSVpv (LogError (rcEvalErr), 0) ;
-
+	 *pRet = newSVpv (errdat1, 0) ;
+         
+         LogError (rcEvalErr) ;
 	 sv_setpv(GvSV(errgv),"");
          return rcEvalErr ;
          }
@@ -130,93 +130,6 @@ static int EvalAll (/*in*/  const char *  sArg,
     return ok ;
     }
 
-#else
-
-/* -------------------------------------------------------------------------------
-*
-* Eval PERL Statements 
-* 
-* in  sArg   Statement to eval
-* out pRet   pointer to SV contains an CV to the evaled code
-*
-* This function do it by calling a perl subroutine, this was the onyl way in 
-* perl 5.003, because the function perl_eval_sv was broken
-*
-------------------------------------------------------------------------------- */
-
-
-static int EvalAll (/*in*/  const char *  sArg,
-                    /*out*/ SV **         pRet)             
-    {
-    int   num ;         
-#ifndef EVAL_SUB    
-    SV *  pSVArg ;
-#endif
-    dSP;                            /* initialize stack pointer      */
-
-    EPENTRY (EvalAll-BySub) ;
-
-    if (bDebug & dbgDefEval)
-        lprintf ("[%d]DEF:  %s\n", nPid, sArg) ;
-
-    tainted = 0 ;
-
-#ifdef EVAL_SUB    
-
-    ENTER;                          /* everything created after here */
-    SAVETMPS;                       /* ...is a temporary variable.   */
-    PUSHMARK(sp);                   /* remember the stack pointer    */
-    XPUSHs(sv_2mortal(newSVpv((char *)sArg, strlen (sArg)))); /* push the base onto the stack  */
-    PUTBACK;                        /* make local stack pointer global */
-    num = perl_call_pv ("_evalsub_", G_SCALAR | G_EVAL) ; /* call the function             */
-#else
-    
-    pSVArg = sv_2mortal(newSVpv((char *)sArg, strlen (sArg))) ;
-
-    /*num = perl_eval_sv (pSVArg, G_SCALAR) ; /* call the function             */ */
-    num = perl_eval_sv (pSVArg, G_DISCARD) ; /* call the function             */
-    num = 0 ;
-#endif    
-    SPAGAIN;                        /* refresh stack pointer         */
-    
-    if (bDebug & dbgMem)
-        lprintf ("[%d]SVs:  %d\n", nPid, sv_count) ;
-    /* pop the return value from stack */
-    if (num == 1)   
-        {
-        *pRet = POPs ;
-        SvREFCNT_inc (*pRet) ;
-        }
-     else
-        {
-        *pRet = NULL ;
-        }
-
-     PUTBACK;
-
-     num = ok ;
-
-#ifdef EVAL_SUB    
-    FREETMPS;                       /* free that return value        */
-    LEAVE;                       /* ...and the XPUSHed "mortal" args.*/
-#endif
-    
-     if (SvTRUE (GvSV(errgv)))
-         {
-         STRLEN l ;
-         char * p = SvPV (GvSV(errgv), l) ;
-         if (l > sizeof (errdat1) - 1))
-             l = sizeof (errdat1) - 1) ;
-         strncpy (errdat1, p, l) ;
-         errdat1[l] = '\0' ;
-         LogError (rcEvalErr) ;
-	 num = rcEvalErr ;
-         }
-
-    return num ;
-    }
-
-#endif /* EVAL_BY_SUB */
 
 /* -------------------------------------------------------------------------------
 *
@@ -226,6 +139,8 @@ static int EvalAll (/*in*/  const char *  sArg,
 * out pRet   pointer to SV contains the eval return
 *
 ------------------------------------------------------------------------------- */
+
+#define EVAL_SUB
 
 static int EvalAllNoCache (/*in*/  const char *  sArg,
                            /*out*/ SV **         pRet)             
@@ -271,23 +186,28 @@ static int EvalAllNoCache (/*in*/  const char *  sArg,
         {
         *pRet = POPs ;
         SvREFCNT_inc (*pRet) ;
-        if ((nCountUsed != TableState.nCountUsed ||
-             nColUsed != TableState.nColUsed ||
-             nRowUsed != TableState.nRowUsed) &&
-              !SvOK (*pRet))
-            TableState.nResult = 0 ;
-
-        if ((bDebug & dbgTab) &&
-            (TableState.nCountUsed ||
-             TableState.nColUsed ||
-             TableState.nRowUsed))
-            lprintf ("[%d]TAB:  nResult = %d\n", nPid, TableState.nResult) ;
 
         if (bDebug & dbgEval)
             if (SvOK (*pRet))
                 lprintf ("[%d]EVAL> %s\n", nPid, SvPV (*pRet, na)) ;
             else
                 lprintf ("[%d]EVAL> <undefined>\n", nPid) ;
+        
+        if ((nCountUsed != TableState.nCountUsed ||
+             nColUsed != TableState.nColUsed ||
+             nRowUsed != TableState.nRowUsed) &&
+              !SvOK (*pRet))
+            {
+            TableState.nResult = 0 ;
+            SvREFCNT_dec (*pRet) ;
+            *pRet = newSVpv("", 0) ;
+            } 
+
+        if ((bDebug & dbgTab) &&
+            (TableState.nCountUsed ||
+             TableState.nColUsed ||
+             TableState.nRowUsed))
+            lprintf ("[%d]TAB:  nResult = %d\n", nPid, TableState.nResult) ;
         }
      else
         {
@@ -357,6 +277,8 @@ static int CallCV  (/*in*/  const char *  sArg,
     int   nCountUsed = TableState.nCountUsed ;
     int   nRowUsed   = TableState.nRowUsed ;
     int   nColUsed   = TableState.nColUsed ;
+    int   bDynTab    = 0 ;
+
     SV *  pSVArg ;
     dSP;                            /* initialize stack pointer      */
 
@@ -383,11 +305,22 @@ static int CallCV  (/*in*/  const char *  sArg,
         {
         *pRet = POPs ;
         SvREFCNT_inc (*pRet) ;
+
+        if (bDebug & dbgEval)
+            if (SvOK (*pRet))
+                lprintf ("[%d]EVAL> %s\n", nPid, SvPV (*pRet, na)) ;
+            else
+                lprintf ("[%d]EVAL> <undefined>\n", nPid) ;
+        
         if ((nCountUsed != TableState.nCountUsed ||
              nColUsed != TableState.nColUsed ||
              nRowUsed != TableState.nRowUsed) &&
               !SvOK (*pRet))
+            {
             TableState.nResult = 0 ;
+            SvREFCNT_dec (*pRet) ;
+            *pRet = newSVpv("", 0) ;
+            } 
 
         if ((bDebug & dbgTab) &&
             (TableState.nCountUsed ||
@@ -395,11 +328,6 @@ static int CallCV  (/*in*/  const char *  sArg,
              TableState.nRowUsed))
             lprintf ("[%d]TAB:  nResult = %d\n", nPid, TableState.nResult) ;
 
-        if (bDebug & dbgEval)
-            if (SvOK (*pRet))
-                lprintf ("[%d]EVAL> %s\n", nPid, SvPV (*pRet, na)) ;
-            else
-                lprintf ("[%d]EVAL> <undefined>\n", nPid) ;
         }
      else if (num == 0)
         {
@@ -411,11 +339,11 @@ static int CallCV  (/*in*/  const char *  sArg,
         {
         *pRet = &sv_undef ;
         if (bDebug & dbgEval)
-            lprintf ("[%d]EVAL> returns %d args\n", nPid, num) ;
+            lprintf ("[%d]EVAL> returns %d args instead of one\n", nPid, num) ;
         }
 
-     if (SvREFCNT(*pRet) != 2)
-            lprintf ("[%d]EVAL refcnt != 2 !!= %d !!!!!\n", nPid, SvREFCNT(*pRet)) ;
+     /*if (SvREFCNT(*pRet) != 2)
+            lprintf ("[%d]EVAL refcnt != 2 !!= %d !!!!!\n", nPid, SvREFCNT(*pRet)) ;*/
 
 
      PUTBACK;
@@ -468,6 +396,8 @@ static int EvalAndCall (/*in*/  const char *  sArg,
     
     EPENTRY (EvalAndCall) ;
 
+    lastwarn[0] = '\0' ;
+    
     rc = EvalAll (sArg, &pSub) ;
 
     if (rc == ok && pSub != NULL && SvTYPE (pSub) == SVt_RV)
@@ -479,6 +409,13 @@ static int EvalAndCall (/*in*/  const char *  sArg,
         {
         if (pSub != NULL && SvTYPE (pSub) == SVt_PV)
             *ppSV = pSub ; /* save error message */
+        else if (lastwarn[0] != '\0')
+    	    *ppSV = newSVpv (lastwarn, 0) ;
+        else
+    	    *ppSV = newSVpv ("Compile Error", 0) ;
+        
+        *pRet = NULL ;
+        bError = 1 ;
         return rc ;
         }
 
@@ -488,6 +425,12 @@ static int EvalAndCall (/*in*/  const char *  sArg,
         }
     
     *pRet = NULL ;
+    bError = 1 ;
+    
+    if (lastwarn[0] != '\0')
+    	*ppSV = newSVpv (lastwarn, 0) ;
+    else
+    	*ppSV = newSVpv ("Compile Error", 0) ;
 
     return rcEvalErr ;
     }

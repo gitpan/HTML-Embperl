@@ -1,6 +1,6 @@
 HTML::Embperl - Embbed perl code in HMTL documents
 
-Copyright (c) 1997 Gerald Richter / ECOS
+Copyright (c) 1997-1998 Gerald Richter / ECOS
 
 You may distribute under the terms of either the GNU General Public 
 License or the Artistic License, as specified in the Perl README file.
@@ -32,10 +32,10 @@ PLEASE
 
 I think it's time to make the first release version of Embperl.
 As far as I can see I have fixed all known/reported errors and finished
-all the outstanding stuff. So I hope HTML::Embperl-0.23-beta is ready
+all the outstanding stuff. So I hope HTML::Embperl-0.24-beta is ready
 for turning it into a release version.
 
-So PLEASE if you use/want to use Embperl download the 0.23 and test it, so
+So PLEASE if you use/want to use Embperl download the 0.24 and test it, so
 it can be made sure that it compiles/works without any problems.
 PLEASE give me a feedback if it works or not for you, maybe you can
 attach the platform you are using and what you are doing with Embperl.

@@ -1,6 +1,6 @@
 /*###################################################################################
 #
-#   Embperl - Copyright (c) 1997 Gerald Richter / ECOS
+#   Embperl - Copyright (c) 1997-1998 Gerald Richter / ECOS
 #
 #   You may distribute under the terms of either the GNU General Public
 #   License or the Artistic License, as specified in the Perl README file.
@@ -235,7 +235,7 @@ int  ProcessCmd        (/*in*/ struct tCmd *  pCmd,
             Stack[nStack++] = State ;
             
             State.nCmdType  = pCmd -> nCmdType ;
-            State.bProcessCmds = Stack[nStack-1].bProcessCmds ;
+            /*State.bProcessCmds = Stack[nStack-1].bProcessCmds ;*/
             State.pStart    = pCurrPos ;
             if (pCmd -> bSaveArg)
                 {
@@ -410,6 +410,9 @@ int CmdWhile (/*in*/ const char *   sArg)
     int rc ;
     
     EPENTRY (CmdWhile) ;
+
+    if (State.bProcessCmds == cmdWhile)
+        return ok ;
 
     rc = EvalNum ((char *)sArg, (State.pStart - pBuf), &State.nResult) ;
     
@@ -621,13 +624,12 @@ static int CmdVar (/*in*/ const char *   sArg)
     if (ppSV == NULL)
         return rcHashError ;
     
-    if (SvIV(*ppSV))
+    if (SvTRUE(*ppSV))
         return ok ;
     
     sv_setiv (*ppSV, 1) ;
     
-
-    pSV = newSVpvf("package %s ; use vars qw(%s)",sEvalPackage, sArg) ;
+    pSV = newSVpvf("package %s ; \n#line %d %s\n use vars qw(%s);\n",sEvalPackage, nSourceline, sSourcefile, sArg) ;
     EvalDirect (pSV) ;
     SvREFCNT_dec(pSV);
 
@@ -708,13 +710,13 @@ static int HtmlBody (/*in*/ const char *   sArg)
     oputc ('>') ;
     
     
-    pCurrPos = NULL ;
-    	
     pSV = perl_get_sv (sLogfileURLName, FALSE) ;
     
     if (pSV)
         oputs (SvPV (pSV, na)) ;
 
+    pCurrPos = NULL ;
+    	
     return ok ;
     }
 
@@ -782,8 +784,6 @@ static int HtmlTable (/*in*/ const char *   sArg)
         }
     oputc ('>') ;
     
-    pCurrPos = NULL ;
-    	
     if (nTableStack > nStackMax - 2)
         return rcStackOverflow ;
 
@@ -798,6 +798,9 @@ static int HtmlTable (/*in*/ const char *   sArg)
     
     if ((TableState.nTabMode & epTabRow) == epTabRowDef)
         State.pBuf = oBegin () ;
+
+    pCurrPos = NULL ;
+    	
     return ok ;
     }
 
@@ -876,8 +879,6 @@ static int HtmlRow (/*in*/ const char *   sArg)
         }
     oputc ('>') ;
 
-    pCurrPos = NULL ;
-    
     TableState.nResult    = 1 ;
     TableState.nCol       = 0 ; 
     TableState.nColUsed   = 0 ; 
@@ -885,6 +886,8 @@ static int HtmlRow (/*in*/ const char *   sArg)
 
     if ((TableState.nTabMode & epTabCol) == epTabColDef)
         State.pBuf = oBegin () ;
+    
+    pCurrPos = NULL ;
     
     return ok ;
     }

@@ -1,6 +1,6 @@
 /*###################################################################################
 #
-#   Embperl - Copyright (c) 1997 Gerald Richter / ECOS
+#   Embperl - Copyright (c) 1997-1998 Gerald Richter / ECOS
 #
 #   You may distribute under the terms of either the GNU General Public
 #   License or the Artistic License, as specified in the Perl README file.
@@ -111,3 +111,10 @@
 #define pPackage               EMBPERL_pPackage    
 #define pErrArray              EMBPERL_pErrArray   
 #define pOpcodeMask            EMBPERL_pOpcodeMask 
+#define sSourcefile            EMBPERL_sSourcefile
+#define nSourceline            EMBPERL_nSourceline
+#define pSourcelinePos         EMBPERL_nSourcelinePos
+#define GetLineNo              EMBPERL_GetLineNo
+#define pLineNoCurrPos         EMBPERL_pLineNoCurrPos
+#define bError                 EMBPERL_bError
+#define lastwarn               EMBPERL_lastwarn

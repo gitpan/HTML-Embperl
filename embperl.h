@@ -1,6 +1,6 @@
 /*###################################################################################
 #
-#   Embperl - Copyright (c) 1997 Gerald Richter / ECOS
+#   Embperl - Copyright (c) 1997-1998 Gerald Richter / ECOS
 #
 #   You may distribute under the terms of either the GNU General Public
 #   License or the Artistic License, as specified in the Perl README file.
@@ -52,15 +52,9 @@ enum tRc
     rcIsDir,
     rcXNotSet,
     rcNotFound,
-	rcUnknownVarType,
+    rcUnknownVarType,
+    rcPerlWarn,
     } ;
-
-#define rcstover rcStackOverflow
-
-#define ERRDATLEN 256
-
-extern char errdat1 [ERRDATLEN]  ;
-extern char errdat2 [ERRDATLEN]  ;
 
 
 /*
@@ -90,7 +84,7 @@ enum dbg
     dbgHeadersIn        = 0x40000,
     dbgShowCleanup      = 0x80000,
     
-    dbgAll  = 0xffff
+    dbgAll  = 0xffffffff
     } ;
 
 /*
@@ -103,6 +97,7 @@ enum opt
     optDisableEmbperlErrorPage = 2,
     optSafeNamespace           = 4,
     optOpcodeMask              = 8,
+    optRawInput                = 16,
     } ;
 
 /*
@@ -131,3 +126,9 @@ enum epIO
 #define epTabColUndef   0x20   /* Last column where first undefined expression */
 #define epTabColMax     0x30   /* maxcol determinates number of columns */
 
+
+
+#define ERRDATLEN 1024
+
+extern char errdat1 [ERRDATLEN]  ;
+extern char errdat2 [ERRDATLEN]  ;

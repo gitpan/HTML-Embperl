@@ -1,6 +1,6 @@
 /*###################################################################################
 #
-#   Embperl - Copyright (c) 1997 Gerald Richter / ECOS
+#   Embperl - Copyright (c) 1997-1998 Gerald Richter / ECOS
 #
 #   You may distribute under the terms of either the GNU General Public
 #   License or the Artistic License, as specified in the Perl README file.
@@ -45,6 +45,8 @@ int  bOptions ;
 
 
 int  bReqRunning = 0 ;
+
+int  bError = 0 ;       /* Error has occured somewhere */
 
 int  nIOType   = epIOPerl ;
 
@@ -97,6 +99,11 @@ char * pCurrStart ;  /* Current start position of html tag / eval expression */
 char * pEndPos ;     /* end of html file */
 char * pCurrTag ;    /* Current start position of html tag */
 
+char * sSourcefile ; /* Name of sourcefile */
+int    nSourceline ; /* Currentline in sourcefile */
+char * pSourcelinePos ; /* Positon of nSourceline in sourcefile */
+char * pLineNoCurrPos ; /* save pCurrPos for line no calculation */                     
+                     
 /*
    Additional Error info   
 */
@@ -105,6 +112,7 @@ char * pCurrTag ;    /* Current start position of html tag */
 char errdat1 [ERRDATLEN]  ;
 char errdat2 [ERRDATLEN]  ;
 
+char lastwarn [ERRDATLEN]  ;
 
 /* */
 /* print error */
@@ -121,43 +129,50 @@ char * LogError (/*in*/ int   rc)
     
     errdat1 [sizeof (errdat1) - 1] = '\0' ;
     errdat2 [sizeof (errdat2) - 1] = '\0' ;
+
+    GetLineNo () ;
     
+    if (rc != rcPerlWarn)
+        bError = 1 ;
+
     switch (rc)
         {
-        case ok:                        msg ="[%d]ERR:  %d: ok%s%s" ; break ;
-        case rcStackOverflow:           msg ="[%d]ERR:  %d: Stack Overflow%s%s" ; break ;
-        case rcArgStackOverflow:        msg ="[%d]ERR:  %d: Argumnet Stack Overflow (%s)%s" ; break ;
-        case rcStackUnderflow:          msg ="[%d]ERR:  %d: Stack Underflow%s%s" ; break ;
-        case rcEndifWithoutIf:          msg ="[%d]ERR:  %d: endif without if%s%s" ; break ;
-        case rcElseWithoutIf:           msg ="[%d]ERR:  %d: else without if%s%s" ; break ;
-        case rcEndwhileWithoutWhile:    msg ="[%d]ERR:  %d: endwhile without while%s%s" ; break ;
-        case rcEndtableWithoutTable:    msg ="[%d]ERR:  %d: blockend <%s> does not match blockstart <%s>" ; break ;
-        case rcTablerowOutsideOfTable:  msg ="[%d]ERR:  %d: <tr> outside of table%s%s" ; break ;
-        case rcCmdNotFound:             msg ="[%d]ERR:  %d: Unknown Command %s%s" ; break ;
-        case rcOutOfMemory:             msg ="[%d]ERR:  %d: Out of memory%s%s" ; break ;
-        case rcPerlVarError:            msg ="[%d]ERR:  %d: Perl variable error %s%s" ; break ;
-        case rcHashError:               msg ="[%d]ERR:  %d: Perl hash error, %%%s does not exist%s" ; break ;
-        case rcArrayError:              msg ="[%d]ERR:  %d: Perl array error , @%s does not exist%s" ; break ;
-        case rcFileOpenErr:             msg ="[%d]ERR:  %d: File %s open error: %s" ; break ;    
-        case rcLogFileOpenErr:          msg ="[%d]ERR:  %d: Logfile %s open error: %s" ; break ;    
-        case rcMissingRight:            msg ="[%d]ERR:  %d: Missing right %s%s" ; break ;
-        case rcNoRetFifo:               msg ="[%d]ERR:  %d: No Return Fifo%s%s" ; break ;
-        case rcMagicError:              msg ="[%d]ERR:  %d: Perl Magic Error%s%s" ; break ;
-        case rcWriteErr:                msg ="[%d]ERR:  %d: File write Error%s%s" ; break ;
-        case rcUnknownNameSpace:        msg ="[%d]ERR:  %d: Namespace %s unknown%s" ; break ;
-        case rcInputNotSupported:       msg ="[%d]ERR:  %d: Input not supported in mod_perl mode%s%s" ; break ;
-        case rcCannotUsedRecursive:     msg ="[%d]ERR:  %d: Cannot be called recursivly in mod_perl mode%s%s" ; break ;
-        case rcEndtableWithoutTablerow: msg ="[%d]ERR:  %d: </tr> without <tr>%s%s" ; break ;
-        case rcEndtextareaWithoutTextarea: msg ="[%d]ERR:  %d: </textarea> without <textarea>%s%s" ; break ;
-        case rcEvalErr:                 msg ="[%d]ERR:  %d: Error in Perl code %s%s" ; break ;
-        case rcExecCGIMissing:          msg ="[%d]ERR:  %d: Forbidden %s: Options ExecCGI not set in your Apache configs%s" ; break ;
-        case rcIsDir:                   msg ="[%d]ERR:  %d: Forbidden %s is a directory%s" ; break ;
-        case rcXNotSet:                 msg ="[%d]ERR:  %d: Forbidden %s X Bit not set%s" ; break ;
-        case rcNotFound:                msg ="[%d]ERR:  %d: Not found %s%s" ; break ;
-        default:                        msg ="[%d]ERR:  %d: Error %s%s" ; break ; 
+        case ok:                        msg ="[%d]ERR:  %d: Line %d: ok%s%s" ; break ;
+        case rcStackOverflow:           msg ="[%d]ERR:  %d: Line %d: Stack Overflow%s%s" ; break ;
+        case rcArgStackOverflow:        msg ="[%d]ERR:  %d: Line %d: Argumnet Stack Overflow (%s)%s" ; break ;
+        case rcStackUnderflow:          msg ="[%d]ERR:  %d: Line %d: Stack Underflow%s%s" ; break ;
+        case rcEndifWithoutIf:          msg ="[%d]ERR:  %d: Line %d: endif without if%s%s" ; break ;
+        case rcElseWithoutIf:           msg ="[%d]ERR:  %d: Line %d: else without if%s%s" ; break ;
+        case rcEndwhileWithoutWhile:    msg ="[%d]ERR:  %d: Line %d: endwhile without while%s%s" ; break ;
+        case rcEndtableWithoutTable:    msg ="[%d]ERR:  %d: Line %d: blockend <%s> does not match blockstart <%s>" ; break ;
+        case rcTablerowOutsideOfTable:  msg ="[%d]ERR:  %d: Line %d: <tr> outside of table%s%s" ; break ;
+        case rcCmdNotFound:             msg ="[%d]ERR:  %d: Line %d: Unknown Command %s%s" ; break ;
+        case rcOutOfMemory:             msg ="[%d]ERR:  %d: Line %d: Out of memory%s%s" ; break ;
+        case rcPerlVarError:            msg ="[%d]ERR:  %d: Line %d: Perl variable error %s%s" ; break ;
+        case rcHashError:               msg ="[%d]ERR:  %d: Line %d: Perl hash error, %%%s does not exist%s" ; break ;
+        case rcArrayError:              msg ="[%d]ERR:  %d: Line %d: Perl array error , @%s does not exist%s" ; break ;
+        case rcFileOpenErr:             msg ="[%d]ERR:  %d: Line %d: File %s open error: %s" ; break ;    
+        case rcLogFileOpenErr:          msg ="[%d]ERR:  %d: Line %d: Logfile %s open error: %s" ; break ;    
+        case rcMissingRight:            msg ="[%d]ERR:  %d: Line %d: Missing right %s%s" ; break ;
+        case rcNoRetFifo:               msg ="[%d]ERR:  %d: Line %d: No Return Fifo%s%s" ; break ;
+        case rcMagicError:              msg ="[%d]ERR:  %d: Line %d: Perl Magic Error%s%s" ; break ;
+        case rcWriteErr:                msg ="[%d]ERR:  %d: Line %d: File write Error%s%s" ; break ;
+        case rcUnknownNameSpace:        msg ="[%d]ERR:  %d: Line %d: Namespace %s unknown%s" ; break ;
+        case rcInputNotSupported:       msg ="[%d]ERR:  %d: Line %d: Input not supported in mod_perl mode%s%s" ; break ;
+        case rcCannotUsedRecursive:     msg ="[%d]ERR:  %d: Line %d: Cannot be called recursivly in mod_perl mode%s%s" ; break ;
+        case rcEndtableWithoutTablerow: msg ="[%d]ERR:  %d: Line %d: </tr> without <tr>%s%s" ; break ;
+        case rcEndtextareaWithoutTextarea: msg ="[%d]ERR:  %d: Line %d: </textarea> without <textarea>%s%s" ; break ;
+        case rcEvalErr:                 msg ="[%d]ERR:  %d: Line %d: Error in Perl code: %s%s" ; break ;
+        case rcExecCGIMissing:          msg ="[%d]ERR:  %d: Line %d: Forbidden %s: Options ExecCGI not set in your Apache configs%s" ; break ;
+        case rcIsDir:                   msg ="[%d]ERR:  %d: Line %d: Forbidden %s is a directory%s" ; break ;
+        case rcXNotSet:                 msg ="[%d]ERR:  %d: Line %d: Forbidden %s X Bit not set%s" ; break ;
+        case rcNotFound:                msg ="[%d]ERR:  %d: Line %d: Not found %s%s" ; break ;
+        case rcUnknownVarType:          msg ="[%d]ERR:  %d: Line %d: Type for Variable %s is unknown %s" ; break ;
+        case rcPerlWarn:                msg ="[%d]ERR:  %d: Line %d: Warning in Perl code: %s%s" ; break ;
+        default:                        msg ="[%d]ERR:  %d: Line %d: Error %s%s" ; break ; 
         }
 
-    pSV = newSVpvf (msg, nPid , rc, errdat1, errdat2) ;
+    pSV = newSVpvf (msg, nPid , rc, nSourceline, errdat1, errdat2) ;
 
     sText = SvPV (pSV, na) ;    
     
@@ -165,13 +180,23 @@ char * LogError (/*in*/ int   rc)
 
 #ifdef APACHE
     if (pReq)
+#ifdef APLOG_ERR
+        if (rc != rcPerlWarn)
+            aplog_error (APLOG_MARK, APLOG_ERR | APLOG_NOERRNO, pReq -> server, sText) ;
+        else
+            aplog_error (APLOG_MARK, APLOG_WARNING | APLOG_NOERRNO, pReq -> server, sText) ;
+#else
         log_error (sText, pReq -> server) ;
+#endif
     else
 #endif
         {
         fprintf (stderr, "%s\n", sText) ;
         fflush (stderr) ;
         }
+    
+    if (rc == rcPerlWarn)
+        strncpy (lastwarn, errdat1, sizeof (lastwarn) - 1) ;
 
     av_push (pErrArray, pSV) ;
 
@@ -665,6 +690,7 @@ int ScanCmdEvalsInString (/*in*/  char *   pIn,
     char * pSaveCurrPos  ;
     char * pSaveCurrStart ;
     char * pSaveEndPos ;
+    char * pSaveLineNo ;
     char * p = strchr (pIn, '[');    
 
 
@@ -682,7 +708,11 @@ int ScanCmdEvalsInString (/*in*/  char *   pIn,
     pSaveCurrPos   = pCurrPos ;
     pSaveCurrStart = pCurrStart ;
     pSaveEndPos    = pEndPos ;
+    pSaveLineNo    = pLineNoCurrPos ;
+    if (pLineNoCurrPos == NULL)
+        pLineNoCurrPos = pCurrPos ; /* save it for line no calculation */
     
+
     pCurrPos = pIn ;
     pEndPos  = pIn + strlen (pIn) ;
 
@@ -735,6 +765,7 @@ int ScanCmdEvalsInString (/*in*/  char *   pIn,
     pCurrPos   = pSaveCurrPos ;
     pCurrStart = pSaveCurrStart ;
     pEndPos    = pSaveEndPos ;
+    pLineNoCurrPos = pSaveLineNo ;
     
     return ok ;
     }
@@ -964,6 +995,14 @@ int iembperl_init (/*in*/ int     _nIOType,
     
     nPid = getpid () ;
 
+#ifndef WIN32
+    nPid &= 0xffff ;
+#endif
+
+    sSourcefile = "???" ;
+    nSourceline = 1 ;
+    pSourcelinePos = NULL ;    
+    pLineNoCurrPos = NULL ;    
 
     if ((rc = OpenLog (sLogFile)) != ok)
         { 
@@ -1115,6 +1154,12 @@ int iembperl_resetreqrec  ()
 #endif
     bReqRunning = 0 ;
 
+    sSourcefile = "???" ;
+    nSourceline = 1 ;
+    pSourcelinePos = NULL ;    
+    pLineNoCurrPos = NULL ;    
+
+
     return ok ;
     }
 
@@ -1207,6 +1252,10 @@ int iembperl_req  (/*in*/ char *  sInputfile,
 
 
     nPid = getpid () ; /* reget pid, because it could be chaned when loaded with PerlModule */
+#ifndef WIN32
+    nPid &= 0xffff ;
+#endif
+
 
     EPENTRY (iembperl_req) ;
 
@@ -1215,7 +1264,11 @@ int iembperl_req  (/*in*/ char *  sInputfile,
     bOptions   = bOptionFlags ;
     pCacheHash = pCache ;
     bReqRunning = 1 ;
-
+    sSourcefile = sInputfile ;
+    nSourceline = 1 ;
+    pSourcelinePos = NULL ;    
+    pLineNoCurrPos = NULL ;    
+    bError         = 0 ;    
     
     if (bDebug)
         {
@@ -1419,7 +1472,7 @@ int iembperl_req  (/*in*/ char *  sInputfile,
     /* Process the file... */
     /* */
 
-    pCurrPos = pBuf ;
+    pSourcelinePos = pCurrPos = pBuf ;
     pEndPos  = pBuf + nFileSize ;
 
     rc = ok ;
@@ -1466,11 +1519,12 @@ int iembperl_req  (/*in*/ char *  sInputfile,
             
             if (*s)
                 {
+                GetLineNo () ;    
                 n = strchr (s, '\n') ;
                 if (n)
-                    lprintf ("[%d]SRC: %*.*s\n", nPid, n-s, n-s, s) ;
+                    lprintf ("[%d]SRC: Line %d: %*.*s\n", nPid, nSourceline, n-s, n-s, s) ;
                 else
-                    lprintf ("[%d]SRC: %70.70s\n", nPid, s) ;
+                    lprintf ("[%d]SRC: Line %d: %60.60s\n", nSourceline, nPid, s) ;
 
                 }
             }        
@@ -1487,7 +1541,7 @@ int iembperl_req  (/*in*/ char *  sInputfile,
             }
         }
         
-    if (!(bDebug & dbgEarlyHttpHeader) && rc == ok && av_len (pErrArray) == -1)
+    if (!(bDebug & dbgEarlyHttpHeader) && rc == ok && bError == 0)
         {
 #ifdef APACHE
         if (pReq)
@@ -1532,8 +1586,9 @@ int iembperl_req  (/*in*/ char *  sInputfile,
     /* Restore Operatormask and Package */
 
     LEAVE;
+    bReqRunning = 0 ;
     
-    if (rc != ok || av_len (pErrArray) != -1)
+    if (rc != ok ||  bError)
         {
         dSP;                            /* initialize stack pointer      */
 
@@ -1584,11 +1639,17 @@ int iembperl_req  (/*in*/ char *  sInputfile,
         lprintf ("[%d]Request finished. %s. Entry-SVs: %d -OBJs: %d Exit-SVs: %d -OBJs: %d\n", nPid, asctime(tm), stsv_count, stsv_objcount, sv_count, sv_objcount) ;
         }
 
+    pCurrPos = NULL ;
     if (pBuf)
         _free (pBuf) ;
 
 
     FlushLog () ;
+
+    sSourcefile = "???" ;
+    nSourceline = 1 ;
+    pSourcelinePos = NULL ;    
+    pLineNoCurrPos = NULL ;    
 
     bReqRunning = 0 ;
 

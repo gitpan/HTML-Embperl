@@ -22,6 +22,8 @@ BEGIN
 
 use HTML::Embperl;
 
+$^W = 1;
+
 HTML::Embperl::run (@ARGV) ;
 
 

@@ -2,6 +2,15 @@
 # Before `make install' is performed this script should be runnable with
 # `make test'. After `make install' it should work as `perl test.pl'
 
+# avoid some warnings:
+
+use vars qw ($httpconfsrc $httpconf $EPPORT *SAVEERR *ERR) ;
+
+
+
+BEGIN { $fatal = 1 ; $^W = 1 ; }
+END   { print "\nTest terminated with fatal error\n" if ($fatal) ; }
+
 @tests = (
 	'ascii',
 	'pure.htm',
@@ -10,7 +19,9 @@
     'plain.htm',
     'error.htm???5',
     'error.htm???5',
+    'rawinput/rawinput.htm????16',
     'var.htm',
+    'varerr.htm???2',
     'varerr.htm???2',
     'escape.htm',
     'tagscan.htm',
@@ -30,18 +41,23 @@
     'reqrec.htm',
     'div.htm',
  	'taint.htm???1',
-    'safe/safe.htm????4',
-    'safe/safe.htm????4',
-    'safe/safe.htm????4',
-    'opmask/opmask.htm????12?TEST',
+    'safe/safe.htm???1?4',
+    'safe/safe.htm???1?4',
+    'safe/safe.htm???1?4',
+    'opmask/opmask.htm???1?12?TEST',
     'opmask/opmasktrap.htm???2?12?TEST',
     ) ;
 
 
 
 $confpath = './test/conf' ;
+$cmdarg   = $ARGV[0] || '' ;
+shift @ARGV ;
 
-do "$confpath/config.pl" ;
+if ($cmdarg =~ /f/)
+    { do $ARGV[0] ; shift @ARGV ; }
+else
+    { do "$confpath/config.pl" ; }
 
 
 $httpdconfsrc = "$confpath/httpd.conf.src" ;
@@ -58,9 +74,10 @@ $offlineerr = "$tmppath/test.err.log" ;
 $port    = $EPPORT ;
 $host    = 'localhost' ;
 $httpdpid = 0 ;
-$defaultdebug = 0x87ffd ;
+$defaultdebug = 0x85ffd ;
 
-if ($ARGV[0] =~ /\?/)
+
+if ($cmdarg =~ /\?/)
     {
     print "\n\n" ;
     print "o	test offline\n" ;
@@ -70,6 +87,7 @@ if ($ARGV[0] =~ /\?/)
     print "l	loop forever\n" ;
     print "m	start httpd with mulitple childs\n" ;
     print "v    memory check\n" ;
+    print "f    file to use for config.pl\n" ;
     print "\n\n" ;
     print "path\t$EPPATH\n" ;
     print "httpd\t$EPHTTPD\n" ;
@@ -96,17 +114,28 @@ sub CmpFiles
     open F1, $f1 || die "***Cannot open $f1" ; 
     open F2, $f2 || die "***Cannot open $f2" ; 
 
-    while ($l1 = <F1>)
+    while (defined ($l1 = <F1>))
         {
         $l2 = <F2> ;
-        if ($l2 =~ /^\^(.*?)$/)
+        $eq = $notseen ;
+        while (($l2 =~ /^\^\^(.*?)$/) && !$eq)
             {
             $l2 = $1 ;
             $eq = $l1 =~ /$l2/ ;
+            $l2 = <F2> if (!$eq) ;
             }
-        else
+
+        if (!$eq)
             {
-            $eq = $l1 eq $l2 ;
+            if ($l2 =~ /^\^(.*?)$/)
+                {
+                $l2 = $1 ;
+                $eq = $l1 =~ /$l2/ ;
+                }
+            else
+                {
+                $eq = $l1 eq $l2 ;
+                }
             }
 
         if (!$eq)
@@ -117,7 +146,7 @@ sub CmpFiles
         $line++ ;
         }
 
-    while ($l2 = <F2>)
+    while (defined ($l2 = <F2>))
        {
        if (!($l2 =~ /^\s*$/))
             {
@@ -147,12 +176,13 @@ sub GET
 	
     eval 'require LWP::UserAgent' ;
     
+
     if ($@)
     	{
     	return "LWP not installed\n" ;
     	}
-    	
-
+    $query ||= '' ;    	
+	
     my $ua = new LWP::UserAgent;    # create a useragent to test
 
     my($request,$response,$url);
@@ -204,11 +234,16 @@ sub CheckError
     {
     my ($cnt) = @_ ;
     my $err = 0 ;
-
+    
+    $cnt ||= 0 ;
     
     while (<ERR>)
         {
-        if (!($_ =~ /^\s*$/) && $cnt <= 0) 
+        chomp ;
+        if (!($_ =~ /^\s*$/) &&
+            !($_ =~ /\-e/) &&
+            $_ ne 'Use of uninitialized value.' &&
+            $cnt <= 0) 
             {
             $cnt-- ;
             print "\n\n" if ($cnt == -1) ;
@@ -245,14 +280,12 @@ BEGIN { $| = 1;
 
 use HTML::Embperl;
 
-$loaded = 1;
-
 print "ok\n";
 
 
 $um = umask 0 ;
 mkdir $tmppath, 0777 ;
-chmod $tmppath, 0777 ;
+chmod 0777, $tmppath ;
 umask $um ;
 
 unlink ("$tmppath/test.log") ;
@@ -263,23 +296,22 @@ unlink ("$offlineerr") ;
 -w $tmppath or die "***Cannot write to $tmppath" ;
 
 $dbgbreak = 0 ;
-if ($ARGV[0] eq 'dbgbreak')
+if ($cmdarg eq 'dbgbreak')
 	{
 	$dbgbreak = 1 ;
 	shift @ARGV ;
 	}
 	
 if ($EPHTTPD ne '')
-    { $testtype = $ARGV[0] || 'ohc' ; }
+    { $testtype = $cmdarg || 'ohc' ; }
 else
-    { $testtype = $ARGV[0] || 'o' ; }
+    { $testtype = $cmdarg || 'o' ; }
 
-$killhttpd = 0 if ($ARGV[0] =~/r/) ;
-$multhttpd = 1 if ($ARGV[0] =~/m/) ;
-$looptest  = 1 if ($ARGV[0] =~/l/) ;
-$memcheck  = 1 if ($ARGV[0] =~/v/) ;
+$killhttpd = 0 if ($cmdarg =~/r/) ;
+$multhttpd = 1 if ($cmdarg =~/m/) ;
+$looptest  = 1 if ($cmdarg =~/l/) ;
+$memcheck  = 1 if ($cmdarg =~/v/) ;
 
-shift @ARGV ;
 
 if ($#ARGV >= 0)
     {
@@ -289,6 +321,8 @@ if ($#ARGV >= 0)
     
 $err = 0 ;
 $loopcnt = 0 ;
+$notseen = 1 ;
+%seen = () ;
 	
 $cp = HTML::Embperl::AddCompartment ('TEST') ;
 
@@ -313,15 +347,20 @@ if ($testtype =~ /o/)
     ($file, $query_info, $debug, $errcnt, $option, $ns) = split (/\?/, $url) ;
     next if ($file eq 'taint.htm') ;
     next if ($file eq 'reqrec.htm') ;
-    $debug = $defaultdebug if ($debug eq '') ;	
+    $debug ||= $defaultdebug ;	
     $page = "$inpath/$file" ;
-    delete $ENV{EMBPERL_OPTIONS} ;
+    $errcnt ||= 0 ;
+    
+    $notseen = $seen{"o:$page"}?0:1 ;
+    $seen{"o:$page"} = 1 ;
+    
+    delete $ENV{EMBPERL_OPTIONS} if (defined ($ENV{EMBPERL_OPTIONS})) ;
     $ENV{EMBPERL_OPTIONS} = $option if (defined ($option)) ;
     $ENV{EMBPERL_COMPARTMENT} = $ns if (defined ($ns)) ;
     @testargs = ( '-o', "$tmppath/out.htm" ,
                   '-l', "$tmppath/test.log",
                   '-d', $debug,
-                   $page, $query_info) ;
+                   $page, $query_info || '') ;
     unshift (@testargs, 'dbgbreak') if ($dbgbreak) ;
     
     $txt = $file . ($debug != $defaultdebug ?"-d $debug ":"") ;
@@ -378,7 +417,8 @@ if ($loc ne '' && $err == 0 && $loopcnt == 0)
     my $rs = $/ ;
     undef $/ ;
 
-    open IFH, "$httpdconfsrc" or die "***Cannot open $httpconfsrc" ;
+    $ENV{EMBPERL_LOG} = "$tmppath/test.log" ;
+    open IFH, $httpdconfsrc or die "***Cannot open $httpconfsrc" ;
     $cf = <IFH> ;
     close IFH ;
     open OFH, ">$httpdconf" or die "***Cannot open $httpconf" ;
@@ -396,8 +436,12 @@ if ($loc ne '' && $err == 0 && $loopcnt == 0)
     if (!open FH, "$tmppath/httpd.pid")
         {
         sleep (7) ;
-        open FH, "$tmppath/httpd.pid" or die "Cannot open $tmppath/httpd.pid" ;
-        }
+    	if (!open FH, "$tmppath/httpd.pid")
+            {
+            sleep (7) ;
+            open FH, "$tmppath/httpd.pid" or die "Cannot open $tmppath/httpd.pid" ;
+            }
+	}
     $httpdpid = <FH> ;
     chop($httpdpid) ;	
     close FH ;
@@ -430,8 +474,19 @@ while ($loc ne '' && $err == 0)
     next if ($file eq 'taint.htm' && $loc eq $cgiloc) ;
     next if ($file eq 'reqrec.htm' && $loc eq $cgiloc) ;
 	
-    $debug = $defaultdebug if ($debug eq '') ;	
+    $debug ||= $defaultdebug ;	
+    $errcnt ||= 0 ;
     $page = "$inpath/$file" ;
+    if ($loc eq $embploc)
+    	{
+        $notseen = $seen{"$loc:$page"}?0:1 ;
+        $seen{"$loc:$page"} = 1 ;
+	}
+    else
+    	{
+    	$notseen = 1 ;
+    	}
+    	
     $txt = "$file" . ($debug != $defaultdebug ?"-d $debug ":"") ;
     formline ('@<<<<<<<<<<<<<<<<<<<<... ', $txt) ;
     print $^A ;	
@@ -445,7 +500,7 @@ while ($loc ne '' && $err == 0)
     	print "GROWN! at iteration = $loopcnt  " if ($vmsize > $vmhttpdsize) ;
     	$vmhttpdsize = $vmsize if ($vmsize > $vmhttpdsize) ;
     	}
-    if ($m ne 'ok' && $errcnt == 0)
+    if (($m || '') ne 'ok' && $errcnt == 0)
     	{
     	$err = 1 ;
     	print "ERR:$m\n" ;
@@ -480,6 +535,8 @@ until ($looptest == 0 || $err != 0)	;
 
 if ($err)
     {
+    $page ||= '???' ;
+    $org  ||= '???' ;
     print "Input:\t\t$page\n" ;
     print "Output:\t\t$tmppath/out.htm\n" ;
     print "Compared to:\t$org\n" ;
@@ -491,17 +548,16 @@ else
     print "\nAll test have been passed successfully!\n\n" ;
     }
 
-$ok = 1 ;
-if ($line = <ERR>)
+if (defined ($line = <ERR>))
 	{
 	print "\nFound unexpected output in httpd errorlog:\n" ;
 	print $line ;
 	}
-while ($line = <ERR>)
+while (defined ($line = <ERR>))
 	{ print $line ; }
 close ERR ;
 		
-
+$fatal = 0 ;
 
 
 system "kill `cat $tmppath/httpd.pid`" if ($EPHTTPD ne '' && $killhttpd) ;

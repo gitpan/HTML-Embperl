@@ -1,6 +1,6 @@
 /*###################################################################################
 #
-#   Embperl - Copyright (c) 1997 Gerald Richter / ECOS
+#   Embperl - Copyright (c) 1997-1998 Gerald Richter / ECOS
 #
 #   You may distribute under the terms of either the GNU General Public
 #   License or the Artistic License, as specified in the Perl README file.
@@ -143,28 +143,45 @@ static int CmpCharTrans (/*in*/ const void *  pKey,
 
 
 
-/* ---------------------------------------------------------------------------- */
-/* replace html special character representation (&xxx;) with correct chars */
-/* and delete all html tags */
-/* The Replacement is done in place, the whole string will become shorter */
-/* and is padded with spaces */
-/* tags and special charcters which are preceeded by a \ are not translated */
-/* carrige returns are replaced by spaces */
-/* */
-/* i/o sData     = input:  html string */
-/*                 output: perl string */
-/* */
-/* ---------------------------------------------------------------------------- */
+/* ------------------------------------------------------------------------- */
+/*                                                                           */
+/* replace html special character representation (&xxx;) with correct chars  */
+/* and delete all html tags                                                  */
+/* The Replacement is done in place, the whole string will become shorter    */
+/* and is padded with spaces                                                 */
+/* tags and special charcters which are preceeded by a \ are not translated  */
+/* carrige returns are replaced by spaces                                    */
+/* if optRawInput is set the functions do just nothing                       */
+/* 								             */
+/* i/o sData     = input:  html string                                       */
+/*                 output: perl string                                       */
+/*                                                                           */
+/* ------------------------------------------------------------------------- */
 
 void TransHtml (/*i/o*/ char *  sData)
 
     {
     char * p = sData ;
-    char * s = NULL ;
-    char * e = sData + strlen (sData) ;
+    char * s ;
+    char * e ;
     struct tCharTrans * pChar ;
 
     EPENTRY (TransHtml) ;
+	
+    if (bOptions & optRawInput)
+	{ /* Just remove CR for raw input */
+	while (*p != '\0')
+	    {
+	    if (*p == '\r')
+	    	*p = ' ' ;
+	    p++ ;
+	    }	
+
+    	return ; 	
+        }
+        
+    s = NULL ;
+    e = sData + strlen (sData) ;
 
     while (*p)
         {
@@ -191,7 +208,7 @@ void TransHtml (/*i/o*/ char *  sData)
             }
         else
             {
-            if (p[0] == '<')
+            if (p[0] == '<' && isalpha (p[1]))
                 { /*  count HTML tag length */
                 s = p ;
                 p++ ;
@@ -373,5 +390,59 @@ char * GetHashValue (/*in*/  HV *           pHash,
     {
     return GetHashValueLen (pHash, sKey, strlen (sKey), nMaxLen, sValue) ;
     }
+
+
+/* ------------------------------------------------------------------------- */
+/*                                                                           */
+/* GetLineNo								     */
+/*                                                                           */
+/* Counts the \n between pCurrPos and pSourcelinePos and in-/decrements      */
+/* nSourceline accordingly                                                   */
+/*                                                                           */
+/* return Linenumber of pCurrPos                                             */
+/*                                                                           */
+/* ------------------------------------------------------------------------- */
+
+
+int GetLineNo ()
+
+    {
+    char * pPos = pCurrPos ;
+    
+    if (pSourcelinePos == NULL)
+        return nSourceline = 1 ;
+
+    if (pLineNoCurrPos)
+        pPos = pLineNoCurrPos ;
+
+    if (pPos == NULL || pPos == pSourcelinePos || pPos < pBuf || pPos > pEndPos)
+        return nSourceline ;
+
+
+    if (pPos > pSourcelinePos)
+        {
+        char * p = pSourcelinePos ;
+
+        while (p < pPos && p < pEndPos)
+            {
+            if (*p++ == '\n')
+                nSourceline++ ;
+            }
+        }
+    else
+        {
+        char * p = pSourcelinePos ;
+
+        while (p > pPos && p > pBuf)
+            {
+            if (*--p == '\n')
+                nSourceline-- ;
+            }
+        }
+
+    pSourcelinePos = pPos ;
+    return nSourceline ;
+    }
+
 
 

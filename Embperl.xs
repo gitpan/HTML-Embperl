@@ -1,6 +1,6 @@
 /*###################################################################################
 #
-#   Embperl - Copyright (c) 1997 Gerald Richter / ECOS
+#   Embperl - Copyright (c) 1997-1998 Gerald Richter / ECOS
 #
 #   You may distribute under the terms of either the GNU General Public
 #   License or the Artistic License, as specified in the Perl README file.
@@ -85,14 +85,36 @@ static int constants()
         PERLCONST(rcIsDir)
         PERLCONST(rcXNotSet)
         PERLCONST(rcNotFound)
+        PERLCONST(rcUnknownVarType)
+        PERLCONST(rcPerlWarn)
 
         PERLCONST(optDisableVarCleanup)
         PERLCONST(optDisableEmbperlErrorPage)
         PERLCONST(optSafeNamespace)
         PERLCONST(optOpcodeMask)
+        PERLCONST(optRawInput)
 
+        PERLCONST(dbgStd)
+        PERLCONST(dbgMem)
+        PERLCONST(dbgEval)
+        PERLCONST(dbgCmd)
+        PERLCONST(dbgEnv)
+        PERLCONST(dbgForm)
+        PERLCONST(dbgTab)
+        PERLCONST(dbgInput)
+        PERLCONST(dbgFlushOutput)
+        PERLCONST(dbgFlushLog)
+        PERLCONST(dbgAllCmds)
+        PERLCONST(dbgSource)
+        PERLCONST(dbgFunc)
         PERLCONST(dbgLogLink)
+        PERLCONST(dbgDefEval)
+        PERLCONST(dbgCacheDisable)
+        PERLCONST(dbgEarlyHttpHeader)
+        PERLCONST(dbgWatchScalar)
+        PERLCONST(dbgHeadersIn)
         PERLCONST(dbgShowCleanup)
+        PERLCONST(dbgAll)
      
     return ok;
 }
@@ -212,3 +234,12 @@ embperl_log(sText)
     char * sText
 CODE:
     lwrite (sText, strlen (sText), 1) ;
+
+
+
+int
+embperl_getlineno()
+CODE:
+    RETVAL = GetLineNo () ;
+OUTPUT:
+    RETVAL

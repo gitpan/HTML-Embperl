@@ -1,7 +1,7 @@
 
 ###################################################################################
 #
-#   Embperl - Copyright (c) 1997 Gerald Richter / ECOS
+#   Embperl - Copyright (c) 1997-1998 Gerald Richter / ECOS
 #
 #   You may distribute under the terms of either the GNU General Public
 #   License or the Artistic License, as specified in the Perl README file.
@@ -23,6 +23,8 @@ package HTML::Embperl;
 use Safe;
 use IO::Handle ;
 use CGI;
+use File::Basename ();
+use Cwd ();
 
 require Exporter;
 require DynaLoader;
@@ -30,7 +32,7 @@ require DynaLoader;
 @ISA = qw(Exporter DynaLoader);
 
 
-$VERSION = '0.23-beta';
+$VERSION = '0.24-beta';
 
 
 bootstrap HTML::Embperl $VERSION;
@@ -41,7 +43,6 @@ bootstrap HTML::Embperl $VERSION;
 
 $DefaultLog = '/tmp/embperl.log' ;
 $Outputfile = '' ;  # Default to stdout
-$LogfileURL = '' ;
 
 
 %cache = () ;   # cache for evaled code
@@ -124,7 +125,7 @@ if (defined ($INC{'Apache.pm'}))
     
     eval 'use Apache::Constants qw(:common &OPT_EXECCGI)' ;
 
-    $DefaultLog = $ENV{EMBPERL_LOG} if defined ($ENV{EMBPERL_LOG}) ;
+    $DefaultLog = $ENV{EMBPERL_LOG} || $DefaultLog ;
     embperl_init (&epIOMod_Perl, $DefaultLog) ;
     tie *LOG, 'HTML::Embperl::Log' ;
     }
@@ -161,6 +162,17 @@ sub _evalsub_ ($)
 
 #######################################################################################
 
+sub Warn 
+    {
+    my $msg = $_[0] ;
+    chop ($msg) ;
+    
+    my $lineno = embperl_getlineno () ;
+    $msg =~ s/at (.*?) line (\d*)/at $Inputfile line $lineno/ ;
+    embperl_logerror (&rcPerlWarn, $msg);
+    }
+
+#######################################################################################
 
 sub AddCompartment ($)
 
@@ -251,24 +263,27 @@ sub SendLogFile ($$)
 sub SendErrorDoc ()
 
     {
+    local $SIG{__WARN__} = 'Default' ;
     my $err ;
     my $cnt = 0 ;
     local $escmode = 0 ;
-    my $mail ;
     my $time = localtime ;
+    my $mail = $req_rec -> server -> server_admin if (defined ($req_rec)) ;
+    $mail ||= '' ;
+    my $virtlog = $ENV{EMBPERL_VIRTLOG} || '' ;
+    my $url     = $LogfileURL || '' ;
 
-    $mail = $req_rec -> server -> server_admin if (defined ($req_rec)) ;
 
-    embperl_output ("<HTML><HEAD><TITLE>Embperl Error</TITLE></HEAD><BODY bgcolor=\"#FFFFFF\">\r\n$LogfileURL") ;
+    embperl_output ("<HTML><HEAD><TITLE>Embperl Error</TITLE></HEAD><BODY bgcolor=\"#FFFFFF\">\r\n$url") ;
     embperl_output ("<H1>Internal Server Error</H1>\r\n") ;
     embperl_output ("The server encountered an internal error or misconfiguration and was unable to complete your request.<P>\r\n") ;
     embperl_output ("Please contact the server administrator, $mail and inform them of the time the error occurred, and anything you might have done that may have caused the error.<P><P>\r\n") ;
 
-    if ($LogfileURL ne '')
+    if (defined ($LogfileURL) && $virtlog ne '')
         {
         foreach $err (@errors)
             {
-            embperl_output ("<A HREF=\"$ENV{EMBPERL_VIRTLOG}?$logfilepos&$$#E$cnt\">") ;
+            embperl_output ("<A HREF=\"$virtlog?$logfilepos&$$#E$cnt\">") ;
 	        $escmode = 3 ;
             embperl_output ($err) ;
 	        $escmode = 0 ;
@@ -287,7 +302,9 @@ sub SendErrorDoc ()
 	    $escmode = 0 ;
         }
          
-    embperl_output ("$ENV{SERVER_SOFTWARE} HTML::Embperl $VERSION [$time]<P>\r\n") ;
+    my $server = $ENV{SERVER_SOFTWARE} || 'Offline' ;
+
+    embperl_output ("$server HTML::Embperl $VERSION [$time]<P>\r\n") ;
     embperl_output ("</BODY></HTML>\r\n\r\n") ;
     }
 
@@ -373,10 +390,10 @@ sub run (\@)
     {
     my ($args) = @_ ;
     my $Logfile    = $ENV{EMBPERL_LOG} || $DefaultLog ;
+    my $Options    = $ENV{EMBPERL_OPTIONS} || 0 ;
     my $Outputfile = '' ;
-    my $Inputfile  = '' ;
     my $Daemon     = 0 ;
-    my $Cgi        = $#$args >= 0?0:1 ;
+    my $Cgi        = $#{$args} >= 0?0:1 ;
     my $rc         = 0 ;
     my $log ;
     my $pcodecache ;
@@ -384,17 +401,18 @@ sub run (\@)
     my $ioType ;
     my $ns ;
 
+    $Inputfile  = '' ;
     undef $req_rec ;
     
     $Debugflags = $ENV{EMBPERL_DEBUG} || 0 ;
 
-    if ($$args[0] eq 'dbgbreak') 
+    if (defined ($$argv[0]) && $$args[0] eq 'dbgbreak') 
     	{
     	shift @$args ;
     	embperl_dbgbreak () ;
     	}
 
-    while ($#$args >= 0)
+    while ($#{$args} >= 0)
     	{
     	if ($$args[0] eq '-o')
     	    {
@@ -422,14 +440,14 @@ sub run (\@)
 	        }
 	    }
     
-    if ($#$args >= 0)
+    if ($#{$args} >= 0)
     	{
     	$Inputfile = shift @$args ;
     	}		
-    if ($#$args >= 0)
+    if ($#{$args} >= 0)
     	{
         $ENV{QUERY_STRING} = shift @$args ;
-        undef $ENV{CONTENT_LENGTH} ;
+        undef $ENV{CONTENT_LENGTH} if (defined ($ENV{CONTENT_LENGTH})) ;
     	}		
 	
     if ($Daemon)
@@ -459,7 +477,13 @@ sub run (\@)
 
     tie *LOG, 'HTML::Embperl::Log' ;
 
+	my $cwd = Cwd::fastcwd();
+	$Inputfile  = $cwd . '/' . $Inputfile  if (!($Inputfile  =~ /^(\/|\\|.\:\\|.\:\/)/)) ;
+	$Logfile    = $cwd . '/' . $Logfile    if (!($Logfile    =~ /^(\/|\\|.\:\\|.\:\/)/)) ;
+	$Outputfile = $cwd . '/' . $Outputfile if ($Outputfile ne '' && !($Outputfile =~ /^(\/|\\|.\:\\|.\:\/)/)) ;
 
+    
+    
     my $filesize ;
     
     ($rc, $filesize, $pcodecache) = CheckFile ($Inputfile) ;
@@ -477,7 +501,7 @@ sub run (\@)
         undef $opcodemask ;
         }
 
-	if (($ENV{EMBPERL_OPTIONS} & &optSafeNamespace))
+	if ($Options & &optSafeNamespace)
 		{ $evalpackage = 'main' ; }
 	else
 		{ $evalpackage = $package ; }
@@ -504,9 +528,19 @@ sub run (\@)
     @errors = () ;
     do
 	    {
-	    $rc = HTML::Embperl::embperl_req  ($Inputfile, $Outputfile, $Debugflags, $ENV{EMBPERL_OPTIONS}, $filesize,$pcodecache ) ;
+            {
+            local $SIG{__WARN__} = \&Warn ;
+            local *0 = \$Inputfile;
+    
+            chdir File::Basename::dirname($Inputfile);
 
-        if (!($ENV{EMBPERL_OPTIONS} & &optDisableVarCleanup))
+            $rc = HTML::Embperl::embperl_req  ($Inputfile, $Outputfile, $Debugflags, $Options, $filesize,$pcodecache ) ;
+	
+            local $^W = 0; #shutup Cwd.pm
+	        chdir $cwd;
+    	    }
+
+        if (!($Options & &optDisableVarCleanup))
             { cleanup () ; }
 
 	    }
@@ -531,10 +565,11 @@ sub handler
     my $ns ;
     my $pcodecache ;
     my $cgi ;
+    my $Options    = $ENV{EMBPERL_OPTIONS} || 0 ;
     
     $Debugflags = $ENV{EMBPERL_DEBUG} || 0 ;
 
-    undef $package ; 
+    undef $package if (defined ($package)) ; 
     
     %ENV = %{{$req_rec->cgi_env, %ENV}} ;
 
@@ -550,13 +585,14 @@ sub handler
         return $rc ;
         }
 
+    $Inputfile = $ENV{PATH_TRANSLATED} = $req_rec -> Apache::filename ;
+	my $cwd       = Cwd::fastcwd();
+    $Inputfile    = $cwd . '/' . $Inputfile  if (!($Inputfile  =~ /^(\/|\\|.\:\\|.\:\/)/)) ;
         
     my $filesize ;
-    ($rc, $filesize, $pcodecache) = CheckFile ($req_rec -> Apache::filename) ;
+    ($rc, $filesize, $pcodecache) = CheckFile ($Inputfile) ;
     return $rc if ($rc) ;
     
-    $ENV{PATH_TRANSLATED} = $req_rec -> Apache::filename ;
-
     if (defined ($ns = $ENV{EMBPERL_COMPARTMENT}))
         {
         my $cp = AddCompartment ($ns) ;
@@ -565,10 +601,10 @@ sub handler
         }
     else
         {
-        undef $opcodemask ;
+        undef $opcodemask if (defined ($opcodemask)) ;
         }
    
-	if (($ENV{EMBPERL_OPTIONS} & &optSafeNamespace))
+	if (($Options & &optSafeNamespace))
 		{ $evalpackage = 'main' ; }
 	else
 		{ $evalpackage = $package ; }
@@ -598,7 +634,7 @@ sub handler
     
     if ($rc == 0)
         {
-        if (!($ENV{EMBPERL_OPTIONS} & &optDisableVarCleanup))
+        if (!($Options & &optDisableVarCleanup))
             { Apache -> push_handlers("PerlCleanupHandler", \&HTML::Embperl::cleanup) ; }
     
 	    if ($Debugflags & &dbgLogLink)
@@ -607,17 +643,20 @@ sub handler
             $LogfileURL = "<A HREF=\"$ENV{EMBPERL_VIRTLOG}?$logfilepos&$$\">Logfile</A> / <A HREF=\"$ENV{EMBPERL_VIRTLOG}?$logfilepos&$$&SRC:\">Source only</A> / <A HREF=\"$ENV{EMBPERL_VIRTLOG}?$logfilepos&$$&EVAL\<\">Eval only</A><BR>" ;
 	        }
 	    else
-	        { undef $LogfileURL ; }    
+	        { undef $LogfileURL if (defined ($LogfileURL)) ; }    
 
-        $rc = embperl_req ($ENV{PATH_TRANSLATED}, '', $Debugflags, $ENV{EMBPERL_OPTIONS}, $filesize, $pcodecache) ;
-#	cleanup () ;
+            {
+            local $SIG{__WARN__} = \&Warn ;
+            local *0 = \$Inputfile;
+
+	        chdir File::Basename::dirname($Inputfile);
+        
+            $rc = embperl_req ($Inputfile, '', $Debugflags, $Options, $filesize, $pcodecache) ;
+            local $^W = 0; #shutup Cwd.pm
+            chdir $cwd;
+	        }
         }
     
-    #if ($rc != 0 || $#errors != -1)
-    #    {
-    #    #print STDERR "rc = $rc \n";
-    #    return 0 ;
-    #    }
 
     return 0 ;
     }
@@ -629,7 +668,7 @@ sub cleanup
     my $glob ;
     my $val ;
     my $key ;
-
+    local $^W = 0 ;
 
     if ($Debugflags & &dbgShowCleanup)
         {
@@ -637,6 +676,7 @@ sub cleanup
 	        local(*ENTRY) = $val;
             $glob = $package.'::'.$key ;
             if (defined (*ENTRY{SCALAR})) 
+#            if (defined (${$glob})) 
                 {
                 print LOG "[$$]CUP:  \$$key = ${$glob}\n" ;
                 undef ${$glob} ;
@@ -903,8 +943,8 @@ unless you are sure nobody else can access it.
 
 =head1 B<Runtime configuration>
 
-At the moment there are a few things which could be configured at runtime. 
-This is done by setting environment variables, either on the command line 
+The runtime configuration is done by setting environment variables,
+either on the command line 
 (when working offline) or in your web servers configuration file. Most 
 http daemons understand
 
@@ -953,6 +993,19 @@ data or code in any other package (see the Chapter about Safe namespaces below f
 tells Embperl to aply an operator mask. This gives you the chance to disallow special (unsafe)
 opcodes (see the Chapter about Safe namespaces below for more details)
 
+=item optRawInput = 16
+
+The option optRawInput causes Embperl not to preprocess the
+source for a perl expression. (Only exceptions is that CR will be removed).
+This option should be set when you writing your code with an ascii editor. 
+
+
+If you using a WYSIWYG editor, which insert unwanted html tags in your
+perl expressions and escapes special charcaters automaticly (i.e.
+< will occur as &lt; in the source), you should not set this option, and
+Embperl will automaticly convert the html input back to the perl
+expression you written.
+
 =back
 
 =item B<EMBPERL_LOG>
@@ -962,6 +1015,11 @@ about what Embperl is doing depending on the debug settings (see below).
 The log-output is specially intended to see what your embedded perl code 
 is doing and to debug it.
 Default is B</tmp/embperl.log>
+
+NOTE: When running under mod_perl you need to use B<PerlSetEnv> for setting
+the logfilepath and mod_perl >= 1.07_03, if you load Embperl at server
+startup (e.g. with PerlScript or with PerlModule). 
+
 
 =item B<EMBEPRL_VIRTLOG>
 
@@ -1108,6 +1166,14 @@ tag with a backslash. This is done, so you can create your embperl-html-
 file with your favorite (WYSIWYG) HTML-Editor, no matter if it inserts 
 tags like line breaks or formatting into your Embperl-commands where you 
 don't want them.
+
+B<NOTE:> If you do use an B<ascii editor> to write your HTML-Documents you should
+set the option B<optRawInput> so Embperl does not preprocess your source.
+You can also html-escape your code (i.e. write &lt; instead of <), to avoid 
+ambiguousness. In the most cases it will also work without the optRawInput and
+html-escaping, but in some cases Embperl will deteced a html-tag were there
+isn't one.
+
 All Embperl-commands starts with a "[" and ends with a "]". To get a real 
 "[" you must enter "[[".
 
@@ -1661,6 +1727,19 @@ Example:
 B<NOTE:> You must have Net::SMTP (from libnet package) installed to use this function.
 
 =back
+
+=head1 PERFORMANCE
+
+To get the best performace for Embperl is necessary to restrict logging to
+a minimum. You can drasticaly slow down Embperl if you enable all logging
+options (This is why 'make test' takes a little bit longer...).
+You should B<never> enable B<dbgFlushOutput>, B<dbgFlushLog> and
+B<dbgCacheDisable> in a production environement.
+The most debugging options are usefull for
+developement, where it doesn't matter if the request takes a little bit
+longer, but on a heavy loaded server they should be disabled. 
+
+Also take a look a B<mod_perl_tunning.pod> for general ideas about performance. 
 
 =head1 BUGS
 

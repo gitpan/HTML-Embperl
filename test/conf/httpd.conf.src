@@ -18,14 +18,16 @@ MaxRequestsPerChild 0
 
 #-Tw
 PerlTaintCheck On
-#PerlWarn On
+PerlWarn On
 
-PerlScript $EPPATH/test/conf/startup.pl
 
 
 SetEnv EMBPERL_DEBUG 286717
 SetEnv EMBPERL_VIRTLOG /embperl/log
+PerlSetEnv EMBPERL_LOG $EPPATH/test/tmp/test.log
 SetEnv EMBPERL_LOG $EPPATH/test/tmp/test.log
+
+PerlScript $EPPATH/test/conf/startup.pl
 
 <Location /embperl/log>
 SetHandler perl-script
@@ -67,6 +69,13 @@ PerlHandler HTML::Embperl
 Options ExecCGI
 PerlSetEnv EMBPERL_OPTIONS 12
 PerlSetEnv EMBPERL_COMPARTMENT TEST
+</Location>
+
+<Location /embperl/rawinput>
+SetHandler perl-script
+PerlHandler HTML::Embperl
+Options ExecCGI
+PerlSetEnv EMBPERL_OPTIONS 16
 </Location>
 
 Alias /cgi-bin/ $EPPATH/test/html/

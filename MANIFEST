@@ -48,6 +48,7 @@ test/html/reqrec.htm
 test/html/safe/safe.htm
 test/html/opmask/opmask.htm
 test/html/opmask/opmasktrap.htm
+test/html/rawinput/rawinput.htm
 test/cmp/ascii
 test/cmp/pure.htm
 test/cmp/plain.htm
@@ -71,6 +72,7 @@ test/cmp/taint.htm
 test/cmp/reqrec.htm
 test/cmp/opmask.htm
 test/cmp/opmasktrap.htm
+test/cmp/rawinput.htm
 test/conf/httpd.conf.src
 test/conf/startup.pl
 embpexec.test.pl

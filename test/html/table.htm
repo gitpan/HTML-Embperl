@@ -133,7 +133,7 @@ $kats[3]{Id} = '' ;
                 <tr>
                     <td valign="top">
                     [- $cmp = $regs[$row]{Id} -]
-                    [$if $cmp ne '' $] 
+                    [$if ($cmp || '') ne '' $] 
                     <a href="inhalt.htm?Region=[+$regs[$row]{Id}+]">[+$regs[$row]{Id}+]</a></td>
                     [$endif$]
                 </tr>
@@ -143,7 +143,7 @@ $kats[3]{Id} = '' ;
                 <tr>
                     <td valign="top"><p align="left">
                     [- $cmp = $kats[$row]{Id} -]
-                    [$if $cmp ne '' $] 
+                    [$if ($cmp || '') ne '' $] 
                     <a href="inhalt.htm?Kategorie=[+$kats[$row]{Id}+]">[+$kats[$row]{Id}+]</a></p>
 		    [$endif$]
                     </td>

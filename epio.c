@@ -1,6 +1,6 @@
 /*###################################################################################
 #
-#   Embperl - Copyright (c) 1997 Gerald Richter / ECOS
+#   Embperl - Copyright (c) 1997-1998 Gerald Richter / ECOS
 #
 #   You may distribute under the terms of either the GNU General Public
 #   License or the Artistic License, as specified in the Perl README file.
@@ -487,7 +487,11 @@ int ReadHTML (/*in*/    char *    sInputfile,
     if (bDebug)
         lprintf ("[%d]Reading %s as input using %s ...\n", nPid, sInputfile, FILEIOTYPE) ;
 
+#ifdef WIN32
+    if ((ifd = PerlIO_open (sInputfile, "rb")) == NULL)
+#else
     if ((ifd = PerlIO_open (sInputfile, "r")) == NULL)
+#endif        
         {
         strncpy (errdat1, sInputfile, sizeof (errdat1) - 1) ;
         if (errno >= 0 && errno < sys_nerr)

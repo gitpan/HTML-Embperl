@@ -1,7 +1,7 @@
   <html>
   <body>
     [- $s = "script.htm" -]
-    [$ if ($fdat{'Screen'} != 1) $]
+    [$ if (($fdat{'Screen'} || 0) != 1) $]
     <form action="[+ $s +]" method="POST">
       <input type=hidden name="Screen" value="1">
 

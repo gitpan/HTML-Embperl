@@ -1,5 +1,35 @@
 Revision history for Perl extension HTML::Embperl.
 
+0.24-beta 13 Jan 1998 
+   - Added the option optRawInput which causes Embperl not to preprocess the
+     source for a perl expression (Only exceptions is that CR will be removed).
+     This option should be set when you writing your code with an ascii editor. 
+     If you using a WYSIWYG editor, which insert unwanted html tags in your
+     perl expressions and escapes special charcaters automaticly (i.e.
+     < will occur as &lt; in the source), you should not set this option, and
+     Embperl will automaticly convert the html input back to the perl
+     expression you written. (Thanks to Todd R. Eigenschink for a patch)
+   - $0 is set to filename of html source
+   - Change Current Working Directory to directory of html source
+   - Warning messages now are also logged in logfile at the correct
+     position next to the source line
+   - Perl error and warning messages contains the filename and correct
+     linenumber of the html source
+   - Sourcelines in logfile contain linenumbers
+   - Output via [+ ... +] of undefined values at the end of a dynamic table
+     (which must be there to end the table) do not generate a warning anymore  
+     NOTE: If you use them in a expression (such like $a = $arr[$row] or simply
+     inside " ", you will still get a warning)  
+   - Open html source in binary mode on Win32 to avoid overhead of crlf -> lf
+     translation.
+   - Use aplog_error for apache_1.3 to avoid senseless os errors written to
+     httpd error log
+
+   - Removed some uninitializied value messages when running with
+     -w / PerlWarn on spotted by Todd R. Eigenschink 
+   - Fixed a bug which has caused nested while loop to exeute incorrect if
+     the condition of the outer one if false 
+
 0.23-beta 31 Dec 1997
    - Fixed a bug which causes $req_rec to be not defined anymore (Thanks to
      Todd R. Eigenschink for the hint and debugging)

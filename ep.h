@@ -1,6 +1,6 @@
 /*###################################################################################
 #
-#   Embperl - Copyright (c) 1997 Gerald Richter / ECOS
+#   Embperl - Copyright (c) 1997-1998 Gerald Richter / ECOS
 #
 #   You may distribute under the terms of either the GNU General Public
 #   License or the Artistic License, as specified in the Perl README file.
@@ -27,6 +27,7 @@
 #ifdef APACHE
 #include <httpd.h>
 #include <http_protocol.h>
+#include <http_log.h>
 #endif
 
 
@@ -52,6 +53,14 @@ extern char *sys_errlist[];
 /* Debug Flags */
 
 extern int  bDebug ;
+
+/* Options */
+
+extern int  bOptions ;
+
+
+extern int  bError ;       /* Error has occured somewhere */
+extern char lastwarn [ERRDATLEN]  ;
 
 /* Apache Request Record */
 
@@ -83,7 +92,11 @@ extern char * pCurrStart ;  /* Current start position of html tag / eval express
 extern char * pEndPos ;     /* end of html file */
 extern char * pCurrTag ;    /* Current start position of html tag */
 
-extern int  bSafeEval ;     /* Should we eval everything in a safe namespace? */
+extern char * sSourcefile ; /* Name of sourcefile */
+extern int    nSourceline ; /* Currentline in sourcefile */
+extern char * pSourcelinePos ; /* Positon of nSourceline in sourcefile */
+extern char * pLineNoCurrPos ; /* save pCurrPos for line no calculation */                     
+                     
 
 int iembperl_init (int  nIOType,
                    const char * sLogFile) ;
@@ -327,6 +340,9 @@ const char * GetHtmlArg (/*in*/  const char *    pTag,
                          /*out*/ int *           pLen) ;
 
 void TransHtml (/*i/o*/ char *  sData) ;
+
+
+int GetLineNo () ;
 
 #ifndef WIN32
 #define strnicmp strncasecmp

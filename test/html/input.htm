@@ -52,7 +52,7 @@ $kats[2]{Id} = 'Veranstaltungen' ;
                 <tr>
                     <td valign="top"><input type="checkbox"
                     name="Region"
-                    value="[+&quot;$regs[$row]{Id}&quot;+]"><a
+                    value="[+$regs[$row]{Id}+]"><a
                     href="inhalt.htm?Region=[+$regs[$row]{Id}+]">[+$regs[$row]{Id}+]</a></td>
                 </tr>
             </table>
@@ -61,7 +61,7 @@ $kats[2]{Id} = 'Veranstaltungen' ;
                 <tr>
                     <td valign="top"><p align="left"><input
                     type="checkbox" name="Kategorie"
-                    value="[+&quot;$kats[$row]{Id}&quot;+]"><a
+                    value="[+$kats[$row]{Id}+]"><a
                     href="inhalt.htm?Kategorie=[+$kats[$row]{Id}+]">[+$kats[$row]{Id}+]</a></p>
                     </td>
                 </tr>
