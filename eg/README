@@ -9,6 +9,9 @@ while.htm	simple html file which show how you can use the while
 table.htm	simple html file which shows how to use the dynamic table 
                 feature (also displays %ENV)
 
+lists.htm       shows you how to use dynamic lists and listboxes and
+                dropdownboxes
+
 neu.htm	        this example shows many of the feature of Embperl, as 
                 embedding various code, conditional processing and form 
 		management (It's in German but I think it can be understand 

@@ -34,173 +34,70 @@ char *s;
     croak("%s not implemented on this architecture", s);
     return -1;
 }
+#define CONST(NAME) \
+        pSV = newSViv (NAME) ; \
+        if (hv_store (pHash, #NAME, sizeof (#NAME) - 1, pSV, 0) == NULL) \
+            return rcHashError ;
 
-static double
-constant(name, arg)
-char *name;
-int arg;
-{
-    errno = 0;
-    switch (*name) {
-    case 'a':
-	break;
-    case 'b':
-	break;
-    case 'c':
-	break;
-    case 'd':
-	break;
-    case 'e':
-	if (strEQ(name, "epDbgFlushOutput"))
-#ifdef epDbgAll
-	    return epDbgFlushOutput;
-#else
-	    goto not_there;
-#endif
-	if (strEQ(name, "epDbgFlushLog"))
-#ifdef epDbgAll
-	    return epDbgFlushLog;
-#else
-	    goto not_there;
-#endif
-	if (strEQ(name, "epDbgAll"))
-#ifdef epDbgAll
-	    return epDbgAll;
-#else
-	    goto not_there;
-#endif
-	if (strEQ(name, "epDbgCmd"))
-#ifdef epDbgCmd
-	    return epDbgCmd;
-#else
-	    goto not_there;
-#endif
-	if (strEQ(name, "epDbgEnv"))
-#ifdef epDbgEnv
-	    return epDbgEnv;
-#else
-	    goto not_there;
-#endif
-	if (strEQ(name, "epDbgEval"))
-#ifdef epDbgEval
-	    return epDbgEval;
-#else
-	    goto not_there;
-#endif
-	if (strEQ(name, "epDbgForm"))
-#ifdef epDbgForm
-	    return epDbgForm;
-#else
-	    goto not_there;
-#endif
-	if (strEQ(name, "epDbgInput"))
-#ifdef epDbgInput
-	    return epDbgInput;
-#else
-	    goto not_there;
-#endif
-	if (strEQ(name, "epDbgMem"))
-#ifdef epDbgMem
-	    return epDbgMem;
-#else
-	    goto not_there;
-#endif
-	if (strEQ(name, "epDbgStd"))
-#ifdef epDbgStd
-	    return epDbgStd;
-#else
-	    goto not_there;
-#endif
-	if (strEQ(name, "epDbgTab"))
-#ifdef epDbgTab
-	    return epDbgTab;
-#else
-	    goto not_there;
-#endif
-	if (strEQ(name, "epIOCGI"))
-#ifdef epIOCGI
-	    return epIOCGI;
-#else
-	    goto not_there;
-#endif
-	if (strEQ(name, "epIOMod_Perl"))
-#ifdef epIOMod_Perl
-	    return epIOMod_Perl;
-#else
-	    goto not_there;
-#endif
-	if (strEQ(name, "epIOPerl"))
-#ifdef epIOPerl
-	    return epIOPerl;
-#else
-	    goto not_there;
-#endif
-	if (strEQ(name, "epIOProcess"))
-#ifdef epIOProcess
-	    return epIOProcess;
-#else
-	    goto not_there;
-#endif
-	break;
-    case 'f':
-	break;
-    case 'g':
-	break;
-    case 'h':
-	break;
-    case 'i':
-	break;
-    case 'j':
-	break;
-    case 'k':
-	break;
-    case 'l':
-	break;
-    case 'm':
-	break;
-    case 'n':
-	break;
-    case 'o':
-	break;
-    case 'p':
-	break;
-    case 'q':
-	break;
-    case 'r':
-	break;
-    case 's':
-	break;
-    case 't':
-	break;
-    case 'u':
-	break;
-    case 'v':
-	break;
-    case 'w':
-	break;
-    case 'x':
-	break;
-    case 'y':
-	break;
-    case 'z':
-	break;
-    }
-    errno = EINVAL;
-    return 0;
+static int constants()
+	{
 
-not_there:
-    errno = ENOENT;
-    return 0;
+	HV * pHash ;
+	SV * pSV ;
+
+        if ((pHash = perl_get_hv ("CONSTANT", TRUE)) == NULL)
+            return rcHashError ;
+
+
+	
+	CONST(epIOCGI)
+	CONST(epIOMod_Perl)
+	CONST(epIOPerl)
+	CONST(epIOProcess)
+
+	CONST(ok)
+	CONST(rcStackOverflow) 
+	CONST(rcStackUnderflow)
+	CONST(rcEndifWithoutIf)
+	CONST(rcElseWithoutIf)
+	CONST(rcEndwhileWithoutWhile)
+	CONST(rcEndtableWithoutTable)
+	CONST(rcCmdNotFound) 
+	CONST(rcOutOfMemory) 
+	CONST(rcPerlVarError)
+	CONST(rcHashError) 
+	CONST(rcArrayError) 
+	CONST(rcFileOpenErr) 
+	CONST(rcMissingRight)
+	CONST(rcNoRetFifo) 
+	CONST(rcMagicError)
+	CONST(rcWriteErr) 
+	CONST(rcUnknownNameSpace) 
+	CONST(rcInputNotSupported) 
+	CONST(rcCannotUsedRecursive) 
+	CONST(rcEndtableWithoutTablerow) 
+	CONST(rcEndtextareaWithoutTextarea)
+	CONST(rcArgStackOverflow) 
+	CONST(rcEvalErr) 
+	CONST(rcNotCompiledForModPerl)
+	CONST(rcLogFileOpenErr)
+	CONST(rcExecCGIMissing)
+	CONST(rcIsDir)
+	CONST(rcXNotSet) 
+	CONST(rcNotFound) 
+    return ok;
 }
-
 
 MODULE = HTML::Embperl		PACKAGE = HTML::Embperl
 
 
-double
-constant(name,arg)
-	char *		name
-	int		arg
+int
+embperl_constants()
+CODE:
+	RETVAL = constants () ;
+OUTPUT:
+    RETVAL
+
 
 int
 embperl_init(nIOType, sLogFile)
@@ -226,13 +123,14 @@ CODE:
 
 
 int
-embperl_req(sInputfile, sOutputfile, bDebugFlags, pNameSpace)
+embperl_req(sInputfile, sOutputfile, bDebugFlags, pNameSpace, nFileSize)
     char * sInputfile
     char * sOutputfile
     int bDebugFlags
     char * pNameSpace 
+    int    nFileSize
 CODE:
-    RETVAL = iembperl_req(sInputfile, sOutputfile, bDebugFlags, pNameSpace) ;
+    RETVAL = iembperl_req(sInputfile, sOutputfile, bDebugFlags, pNameSpace, nFileSize) ;
 OUTPUT:
     RETVAL
 
@@ -251,6 +149,14 @@ embperl_logevalerr(sText)
 CODE:
      strncpy (errdat1, sText, sizeof (errdat1) - 1) ;
      LogError (rcEvalErr) ;
+
+int
+embperl_logerror(code, sText)
+    int    code
+    char * sText
+CODE:
+     strncpy (errdat1, sText, sizeof (errdat1) - 1) ;
+     LogError (code) ;
 
 int
 embperl_getloghandle()

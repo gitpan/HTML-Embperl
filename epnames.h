@@ -14,9 +14,9 @@
 #
 ###################################################################################*/
 
-//
+/*
 // Avoid namespace conflict with other packages
-//
+*/
 
 
 #define oBegin                 EMBPERL_oBegin            
@@ -42,6 +42,7 @@
 #define bDebug                 EMBPERL_bDebug            
 #define nIOType                EMBPERL_nIOType           
 #define errdat1                EMBPERL_errdat1           
+#define errdat2                EMBPERL_errdat2          
 #define Stack                  EMBPERL_Stack             
 #define nStack                 EMBPERL_nStack            
 #define State                  EMBPERL_State             

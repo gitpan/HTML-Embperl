@@ -19,27 +19,31 @@
 #include "epmacro.h"
 
 
-// Version
+/* Version */
 
 static char sVersion [] = VERSION ;
 
 
-// pid
+/* pid */
 
 pid_t nPid ;
 
-// Apache Request Record
+/* Apache Request Record */
 
 #ifdef APACHE
 request_rec * pReq = NULL ;
 #endif
 
 
-//
+/* Debugging */
 
 int  bDebug = dbgAll & ~dbgMem & ~dbgEnv;
 
-static int  bSafeEval = 0 ;  // Should we eval everything in a safe namespace?
+
+/* Should we eval everything in a safe namespace? */
+
+static int  bSafeEval = 0 ;  
+
 
 int  nIOType   = epIOPerl ;
 
@@ -48,49 +52,56 @@ static char sRetFifo [1024] ;
 
 static char sRetFifoName [] = "__RETFIFO" ;
 
-static char cMultFieldSep = '\t' ;  // Separator if a form filed is multiplie defined
+static char cMultFieldSep = '\t' ;  /* Separator if a form filed is multiplie defined */
 
 static char sEvalErrName   [] = "@" ;
 static char sEnvHashName   [] = "ENV" ;
 static char sFormHashName  [] = "HTML::Embperl::fdat" ;
 static char sFormArrayName [] = "HTML::Embperl::ffld" ;
 static char sInputHashName [] = "HTML::Embperl::idat" ;
-static char sNameSpaceHashName [] = "HTML::Embperl::NameSpace" ;
 static char sTabCountName  [] = "HTML::Embperl::cnt" ;
 static char sTabRowName    [] = "HTML::Embperl::row" ;
 static char sTabColName    [] = "HTML::Embperl::col" ;
 static char sTabMaxRowName [] = "HTML::Embperl::maxrow" ;
 static char sTabMaxColName [] = "HTML::Embperl::maxcol" ;
 static char sTabModeName   [] = "HTML::Embperl::tabmode" ;
+
+static char sNameSpaceHashName [] = "HTML::Embperl::NameSpace" ;
 static char sLogfileURLName[] = "HTML::Embperl::LogfileURL" ;
+static char sCacheHashName[]  = "HTML::Embperl::cache" ;
+static char sPackageName[]    = "HTML::Embperl::package" ;
 
 
-static HV *    pEnvHash ;   // environement from CGI Script
-static HV *    pFormHash ;  // Formular data
-static HV *    pInputHash ; // Data of input fields
-static HV *    pNameSpaceHash ; // Hash of NameSpace Objects
-static AV *    pFormArray ; // Fieldnames
-static SV *    pEvalErr ;   // $@ -> Result of Eval
+static HV *    pEnvHash ;   /* environement from CGI Script */
+static HV *    pFormHash ;  /* Formular data */
+static HV *    pInputHash ; /* Data of input fields */
+static HV *    pNameSpaceHash ; /* Hash of NameSpace Objects */
+static AV *    pFormArray ; /* Fieldnames */
+static SV *    pEvalErr ;   /* $@ -> Result of Eval */
+static HV *    pCacheHash ; /* Hash containing CVs to precompiled subs */
 
-static SV *    pNameSpace ; // Currently active Namespace
-
-
-static char * pCurrPos ;    // Current position in html file
-static char * pCurrStart ;  // Current start position of html tag / eval expression
-static char * pEndPos ;     // end of html file
-static char * pCurrTag ;    // Current start position of html tag
-
-//
-// Additional Error info
-//
+static SV *    pNameSpace ; /* Currently active Namespace */
 
 
-char errdat1 [1024]  ;
+static char *  sCurrPackage ; /* Name of package to eval everything */
+
+static char * pCurrPos ;    /* Current position in html file */
+static char * pCurrStart ;  /* Current start position of html tag / eval expression */
+static char * pEndPos ;     /* end of html file */
+static char * pCurrTag ;    /* Current start position of html tag */
+
+/*
+   Additional Error info   
+*/
 
 
-//
-// Commandtypes
-//
+char errdat1 [ERRDATLEN]  ;
+char errdat2 [ERRDATLEN]  ;
+
+
+/*
+   Commandtypes 
+*/
 
 enum tCmdType
     {
@@ -100,87 +111,103 @@ enum tCmdType
     cmdWhile = 8,
     cmdTable = 16,
     cmdTablerow = 32,
-    cmdList  = 64,
-    cmdTextarea  = 128,
+    cmdTextarea  = 64,
 
     cmdAll   = 255
     } ;
 
+enum tCmdNo
+    {
+    cnNop,       
+    cnTable,
+    cnTr,
+    cnDir,
+    cnMenu,
+    cnOl,
+    cnUl,
+    cnDl,
+    cnSelect,
+    } ;
 
-//
-// Stack
-//
+/* */
+/* Commands */
+/* */
+
+struct tCmd
+    {
+    const char *    sCmdName ;     /* Commandname */
+    int            ( *pProc)(/*in*/ const char *   sArg) ;   /* pointer to the procedure */
+    bool            bPush ;         /* Push current state? */
+    bool            bPop ;          /* Pop last state? */
+    enum tCmdType   nCmdType ;      /* Type of the command  */
+    bool            bScanArg ;      /* is it nessesary to scan the command arg */
+    enum tCmdNo     nCmdNo ;        /* number of command to catch mismatch in start/end */
+    } ;
+
+static struct tCmd * pCurrCmd ;    /* Current cmd which is excuted */
+
+
+/*
+   Stack 
+*/
 
 struct tStackEntry
     {
-    enum tCmdType   nCmdType ;      // Type of the command which the pushed the entry on the stack
-    char *          pStart ;        // Startposition fpr loops
-    long            bProcessCmds ;  // Process corresponding cmds
-    int             nResult ;       // Result of Command which starts the block
-    char *          sArg ;          // Argument of Command which starts the block
-    struct tBuf *   pBuf ;          // Output buf for table rollback         
+    enum tCmdType   nCmdType ;      /* Type of the command which the pushed the entry on the stack */
+    char *          pStart ;        /* Startposition fpr loops */
+    long            bProcessCmds ;  /* Process corresponding cmds */
+    int             nResult ;       /* Result of Command which starts the block */
+    char *          sArg ;          /* Argument of Command which starts the block */
+    struct tBuf *   pBuf ;          /* Output buf for table rollback          */
+    struct tCmd *   pCmd ;          /* pointer to command infos */
     } ;
 
-#define nStackMax 100           // Max level of nesting
+#define nStackMax 100           /* Max level of nesting */
 
-struct tStackEntry Stack [nStackMax] ; // Stack for if, while, etc.
+struct tStackEntry Stack [nStackMax] ; /* Stack for if, while, etc. */
 
-int nStack = 0 ;                // Stackpointer
+int nStack = 0 ;                /* Stackpointer */
 
-struct tStackEntry State ;             // current State
+struct tStackEntry State ;             /* current State */
 
 char ArgStack [16384] ;
 
 char * pArgStack = ArgStack ;
 
 
-//
-// Stack for dynamic table counters
-//
+/* */
+/* Stack for dynamic table counters */
+/* */
 
 struct tTableStackEntry
     {
-    int             nResult ;       // Result of Command which starts the block
-    int             nCount ;        // Count for tables, lists etc
-    int             nCountUsed ;    // Count for tables, lists is used in Table 
-    int             nRow ;          // Row Count for tables, lists etc
-    int             nRowUsed ;      // Row Count for tables, lists is used in Table 
-    int             nCol ;          // Column Count for tables, lists etc
-    int             nColUsed ;      // Column Count for tables, lists is used in Table 
-    int             nMaxRow ;       // maximum rows
-    int             nMaxCol ;       // maximum columns
-    int             nTabMode ;      // table mode
+    int             nResult ;       /* Result of Command which starts the block */
+    int             nCount ;        /* Count for tables, lists etc */
+    int             nCountUsed ;    /* Count for tables, lists is used in Table  */
+    int             nRow ;          /* Row Count for tables, lists etc */
+    int             nRowUsed ;      /* Row Count for tables, lists is used in Table  */
+    int             nCol ;          /* Column Count for tables, lists etc */
+    int             nColUsed ;      /* Column Count for tables, lists is used in Table  */
+    int             nMaxRow ;       /* maximum rows */
+    int             nMaxCol ;       /* maximum columns */
+    int             nTabMode ;      /* table mode */
     } ;
 
 
-struct tTableStackEntry TableStack [nStackMax] ; // Stack for table
+struct tTableStackEntry TableStack [nStackMax] ; /* Stack for table */
 
-int nTableStack = 0 ;                // Stackpointer
+int nTableStack = 0 ;                /* Stackpointer */
 
-struct tTableStackEntry TableState ;             // current State
-
-
-int nTabMode    ;    // mode for next table (only takes affect after next <TABLE>
-int nTabMaxRow  ;    // maximum rows for next table (only takes affect after next <TABLE>
-int nTabMaxCol  ;    // maximum columns for next table (only takes affect after next <TABLE>
-
-//
-// Commands
-//
-
-struct tCmd
-    {
-    const char *    sCmdName ;     // Commandname
-    int            ( *pProc)(/*in*/ const char *   sArg) ;   // pointer to the procedure
-    bool            bPush ;         // Push current state?
-    bool            bPop ;          // Pop last state?
-    enum tCmdType   nCmdType ;      // Type of the command 
-    } ;
+struct tTableStackEntry TableState ;             /* current State */
 
 
-//// ----------------------------------------------------------------------------
-//// Commandtable...
-////
+int nTabMode    ;    /* mode for next table (only takes affect after next <TABLE> */
+int nTabMaxRow  ;    /* maximum rows for next table (only takes affect after next <TABLE> */
+int nTabMaxCol  ;    /* maximum columns for next table (only takes affect after next <TABLE> */
+
+/*// ---------------------------------------------------------------------------- */
+/*// Commandtable... */
+/*// */
 
 
 int CmdIf (/*in*/ const char *   sArg) ;
@@ -205,93 +232,107 @@ int HtmlBody       (/*in*/ const char *   sArg) ;
 
 struct tCmd CmdTab [] =
     {
-        { "/dir",     HtmlEndtable, 0, 1, cmdTable } ,
-        { "/dl",      HtmlEndtable, 0, 1, cmdTable } ,
-        { "/menu",    HtmlEndtable, 0, 1, cmdTable } ,
-        { "/ol",      HtmlEndtable, 0, 1, cmdTable } ,
-        { "/table",   HtmlEndtable, 0, 1, cmdTable } ,
-        { "/textarea", HtmlEndtextarea, 0, 1, cmdTextarea } ,
-        { "/tr",      HtmlEndrow,   0, 1, cmdTablerow } ,
-        { "/ul",      HtmlEndtable, 0, 1, cmdTable } ,
-        { "body",     HtmlBody,     0, 0, cmdNorm } ,
-        { "dir",      HtmlTable,    1, 0, cmdList } ,
-        { "dl",       HtmlTable,    1, 0, cmdList } ,
-        { "else",     CmdElse,      0, 0, cmdIf } ,
-        { "elsif",    CmdElsif,     0, 0, cmdIf } ,
-        { "endif",    CmdEndif,     0, 1, cmdIf | cmdEndif } ,
-        { "endwhile", CmdEndwhile,  0, 1, cmdWhile } ,
-        { "hidden",   CmdHidden,    0, 0, cmdNorm } ,
-        { "if",       CmdIf,        1, 0, cmdIf | cmdEndif } ,
-        { "input",    HtmlInput,    0, 0, cmdNorm } ,
-        { "menu",     HtmlTable,    1, 0, cmdList } ,
-        { "ol",       HtmlTable,    1, 0, cmdList } ,
-        { "table",    HtmlTable,    1, 0, cmdTable } ,
-        { "textarea", HtmlTextarea, 1, 0, cmdTextarea } ,
-        { "tr",       HtmlRow,      1, 0, cmdTablerow } ,
-        { "ul",       HtmlTable,    1, 0, cmdList } ,
-        { "while",    CmdWhile,     1, 0, cmdWhile } ,
+        { "/dir",     HtmlEndtable, 0, 1, cmdTable,     0, cnDir } ,
+        { "/dl",      HtmlEndtable, 0, 1, cmdTable,     0, cnDl  } ,
+        { "/menu",    HtmlEndtable, 0, 1, cmdTable,     0, cnMenu  } ,
+        { "/ol",      HtmlEndtable, 0, 1, cmdTable,     0, cnOl  } ,
+        { "/select",  HtmlEndtable, 0, 1, cmdTable,     0, cnSelect  } ,
+        { "/table",   HtmlEndtable, 0, 1, cmdTable,     0, cnTable  } ,
+        { "/textarea", HtmlEndtextarea, 0, 1, cmdTextarea, 0, cnNop  } ,
+        { "/tr",      HtmlEndrow,   0, 1, cmdTablerow,  0, cnTr  } ,
+        { "/ul",      HtmlEndtable, 0, 1, cmdTable,     0, cnUl  } ,
+        { "body",     HtmlBody,     0, 0, cmdNorm,      1, cnNop   } ,
+        { "dir",      HtmlTable,    1, 0, cmdTable,     1, cnDir   } ,
+        { "dl",       HtmlTable,    1, 0, cmdTable,     1, cnDl   } ,
+        { "else",     CmdElse,      0, 0, cmdIf,        0, cnNop   } ,
+        { "elsif",    CmdElsif,     0, 0, cmdIf,        0, cnNop   } ,
+        { "endif",    CmdEndif,     0, 1, cmdIf | cmdEndif, 0, cnNop   } ,
+        { "endwhile", CmdEndwhile,  0, 1, cmdWhile,     0, cnNop   } ,
+        { "hidden",   CmdHidden,    0, 0, cmdNorm,      0, cnNop   } ,
+        { "if",       CmdIf,        1, 0, cmdIf | cmdEndif, 0, cnNop   } ,
+        { "input",    HtmlInput,    0, 0, cmdNorm,      1, cnNop   } ,
+        { "menu",     HtmlTable,    1, 0, cmdTable,     1, cnMenu   } ,
+        { "ol",       HtmlTable,    1, 0, cmdTable,     1, cnOl   } ,
+        { "select",   HtmlTable,    1, 0, cmdTable,     1, cnSelect   } ,
+        { "table",    HtmlTable,    1, 0, cmdTable,     1, cnTable   } ,
+        { "textarea", HtmlTextarea, 1, 0, cmdTextarea,  0, cnNop   } ,
+        { "tr",       HtmlRow,      1, 0, cmdTablerow,  1, cnTr   } ,
+        { "ul",       HtmlTable,    1, 0, cmdTable,     1, cnUl   } ,
+        { "while",    CmdWhile,     1, 0, cmdWhile,     0, cnNop   } ,
 
     } ;
 
-//
-// forward definition for function prototypes
-//
+/* */
+/* forward definition for function prototypes */
+/* */
 
 static int ScanCmdEvalsInString (/*in*/  char *   pIn,
                                  /*out*/ char * * pOut,
                                  /*in*/  size_t   nSize) ;
 
-//
-// print error
-//
+/* */
+/* print error */
+/* */
 
 void LogError (/*in*/ int   rc)
 
     {
+    const char * msg ;
+    
     EPENTRY (LogError) ;
     
     errdat1 [sizeof (errdat1) - 1] = '\0' ;
+    errdat2 [sizeof (errdat2) - 1] = '\0' ;
     
     switch (rc)
         {
-        case ok:                    lprintf ("[%d]ERR:  %d: ok\n",nPid , rc, errdat1) ; break ;
-        case rcStackOverflow:       lprintf ("[%d]ERR:  %d: Stack Overflow\n",nPid , rc, errdat1) ; break ;
-        case rcArgStackOverflow:    lprintf ("[%d]ERR:  %d: Argumnet Stack Overflow (%s)\n",nPid , rc, errdat1) ; break ;
-        case rcStackUnderflow:      lprintf ("[%d]ERR:  %d: Stack Underflow\n",nPid , rc, errdat1) ; break ;
-        case rcEndifWithoutIf:      lprintf ("[%d]ERR:  %d: endif without if\n",nPid , rc, errdat1) ; break ;
-        case rcElseWithoutIf:       lprintf ("[%d]ERR:  %d: else without if\n",nPid , rc, errdat1) ; break ;
-        case rcEndwhileWithoutWhile: lprintf ("[%d]ERR:  %d: endwhile without while\n",nPid , rc, errdat1) ; break ;
-        case rcEndtableWithoutTable: lprintf ("[%d]ERR:  %d: </table> without <table>\n",nPid , rc, errdat1) ; break ;
-        case rcCmdNotFound:         lprintf ("[%d]ERR:  %d: Unknown Command %s\n",nPid , rc, errdat1) ; break ;
-        case rcOutOfMemory:         lprintf ("[%d]ERR:  %d: Out of memory\n",nPid , rc, errdat1) ; break ;
-        case rcPerlVarError:        lprintf ("[%d]ERR:  %d: Perl variable error %s\n",nPid , rc, errdat1) ; break ;
-        case rcHashError:           lprintf ("[%d]ERR:  %d: Perl hash error %s\n",nPid , rc, errdat1) ; break ;
-        case rcArrayError:          lprintf ("[%d]ERR:  %d: Perl array error %s\n",nPid , rc, errdat1) ; break ;
-        case rcFileOpenErr:         lprintf ("[%d]ERR:  %d: File %s open error\n",nPid , rc, errdat1) ; break ;    
-        case rcMissingRight:        lprintf ("[%d]ERR:  %d: Missing right %s\n",nPid , rc, errdat1) ; break ;
-        case rcNoRetFifo:           lprintf ("[%d]ERR:  %d: No Return Fifo\n",nPid , rc, errdat1) ; break ;
-        case rcMagicError:          lprintf ("[%d]ERR:  %d: Perl Magic Error\n",nPid , rc, errdat1) ; break ;
-        case rcWriteErr:            lprintf ("[%d]ERR:  %d: File write Error\n",nPid , rc, errdat1) ; break ;
-        case rcUnknownNameSpace:    lprintf ("[%d]ERR:  %d: Namespace %s unknown\n",nPid , rc, errdat1) ; break ;
-        case rcInputNotSupported:   lprintf ("[%d]ERR:  %d: Input not supported in mod_perl mode\n",nPid , rc, errdat1) ; break ;
-        case rcCannotUsedRecursive: lprintf ("[%d]ERR:  %d: Cannot be called recursivly in mod_perl mode\n",nPid , rc, errdat1) ; break ;
-        case rcEndtableWithoutTablerow: lprintf ("[%d]ERR:  %d: </tr> without <tr>\n",nPid , rc, errdat1) ; break ;
-        case rcEndtextareaWithoutTextarea: lprintf ("[%d]ERR:  %d: </textarea> without <textarea>\n",nPid , rc, errdat1) ; break ;
-        case rcEvalErr:             lprintf ("[%d]ERR:  %d: Error in Perl code %s\n",nPid , rc, errdat1) ; break ;
-        case rcNotCompiledForModPerl: lprintf ("[%d]ERR:  %d: Error Embperl is not compiled with mod_perl support, please rerun Makefile.PL\n",nPid , rc, errdat1) ; break ;
-        default: lprintf ("[%d]ERR:  %d: Error %s\n",nPid , rc, errdat1) ; break ; 
+        case ok:                        msg ="[%d]ERR:  %d: ok\n" ; break ;
+        case rcStackOverflow:           msg ="[%d]ERR:  %d: Stack Overflow\n" ; break ;
+        case rcArgStackOverflow:        msg ="[%d]ERR:  %d: Argumnet Stack Overflow (%s)\n" ; break ;
+        case rcStackUnderflow:          msg ="[%d]ERR:  %d: Stack Underflow\n" ; break ;
+        case rcEndifWithoutIf:          msg ="[%d]ERR:  %d: endif without if\n" ; break ;
+        case rcElseWithoutIf:           msg ="[%d]ERR:  %d: else without if\n" ; break ;
+        case rcEndwhileWithoutWhile:    msg ="[%d]ERR:  %d: endwhile without while\n" ; break ;
+        case rcEndtableWithoutTable:    msg ="[%d]ERR:  %d: blockend <%s> does not match blockstart <%s>\n" ; break ;
+        case rcCmdNotFound:             msg ="[%d]ERR:  %d: Unknown Command %s\n" ; break ;
+        case rcOutOfMemory:             msg ="[%d]ERR:  %d: Out of memory\n" ; break ;
+        case rcPerlVarError:            msg ="[%d]ERR:  %d: Perl variable error %s\n" ; break ;
+        case rcHashError:               msg ="[%d]ERR:  %d: Perl hash error %s\n" ; break ;
+        case rcArrayError:              msg ="[%d]ERR:  %d: Perl array error %s\n" ; break ;
+        case rcFileOpenErr:             msg ="[%d]ERR:  %d: File %s open error: %s\n" ; break ;    
+        case rcLogFileOpenErr:          msg ="[%d]ERR:  %d: Logfile %s open error: %s\n" ; break ;    
+        case rcMissingRight:            msg ="[%d]ERR:  %d: Missing right %s\n" ; break ;
+        case rcNoRetFifo:               msg ="[%d]ERR:  %d: No Return Fifo\n" ; break ;
+        case rcMagicError:              msg ="[%d]ERR:  %d: Perl Magic Error\n" ; break ;
+        case rcWriteErr:                msg ="[%d]ERR:  %d: File write Error\n" ; break ;
+        case rcUnknownNameSpace:        msg ="[%d]ERR:  %d: Namespace %s unknown\n" ; break ;
+        case rcInputNotSupported:       msg ="[%d]ERR:  %d: Input not supported in mod_perl mode\n" ; break ;
+        case rcCannotUsedRecursive:     msg ="[%d]ERR:  %d: Cannot be called recursivly in mod_perl mode\n" ; break ;
+        case rcEndtableWithoutTablerow: msg ="[%d]ERR:  %d: </tr> without <tr>\n" ; break ;
+        case rcEndtextareaWithoutTextarea: msg ="[%d]ERR:  %d: </textarea> without <textarea>\n" ; break ;
+        case rcEvalErr:                 msg ="[%d]ERR:  %d: Error in Perl code %s\n" ; break ;
+        case rcExecCGIMissing:          msg ="[%d]ERR:  %d: Forbidden %s: Options ExecCGI not set in your Apache configs\n" ; break ;
+        case rcIsDir:                   msg ="[%d]ERR:  %d: Forbidden %s is a directory\n" ; break ;
+        case rcXNotSet:                 msg ="[%d]ERR:  %d: Forbidden %s X Bit not set\n" ; break ;
+        case rcNotFound:                msg ="[%d]ERR:  %d: Not found %s\n" ; break ;
+        default:                        msg ="[%d]ERR:  %d: Error %s\n" ; break ; 
         }
-    strcpy (errdat1, "") ;
-
+    
+    if (bDebug)
+        lprintf (msg, nPid , rc, errdat1, errdat2) ;
+    fprintf (stderr, msg, nPid , rc, errdat1, errdat2) ;
+        
+    errdat1[0] = '\0' ;
+    errdat2[0] = '\0' ;
     }
 
 
-// ----------------------------------------------------------------------------
-// Output a string and escapte html special character to html special representation (&xxx;)
-//
-// i/o sData     = input:  perl string
-//
-// ----------------------------------------------------------------------------
+/* ---------------------------------------------------------------------------- */
+/* Output a string and escapte html special character to html special representation (&xxx;) */
+/* */
+/* i/o sData     = input:  perl string */
+/* */
+/* ---------------------------------------------------------------------------- */
 
 void OutputToHtml (/*i/o*/ const char *  sData)
 
@@ -328,11 +369,11 @@ void OutputToHtml (/*i/o*/ const char *  sData)
     }
 
 
-//
-// Eval PERL Statements
-//
-// Return Perl Scalar Value
-//
+/* */
+/* Eval PERL Statements */
+/* */
+/* Return Perl Scalar Value */
+/* */
 
 #define EVAL_SUB
 
@@ -367,7 +408,7 @@ int EvalAll (/*in*/  const char *  sArg,
     
     pSVArg = sv_2mortal(newSVpv((char *)sArg, strlen (sArg))) ;
 
-    //num = perl_eval_sv (pSVArg, G_SCALAR) ; /* call the function             */
+    /*num = perl_eval_sv (pSVArg, G_SCALAR) ; /* call the function             */ */
     num = perl_eval_sv (pSVArg, G_DISCARD) ; /* call the function             */
     num = 0 ;
 #endif    
@@ -423,11 +464,11 @@ int EvalAll (/*in*/  const char *  sArg,
     }
 
 
-//
-// Eval PERL Statements in safe namespace
-//
-// Return Perl Scalar Value
-//
+/* */
+/* Eval PERL Statements in safe namespace */
+/* */
+/* Return Perl Scalar Value */
+/* */
 
 
 int EvalSafe (/*in*/  const char *  sArg,
@@ -520,11 +561,11 @@ int Eval (/*in*/  const char *  sArg,
 
 
 
-//
-// Eval PERL Statements
-//
-// Return int
-//
+/* */
+/* Eval PERL Statements */
+/* */
+/* Return int */
+/* */
 
 
 
@@ -550,24 +591,24 @@ int EvalNum (/*in*/  const char *  sArg,
     return ok ;
     }
     
-//
-// Magic
-//
+/* */
+/* Magic */
+/* */
 
 
 static int notused ;
 
-INTMG (Count, TableState.nCount, TableState.nCountUsed) ;
-INTMG (Row, TableState.nRow, TableState.nRowUsed) ;
-INTMG (Col, TableState.nCol, TableState.nColUsed) ;
-INTMG (MaxRow, nTabMaxRow, notused) ;
-INTMG (MaxCol, nTabMaxCol, notused) ;
-INTMG (TabMode, nTabMode, notused) ;
+INTMG (Count, TableState.nCount, TableState.nCountUsed) 
+INTMG (Row, TableState.nRow, TableState.nRowUsed) 
+INTMG (Col, TableState.nCol, TableState.nColUsed) 
+INTMG (MaxRow, nTabMaxRow, notused) 
+INTMG (MaxCol, nTabMaxCol, notused) 
+INTMG (TabMode, nTabMode, notused) 
 
 
-//
-// compare commands
-//
+/* */
+/* compare commands */
+/* */
 
 static int CmpCmd (/*in*/ const void *  p1,
             /*in*/ const void *  p2)
@@ -578,25 +619,36 @@ static int CmpCmd (/*in*/ const void *  p1,
 
 
 
-//
-// Command found
-//
+/* */
+/* Search Command in Commandtable */
+/* */
 
-static int  ProcessCmd (/*in*/ const char *    sCmdName,
-                 /*in*/ const char *    sArg,
-                 /*in*/ int             bIgnore)
+static int  SearchCmd   (/*in*/  const char *    sCmdName,
+                         /*in*/  const char *    sArg,
+                         /*in*/  int             bIgnore,
+                         /*out*/ struct tCmd * * ppCmd)
 
     {
     struct tCmd *  pCmd ;
     int            rc ;
-    int            nArgLen ;
+    char           sCmdLwr [64] ;
+    char *         p ;
+    int            i ;
 
-    EPENTRY (ProcessCmd) ;
 
-    pCmd = bsearch (&sCmdName, CmdTab, sizeof (CmdTab) / sizeof (struct tCmd), sizeof (struct tCmd), CmpCmd) ;
+    EPENTRY (SearchCmd) ;
+
+    i = sizeof (sCmdLwr) - 1 ;
+    p = sCmdLwr ;
+    while (--i > 0 && (*p++ = tolower (*sCmdName++)) != '\0')
+        ;
+    *p = '\0' ;
+    
+    p = sCmdLwr ;
+    pCmd = (struct tCmd *)bsearch (&p, CmdTab, sizeof (CmdTab) / sizeof (struct tCmd), sizeof (struct tCmd), CmpCmd) ;
 
     if (bDebug & dbgAllCmds)
-        lprintf ("[%d]CMD%c:  +%02d Cmd = '%s' Arg = '%s'\n", nPid, (pCmd == NULL)?'-':'+', nStack, sCmdName, sArg) ;
+        lprintf ("[%d]CMD%c:  +%02d Cmd = '%s' Arg = '%s'\n", nPid, (pCmd == NULL)?'-':'+', nStack, sCmdLwr, sArg) ;
 
     if (pCmd == NULL && bIgnore)
         return rcCmdNotFound ;
@@ -606,12 +658,36 @@ static int  ProcessCmd (/*in*/ const char *    sCmdName,
     
     if (pCmd == NULL)
         {
-        strncpy (errdat1, sCmdName, sizeof (errdat1)) ;
+        strncpy (errdat1, sCmdName, sizeof (errdat1) - 1) ;
         return rcCmdNotFound ;
         }
 
+    
+    *ppCmd = pCmd ;
+    
+    return ok ;
+    }
+
+
+
+/* */
+/* Process a Command */
+/* */
+
+
+
+static int  ProcessCmd (/*in*/ struct tCmd *  pCmd,
+                        /*in*/ const char *    sArg)
+
+    {                        
+    int            rc ;
+    int            nArgLen ;
+
+    EPENTRY (ProcessCmd) ;
+    
+    
     if ((pCmd -> nCmdType & State.bProcessCmds) == 0)
-        return ok ; // ignore it
+        return ok ; /* ignore it */
 
 
     if (pCmd -> bPush)
@@ -634,7 +710,10 @@ static int  ProcessCmd (/*in*/ const char *    sCmdName,
             State.sArg      = strcpy (pArgStack, sArg) ;
             pArgStack += nArgLen ;
             State.pBuf      = NULL ;
+            State.pCmd      = pCmd ;
             }
+
+    pCurrCmd = pCmd ;
 
     rc = (*pCmd -> pProc)(sArg) ;
     
@@ -656,9 +735,9 @@ static int  ProcessCmd (/*in*/ const char *    sCmdName,
 
 
 
-//// ----------------------------------------------------------------------------
-//// if command ...
-////
+/*// ---------------------------------------------------------------------------- */
+/*// if command ... */
+/*// */
 
 int CmdIf (/*in*/ const char *   sArg)
     {
@@ -685,9 +764,9 @@ int CmdIf (/*in*/ const char *   sArg)
     return rc ;
     }
 
-//// ----------------------------------------------------------------------------
-//// elsif command ...
-////
+/*// ---------------------------------------------------------------------------- */
+/*// elsif command ... */
+/*// */
 
 int CmdElsif  (/*in*/ const char *   sArg)
     {
@@ -732,9 +811,9 @@ int CmdElsif  (/*in*/ const char *   sArg)
     return rc ;
     }
 
-//// ----------------------------------------------------------------------------
-//// else command ...
-////
+/*// ---------------------------------------------------------------------------- */
+/*// else command ... */
+/*// */
 
 int CmdElse  (/*in*/ const char *   sArg)
     {
@@ -765,9 +844,9 @@ int CmdElse  (/*in*/ const char *   sArg)
     }
                         
 
-//// ----------------------------------------------------------------------------
-//// endif befehl ...
-////
+/*// ---------------------------------------------------------------------------- */
+/*// endif befehl ... */
+/*// */
 
 int CmdEndif (/*in*/ const char *   sArg)
     {
@@ -785,9 +864,9 @@ int CmdEndif (/*in*/ const char *   sArg)
                         
 
 
-//// ----------------------------------------------------------------------------
-//// while command ...
-////
+/*// ---------------------------------------------------------------------------- */
+/*// while command ... */
+/*// */
 
 int CmdWhile (/*in*/ const char *   sArg)
     {
@@ -805,9 +884,9 @@ int CmdWhile (/*in*/ const char *   sArg)
     return rc ;
     }
 
-//// ----------------------------------------------------------------------------
-//// endwhile command ...
-////
+/*// ---------------------------------------------------------------------------- */
+/*// endwhile command ... */
+/*// */
 
 int CmdEndwhile (/*in*/ const char *   sArg)
     {
@@ -837,9 +916,9 @@ int CmdEndwhile (/*in*/ const char *   sArg)
     }
 
 
-//// ----------------------------------------------------------------------------
-//// hidden command ...
-////
+/*// ---------------------------------------------------------------------------- */
+/*// hidden command ... */
+/*// */
 
 int CmdHidden (/*in*/ const char *   sArg)
 
@@ -915,15 +994,15 @@ int CmdHidden (/*in*/ const char *   sArg)
 
 
 
-// ----------------------------------------------------------------------------
-// find substring ignore case
-//
-// in  pSring  = string to search in (any case)
-// in  pSubStr = string to search for (must be upper case)
-//
-// out ret  = pointer to pSubStr in pStringvalue or NULL if not found
-//
-// ----------------------------------------------------------------------------
+/* ---------------------------------------------------------------------------- */
+/* find substring ignore case */
+/* */
+/* in  pSring  = string to search in (any case) */
+/* in  pSubStr = string to search for (must be upper case) */
+/* */
+/* out ret  = pointer to pSubStr in pStringvalue or NULL if not found */
+/* */
+/* ---------------------------------------------------------------------------- */
 
 
 #define strnicmp strncasecmp
@@ -952,12 +1031,12 @@ const char * stristr (/*in*/ const char *   pString,
     while (TRUE) ;
     }
 
-// ----------------------------------------------------------------------------
-// make string lower case
-//
-// i/o  pSring  = string to search in (any case)
-//
-// ----------------------------------------------------------------------------
+/* ---------------------------------------------------------------------------- */
+/* make string lower case */
+/* */
+/* i/o  pSring  = string to search in (any case) */
+/* */
+/* ---------------------------------------------------------------------------- */
 
 
 char * strlower (/*in*/ char *   pString)
@@ -975,9 +1054,9 @@ char * strlower (/*in*/ char *   pString)
     }
 
 
-//
-// compare commands
-//
+/* */
+/* compare commands */
+/* */
 
 static int CmpCharTrans (/*in*/ const void *  pKey,
                          /*in*/ const void *  pEntry)
@@ -988,18 +1067,18 @@ static int CmpCharTrans (/*in*/ const void *  pKey,
 
 
 
-// ----------------------------------------------------------------------------
-// replace html special character representation (&xxx;) with correct chars
-// and delete all html tags
-// The Replacement is done in place, the whole string will become shorter
-// and is padded with spaces
-// tags and special charcters which are preceeded by a \ are not translated
-// carrige returns are replaced by spaces
-//
-// i/o sData     = input:  html string
-//                 output: perl string
-//
-// ----------------------------------------------------------------------------
+/* ---------------------------------------------------------------------------- */
+/* replace html special character representation (&xxx;) with correct chars */
+/* and delete all html tags */
+/* The Replacement is done in place, the whole string will become shorter */
+/* and is padded with spaces */
+/* tags and special charcters which are preceeded by a \ are not translated */
+/* carrige returns are replaced by spaces */
+/* */
+/* i/o sData     = input:  html string */
+/*                 output: perl string */
+/* */
+/* ---------------------------------------------------------------------------- */
 
 void TransHtml (/*i/o*/ char *  sData)
 
@@ -1016,19 +1095,19 @@ void TransHtml (/*i/o*/ char *  sData)
         if (*p == '\\')
             {
             if (p[1] == '<')
-                { //  Quote next HTML tag
+                { /*  Quote next HTML tag */
                 p += 2 ;
                 while (*p && *p != '>')
                     p++ ;
                 }
             else if (p[1] == '&')
-                { //  Quote next HTML char
+                { /*  Quote next HTML char */
                 p += 2 ;
                 while (*p && *p != ';')
                     p++ ;
                 }
             else
-                p++ ; // Nothing to quote
+                p++ ; /* Nothing to quote */
             }
         else if (*p == '\r')
             {
@@ -1037,7 +1116,7 @@ void TransHtml (/*i/o*/ char *  sData)
         else
             {
             if (p[0] == '<')
-                { //  count HTML tag length
+                { /*  count HTML tag length */
                 s = p ;
                 p++ ;
                 while (*p && *p != '>')
@@ -1045,13 +1124,13 @@ void TransHtml (/*i/o*/ char *  sData)
                 if (*p)
                     p++ ;
                 else
-                    { // missing left '>' -> no html tag 
+                    { /* missing left '>' -> no html tag  */
                     p = s ;
                     s = NULL ;
                     }
                 }
             else if (p[0] == '&')
-                { //  count HTML char length
+                { /*  count HTML char length */
                 s = p ;
                 p++ ;
                 while (*p && *p != ';')
@@ -1062,7 +1141,7 @@ void TransHtml (/*i/o*/ char *  sData)
                     *p = '\0' ;
                     p++ ;
                     }
-                pChar = bsearch (s, Html2Char, sizeHtml2Char, sizeof (struct tCharTrans), CmpCharTrans) ;
+                pChar = (struct tCharTrans *)bsearch (s, Html2Char, sizeHtml2Char, sizeof (struct tCharTrans), CmpCharTrans) ;
                 if (pChar)
                     *s = pChar -> c ;
                 else
@@ -1072,7 +1151,7 @@ void TransHtml (/*i/o*/ char *  sData)
                 }
 
             if (s && (p - s) > 0)
-                { // copy rest of string, pad with spaces
+                { /* copy rest of string, pad with spaces */
                 memmove (s, p, e - p + 1) ;
                 memset (e - (p - s), ' ', (p - s)) ;
                 p = s ;
@@ -1087,16 +1166,16 @@ void TransHtml (/*i/o*/ char *  sData)
     }
 
                         
-// ----------------------------------------------------------------------------
-// get argument from html tag 
-//
-// in  pTag = html tag args  (eg. arg=val arg=val .... >)
-// in  pArg = name of argument (must be upper case)
-//
-// out pLen = length of value
-// out ret  = pointer to value or NULL if not found
-//
-// ----------------------------------------------------------------------------
+/* ---------------------------------------------------------------------------- */
+/* get argument from html tag  */
+/* */
+/* in  pTag = html tag args  (eg. arg=val arg=val .... >) */
+/* in  pArg = name of argument (must be upper case) */
+/* */
+/* out pLen = length of value */
+/* out ret  = pointer to value or NULL if not found */
+/* */
+/* ---------------------------------------------------------------------------- */
 
 const char * GetHtmlArg (/*in*/  const char *    pTag,
                          /*in*/  const char *    pArg,
@@ -1165,10 +1244,10 @@ const char * GetHtmlArg (/*in*/  const char *    pTag,
     }
 
 
-// ----------------------------------------------------------------------------
-// body tag ...
-//
-// ----------------------------------------------------------------------------
+/* ---------------------------------------------------------------------------- */
+/* body tag ... */
+/* */
+/* ---------------------------------------------------------------------------- */
 
 
 int HtmlBody (/*in*/ const char *   sArg)
@@ -1183,10 +1262,10 @@ int HtmlBody (/*in*/ const char *   sArg)
 
     oputs (pCurrTag) ;
     if (*sArg != '\0')
-    	{
-    	oputc (' ') ;
-    	oputs (sArg) ;
-    	}
+        {
+        oputc (' ') ;
+        oputs (sArg) ;
+        }
     oputc ('>') ;
     
     
@@ -1200,10 +1279,10 @@ int HtmlBody (/*in*/ const char *   sArg)
     return ok ;
     }
 
-//// ----------------------------------------------------------------------------
-//// table tag ...
-//// and various list tags ... (dir, menu, ol, ul)
-////
+/*// ---------------------------------------------------------------------------- */
+/*// table tag ... */
+/*// and various list tags ... (dir, menu, ol, ul) */
+/*// */
 
 int HtmlTable (/*in*/ const char *   sArg)
     {
@@ -1211,12 +1290,11 @@ int HtmlTable (/*in*/ const char *   sArg)
 
     oputs (pCurrTag) ;
     if (*sArg != '\0')
-    	{
-    	oputc (' ') ;
-    	oputs (sArg) ;
-    	}
+        {
+        oputc (' ') ;
+        oputs (sArg) ;
+        }
     oputc ('>') ;
-    
     
     pCurrPos = NULL ;
     	
@@ -1237,16 +1315,24 @@ int HtmlTable (/*in*/ const char *   sArg)
     }
 
 
-//// ----------------------------------------------------------------------------
-//// /table tag ... (and end of list)
-////
+/*// ---------------------------------------------------------------------------- */
+/*// /table tag ... (and end of list) */
+/*// */
 
 int HtmlEndtable (/*in*/ const char *   sArg)
     {
     EPENTRY (HtmlEndtable) ;
 
-    if (State.nCmdType != cmdTable)
+    if (State.nCmdType != cmdTable || State.pCmd -> nCmdNo != pCurrCmd -> nCmdNo)
+        {
+        strncpy (errdat1, pCurrTag + 1, sizeof (errdat1) - 1) ; 
+        if (State.pCmd)
+            strcpy (errdat2, State.pCmd -> sCmdName) ; 
+        else
+            strcpy (errdat2, "NO TAG") ; 
+        
         return rcEndtableWithoutTable ;
+        }
 
     if (bDebug & dbgTab)
         lprintf ("[%d]TAB:  nResult=%d nRow=%d Used=%d nCol=%d Used=%d nCnt=%d Used=%d \n",
@@ -1276,9 +1362,9 @@ int HtmlEndtable (/*in*/ const char *   sArg)
     return ok ;
     }
 
-//// ----------------------------------------------------------------------------
-//// tr tag ...
-////
+/*// ---------------------------------------------------------------------------- */
+/*// tr tag ... */
+/*// */
 
 int HtmlRow (/*in*/ const char *   sArg)
     {
@@ -1286,14 +1372,13 @@ int HtmlRow (/*in*/ const char *   sArg)
 
     oputs (pCurrTag) ;
     if (*sArg != '\0')
-    	{
-    	oputc (' ') ;
-    	oputs (sArg) ;
-    	}
+        {
+        oputc (' ') ;
+        oputs (sArg) ;
+        }
     oputc ('>') ;
+
     pCurrPos = NULL ;
-
-
     
     TableState.nResult    = 1 ;
     TableState.nCol       = 0 ; 
@@ -1305,9 +1390,9 @@ int HtmlRow (/*in*/ const char *   sArg)
     return ok ;
     }
 
-//// ----------------------------------------------------------------------------
-//// /tr tag ...
-////
+/*// ---------------------------------------------------------------------------- */
+/*// /tr tag ... */
+/*// */
 
 int HtmlEndrow (/*in*/ const char *   sArg)
     {
@@ -1350,10 +1435,10 @@ int HtmlEndrow (/*in*/ const char *   sArg)
 
                         
 
-// ----------------------------------------------------------------------------
-// input tag ...
-//
-// ----------------------------------------------------------------------------
+/* ---------------------------------------------------------------------------- */
+/* input tag ... */
+/* */
+/* ---------------------------------------------------------------------------- */
 
 
 int HtmlInput (/*in*/ const char *   sArg)
@@ -1365,7 +1450,7 @@ int HtmlInput (/*in*/ const char *   sArg)
     const char *  pCheck ;
     int           nlen ;
     int           vlen ;
-    int           dlen ;
+    STRLEN        dlen ;
     int           tlen ;
     int           clen ;
     SV *          pSV ;
@@ -1381,29 +1466,19 @@ int HtmlInput (/*in*/ const char *   sArg)
 
     EPENTRY (HtmlInput) ;
 
-    pArgBuf = ArgBuf ;
-    
-    if ((rc = ScanCmdEvalsInString ((char *)sArg, &pArgBuf, sizeof (ArgBuf))) != ok)
-        return rc ;
-
-    sArg = pArgBuf ;
-
-    if ((bDebug & dbgInput) && sArg == ArgBuf)
-        lprintf ("[%d]INPU: Arg Evals to %s\n", nPid, sArg) ;
-    
     pName = GetHtmlArg (sArg, "NAME", &nlen) ;
     if (nlen == 0)
         {
         if (bDebug & dbgInput)
             lprintf ("[%d]INPU: has no name\n", nPid) ; 
         if (sArg == ArgBuf)
-            { // write translated values
+            { /* write translated values */
             oputs ("<INPUT ") ;
             oputs (sArg) ;
             oputc ('>') ;
             pCurrPos = NULL ;
             }
-        return ok ; // no Name
+        return ok ; /* no Name */
         }
 
     if (nlen >= sizeof (sName))
@@ -1432,13 +1507,13 @@ int HtmlInput (/*in*/ const char *   sArg)
             return rcHashError ;
         
         if (sArg == ArgBuf)
-            { // write translated values
+            { /* write translated values */
             oputs ("<INPUT ") ;
             oputs (sArg) ;
             oputc ('>') ;
             pCurrPos = NULL ;
             }
-        return ok ; // has already a value
+        return ok ; /* has already a value */
         }
 
 
@@ -1448,13 +1523,13 @@ int HtmlInput (/*in*/ const char *   sArg)
         if (bDebug & dbgInput)
             lprintf ("[%d]INPU: %s: no data available in form data\n", nPid, sName) ; 
         if (sArg == ArgBuf)
-            { // write translated values
+            { /* write translated values */
             oputs ("<INPUT ") ;
             oputs (sArg) ;
             oputc ('>') ;
             pCurrPos = NULL ;
             }
-        return ok ; // no data available
+        return ok ; /* no data available */
         }
 
     pData = SvPV (*ppSV, dlen) ;
@@ -1471,9 +1546,9 @@ int HtmlInput (/*in*/ const char *   sArg)
         if (pCheck)
             {
             if (bEqual)
-                { // Everything ok
+                { /* Everything ok */
                 if (sArg == ArgBuf)
-                    { // write translated values
+                    { /* write translated values */
                     oputs ("<INPUT ") ;
                     oputs (sArg) ;
                     oputc ('>') ;
@@ -1481,32 +1556,31 @@ int HtmlInput (/*in*/ const char *   sArg)
                     }
                 }
             else
-                { // Remove "checked"
+                { /* Remove "checked" */
                 oputs ("<INPUT ") ;
                 
-                if (owrite (sArg, pCheck - sArg, 1) != 1)
-                    return rcWriteErr ;
+                owrite (sArg, pCheck - sArg, 1) ;
     
-                oputs (pCheck + 7) ; // write rest of html tag
+                oputs (pCheck + 7) ; /* write rest of html tag */
                 oputc ('>') ;
 
-                pCurrPos = NULL ; // nothing more left of html tag
+                pCurrPos = NULL ; /* nothing more left of html tag */
                 }
             }
         else
             {
             if (bEqual)
-                { // Insert "checked"
+                { /* Insert "checked" */
                 oputs ("<INPUT ") ;
                 oputs (sArg) ;
                 oputs (" CHECKED>") ;
     
-                pCurrPos = NULL ; // nothing more left of html tag
+                pCurrPos = NULL ; /* nothing more left of html tag */
                 }
             else
                 {
                 if (sArg == ArgBuf)
-                    { // write translated values
+                    { /* write translated values */
                     oputs ("<INPUT ") ;
                     oputs (sArg) ;
                     oputc ('>') ;
@@ -1519,12 +1593,7 @@ int HtmlInput (/*in*/ const char *   sArg)
         {
         oputs ("<INPUT ") ;
 
-        if (owrite (sArg, pVal - sArg, 1) != 1)
-            return rcWriteErr ;
-    
-    
-        //if (owrite (pData, dlen, 1) != 1)
-        //    return rcWriteErr ;
+        owrite (sArg, pVal - sArg, 1) ;
 
         oputs (" VALUE=\"") ;
         OutputToHtml (pData) ;
@@ -1533,10 +1602,10 @@ int HtmlInput (/*in*/ const char *   sArg)
         while (*pVal && !isspace(*pVal))
             pVal++ ;
         
-        oputs (pVal) ; // write rest of html tag
+        oputs (pVal) ; /* write rest of html tag */
         oputc ('>') ;
 
-        pCurrPos = NULL ; // nothing more left of html tag
+        pCurrPos = NULL ; /* nothing more left of html tag */
         }
     else
         {
@@ -1546,7 +1615,7 @@ int HtmlInput (/*in*/ const char *   sArg)
         OutputToHtml (pData) ;
         oputs ("\">") ;
     
-        pCurrPos = NULL ; // nothing more left of html tag
+        pCurrPos = NULL ; /* nothing more left of html tag */
         }
 
 
@@ -1562,10 +1631,10 @@ int HtmlInput (/*in*/ const char *   sArg)
     return ok ;
     }
 
-// ----------------------------------------------------------------------------
-// textarea tag ...
-//
-// ----------------------------------------------------------------------------
+/* ---------------------------------------------------------------------------- */
+/* textarea tag ... */
+/* */
+/* ---------------------------------------------------------------------------- */
 
 
 int HtmlTextarea (/*in*/ const char *   sArg)
@@ -1576,10 +1645,10 @@ int HtmlTextarea (/*in*/ const char *   sArg)
     }
 
     
-// ----------------------------------------------------------------------------
-// /textarea tag ...
-//
-// ----------------------------------------------------------------------------
+/* ---------------------------------------------------------------------------- */
+/* /textarea tag ... */
+/* */
+/* ---------------------------------------------------------------------------- */
 
 
 int HtmlEndtextarea (/*in*/ const char *   sArg)
@@ -1590,7 +1659,7 @@ int HtmlEndtextarea (/*in*/ const char *   sArg)
     const char *  pData ;
     int           nlen ;
     int           vlen ;
-    int           dlen ;
+    STRLEN        dlen ;
     int           clen ;
     SV *          pSV ;
     SV **         ppSV ;
@@ -1613,7 +1682,7 @@ int HtmlEndtextarea (/*in*/ const char *   sArg)
         {
         if (bDebug & dbgInput)
             lprintf ("[%d]TEXT: has no name\n", nPid) ; 
-        return ok ; // no Name
+        return ok ; /* no Name */
         }
 
     if (nlen >= sizeof (sName))
@@ -1642,7 +1711,7 @@ int HtmlEndtextarea (/*in*/ const char *   sArg)
         if (hv_store (pInputHash, sName, strlen (sName), pSV, 0) == NULL)
             return rcHashError ;
         
-        return ok ; // has already a value
+        return ok ; /* has already a value */
         }
 
 
@@ -1651,7 +1720,7 @@ int HtmlEndtextarea (/*in*/ const char *   sArg)
         {
         if (bDebug & dbgInput)
             lprintf ("[%d]TEXT: %s: no data available in form data\n", nPid, sName) ; 
-        return ok ; // no data available
+        return ok ; /* no data available */
         }
 
     pData = SvPV (*ppSV, dlen) ;
@@ -1675,10 +1744,10 @@ int HtmlEndtextarea (/*in*/ const char *   sArg)
 
     
     
-//////////////////////////////////////////////////////////////////////////////////////////
-// 
-// Get a Value out of a perl hash
-//
+/*//////////////////////////////////////////////////////////////////////////////////////// */
+/*  */
+/* Get a Value out of a perl hash */
+/* */
 
 
 char * GetHashValueLen (/*in*/  HV *           pHash,
@@ -1690,7 +1759,7 @@ char * GetHashValueLen (/*in*/  HV *           pHash,
     {
     SV **   ppSV ;
     char *  p ;
-    int     len ;        
+    STRLEN  len ;        
 
     EPENTRY (GetHashValueLen) ;
 
@@ -1721,9 +1790,9 @@ char * GetHashValue (/*in*/  HV *           pHash,
 
 
 
-//// ----------------------------------------------------------------------------
-//// read form input from http server...
-////
+/*// ---------------------------------------------------------------------------- */
+/*// read form input from http server... */
+/*// */
 
 static int GetFormData (/*in*/ char * pQueryString,
                         /*in*/ int    nLen)
@@ -1743,6 +1812,10 @@ static int GetFormData (/*in*/ char * pQueryString,
     EPENTRY (GetFormData) ;
 
     hv_clear (pFormHash) ;
+    
+
+    if (nLen == 0)
+        return ok ;
     
     if ((pMem = _malloc (nLen + 4)) == NULL)
         return rcOutOfMemory ;
@@ -1798,12 +1871,12 @@ static int GetFormData (/*in*/ char * pQueryString,
                 if (nVal > 0)
                     {
                     if (ppSV = hv_fetch (pFormHash, pKey, nKey, 0))
-                        { // Field exists already -> append separator and field value
+                        { /* Field exists already -> append separator and field value */
                         sv_catpvn (*ppSV, &cMultFieldSep, 1) ;
                         sv_catpvn (*ppSV, pVal, nVal) ;
                         }
                     else
-                        { // New Field -> store it
+                        { /* New Field -> store it */
                         pSVV = newSVpv (pVal, nVal) ;
 
                         if (hv_store (pFormHash, pKey, nKey, pSVV, 0) == NULL)
@@ -1839,14 +1912,11 @@ static int GetFormData (/*in*/ char * pQueryString,
             }
         }
 
-    _free (pMem) ;
-
-    return ok ;    
     }
 
-//// ----------------------------------------------------------------------------
-//// read input from cgi process...
-////
+/*// ---------------------------------------------------------------------------- */
+/*// read input from cgi process... */
+/*// */
 
 
 static int GetInputData_CGIProcess ()
@@ -1925,9 +1995,9 @@ static int GetInputData_CGIProcess ()
     }
                         
 
-//// ----------------------------------------------------------------------------
-//// get form data when running as cgi script...
-////
+/*// ---------------------------------------------------------------------------- */
+/*// get form data when running as cgi script... */
+/*// */
 
 
 static int GetInputData_CGIScript ()
@@ -1999,104 +2069,12 @@ static int GetInputData_CGIScript ()
     return rc ;
     }
 
-// ----------------------------------------------------------------------------
-// scan html tag ...
-//
-// p points to '<'
-//
 
-static int ScanHtmlTag (/*in*/ char *   p)
-
-    { 
-    int  rc ;
-    char ec ;
-    char ea ;
-    char * pec ;
-    char * pea ;
-    char * pCmd ;
-    char * pArg ;
-
-
-    EPENTRY (ScanHtmlTag) ;
-    
-    
-    pCurrTag = p ;     // save start of html tag
-
-    // skip space
-    p++ ;
-    while (*p != '\0' && isspace (*p))
-            p++ ;
-    
-    pCmd = p ;               // start of tag name
-    while (*p != '\0' && !isspace (*p) && *p != '>')
-        p++ ;
-
-    ec = *p ;              // save first char after tag name
-    pec = p ;
-    *p = '\0' ;            // set end of tag name to \0
-    if (p)
-        p++ ;
-    pArg = p ;             // start of arguments
-
-    if (ec == '>')
-        { // No Arguments
-        pArg = p - 1 ;
-        pea = NULL ;
-        }
-    else
-        {
-        p = strchr (p, '>') ; // get end of tag
-
-        if (p)
-            {
-            ea = *p ;
-            pea = p ;
-            *p = '\0' ;            // set end of tag arguments to \0
-            p++ ;
-            }
-        else
-            {
-            p = pArg + strlen (pArg) ;
-            pea = NULL ;
-            }
-        }
-
-    pCurrPos = p ;    // pCurrPos = first char after whole tag
-
-    strlower (pCmd) ;         // see if knwon html tag and execute
-    if ((rc = ProcessCmd (pCmd, pArg, TRUE)) != ok)
-        {
-        if (rc == rcCmdNotFound)
-            {
-              // only write html tag start char and
-            p = pCurrPos = pCurrTag + 1 ;       // check if more to exceute within html tag
-            }
-        else
-            return rc ;
-        }
-
-
-    *pec = ec ;              // restore first char after tag name
-    if (pea)
-        *pea = ea ;              // restore first char after tag arguments
-
-    if (p == pCurrPos && pCurrPos) // if CurrPos didn't change write out html tag as it is
-        owrite (pCurrTag, 1, pCurrPos - pCurrTag) ;
-    
-    if (pCurrPos == NULL)
-        pCurrPos = p ; // html tag is written by command handler
-
-    pCurrTag = NULL ;
-
-    return ok ;    
-    }
-
-
-// ----------------------------------------------------------------------------
-// scan commands and evals ([x ... x] sequenz) ...
-//
-// p points to '['
-//
+/* ---------------------------------------------------------------------------- */
+/* scan commands and evals ([x ... x] sequenz) ... */
+/* */
+/* p points to '[' */
+/* */
 
 
     
@@ -2112,6 +2090,7 @@ static int ScanCmdEvals (/*in*/ char *   p)
     char    as ;
     char    nType ;
     SV *    pRet ;
+    struct tCmd * pCmd ;
 
 
     EPENTRY (ScanCmdEvals) ;
@@ -2126,30 +2105,33 @@ static int ScanCmdEvals (/*in*/ char *   p)
     pCurrPos = p ;
 
     if (nType != '+' && nType != '-' && nType != '$' )
-        { // escape (for [[ -> [)
-        if (nType != '[') 
-            oputc ('[') ;
-        oputc (nType) ;
+        { /* escape (for [[ -> [) */
+        if (State.bProcessCmds == cmdAll)
+            {
+            if (nType != '[') 
+                oputc ('[') ;
+            oputc (nType) ;
+            }
         return ok ;
         }
 
 
     do
-        { // search end 
+        { /* search end  */
         p++ ;
         if ((p = strchr (p, ']')) == NULL)
             break ;
         }   
     while (p[-1] != nType) ;
     if (p == NULL)
-        { // end not found
+        { /* end not found */
         sprintf (errdat1, "%c]", nType) ; 
         return rcMissingRight ;
         }
     p [-1] = '\0' ;
     p++ ;
 
-    // strip off all <HTML> Tags
+    /* strip off all <HTML> Tags */
 
     TransHtml (pCurrPos) ;
 
@@ -2197,8 +2179,12 @@ static int ScanCmdEvals (/*in*/ char *   p)
                 }
 
             pCurrPos = p ;
+
+            if ((rc = SearchCmd (c, a, FALSE, &pCmd)) != ok)
+                return rc ;
         
-            if ((rc = ProcessCmd (c, a, FALSE)) != ok)
+        
+            if ((rc = ProcessCmd (pCmd, a)) != ok)
                 return rc ;
         
             if (as != '\0')
@@ -2212,14 +2198,14 @@ static int ScanCmdEvals (/*in*/ char *   p)
     }
 
     
-// ----------------------------------------------------------------------------
-// process commands and evals in a string ...
-//
-// pIn   points to the string to process
-// pOut  pointer to a pointer to a buffer for the output, maybe point to pIn at
-//       exit if nothing to do or the buffer is filled with processed output
-// nSize size of outputbuffer
-//
+/* ---------------------------------------------------------------------------- */
+/* process commands and evals in a string ... */
+/* */
+/* pIn   points to the string to process */
+/* pOut  pointer to a pointer to a buffer for the output, maybe point to pIn at */
+/*       exit if nothing to do or the buffer is filled with processed output */
+/* nSize size of outputbuffer */
+/* */
 
 
     
@@ -2240,13 +2226,13 @@ static int ScanCmdEvalsInString (/*in*/  char *   pIn,
 
     if (p == NULL)
         {
-        //lprintf ("SC nothing sArg = %s\n", pIn) ;
-        *pOut = pIn ; // Nothing to do
+        lprintf ("SCEV nothing sArg = %s\n", pIn) ; 
+        *pOut = pIn ; /* Nothing to do */
         return ok ;
         }
-    //lprintf ("SC sArg = %s, p = %s\n", pIn, p) ;
+    lprintf ("SCEV sArg = %s, p = %s\n", pIn, p) ; 
 
-    // save global vars
+    /* save global vars */
     pSaveCurrPos   = pCurrPos ;
     pSaveCurrStart = pCurrStart ;
     pSaveEndPos    = pEndPos ;
@@ -2259,17 +2245,17 @@ static int ScanCmdEvalsInString (/*in*/  char *   pIn,
     rc = ok ;
     while (pCurrPos < pEndPos && rc == ok)
         {
-        //
-        // execute [x ... x] and replace them if nessecary
-        //
+        /* */
+        /* execute [x ... x] and replace them if nessecary */
+        /* */
         if (p == NULL || *p == '\0')
-            { // output the rest of html
+            { /* output the rest of html */
             owrite (pCurrPos, 1, pEndPos - pCurrPos) ;
             break ;
             }
         
         if (State.bProcessCmds == cmdAll)
-            // output until next cmd
+            /* output until next cmd */
             owrite (pCurrPos, 1, p - pCurrPos) ;
         
         if (bDebug & dbgSource)
@@ -2307,14 +2293,156 @@ static int ScanCmdEvalsInString (/*in*/  char *   pIn,
     return ok ;
     }
             
+/* ---------------------------------------------------------------------------- */
+/* scan html tag ... */
+/* */
+/* p points to '<' */
+/* */
+
+static int ScanHtmlTag (/*in*/ char *   p)
+
+    { 
+    int  rc ;
+    char ec ;
+    char ea ;
+    char * pec ;
+    char * pea ;
+    char * pCmd ;
+    char * pArg ;
+    char   ArgBuf [2048] ;
+    char * pArgBuf = ArgBuf ;
+    struct tCmd * pCmdInfo ;
+
+
+
+    EPENTRY (ScanHtmlTag) ;
     
-// ----------------------------------------------------------------------------
-// add magic to integer var
-//
-// in  sVarName = Name of varibale
-// in  pVirtTab = pointer to virtual table
-//
-// ----------------------------------------------------------------------------
+    
+    pCurrTag = p ;     /* save start of html tag */
+
+    /* skip space */
+    p++ ;
+    while (*p != '\0' && isspace (*p))
+            p++ ;
+    
+    pCmd = p ;               /* start of tag name */
+    while (*p != '\0' && !isspace (*p) && *p != '>')
+        p++ ;
+
+    ec = *p ;              /* save first char after tag name */
+    pec = p ;
+    *p++ = '\0' ;          /* set end of tag name to \0 */
+
+    if ((rc = SearchCmd (pCmd, "", TRUE, &pCmdInfo)) != ok)
+        {
+        *pec = ec ;
+        oputc (*pCurrTag) ;
+        pCurrPos = pCurrTag + 1 ;  
+        if (rc == rcCmdNotFound)
+            return ok ;    /* ignore this html tag */
+        return rc ;
+        }
+
+
+    /* look if there are any arguments */    
+    
+    pArg = p ;             /* start of arguments */
+    if (ec == '>')
+        { /* No Arguments */
+        pArg = p - 1 ;
+        pea = NULL ;
+        }
+    else
+        {
+        p = strchr (p, '>') ; /* get end of tag */
+
+        if (p)
+            {
+            ea = *p ;
+            pea = p ;
+            *p = '\0' ;            /* set end of tag arguments to \0 */
+            p++ ;
+            }
+        else
+            {
+            p = pArg + strlen (pArg) ;
+            pea = NULL ;
+            }
+        }
+
+    pCurrPos = p ;    /* pCurrPos = first char after whole tag */
+
+    
+    if (*pArg != '\0' && pCmdInfo -> bScanArg)
+    	{
+        if ((rc = ScanCmdEvalsInString ((char *)pArg, &pArgBuf, sizeof (ArgBuf))) != ok)
+            return rc ;
+    	}
+    else
+    	pArgBuf = pArg ;
+    
+    
+    /* see if knwon html tag and execute */
+
+    if ((rc = ProcessCmd (pCmdInfo, pArgBuf)) != ok)
+        {
+        if (rc == rcCmdNotFound)
+            {
+              /* only write html tag start char and */
+            /*p = pCurrPos = pCurrTag + 1 ;   */    /* check if more to exceute within html tag */
+            }
+        else
+            return rc ;
+        }
+
+
+    if (p == pCurrPos && pCurrPos) /* if CurrPos didn't change write out html tag as it is */
+        {
+        if (pArg == pArgBuf)
+            { /* write unmodified tag */    
+            *pec = ec ;              /* restore first char after tag name */
+            if (pea)
+                *pea = ea ;              /* restore first char after tag arguments */
+
+            //owrite (pCurrTag, 1, pCurrPos - pCurrTag) ;
+            oputc (*pCurrTag) ;
+            pCurrPos = pCurrTag + 1 ;
+            }
+        else
+            { /* write tag with interpreted args */
+            oputs (pCurrTag) ;
+            oputc (' ') ;
+            oputs (pArgBuf) ;
+            oputc ('>') ;
+            *pec = ec ;              /* restore first char after tag name */
+            if (pea)
+                *pea = ea ;              /* restore first char after tag arguments */
+
+            }
+        }
+    else
+        {
+        *pec = ec ;              /* restore first char after tag name */
+        if (pea)
+            *pea = ea ;              /* restore first char after tag arguments */
+        }
+
+    if (pCurrPos == NULL)
+        pCurrPos = p ; /* html tag is written by command handler */
+
+    pCurrTag = NULL ;
+
+    return ok ;    
+    }
+
+    
+/* ---------------------------------------------------------------------------- */
+/* add magic to integer var */
+/* */
+/* in  sVarName = Name of varibale */
+/* in  pVirtTab = pointer to virtual table */
+/* */
+/* ---------------------------------------------------------------------------- */
 
 static int AddMagic (/*in*/ char *     sVarName,
                      /*in*/ MGVTBL *   pVirtTab) 
@@ -2343,12 +2471,12 @@ static int AddMagic (/*in*/ char *     sVarName,
     }
 
 
-// ----------------------------------------------------------------------------
-// init embperl module
-//
-// in  nIOType = type of requested i/o
-//
-// ----------------------------------------------------------------------------
+/* ---------------------------------------------------------------------------- */
+/* init embperl module */
+/* */
+/* in  nIOType = type of requested i/o */
+/* */
+/* ---------------------------------------------------------------------------- */
 
 int iembperl_init (/*in*/ int     _nIOType,
                    /*in*/ const char *  sLogFile) 
@@ -2366,7 +2494,6 @@ int iembperl_init (/*in*/ int     _nIOType,
     SV *    pRet ;
     SV *    pSVMode  = newSViv (0) ;
 
-    EPENTRY (iembperl_init) ;
 
     nIOType = _nIOType ;
 
@@ -2377,10 +2504,13 @@ int iembperl_init (/*in*/ int     _nIOType,
     nPid = getpid () ;
 
 
-    OpenLog (sLogFile) ;
+    if ((rc = OpenLog (sLogFile)) != ok)
+        { 
+        bDebug = 0 ; /* Turn debbuging of, only errors will go to stderr */
+        LogError (rc) ;
+        }
 
     EPENTRY (iembperl_init) ;
-
 
     if (bDebug)
         {
@@ -2467,10 +2597,10 @@ int iembperl_init (/*in*/ int     _nIOType,
     return rc ;
     }
 
-// ----------------------------------------------------------------------------
-// clean up embperl module
-//
-// ----------------------------------------------------------------------------
+/* ---------------------------------------------------------------------------- */
+/* clean up embperl module */
+/* */
+/* ---------------------------------------------------------------------------- */
 
 int iembperl_term (void) 
 
@@ -2496,7 +2626,7 @@ int iembperl_setreqrec  (/*in*/ SV *   pReqSV)
         }    
     
     pReq = (request_rec *)SvIV((SV*)SvRV(pReqSV));
-    bDebug = 0 ; // set it to nothing for output of logfiles
+    bDebug = 0 ; /* set it to nothing for output of logfiles */
 #endif
 
     return ok ;
@@ -2524,7 +2654,8 @@ int iembperl_resetreqrec  ()
 int iembperl_req  (/*in*/ char *  sInputfile,
                    /*in*/ char *  sOutputfile,
                    /*in*/ int     bDebugFlags,
-                   /*in*/ char *  pNameSpaceName)
+                   /*in*/ char *  pNameSpaceName,
+                   /*in*/ int     nFileSize) 
 
 
 
@@ -2551,6 +2682,7 @@ int iembperl_req  (/*in*/ char *  sInputfile,
 
     EPENTRY (iembperl_req) ;
 
+   
     if (bDebug)
         {
         time_t t ;
@@ -2617,15 +2749,9 @@ int iembperl_req  (/*in*/ char *  sInputfile,
     nTabMaxCol  = 10 ;
     pCurrTag    = NULL ;
 
-    if (pBuf)
-        {
-        _free (pBuf) ;
-        pBuf = NULL ;
-        }
-
-    //
-    // read data from cgi script
-    //
+    /* */
+    /* read data from cgi script */
+    /* */
 
     rc = ok ;
     switch (nIOType)
@@ -2684,46 +2810,28 @@ int iembperl_req  (/*in*/ char *  sInputfile,
             oputs ("Content-type: text/html\n\n") ;
 
 
-    //
-    // read HTML File into PBuf
-    //
 
-    if (bDebug)
-        lprintf ("[%d]Reading %s as input...\n", nPid, sInputfile) ;
 
-    if ((ifd = open (sInputfile, O_RDONLY)) < 0)
+    /* Read HTML file */
+
+    if ((rc = ReadHTML (sInputfile, nFileSize, &pBuf)) != ok)
         {
-        strncpy (errdat1, sInputfile, sizeof (errdat1)) ;
-        LogError (rcFileOpenErr) ;
+        LogError (rc) ;
 #ifdef APACHE
         pReq = NULL ;
 #endif
-        return rcFileOpenErr ;
+        return rc ;
         }
 
-    fstat (ifd, &st) ;
-    
-    if ((pBuf = _malloc (st.st_size + 1)) == NULL)
-        {
-        LogError (rcOutOfMemory) ;
-#ifdef APACHE
-        pReq = NULL ;
-#endif
-        return rcOutOfMemory ;
-        }
 
-    read (ifd, pBuf, st.st_size) ;
 
-    close (ifd) ;
-    
-    pBuf [st.st_size] = '\0' ;
 
-    //
-    // Datei bearbeiten...
-    //
+    /* */
+    /* Datei bearbeiten... */
+    /* */
 
     pCurrPos = pBuf ;
-    pEndPos  = pBuf + st.st_size ;
+    pEndPos  = pBuf + nFileSize ;
 
     rc = ok ;
     while (pCurrPos < pEndPos && rc == ok)
@@ -2736,9 +2844,9 @@ int iembperl_req  (/*in*/ char *  sInputfile,
             }
         
         
-        //
-        // execute [x ... x] and special html tags and replace them if nessecary
-        //
+        /* */
+        /* execute [x ... x] and special html tags and replace them if nessecary */
+        /* */
 
         if (State.bProcessCmds == cmdAll)
             {
@@ -2750,13 +2858,13 @@ int iembperl_req  (/*in*/ char *  sInputfile,
             
             
         if (p == NULL || *p == '\0')
-            { // output the rest of html
+            { /* output the rest of html */
             owrite (pCurrPos, 1, pEndPos - pCurrPos) ;
             break ;
             }
         
         if (State.bProcessCmds == cmdAll)
-            // output until next cmd
+            /* output until next cmd */
             owrite (pCurrPos, 1, p - pCurrPos) ;
         
         if (bDebug & dbgSource)
@@ -2781,11 +2889,11 @@ int iembperl_req  (/*in*/ char *  sInputfile,
         
         pCurrStart = p ;
         if (*p == '<')
-            { // HTML Tag
+            { /* HTML Tag */
             rc = ScanHtmlTag (p) ;
             }
          else
-            { // [x ... x] sequenz
+            { /* [x ... x] sequenz */
             rc = ScanCmdEvals (p) ;
             }
         }
@@ -2812,13 +2920,22 @@ int iembperl_req  (/*in*/ char *  sInputfile,
         time (&t) ;        
         tm =localtime (&t) ;
         
+#ifdef CLOCKS_PER_SEC
         lprintf ("[%d]Request finished. %s. Entry-SVs: %d -OBJs: %d Exit-SVs: %d -OBJs: %d  Time: %d ms (cps %d)\n", nPid, asctime(tm), stsv_count, stsv_objcount, sv_count, sv_objcount, ((cl - startclock) * 1000 / CLOCKS_PER_SEC), CLOCKS_PER_SEC) ;
+#else
+        lprintf ("[%d]Request finished. %s. Entry-SVs: %d -OBJs: %d Exit-SVs: %d -OBJs: %d\n", nPid, asctime(tm), stsv_count, stsv_objcount, sv_count, sv_objcount) ;
+#endif        
         }
 
     FlushLog () ;
 
 
+
+    if (pBuf)
+        _free (pBuf) ;
+
 #ifdef APACHE
+    /* This must be the very very very last !!!!! */
     pReq = NULL ;
 #endif
 

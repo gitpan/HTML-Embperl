@@ -135,7 +135,7 @@ while ($apache && !$b)
 if ($b && $apache)
 	{
 	print "Will use $apache_src for Apache Headers\n" ;
-	$i = "-I$apache_src" ;
+	$i = "-I$apache_src -I$apache_src/regx" ;
 	$d = "-DAPACHE" ;
 	}
 else

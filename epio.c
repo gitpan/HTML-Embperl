@@ -24,27 +24,69 @@
 
 #define SET_BYTES_SENT(r) do {if (r->sent_bodyct) bgetopt (r->connection->client, BO_BYTECT, &r->bytes_sent); } while (0)
 
-// 
-// Avoid conflicts with Perl IO one 5.0003 beta versions
-// This is a quick hack, it will be change in the future to support real PerlIO
-//
 
-#ifdef PERLIO_NOT_STDIO 
-#undef fread
-#undef fwrite
-#undef fputs
-#undef fgets
+
+/*
+// Files
+*/
+
+#ifdef PerlIO
+
+#define FILEIOTYPE "PerlIO"
+
+static PerlIO *  ifd = NULL ;  /* input file */
+static PerlIO *  ofd = NULL ;  /* output file */
+static PerlIO *  lfd = NULL ;  /* log file */
+#else
+
+#define FILEIOTYPE "StdIO"
+
+static FILE *  ifd = NULL ;  /* input file */
+static FILE *  ofd = NULL ;  /* output file */
+static FILE *  lfd = NULL ;  /* log file */
 #endif
 
 
-//
-// Files
-//
+#ifndef PerlIO
+
+/* define same helper macros to let it run with plain perl 5.003 */
+/* where no PerlIO is present */
+
+/*
+#undef PerlIO_close 
+#undef PerlIO_open 
+#undef PerlIO_flush 
+#undef PerlIO_vprintf
+#undef PerlIO_fileno
+
+#undef PerlIO_read
+#undef PerlIO_write
+
+#undef PerlIO_putc
+*/
+
+#define PerlIO_stdinF stdin
+#define PerlIO_stdoutF stdout
+#define PerlIO_stderrF stderr
+#define PerlIO_close fclose
+#define PerlIO_open fopen
+#define PerlIO_flush fflush
+#define PerlIO_vprintf vfprintf
+#define PerlIO_fileno fileno
+
+#define PerlIO_read(f,buf,cnt) fread(buf,cnt,1,f)
+#define PerlIO_write(f,buf,cnt) fwrite(buf,cnt,1,f)
+
+#define PerlIO_putc(f,c) fputc(c,f)
+
+#else
+
+#define PerlIO_stdinF PerlIO_stdin ()
+#define PerlIO_stdoutF PerlIO_stdout ()
+#define PerlIO_stderrF PerlIO_stderr ()
 
 
-static FILE *  ifd = NULL ;  // input file
-static FILE *  ofd = NULL ;  // output file
-static FILE *  lfd = NULL ;  // log file
+#endif
 
 
 
@@ -53,32 +95,32 @@ static FILE *  lfd = NULL ;  // log file
 #endif
 
 
-//
+/*
 // Datastructure for buffering output
-//
+*/
 
 
 
-static struct tBuf *    pFirstBuf = NULL ;  // First buffer
-static struct tBuf *    pLastBuf  = NULL ;  // Last written buffer
+static struct tBuf *    pFirstBuf = NULL ;  /* First buffer */
+static struct tBuf *    pLastBuf  = NULL ;  /* Last written buffer */
 
 
-static char * pMemBuf ;     // temporary output
-static size_t nMemBufSize ; // remaining space in pMemBuf
+static char * pMemBuf ;     /* temporary output */
+static size_t nMemBufSize ; /* remaining space in pMemBuf */
 
 
-//
+/*
 // Makers for rollback output
-//
+*/
 
 
 static int     nMarker ;
 
 
-////////////////////////////////////////////////////////////////////////////////////
+/* //////////////////////////////////////////////////////////////////////////////////
 //
 // begin output transaction
-//
+*/
 
 struct tBuf *   oBegin ()
 
@@ -89,10 +131,10 @@ struct tBuf *   oBegin ()
     return pLastBuf ;
     }
 
-////////////////////////////////////////////////////////////////////////////////////
+/* ///////////////////////////////////////////////////////////////////////////////////
 //
 // rollback output transaction (throw away all the output since corresponding begin)
-//
+*/
 
 void oRollback (struct tBuf *   pBuf) 
 
@@ -116,10 +158,10 @@ void oRollback (struct tBuf *   pBuf)
     pLastBuf = pBuf ;
     }
 
-////////////////////////////////////////////////////////////////////////////////////
+/* ///////////////////////////////////////////////////////////////////////////////////
 //
 // commit output transaction (all the output since corresponding begin is vaild)
-//
+*/
 
 void oCommit (struct tBuf *   pBuf) 
 
@@ -151,13 +193,13 @@ void oCommit (struct tBuf *   pBuf)
     }
 
 
-////////////////////////////////////////////////////////////////////////////////////
+/* ///////////////////////////////////////////////////////////////////////////////////
 //
 // write to a buffer
 //
 // we will alloc a new buffer for every write
 // this is fast with apache palloc or for malloc if no free is call in between
-//
+*/
 
 
 static int bufwrite (/*in*/ const void * ptr, size_t size) 
@@ -191,10 +233,10 @@ static int bufwrite (/*in*/ const void * ptr, size_t size)
 
 
 
-////////////////////////////////////////////////////////////////////////////////////
+/* ///////////////////////////////////////////////////////////////////////////////////
 //
 // set the name of the input file and open it
-//
+*/
 
 
 int OpenInput (/*in*/ const char *  sFilename)
@@ -205,20 +247,33 @@ int OpenInput (/*in*/ const char *  sFilename)
         return ok ;
 #endif
     
-    if (ifd)
-        fclose (ifd) ;
+    if (ifd && ifd != PerlIO_stdinF)
+        PerlIO_close (ifd) ;
 
     ifd = NULL ;
 
     if (sFilename == NULL || *sFilename == '\0')
         {
-        ifd = stdin ;
+        /*
+        GV * io = gv_fetchpv("STDIN", TRUE, SVt_PVIO) ;
+        if (io == NULL || (ifd = IoIFP(io)) == NULL)
+            {
+            if (bDebug)
+                lprintf ("[%d]Cannot get Perl STDIN, open os stdin\n", nPid) ;
+            ifd = PerlIO_stdinF ;
+            }
+        */
+        
+        ifd = PerlIO_stdinF ;
+
         return ok ;
         }
 
-    if ((ifd = fopen (sFilename, "r")) == NULL)
+    if ((ifd = PerlIO_open (sFilename, "r")) == NULL)
         {
-        strncpy (errdat1, sFilename, sizeof (sFilename)) ;
+        strncpy (errdat1, sFilename, sizeof (errdat1) - 1) ;
+        if (errno >= 0 && errno < sys_nerr)
+            strncpy (errdat2, sys_errlist[errno], sizeof (errdat2) - 1) ; 
         return rcFileOpenErr ;
         }
 
@@ -226,10 +281,10 @@ int OpenInput (/*in*/ const char *  sFilename)
     }
 
 
-////////////////////////////////////////////////////////////////////////////////////
+/* ///////////////////////////////////////////////////////////////////////////////////
 //
 // close the input file 
-//
+*/
 
 
 int CloseInput ()
@@ -240,8 +295,8 @@ int CloseInput ()
         return ok ;
 #endif
 
-    if (ifd)
-        fclose (ifd) ;
+    if (ifd && ifd != PerlIO_stdinF)
+        PerlIO_close (ifd) ;
 
     ifd = NULL ;
 
@@ -250,55 +305,113 @@ int CloseInput ()
 
 
 
-////////////////////////////////////////////////////////////////////////////////////
+/* ///////////////////////////////////////////////////////////////////////////////////
 //
 // read block of data from input (web client)
-//
+*/
 
 
 int iread (/*in*/ void * ptr, size_t size, size_t nmemb) 
 
     {
-#ifdef APACHE
+    int n = size * nmemb ;
+
+    if (n == 0)
+        return 0 ;
+
+#if defined (APACHE)
     if (pReq)
         {
         setup_client_block(pReq, REQUEST_CHUNKED_ERROR); 
         if(should_client_block(pReq))
             {
-            int n = get_client_block(pReq, ptr, size * nmemb); 
-            return n / size ;
+            int c = get_client_block(pReq, ptr, n); 
+            return c / size ;
             }
         else
             return 0 ;
         } 
 #endif
 
-    return fread (ptr, size, nmemb, ifd) ;
+    return PerlIO_read (ifd, ptr, n) ;
     }
 
 
-////////////////////////////////////////////////////////////////////////////////////
+/* ///////////////////////////////////////////////////////////////////////////////////
 //
 // read line of data from input (web client)
-//
+*/
 
 
 char * igets    (/*in*/ char * s,   int    size) 
 
     {
-#ifdef APACHE
+#if defined (APACHE)
     if (pReq)
         return NULL ;
 #endif
 
+#ifdef PerlIO
+        {
+        FILE * f = PerlIO_exportFILE (ifd, 0) ;
+        char * p = fgets (s, size, f) ;
+        PerlIO_releaseFILE (ifd, f) ;
+        return p ;
+        }
+#else
     return fgets (s, size, ifd) ;
+#endif
+    }
+
+/* ///////////////////////////////////////////////////////////////////////////////////
+//
+// read HTML File into PBuf
+*/
+
+int ReadHTML (/*in*/    char *  sInputfile,
+              /*in*/    size_t  nFileSize,
+              /*out*/   char * * ppBuf)
+
+    {              
+    char * pBuf ;
+#ifdef PerlIO
+    PerlIO * ifd ;
+#else
+    FILE *   ifd ;
+#endif
+    
+    if (bDebug)
+        lprintf ("[%d]Reading %s as input using %s ...\n", nPid, sInputfile, FILEIOTYPE) ;
+
+    if ((ifd = PerlIO_open (sInputfile, "r")) == NULL)
+        {
+        strncpy (errdat1, sInputfile, sizeof (errdat1) - 1) ;
+        if (errno >= 0 && errno < sys_nerr)
+            strncpy (errdat2, sys_errlist[errno], sizeof (errdat2) - 1) ; 
+        return rcFileOpenErr ;
+        }
+
+    if ((pBuf = _malloc (nFileSize + 1)) == NULL)
+        {
+        return rcOutOfMemory ;
+        }
+
+    PerlIO_read (ifd, pBuf, nFileSize) ;
+
+    PerlIO_close (ifd) ;
+    
+    pBuf [nFileSize] = '\0' ;
+
+    *ppBuf = pBuf ;
+
+    return ok ;
     }
 
 
-////////////////////////////////////////////////////////////////////////////////////
+/* ///////////////////////////////////////////////////////////////////////////////////
 //
 // set the name of the output file and open it
-//
+*/
 
 
 int OpenOutput (/*in*/ const char *  sFilename)
@@ -312,35 +425,55 @@ int OpenOutput (/*in*/ const char *  sFilename)
 
 
 
-#ifdef APACHE
+#if defined (APACHE)
     if (pReq)
         {
         if (bDebug)
-            lprintf ("[%d]Open APACHE for output...\n", nPid) ;
+            lprintf ("[%d]Using APACHE for output...\n", nPid) ;
         return ok ;
         }
 #endif
 
     
-    if (ofd)
-        fclose (ofd) ;
+    if (ofd && ofd != PerlIO_stdoutF)
+        PerlIO_close (ofd) ;
 
     ofd = NULL ;
 
     if (sFilename == NULL || *sFilename == '\0')
         {
-        ofd = stdout ;
+        /*
+        GV * io = gv_fetchpv("STDOUT", TRUE, SVt_PVIO) ;
+        if (io == NULL || (ofd = IoOFP(io)) == NULL)
+            {
+            if (bDebug)
+                lprintf ("[%d]Cannot get Perl STDOUT, open os stdout\n", nPid) ;
+            ofd = PerlIO_stdoutF ;
+            }
+        */
+
+        ofd = PerlIO_stdoutF ;
+        
         if (bDebug)
-            lprintf ("[%d]Open STDOUT for output...\n", nPid) ;
+            {
+#ifdef APACHE
+             if (pReq)
+                lprintf ("[%d]Open STDOUT to Apache for output...\n", nPid) ;
+             else
+#endif
+             lprintf ("[%d]Open STDOUT for output...\n", nPid) ;
+            }
         return ok ;
         }
 
     if (bDebug)
         lprintf ("[%d]Open %s for output...\n", nPid, sFilename) ;
 
-    if ((ofd = fopen (sFilename, "w")) == NULL)
+    if ((ofd = PerlIO_open (sFilename, "w")) == NULL)
         {
-        strncpy (errdat1, sFilename, sizeof (sFilename)) ;
+        strncpy (errdat1, sFilename, sizeof (errdat1) - 1) ;
+        if (errno >= 0 && errno < sys_nerr)
+            strncpy (errdat2, sys_errlist[errno], sizeof (errdat2) - 1) ; 
         return rcFileOpenErr ;
         }
 
@@ -348,22 +481,22 @@ int OpenOutput (/*in*/ const char *  sFilename)
     }
 
 
-////////////////////////////////////////////////////////////////////////////////////
+/* ///////////////////////////////////////////////////////////////////////////////////
 //
 // close the output file 
-//
+*/
 
 
 int CloseOutput ()
 
     {
-#ifdef APACHE
+#if defined (APACHE)
     if (pReq)
         return ok ;
 #endif
 
-    if (ofd)
-        fclose (ofd) ;
+    if (ofd && ofd != PerlIO_stdoutF)
+        PerlIO_close (ofd) ;
 
     ofd = NULL ;
 
@@ -371,10 +504,10 @@ int CloseOutput ()
     }
 
 
-////////////////////////////////////////////////////////////////////////////////////
+/* ///////////////////////////////////////////////////////////////////////////////////
 //
 // set output to memory buffer
-//
+*/
 
 
 void OutputToMemBuf (/*in*/ char *  pBuf,
@@ -386,10 +519,10 @@ void OutputToMemBuf (/*in*/ char *  pBuf,
     }
 
 
-////////////////////////////////////////////////////////////////////////////////////
+/* ///////////////////////////////////////////////////////////////////////////////////
 //
 // set output to stdandard
-//
+*/
 
 
 void OutputToStd    ()
@@ -401,10 +534,10 @@ void OutputToStd    ()
 
 
 
-////////////////////////////////////////////////////////////////////////////////////
+/* ///////////////////////////////////////////////////////////////////////////////////
 //
 // puts to output (web client)
-//
+*/
 
 
 
@@ -415,16 +548,19 @@ int oputs (/*in*/ const char *  str)
     }
 
 
-////////////////////////////////////////////////////////////////////////////////////
+/* ///////////////////////////////////////////////////////////////////////////////////
 //
 // write block of data to output (web client)
-//
+*/
 
 
 int owrite (/*in*/ const void * ptr, size_t size, size_t nmemb) 
 
     {
     int n = size * nmemb ;
+
+    if (n == 0)
+        return 0 ;
 
     if (pMemBuf)
         {
@@ -441,7 +577,7 @@ int owrite (/*in*/ const void * ptr, size_t size, size_t nmemb)
     if (nMarker)
         return bufwrite (ptr, n) / size ;
 
-#ifdef APACHE
+#if defined (APACHE)
     if (pReq)
         {
         if (n > 0)
@@ -457,21 +593,21 @@ int owrite (/*in*/ const void * ptr, size_t size, size_t nmemb)
 #endif
     if (n > 0)
         {
-        n = fwrite ((void *)ptr, size, nmemb, ofd) ;
+        n = PerlIO_write (ofd, (void *)ptr, size * nmemb) ;
 
         if (bDebug & dbgFlushOutput)
-            fflush (ofd) ;
+            PerlIO_flush (ofd) ;
         }
 
-    return n ;
+    return n / size ;
     }
 
 
 
-////////////////////////////////////////////////////////////////////////////////////
+/* ///////////////////////////////////////////////////////////////////////////////////
 //
 // write one char to output (web client)
-//
+*/
 
 
 void oputc (/*in*/ char c)
@@ -483,77 +619,80 @@ void oputc (/*in*/ char c)
         return ;
         }
 
-#ifdef APACHE
+#if defined (APACHE)
     if (pReq)
         {
         rputc (c, pReq) ;
         if (bDebug & dbgFlushOutput)
             rflush (pReq) ;
+        return ;
         }
 #endif
-    fputc (c, ofd) ;
+    PerlIO_putc (ofd, c) ;
 
     if (bDebug & dbgFlushOutput)
-        fflush (ofd) ;
+        PerlIO_flush (ofd) ;
     }
 
 
 
-////////////////////////////////////////////////////////////////////////////////////
+/* ///////////////////////////////////////////////////////////////////////////////////
 //
 // set the name of the log file and open it
-//
+*/
 
 
 int OpenLog (/*in*/ const char *  sFilename)
 
     {
-    if (lfd)
-        fclose (lfd) ;
+    if (lfd && lfd != PerlIO_stdoutF)
+        PerlIO_close (lfd) ;
 
     lfd = NULL ;
 
     if (sFilename == NULL || *sFilename == '\0')
         {
             {
-            lfd = stdout ;
+            lfd = PerlIO_stdoutF ;
             return ok ;
             }
         }
 
-    if ((lfd = fopen (sFilename, "a")) == NULL)
+    if ((lfd = PerlIO_open (sFilename, "a")) == NULL)
         {
-        strncpy (errdat1, sFilename, sizeof (sFilename)) ;
-        return rcFileOpenErr ;
+        strncpy (errdat1, sFilename, sizeof (errdat1) - 1) ;
+        if (errno >= 0 && errno < sys_nerr)
+            strncpy (errdat2, sys_errlist[errno], sizeof (errdat2) - 1) ; 
+        return rcLogFileOpenErr ;
         }
 
     return ok ;
     }
 
-////////////////////////////////////////////////////////////////////////////////////
+/* ///////////////////////////////////////////////////////////////////////////////////
 //
 // return the handle of the log file 
-//
+*/
 
 
 int GetLogHandle ()
 
     {
-    return fileno (lfd) ;
+    return PerlIO_fileno (lfd) ;
     }
 
 
-////////////////////////////////////////////////////////////////////////////////////
+/* ///////////////////////////////////////////////////////////////////////////////////
 //
 // close the log file 
-//
+*/
 
 
 int CloseLog ()
 
     {
-    if (lfd)
-        fclose (lfd) ;
+    if (lfd && lfd != PerlIO_stdoutF)
+        PerlIO_close (lfd) ;
 
     lfd = NULL ;
 
@@ -562,26 +701,26 @@ int CloseLog ()
 
 
 
-////////////////////////////////////////////////////////////////////////////////////
+/* ///////////////////////////////////////////////////////////////////////////////////
 //
 // flush the log file 
-//
+*/
 
 
 int FlushLog ()
 
     {
-    fflush (lfd) ;
+    PerlIO_flush (lfd) ;
 
     return ok ;
     }
 
 
 
-////////////////////////////////////////////////////////////////////////////////////
+/* ///////////////////////////////////////////////////////////////////////////////////
 //
 // printf to log file
-//
+*/
 
 int lprintf (/*in*/ const char *  sFormat,
              /*in*/ ...) 
@@ -590,12 +729,15 @@ int lprintf (/*in*/ const char *  sFormat,
     va_list  ap ;
     int      n ;
 
+    if (lfd == NULL)
+        return 0 ;
+    
     va_start (ap, sFormat) ;
     
         {
-        n = vfprintf (lfd, sFormat, ap) ;
+        n = PerlIO_vprintf (lfd, sFormat, ap) ;
         if (bDebug & dbgFlushLog)
-            fflush (lfd) ;
+            PerlIO_flush (lfd) ;
         }
 
 
@@ -605,10 +747,10 @@ int lprintf (/*in*/ const char *  sFormat,
     }
 
 
-////////////////////////////////////////////////////////////////////////////////////
+/* ///////////////////////////////////////////////////////////////////////////////////
 //
 // write block of data to log file
-//
+*/
 
 
 int lwrite (/*in*/ const void * ptr, size_t size, size_t nmemb) 
@@ -616,10 +758,10 @@ int lwrite (/*in*/ const void * ptr, size_t size, size_t nmemb)
     {
     int n ;
 
-    n = fwrite ((void *)ptr, size, nmemb, lfd) ;
+    n = PerlIO_write (lfd, (void *)ptr, size * nmemb) ;
 
     if (bDebug & dbgFlushLog)
-        fflush (lfd) ;
+        PerlIO_flush (lfd) ;
 
     return n ;
     }
@@ -627,10 +769,10 @@ int lwrite (/*in*/ const void * ptr, size_t size, size_t nmemb)
 
 
 
-////////////////////////////////////////////////////////////////////////////////////
+/* ///////////////////////////////////////////////////////////////////////////////////
 //
 // Memory Allocation
-//
+*/
 
 
 void _free (void * p)

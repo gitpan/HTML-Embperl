@@ -16,7 +16,7 @@ MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 OVERVIEW
 
 Look at perldoc Embperl for documentation.
-or at http://www.osf.org/~dougm/apache/embperl.html for a short description
+or at http://perl.apache.org/embperl.html for a short description
 
 Embperl allows you to embed perl code in your HTML documents. The code can 
 be used to compute something (e.g. retrieve data from a database) or to 
@@ -30,15 +30,6 @@ Apache httpd (which is the fastest approach).
 
 INSTALATION
 
-NOTE: Embperl has been renamed to HTML::Embperl in this version. Please remove
-      old Embperl before you continue. Under the perl directory you have to
-      remove the following files/directories:
-      
-      man/man3/Embperl.3
-      site_perl/auto/Embperl
-      site_perl/Embperl.pm
-      site_perl/<processor>-<os>/auto/Embperl
-       
 - Unpack the archive
 - perl Makefile.PL
 You will be ask if want to compile in support for Apache mod_perl. If 
@@ -58,6 +49,11 @@ See the eg/ directory for examples.
 I have successfully tested this on Linux 2.0.27, mod_perl 0.96 and higher,
 with perl 5.003 and 5.004 and Apache 1.2. Since there is (as far as I can see)
 no system dependent stuff, it should work on other systems as well.
+
+NOTE!
+
+In version 0.16 and above you need to set the 'Options ExecCGI' in your
+srm.conf for running under mod_perl!
 
 FEEDBACK
 
@@ -79,9 +75,10 @@ mailling list.
 SUPPORT
 
 You can get free support on the mod_perl mailing list (see above).
-If you need commercial support (with a garantie for response time/a solution) for Embperl
-or want a web site where you can run your Embperl/mod_perl scripts without setting
-up your own internet www-server, please send an email to info@ecos.de.
+If you need commercial support (with a garantie for response time/a solution)
+for Embperl or want a web site where you can run your Embperl/mod_perl scripts
+without setting up your own internet www-server, please send an email to
+info@ecos.de.
 
 WWW-LINKS
 

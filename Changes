@@ -1,5 +1,45 @@
 Revision history for Perl extension HTML::Embperl.
 
+0.16-beta  29 Aug 97
+   - Added more restrictive access check when running under mod_perl 
+     * Option ExecCGI must be set
+     * must not a directory
+   - Added a little bit more docs about how to view Embperl lofile with
+     your browser
+   - Added declaration for error dependend stuff to compile on solaris, check errno before
+     accessing sys_errlist to avoid SIGSEVs, Fixed another warning from Sun Pro C Compiler
+     (Thanks to Dan Peterson)
+   - Switched I/O to PerlIO if supported by installed Perl version.
+     Should now work with sfio (not tested yet)
+   - Added possibilty to include Embperl commands in all html tags 
+     (did not works for body, table and tr tags in previous versions)
+   - Preserve case of HTML tags
+   - Do not interpret unknown html tags anyhow, to handle "<" characters
+     which do not start a html tag better 
+   - Do not display the time needed for the request if CLOCKS_PER_SEC not
+     defined (e.g. SunOS - Thanks to Dan Peterson)
+   - Added apache_xx/src/regx to include path, to avoid problems when
+     apache was build with it's own regx library
+   - Show which tags mismatch in error message (table, dir, select etc.)
+   
+   - Fixed a bug which caused "[" character even printed when in a false
+     if path   
+
+
+0.15-beta  11 July 1997
+	- Added interpretation of SELECT Tag to generate dynamic listboxes
+	  from an arrary 
+	- Fixed a problem with dynamic lists
+	- Fixed some warnings displayed by the Sun Pro C Compiler (Thanks to Dan Peterson)
+	- Fixed an error message about missing IO::Handle 
+	- Changed all // comments to /* */ to be more compatiple with others
+	  than gnu-c compiler
+	- Insert a missing return in oputc caused a SIGSEV on Solaris  (Thanks to Dan Peterson) 
+        - Checked return code of Logfile open, to prevent a SIGSEV when cannot
+          write to logfile and write an errormessage in servers errorlog  (Thanks to Dan Peterson)
+        - Errors will also be logged to the servers error log (written to stderr)
+          
+
 0.14-beta 30 Juni 1997  
         - adding 8192 to EMBPERL_DEBUG and setting EMBPERL_VIRTLOG will add a link
           to Embperl output, so you can directly view the right part of the logfile

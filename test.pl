@@ -9,10 +9,15 @@ $cmppath = './test/cmp' ;
 
 
 @tests = ('plain.htm',
+	  'tagscan.htm',
+	  'tagscan.htm??0',
           'if.htm',
           'while.htm?erstes=Hallo&zweites=Leer+zeichen&drittes=%21%22%23&erstes=Wert2',
  	  'table.htm',
+	  'lists.htm?sel=2',
  	  'input.htm?feld5=Wert5&feld6=Wert6&feld7=Wert7&feld8=Wert8&cb5=cbv5&cb6=cbv6&cb7=cbv7&cb8=cbv8&cb9=ncbv9&cb10=ncbv10&cb11=ncbv11',
+	  'java.htm',
+	  'inputjava.htm',
 ) ;
 # 	  'taint.htm' ) ;
 
@@ -70,16 +75,18 @@ unlink ("$tmppath/out.htm") ;
 
 foreach $url (@tests)
     {
-    ($file, $query_info) = split (/\?/, $url) ;
+    ($file, $query_info, $debug) = split (/\?/, $url) ;
+    #print "f=$file q=$query_info d=$debug\n" ;
+    $debug = 65533 if ($debug eq '') ;	
 
     $page = "$inpath/$file" ;
     @testargs = ( '-o', "$tmppath/out.htm" ,
                   '-l', "$tmppath/test.log",
-                  '-d', '65535',
+                  '-d', $debug,
                    $page, $query_info) ;
     
     #print "$testargs[6] -> $testargs[1], Log = $testargs[3]\n" ;
-    print "$file...\t" ;
+    print "$file", $debug != 65533 ?"-d $debug ":"", "...\t" ;
     $err = HTML::Embperl::run (@testargs) ;
 
     if ($err == 0)

@@ -21,6 +21,7 @@
 #include <memory.h>
 #include <string.h>
 #include <ctype.h>
+#include <time.h>
 
 
 #ifdef APACHE
@@ -38,20 +39,24 @@
 #include "embperl.h"
 
 
+/* declare error information here, since it's not on all systems in stdlib.h */
+
+extern int errno;
+extern int sys_nerr;
+extern char *sys_errlist[];
 
 
-// Debug Flags
+/* Debug Flags */
 
 extern int  bDebug ;
 
-// Apache Request Record
+/* Apache Request Record */
 
 #ifdef APACHE
 extern request_rec * pReq ;
 #endif
 
 
-//
 
 int iembperl_init (int  nIOType,
                    const char * sLogFile) ;
@@ -61,22 +66,23 @@ int iembperl_term (void) ;
 int iembperl_req  (/*in*/ char *  sInputfile,
                    /*in*/ char *  sOutputfile,
                    /*in*/ int     bDebugFlags,
-                   /*in*/ char *  pNameSpaceName) ;
+                   /*in*/ char *  pNameSpaceName,
+                   /*in*/ int     nFileSize) ;
 
-//
+/*
 // Datastructure for buffering output
-//
+*/
 
 struct tBuf
     {
-    struct tBuf *   pNext ;     // Next buffer
-    int             nSize ;     // Size in bytes
-    int             nMarker ;   // nesting level
+    struct tBuf *   pNext ;     /* Next buffer  */
+    int             nSize ;     /* Size in bytes */
+    int             nMarker ;   /* nesting level */
     } ;
 
 
 
-// i/o functions
+/* i/o functions */
 
 
 int OpenInput   (/*in*/ const char *  sFilename) ;
@@ -109,15 +115,15 @@ int lprintf     (/*in*/ const char *  sFormat,
                  /*in*/ ...) ;
 
 
-// Memory Allocation
+/* Memory Allocation */
 
 void _free (void * p) ;
 void * _malloc (size_t  size) ;
 
 
-//
+/*
 // Character Translation
-//
+*/
 
 struct tCharTrans
     {

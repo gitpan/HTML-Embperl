@@ -1,3 +1,4 @@
+
 ###################################################################################
 #
 #   Embperl - Copyright (c) 1997 Gerald Richter / ECOS
@@ -17,6 +18,20 @@
 
 package HTML::Embperl;
 
+use Safe;
+use IO::Handle ;
+
+require Exporter;
+require DynaLoader;
+
+@ISA = qw(Exporter DynaLoader);
+
+
+$VERSION = '0.16-beta';
+
+
+bootstrap HTML::Embperl $VERSION;
+
 
 # Default logfilename
 
@@ -25,26 +40,24 @@ $Outputfile = '' ;  # Default to stdout
 $LogfileURL = '' ;
 
 
-#use Carp;
-use Safe;
-
-require Exporter;
-require DynaLoader;
-
-@ISA = qw(Exporter DynaLoader);
+%cache = () ;   # cache for evaled code
+$package = '' ; # package name for current document
 
 
-$VERSION = '0.14-beta';
+
 
 #$^W = TRUE ;
 
-bootstrap HTML::Embperl $VERSION;
 
 
-sub	epIOCGI       { 1 ; }
-sub	epIOProcess   { 2 ; }
-sub	epIOMod_Perl  { 3 ; }
-sub	epIOPerl      { 4 ; }
+
+embperl_constants () ;
+
+while (($k, $v) = each (%CONSTANT))
+	{
+	eval "sub $k { $v ; }" ;
+	die "Cannot define constant $k" if ($@) ;
+	}
 
 
 # Color definition for logfile output
@@ -65,9 +78,11 @@ sub	epIOPerl      { 4 ; }
 if (defined ($INC{'Apache.pm'}))
     { 
     my $log ;
+    
+    eval 'use Apache::Constants' ;
 
     $DefaultLog = $ENV{EMBPERL_LOG} if defined ($ENV{EMBPERL_LOG}) ;
-    embperl_init (epIOMod_Perl, $DefaultLog) ;
+    embperl_init (&epIOMod_Perl, $DefaultLog) ;
     $log = embperl_getloghandle () ;
     open LOG, ">>&=$log" || print STDERR "Embperl: Cannot open LOG (fh=$log)" ;
     autoflush LOG 1 ;
@@ -164,6 +179,59 @@ sub SendLogFile ($$)
 #######################################################################################
 
 
+sub CheckFile
+
+    {
+    my ($filename) = @_ ;
+
+
+    unless (-r $filename && -s _)
+        {
+	    embperl_logerror (&rcNotFound, $filename);
+	    return (&NOT_FOUND, 0) ;
+        }
+
+	if (defined ($req_rec) && !($req_rec->allow_options & &OPT_EXECCGI))
+        {
+	    embperl_logerror (&rcExecCGIMissing, $filename);
+	    return (&FORBIDDEN, 0) ;
+ 	    }
+	
+    if (-d _)
+        {
+	    embperl_logerror (&rcIsDir, $filename);
+	    return (&FORBIDDEN, 0);
+	    }
+    
+   	my $mtime = -M _ ;
+
+	# Escape everything into valid perl identifiers
+	$filename =~ s/([^A-Za-z0-9\/])/sprintf("_%2x",unpack("C",$1))/eg;
+
+	# second pass cares for slashes and words starting with a digit
+	$filename =~ s{
+			  (/)        # directory
+			  (\d?)      # package's first character
+			 }[
+			   "::" . ($2 ? sprintf("_%2x",unpack("C",$2)) : "")
+			  ]egx;
+
+	$package = "HTML::Embperl::ROOT$filename";
+
+	if (!defined($mtime{$filename}) || $mtime{$filename} != $mtime)
+        {
+        # clear out any entries in the cache
+        delete $cache{$filename} ;
+ 	}
+    
+    $cache{$filename}{'~-1'} = 1 ; # make sure hash is defined 
+    
+    return (0, -s _) ;
+    }
+
+#######################################################################################
+
+
 sub run (\@)
     
     {
@@ -176,7 +244,6 @@ sub run (\@)
     my $Cgi        = $#$args >= 0?0:1 ;
     my $rc         = 0 ;
     my $log ;
-
 
     while ($#$args >= 0)
     	{
@@ -219,17 +286,17 @@ sub run (\@)
     if ($Daemon)
         {
         $Logfile = '' || $ENV{EMBPERL_LOG};   # log to stdout
-        $ioType = epIOProcess ;
+        $ioType = &epIOProcess ;
         $Outputfile = $ENV{__RETFIFO} ;
         }
     elsif ($Cgi)
         {
 	    $Inputfile = $ENV{PATH_TRANSLATED} ;
-        $ioType = epIOCGI ;
+        $ioType = &epIOCGI ;
         }
     else
         {
-        $ioType = epIOPerl ;
+        $ioType = &epIOPerl ;
         }
 
     if (defined ($ENV{EMBPERL_VIRTLOG}) &&
@@ -243,6 +310,15 @@ sub run (\@)
         {
         addNameSpace ($ns) if (!defined ($NameSpace {$ns})) ;
         }
+    
+    my $filesize ;
+    
+    ($rc, $filesize) = CheckFile ($Inputfile) ;
+
+    if ($rc)
+        {
+        return $rc ;
+        }
 
 
     embperl_init ($ioType, $Logfile) ;
@@ -250,9 +326,9 @@ sub run (\@)
     open LOG, "<&=$log" ;
     do
 	    {
-	    $rc = embperl_req  ($Inputfile, $Outputfile, $Debugflags, $ns) ;
+	    $rc = embperl_req  ($Inputfile, $Outputfile, $Debugflags, $ns, $filesize ) ;
 	    }
-    until ($ioType != epIOProcess) ;
+    until ($ioType != &epIOProcess) ;
 
     close LOG ;
     embperl_term () ;
@@ -275,7 +351,7 @@ sub handler
 
     %ENV = $req_rec->Apache::cgi_env;
 
-    
+   
     if (defined ($ENV{EMBPERL_VIRTLOG}) &&
         $ENV{EMBPERL_VIRTLOG} eq $req_rec -> Apache::uri)
         {
@@ -287,9 +363,12 @@ sub handler
         return $rc ;
         }
     
-    if (!-e $req_rec -> Apache::filename)
+    my $filesize ;
+    ($rc, $filesize) = CheckFile ($req_rec -> Apache::filename) ;
+
+    if ($rc)
         {
-        return 404 ;
+        return $rc ;
         }
 
     $req_rec -> Apache::send_http_header ;
@@ -301,7 +380,6 @@ sub handler
         addNameSpace ($ns) if (!defined ($NameSpace {$ns})) ;
         }
 
-
     $rc = embperl_setreqrec ($req_rec) ;
     
     if ($rc == 0)
@@ -310,7 +388,7 @@ sub handler
         my $logfilepos = tell LOG ;
         $LogfileURL = "<A HREF=\"$ENV{EMBPERL_VIRTLOG}?$logfilepos&$$\">Logfile</A><BR>" ;
 
-        $rc = embperl_req ($ENV{PATH_TRANSLATED}, '', $ENV{EMBPERL_DEBUG}, $ns) ;
+        $rc = embperl_req ($ENV{PATH_TRANSLATED}, '', $ENV{EMBPERL_DEBUG}, $ns, $filesize) ;
         }
     
     if ($rc != 0)
@@ -354,7 +432,18 @@ sub MailFormTo
 
     return $ok ;
     }    
-    
+
+
+###############################################################################    
+#
+# Is module is only here that HTML::Embperl also shows up under module/by-module/Apache/ .
+#
+package Apache::Embperl; 
+
+
+
+*handler = \&HTML::Embperl::handler ;
+
             
 
 1;
@@ -406,7 +495,7 @@ is optional and give the filename of the logfile. Default is
 =item B<-d debugflags>
 
 specifies the level of debugging (What is written to the logfile). Default
-is nothing. See below for excat values. 
+is nothing. See below for exact values. 
 
 =back
 
@@ -456,16 +545,18 @@ C<PerlHandler>.
 
 Example of Apache C<srm.conf>:
 
-    SetEnv EMBPERL_DEBUG 237
+    SetEnv EMBPERL_DEBUG 2285
 
     Alias /embperl /path/to/embperl/eg
 
     <Location /embperl/x>
     SetHandler perl-script
     PerlHandler HTML::Embperl
+    Options ExecCGI
     </Location>
 
-
+See also under debugging (dbgLogLink and EMBPERL_VIRTLOG) how you can setup Embperl
+so you can view logfile with your browser!
 
 
 =item B<As standalone process>
@@ -497,7 +588,7 @@ before starting the processes.
 Input- and Formdata is the same as for the CGI-Script. Logfile outut is 
 going to stdout.
 
-B<WARNING:> Everybody who has write access to the named pipe can do thinks as 
+B<WARNING:> Everybody who has write access to the named pipe can do things as 
 user which runs Embperl daemon. So be carefully not to run Embperl as root 
 unless you are sure nobody else can access it.
 
@@ -526,7 +617,7 @@ Default is B</tmp/embperl.log>
 
 gives a virtual location, where you can access the embperl logfile with a browser.
 This feature is disabled (default) if EMBPERL_VIRTLOG is not specified. See also
-dbgLogLink.
+dbgLogLink for an Example how to set it up in your srm.conf.
 
 =item B<EMBPERL_DEBUG>
 
@@ -583,10 +674,25 @@ Embperl itself. Logs all functionentrys to the logfile (lot of data!)
 Inserts a link on the top of each page, which can be used to view the log for current
 html file. See also EMBEPRL_VIRTLOG under configuration.
 
+Example:
+
+    SetEnv EMBPERL_DEBUG 10477
+    SetEnv EMBPERL_VIRTLOG /embperl/log
+
+    <Location /embperl/log>
+    SetHandler perl-script
+    PerlHandler HTML::Embperl
+    Options ExecCGI
+    </Location>
+
+
 =back
 
-A good value to start is C<237>. If Embperl crashs (you get a Segmentation
-fault) add C<512> so the logfile is flushed and you can see where Embperl crashs.
+A good value to start is C<2285> or C<10477> if you want to view the logfile
+with your browser (Don't forget to set EMBPERL_VIRTLOG).
+If Embperl crashs (you get a Segmentation
+fault) add C<512> so the logfile is flushed and you can see where Embperl
+crashs.
 
 
 =item B<EMBPERL_NAMESPACE>
@@ -758,10 +864,12 @@ This could be used to display the result of database query if you have the
 result in an array. You make as much columns as you need. It is also 
 possible to call a fetch subroutine in each table row.
 
-=item B<dir, menu, ol, ul, dl, /dir, /menu, /ol, /ul, /dl>
+=item B<dir, menu, ol, ul, dl, select, /dir, /menu, /ol, /ul, /dl, /select>
 
-Lists are treated excatly as one dimensional tables. Only $row, $maxrow, $cnt,
+Lists and Dropdown/Listboxes are treated excatly as one dimensional tables.
+Only $row, $maxrow, $cnt,
 $maxcnt and $tabmode are honoured. $col and $maxcol are ignored.
+see eg/x/lists.htm for an example.
 
 =item B<input>
 
@@ -838,19 +946,43 @@ contains the number of tables cells displayed so far (see html tag table)
 
 determintas how the end of a dynamic table is detected:
 
-end of table
+B<end of table>
 
- 1	end when a expression with $row gets undefined (The row containing the undefined is not displayed)
- 2	end when a expression with $row gets undefined (The row containing the undefined is displayed)
- 3	end when $maxrow rows displayed
+=over 4
 
-end of row
+=item B<1>
 
- 16	end when a expression with $col gets undefined (The column containing the undefined is not displayed)
- 32	end when a expression with $col gets undefined (The column containing the undefined is displayed)
- 63	end when $maxcol column displayed
+end when a expression with $row gets undefined (The row containing the undefined is not displayed)
 
-default is 17 which is correct for all sort of arrays. You rarely should have
+=item B<2>
+
+end when a expression with $row gets undefined (The row containing the undefined is displayed)
+
+=item B<3>
+
+end when $maxrow rows displayed
+
+=back
+
+B<end of row>
+
+=over 4
+
+=item B<16>
+
+end when a expression with $col gets undefined (The column containing the undefined is not displayed)
+
+=item B<32>
+
+end when a expression with $col gets undefined (The column containing the undefined is displayed)
+
+=item B<63>
+
+end when $maxcol column displayed
+
+=back
+
+default is B<17> which is correct for all sort of arrays. You rarely should have
 to change it.
 The two values can be added together
 
@@ -953,9 +1085,9 @@ up your own internet www-server, please send an email to info@ecos.de.
 
 =head1 WWW-LINKS
 
-mod_perl            http://www.osf.org/~dougm/apache/
+mod_perl            http://perl.apache.org/
 mod_perl FAQ        http://www.ping.de/~fdc/mod_perl/
-Embperl             http://www.osf.org/~dougm/apache/embperl.html
+Embperl             http://perl.apache.org/embperl.html
 apache web server   http://www.apache.org/
 see also            http://www.perl.com/CPAN/modules/by-module/Apache/apache-modlist.html
 

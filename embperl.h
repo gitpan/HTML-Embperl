@@ -15,9 +15,9 @@
 ###################################################################################*/
 
 
-//
+/*
 // Errors and Return Codes
-//
+*/
 
 enum tRc
     {
@@ -46,15 +46,24 @@ enum tRc
     rcArgStackOverflow,
     rcEvalErr,
     rcNotCompiledForModPerl,
+    rcLogFileOpenErr,
+    rcExecCGIMissing,
+    rcIsDir,
+    rcXNotSet,
+    rcNotFound,
     } ;
 
+#define rcstover rcStackOverflow
 
-extern char errdat1 [1024]  ;
+#define ERRDATLEN 256
+
+extern char errdat1 [ERRDATLEN]  ;
+extern char errdat2 [ERRDATLEN]  ;
 
 
-//
+/*
 // Debug Flags
-//
+*/
 
 enum dbg
     {
@@ -76,56 +85,30 @@ enum dbg
     dbgAll  = 0xffff,
     } ;
 
-#define epDbgStd dbgStd
-#define epDbgMem dbgMem
-#define epDbgEval dbgEval
-#define epDbgCmd dbgCmd
-#define epDbgEnv dbgEnv
-#define epDbgForm  dbgForm
-#define epDbgTab   dbgTab
-#define epDbgInput dbgInput
-#define epDbgFlushOutput dbgFlushOutput
-#define epDbgFlushLog dbgFlushLog
-#define epDbgAllCmds  dbgAllCmds
-#define epDbgSource   dbgSource
 
-
-#define epDbgAll   dbgAll
-
-
-//
+/*
 // I/O modes
-//
+*/
 
-
-#define epIOCGI      1
-#define epIOProcess  2
-#define epIOMod_Perl 3
-#define epIOPerl     4
-
-//
+enum epIO
+    {
+    epIOCGI      = 1,
+    epIOProcess  = 2,
+    epIOMod_Perl = 3,
+    epIOPerl     = 4
+    } ;
+    
+/*
 // Table modes
-//
+*/
 
-#define epTabRow        0x0f   // Row Mask
-#define epTabRowDef     0x01   // Last row where last defined expression
-#define epTabRowUndef   0x02   // Last row where first undefined expression
-#define epTabRowMax     0x03   // maxrow determinates number of rows
+#define epTabRow        0x0f   /* Row Mask */
+#define epTabRowDef     0x01   /* Last row where last defined expression */
+#define epTabRowUndef   0x02   /* Last row where first undefined expression */
+#define epTabRowMax     0x03   /* maxrow determinates number of rows */
 
-#define epTabCol        0xf0   // Column Mask
-#define epTabColDef     0x10   // Last column where last defined expression
-#define epTabColUndef   0x20   // Last column where first undefined expression
-#define epTabColMax     0x30   // maxcol determinates number of columns
-
-
-//
-// exported functions
-//
-
-
-int embperl_init (int  nIOType,
-                  const char * sLogFile) ;
-int embperl_term (void) ;
-int embperl_req  (/*in*/ int    bDebugFlags,
-                  /*in*/ SV *   pSVNameSpace) ;
+#define epTabCol        0xf0   /* Column Mask */
+#define epTabColDef     0x10   /* Last column where last defined expression */
+#define epTabColUndef   0x20   /* Last column where first undefined expression */
+#define epTabColMax     0x30   /* maxcol determinates number of columns */
 
