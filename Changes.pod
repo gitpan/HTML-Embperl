@@ -1,5 +1,12 @@
 =pod
 
+=head1 1.3.6 (RELEASE)   22. Jan 2003
+
+   - Fixed unicode problems in make test with Perl 5.8.0. With
+     support from Robert.
+   - Fixed warning about missing CLOSE method with Perl 5.8.0
+     Reported by Rajesh Kumar Mallah.
+
 =head1 1.3.5 (RELEASE)   23. Dec 2002
 
    - Runs now with Perl 5.8.0. Thanks to Angus Lees who 

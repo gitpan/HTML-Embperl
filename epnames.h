@@ -10,7 +10,7 @@
 #   IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 #   WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 #
-#   $Id: epnames.h,v 1.30 2001/12/04 07:43:15 richter Exp $
+#   $Id: epnames.h,v 1.30.2.1 2003/01/22 08:23:35 richter Exp $
 #
 ###################################################################################*/
 

@@ -10,7 +10,7 @@
 #   IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 #   WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 #
-#   $Id: Embperl.pm,v 1.177 2002/05/23 03:36:15 richter Exp $
+#   $Id: Embperl.pm,v 1.177.2.2 2003/01/22 09:08:19 richter Exp $
 #
 ###################################################################################
 
@@ -64,7 +64,7 @@ use vars qw(
 @ISA = qw(Exporter DynaLoader);
 
 
-$VERSION = '1.3.5';
+$VERSION = '1.3.6';
 
 # HTML::Embperl cannot be bootstrapped in nonlazy mode except
 # under mod_perl, because its dependencies import symbols like ap_palloc
@@ -287,6 +287,13 @@ use strict ;
         my $fmt = shift ;
         HTML::Embperl::log(sprintf ($fmt, @_)) ;
         }
+
+    sub CLOSE
+
+	{
+	}
+
+
     }
 
 
@@ -323,6 +330,12 @@ use strict ;
         my $fmt = shift ;
         HTML::Embperl::output(sprintf ($fmt, @_)) ;
         }
+
+    sub CLOSE
+
+	{
+	}
+
     }
 
 

@@ -11,7 +11,7 @@
 #   IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 #   WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 #
-#   $Id: test.pl,v 1.118 2001/12/04 20:09:20 richter Exp $
+#   $Id: test.pl,v 1.118.2.1 2003/01/22 09:08:19 richter Exp $
 #
 ###################################################################################
 
@@ -1170,9 +1170,11 @@ sub CmpFiles
     my $err  = 0 ;
 
     open F1, $f1 || die "***Cannot open $f1" ; 
+    binmode (F1, ":encoding(iso-8859-1)") if ($] >= 5.008000) ;
     if (!$errin)
 	{
 	open F2, $f2 || die "***Cannot open $f2" ; 
+    	binmode (F2, ":encoding(iso-8859-1)") if ($] >= 5.008000) ;
 	}
 
     while (defined ($l1 = <F1>))
@@ -1334,6 +1336,7 @@ sub REQ
     $response = $ua->request($request, undef, undef);
 
     open FH, ">$ofile" ;
+    binmode (FH, ":encoding(iso-8859-1)") if ($] >= 5.008000) ;
     print FH $response -> content ;
     close FH ;
 
