@@ -1,0 +1,26 @@
+This directory contains a few examples for use of Embperl.
+
+eg/x		Here are the following html files
+eg/images	Here are the background  GIF
+
+while.htm	simple html file which show how you can use the while 
+                matacommand to display an array/hash (here %ENV)
+
+table.htm	simple html file which shows how to use the dynamic table 
+                feature (also displays %ENV)
+
+neu.htm	        this example shows many of the feature of Embperl, as 
+                embedding various code, conditional processing and form 
+		management (It's in German but I think it can be understand 
+		anyway). If called it works like a wizard known from windows 
+		95 where you can enter data on some consecutive pages and walk 
+		forward or back at everytime preserving the input made so far. 
+		Note that the database interface is missing from this example, 
+		since it isn't ready. 
+NOTE: To make it work correctly you have to change the action 
+to what ever is appropriate for your environment. If you 
+running mod_perl you don't have to do anything at all, if you 
+use a CGI script as handler or action it should also work. All 
+other should add the path to your cgi-bin directory (e.g. 
+/cgi-bin/Embperl/path/to/eg/x/neu.htm)
+

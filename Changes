@@ -1,0 +1,21 @@
+Revision history for Perl extension HTML::Embperl.
+
+0.11-beta      March 25 1997
+		- Name changed from Embperl to HTML::Embperl!!!!!!!!
+		- FORM & ENV debug output now available in all modes
+		- Ouput from [+  +] and INPUT fields are escaped
+		  (e.g. < is send as &lt; )
+		- two dimensional tables
+		- bug whiches causes an endless loop when using a \ fixed
+        	- fixed escaping special html chars above ascii code 128
+        	- added support for list tags (dir, menu, ol, ul, dl)
+        	- added support for textarea tag
+		- fixed some errors
+
+0.10b-beta	Jan 23 1997
+		- fixed some errors
+
+0.10beta 	Jan 18 1997
+		- first public beta release
+
+		

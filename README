@@ -1,0 +1,102 @@
+HTML::Embperl - Embbed perl code in HMTL documents
+
+Copyright (c) 1997 Gerald Richter / ECOS
+
+You may distribute under the terms of either the GNU General Public 
+License or the Artistic License, as specified in the Perl README file.
+For use with Apache httpd and mod_perl, see also Apache copyright.
+
+THIS IS BETA SOFTWARE!
+
+THIS PACKAGE IS PROVIDED "AS IS" AND WITHOUT ANY EXPRESS OR IMPLIED 
+WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF 
+MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+
+
+OVERVIEW
+
+Look at perldoc Embperl for documentation.
+
+Embperl allows you to embed perl code in your HTML documents. The code can 
+be used to compute something (e.g. retrieve data from a database) or to 
+produce output (e.g. display a variable). Also some metacommands are 
+available which give you the ability to create "loops" or to conditional 
+process your HTML document. As fours feature some HTML tags are specially
+interpreted. This allows dynamic table creation and an easier form processing.
+
+Embperl can run offline, as CGI script or as module using mod_perl of the 
+Apache httpd (which is the fastest approach). A fours method is to let it 
+run as a separate process, which is at the moment only for debugging 
+issues.
+
+INSTALATION
+
+NOTE: Embperl has been renamed to HTML::Embperl in this version. Please remove
+      old Embperl before you continue. Under the perl directory you have to
+      remove the following files/directories:
+      
+      man/man3/Embperl.3
+      site_perl/auto/Embperl
+      site_perl/Embperl.pm
+      site_perl/<processor>-<os>/auto/Embperl
+       
+- Unpack the archive
+- perl Makefile.PL
+You will be ask if want to compile in support for Apache mod_perl. If 
+you say yes, the source of Apache is searched (for headerfiles). If 
+it can't found, please specify the basepath. Please make sure 
+mod_perl is already installed. If you have installed mod_perl-0.96 or
+higher Makefile.PL automaticly suggest the same source path as used to
+build mod_perl.
+
+- make
+- make test
+NOTE: At the moment it is only tested that the lib can be loaded. 
+If you have compiled with support for mod_perl, make test will fail with 
+undefined symbols vbprintf, rwrite, bgetopt, palloc ! 
+This should change in further releases.
+- make install
+
+See perldoc Embperl how it goes on.
+See the eg/ directory for examples.
+
+I have successfully tested this on Linux 2.0.27, mod_perl 0.96 with perl 
+5.003 and Apache 1.2b7. Since there is (as far as I can see) no system 
+dependent stuff, it should work on other systems as well.
+
+NOTE: In versions prior to mod_perl-0.96 spaces in form fields are not
+      correctly unescaped and will remain as plus signs. Please upgrade
+      to mod_perl-0.96 as soon as it will be available.
+
+FEEDBACK
+
+Please give me a feedback if you use/test this module. Bugs, 
+questions, thinks you would find useful etc. are discussed on the mod_perl
+mailling list.
+
+From mod_perl README:
+ 
+>For comments, questions, bug-reports, announcements, etc., send mail
+>to majordomo@listproc.itribe.net with the string "subscribe modperl"
+>in the body.  (Thanks to Mark A. Imbriaco <mark@itribe.net>)
+>
+>Thanks to James Cooper <pixel@tiger.coe.missouri.edu>,
+>there is a hypermail archive for this list at:
+> 
+>http://www.coe.missouri.edu/~faq/lists/modperl/
+
+
+SUPPORT
+
+If you need commercial support for Embperl or want a web site where you can 
+run your Embperl/mod_perl scripts without setting up your own internet www-
+server, please send an email to info@ecos.de.
+
+WWW-LINKS
+
+mod_perl            http://www.osf.org/~dougm/apache/
+apache web server   http://www.apache.org/
+
+AUTHOR
+
+Gerald Richter <richter@dev.ecos.de>

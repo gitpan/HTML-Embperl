@@ -1,0 +1,13 @@
+TODO for Embperl
+
+Here some of my plans
+
+- Kill lf in middel of perl strings
+- Allow [+ +] in VALUE attribute on checkboxes and radiobutton
+- Debug namespaces and operation restriction
+- Runtime configuration
+- Log eval error messages
+- Add a DBI databaseinterface
+- Speed optimizations
+- Precompile the embedded HTML document to make it run faster
+
