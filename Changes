@@ -1,5 +1,9 @@
 Revision history for Perl extension HTML::Embperl.
 
+0.22-beta 28 Dec 1997
+    - Changed include path generated in Makefile.PL so Embperl also
+      compiles with apache_1.3b3  
+
 0.21-beta 25 Dec 1997
     - Embperl offline mode now works under win 32 (mod_perl and cgi mode
       not tested under win 32 yet, but maybe it works too)

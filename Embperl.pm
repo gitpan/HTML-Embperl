@@ -30,7 +30,7 @@ require DynaLoader;
 @ISA = qw(Exporter DynaLoader);
 
 
-$VERSION = '0.21-beta';
+$VERSION = '0.22-beta';
 
 
 bootstrap HTML::Embperl $VERSION;

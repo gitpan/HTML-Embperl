@@ -102,7 +102,13 @@ $apache = GetYesNo ("Build with support for Apache mod_perl?", 'y') ;
 
 if ($apache && $apache_src ne '')
     {
-	if (-e "$apache_src/httpd.h")
+    if ($apache_src =~ /^(.*?)\/$/)
+   	{ $apache_src = $1 ; } 
+
+    if ($apache_src =~ /^(.*?)\/main$/)
+   	{ $apache_src = $1 ; } 
+
+	if (-e "$apache_src/httpd.h" || -e "$apache_src/main/httpd.h")
 		{
 		$b = GetYesNo ("Use $apache_src as Apache source", 'y') ;
 		}
@@ -111,16 +117,14 @@ if ($apache && $apache_src ne '')
 while ($apache && !$b)
     {
     print "Searching for Apache sources...\n" ;
-    foreach $src_dir (<$base/apache_1.1*/src>,
-                      <$base/apache_1.2*/src>,
+    foreach $src_dir ($base,
+		      "$base/src",
 		      <$base/apache*/src>,
-		      <$base/src>,
-		      <./src>,
-		      <$base>) 
+		      <./src>)
        {
 	print "Look at $src_dir\n" ;
 	
-	if (-e "$src_dir/httpd.h")
+	if (-e "$src_dir/httpd.h" || -e "$src_dir/main/httpd.h")
 		{
 		$b = GetYesNo ("Use $src_dir as Apache source", 'y') ;
 		if ($b)
@@ -130,6 +134,14 @@ while ($apache && !$b)
 			}
 		}
 	}		
+
+    if ($apache_src =~ /^(.*?)\/$/)
+   	{ $apache_src = $1 ; } 
+
+    if ($apache_src =~ /^(.*?)\/main$/)
+   	{ $apache_src = $1 ; } 
+
+
     if (!$b)
     	{
     	$base = GetString ("Apache source not found, enter path name or q to quit", '') ;
@@ -147,7 +159,10 @@ while ($apache && !$b)
 if ($b && $apache)
 	{
 	print "Will use $apache_src for Apache Headers\n" ;
-	$i = "-I$apache_src -I$apache_src/regex" ;
+	if ($win32)
+	    { $i = "-I$apache_src -I$apache_src/regex -I$apache_src/main -I$apache_src/os/win32" ; }
+	else
+	    { $i = "-I$apache_src -I$apache_src/regex -I$apache_src/main -I$apache_src/os/unix" ; }
 	$d = "-DAPACHE" ;
 	}
 else
