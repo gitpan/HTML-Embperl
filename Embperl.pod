@@ -121,7 +121,7 @@ drastically reduce response times for the request.  To use this you
 must compile C<Apache httpd> with C<mod_perl> and add C<HTML::Embperl>
 as the C<PerlHandler>.
 
-Example of Apache C<srm.conf>:
+Example of Apache C<srm.conf> or C<httpd.conf>:
 
     SetEnv EMBPERL_DEBUG 2285
 
@@ -133,7 +133,7 @@ Example of Apache C<srm.conf>:
     Options     ExecCGI
     </Location>
 
-Another possible setup (for Apache 1.3bX see below) is
+Another possible setup is
 
     SetEnv EMBPERL_DEBUG 2285
 
@@ -147,15 +147,6 @@ Another possible setup (for Apache 1.3bX see below) is
 
 Don't forget the B<AddType>.  In this setup, all files ending with
 .epl are processed by Embperl.
-
-C<NOTE:> Since <Files> does not work the same in Apache 1.3bX as it
-does in Apache 1.2.x, you need to use <FilesMatch> instead.
-
-    <FilesMatch ".*\.epl$">
-    SetHandler  perl-script
-    PerlHandler HTML::Embperl
-    Options     ExecCGI
-    </FilesMatch>
 
 
 See the section L<"EMBPERL_DEBUG"> (dbgLogLink and EMBPERL_VIRTLOG) to find
@@ -805,7 +796,7 @@ a file (or gets it from a scalar if you use C<Execute>). Here, you can
 give the name of a Perl function which is called instead of reading the
 input from a file. The function must look like the following:
 
- InputFunc ($r, $in, $mtime, additional parameters...) ;
+ InputFunc ($r, $in, $cacheargs, additional parameters...) ;
 
 =over 4
 
@@ -824,14 +815,19 @@ a reference to a scalar, to which the input should be returned.
  $$in = <F> ;
  close F ;
 
-=item B<$mtime>
+=item B<$cacheargs>
 
-a reference to a scalar, to which the modification time should be returned.
+a reference to a scalar, to which the modification time should be returned,
+alternativ (1.2.1 and up) you can return a reference to a hash with the elements C<mtime> and C<inputfile>
+with are used to correcly cache the precompiled Perlcode.
 
  Example:
 
- $$mtime = -M "filename" ;
+ $$cacheargs = -M "filename" ;
 
+ or
+
+ $$cacheargs = { mtime => -M "filename", inputfile => "filename" }  ;
 
 =back
 
@@ -939,6 +935,15 @@ which provides you with the possibility to chain I<Embperl> and other modules to
 
 Specifies which host the L<MailFormTo|"MailFormTo($MailTo, $Subject, $ReturnField)"> function uses as SMTP server.
 Default is B<localhost>.
+
+=head2 EMBPERL_MAILFROM 
+
+(only 1.2.1 or above) Specifies which the email address that is used as sender by L<MailFormTo|"MailFormTo($MailTo, $Subject, $ReturnField)">.
+Default is B<www-server@server_name>.
+
+=head2 EMBPERL_MAILDEBUG 
+
+(only 1.2.1 or above) Debugsetting for Net::SMTP. Default is 0.
 
 =head2 EMBPERL_MAIL_ERRORS_TO
 
@@ -1535,6 +1540,12 @@ using GET -- not from Embperl, but perhaps from the web server,
 especially if you're using Embperl's CGI mode -- it is safer to use
 POST.
 
+If multiple fields with the same name send to a Embperl page they will 
+put in the same hash element and separated be tabs. You can split it up in 
+an array, by writting:
+
+  @array = split (/\t/, $fdat{'fieldname'}) ;
+
 Embperl also supports ENCTYPE multipart/form-data, which is used for
 file uploads.  The entry in %fdat corresponding to the file field will
 be a filehandle, as with CGI.pm.  (Embperl uses CGI.pm internally to
@@ -1620,15 +1631,17 @@ Contains the number of table cells displayed so far.
 
 =head2 $tabmode
 
-Determines how the end of a dynamic table is detected:
-
-B<end of table>
+Determines how the end of a dynamic table is detected. Tables are always 
+limited to the size specified in $maxrow and $maxcol, but can be ended early 
+when the row ($row) and column ($col) variables become undefined. $tabmode operates as 
+follows:
 
 =over 4
 
 =item B<$tabmode = 1>
 
-End when one of the expressions with $row becomes undefined.  The row
+End table looping when any one of the expressions in the table row
+using $row returns undefined. The row
 containing the undefined expression is B<not> displayed. Only those
 expression are observed which contains an access to the varibale $row.
 
@@ -1649,7 +1662,9 @@ B<end of row>
 
 =item B<$tabmode = 16>
 
-End when one of the expression with $col becomes undefined.  The column
+End table column looping when any one of the expressions in the table column
+using $col returns undefined. 
+The column
 containing the undefined expression is B<not> displayed.  Only those
 expression are observed which contains an access to the varibale $col.
 

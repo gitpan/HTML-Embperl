@@ -903,7 +903,7 @@ static int CmdSub    (/*i/o*/ register req * r,
 
     /* compile perl sub */
     /* sprintf (sSubCode, "unshift @_, HTML::Embperl::CurrReq (0) ; HTML::Embperl::ProcessSub (%d, %d, %d)", (int)r -> Buf.pFile, nSubPos, r -> Buf.nBlockNo) ; */
-    sprintf (sSubCode, " HTML::Embperl::ProcessSub (%d, %d, %d)", (int)r -> Buf.pFile, nSubPos, r -> Buf.nBlockNo) ;
+    sprintf (sSubCode, " HTML::Embperl::ProcessSub (%ld, %d, %d)", (IV)r -> Buf.pFile, nSubPos, r -> Buf.nBlockNo) ;
 
     while (isspace(*sArg))
 	sArg++ ;
@@ -1582,7 +1582,8 @@ static int HtmlOption (/*i/o*/ register req * r,
         return ok ; /* no name or no data for select */
         }
 
-    pVal = GetHtmlArg (sArg, "VALUE", &vlen) ;
+    pVal = GetHtmlArg (sArg, "VALUE", &slen) ;
+    vlen = slen ; /* first use an int to avoid problems on 64Bit Systems! */
     if (vlen == 0)    
         {
         if (r -> bDebug & dbgInput)

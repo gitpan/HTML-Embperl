@@ -1670,7 +1670,7 @@ tFile * SetupFileData   (/*i/o*/ register req * r,
         {
         f = (tFile *)SvIV((SV*)SvRV(*ppSV)) ;
         
-        if (f -> mtime != mtime)
+        if (mtime == 0 || f -> mtime != mtime)
             {
             hv_clear (f -> pCacheHash) ;
         

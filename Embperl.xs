@@ -70,20 +70,15 @@ char *
 embperl_GVFile(gv)
     SV * gv
 CODE:
-    if (!gv)
-	RETVAL = "" ;
-    else
+    RETVAL = "" ;
+    if (gv && SvTYPE(gv) == SVt_PVGV)
 	{
 	GV * fgv = GvFILEGV(gv) ;
-	if (!fgv)
-	    RETVAL = "" ;
-	else
+	if (fgv && SvTYPE(fgv) == SVt_PVGV)
 	    {
 	    char * name = GvNAME (fgv) ;
-	    if (name && SvTYPE(fgv) == SVt_PVGV)
+	    if (name)
 		RETVAL = name ;
-	    else
-		RETVAL = "" ;
 	    }
 	}
 OUTPUT:
@@ -254,7 +249,7 @@ OUTPUT:
 
 int
 embperl_ProcessSub(pFile, nBlockStart, nBlockNo)
-    int     pFile
+    IV      pFile
     int     nBlockStart
     int     nBlockNo
 INIT:
@@ -458,7 +453,7 @@ OUTPUT:
 int
 embperl_ProcessSub(r,pFile,nBlockStart,nBlockNo)
     tReq * r
-    int     pFile
+    IV      pFile
     int     nBlockStart
     int     nBlockNo
 CODE:

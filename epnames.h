@@ -194,8 +194,13 @@
 
 #else  /* PERL_VERSION > 5 */
 
+#ifndef ERRSV
 #define ERRSV GvSV(errgv)
+#endif
+
+#ifndef dTHR
 #define dTHR
+#endif
 
 
 #endif /* PERL_VERSION > 5 */

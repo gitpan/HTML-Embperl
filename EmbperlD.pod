@@ -735,7 +735,7 @@ angegebene Funktion aufzurufen, welche für das Bereitstellen des
 Quellentextes verantwortlich ist.
 Die Funktion muß folgendermaßen aussehen:
 
- InputFunc ($r, $in, $mtime, weitere Parameter...) ;
+ InputFunc ($r, $in, $cacheargs, weitere Parameter...) ;
 
 =over 4
 
@@ -754,13 +754,19 @@ eine Referenz auf einen Skalar, in welchen der Quellentext abgelegt werden soll.
  $$in = <F> ;
  close F ;
 
-=item B<$mtime>
+=item B<$cacheargs>
 
-eine Referenz auf einen Skalar, welcher den Zeitpunkt der letzten Änderungen zurück liefern soll.
+eine Referenz auf einen Skalar, welcher den Zeitpunkt der letzten Änderungen zurück liefern soll,
+alternativ kann (ab 1.2.1) eine Hashreferenz mit den Elementen C<mtime> und C<inputfile> angegeben werden,
+um das korrekte cachen des vorcompilierten Perlcodes zu ermöglichen.
 
  Beispiel:
 
- $$mtime = -M "filename" ;
+ $$cacheargs = -M "filename" ;
+
+ oder
+
+ $$cacheargs = { mtime => -M "filename", inputfile => "filename" }  ;
 
 
 =back
@@ -863,6 +869,16 @@ die die Möglichkeit bieten I<Embperl> und andere Module zu verketten.
 Gibt den Rechner an, der von der L<MailFormTo|"MailFormTo($MailTo, $Subject, $ReturnField)"> 
 Funktion als SMTP Server genutzt wird.
 Default ist B<localhost>.
+
+=head2 EMBPERL_MAILFROM (ab 1.2.1)
+
+Gibt die Absender EMail-Adresse an die von der L<MailFormTo|"MailFormTo($MailTo, $Subject, $ReturnField)"> 
+Funktion genutzt wird.
+Default ist B<www-server@server_name>.
+
+=head2 EMBPERL_MAILDEBUG (ab 1.2.1)
+
+Debugeinstellung für Net::SMTP. Default ist 0.
 
 =head2 EMBPERL_MAIL_ERRORS_TO (ab 1.2b6) 
 
@@ -1439,7 +1455,10 @@ Enthält alle Formulardaten, die an das Dokument gesendet wurden.
 Das C<NAME> Attribute bildet den Schlüssel und das C<VALUE>
 Attribute den Wert des Hashelements. Dabei ist es egal, ob die Daten mittels
 C<GET> oder C<POST> übetragen wurden. Existieren mehrere Werte mit dem selben Namen,
-werden diese mittels C<TAB> getrennt.
+werden diese mittels C<TAB> getrennt. Diese können z.B. mittels folgenden Code in
+ein Array zerlegt werden:
+
+  @array = split (/\t/, $fdat{'fieldname'}) ;
 
 I<Embperl> unterstützt ebenfalls den Kodierungstyp B<multipart/form-data>,
 der für Dateiuploads benutzt wird. Das Element in C<%fdat> enthält dann
@@ -1530,9 +1549,9 @@ Enthält die Anzahl der Tabellenzellen, die bis jetzt angezeigt wurden.
 
 =head2 $tabmode
 
-Entscheidet, wann das Tabellenende erreicht ist.
-
-B<Tabellenende:>
+Entscheidet, wann das Tabellenende erreicht ist. Dynamische Tabellen
+werden immer durch $maxrow und $maxcol begrenzt. Zusätzlich können
+folgende Bedinungen für das Tabellenende festgelegt werden:
 
 =over 4
 

@@ -76,7 +76,7 @@ use vars qw(
 @ISA = qw(Exporter DynaLoader);
 
 
-$VERSION = '1.2.0';
+$VERSION = '1.2.1';
 
 
 # HTML::Embperl cannot be bootstrapped in nonlazy mode except
@@ -656,6 +656,11 @@ sub Execute
     elsif (exists $INC{'Apache.pm'})
         { $req_rec = Apache->request }
 
+    if (exists $$req{'debug'})
+	{ $$req{'debug'} = oct($$req{'debug'}) if ($$req{'debug'} =~ /^0/) ; }
+    if (exists $$req{'options'})
+	{ $$req{'options'} = oct($$req{'options'}) if ($$req{'options'} =~ /^0/) ; }
+
 
     if (defined ($$req{'virtlog'}) && $$req{'virtlog'} eq $$req{'uri'})
         {
@@ -698,8 +703,9 @@ sub Execute
             }
 
         my $InFunc = shift @p ;
+        my $cacheargs ;
 no strict ;
-        eval {$rc = &{$InFunc} ($req_rec, $In, \$$req{mtime}, @p)} ;
+        eval {$rc = &{$InFunc} ($req_rec, $In, \$cacheargs, @p)} ;
 use strict ;
         if ($rc || $@)
             {
@@ -710,6 +716,15 @@ use strict ;
                 }
 
             return $rc ;
+            }
+        if (ref ($cacheargs) eq 'HASH')
+            {
+            $req -> {'mtime'}     = $cacheargs -> {'mtime'} ;
+            $req -> {'inputfile'} = $cacheargs -> {'inputfile'} ;
+            }
+        else
+            {
+            $req -> {'mtime'}     = $cacheargs ;
             }
         }
 
@@ -748,6 +763,8 @@ use strict ;
     $evalpackage = $package ;   
     my $exports ;
 
+    $r -> CreateAliases () ;
+
     if (exists ($$req{import}) && ($exports = $r -> ExportHash))
     	{
         $r -> Export ($exports, caller ($$req{import} - 1)) if ($$req{import}) ;
@@ -755,10 +772,14 @@ use strict ;
 	}
     else
 	{
-	$r -> CreateAliases () ;
-   
-
-	if (!($optDisableFormData) &&
+	#local $^W = 0 ;
+	@ffld = @{$$req{'ffld'}} if (defined ($$req{'ffld'})) ;
+	if (defined ($$req{'fdat'})) 
+	    {
+	    %fdat = %{$$req{'fdat'}} ;
+	    @ffld = keys %fdat if (!defined ($$req{'ffld'})) ;
+	    }
+	elsif (!($optDisableFormData) &&
 	       defined($ENV{'CONTENT_TYPE'}) &&
 	       $ENV{'CONTENT_TYPE'}=~m|^multipart/form-data|)
 	    { # just let CGI.pm read the multipart form data, see cgi docu
@@ -797,16 +818,6 @@ use strict ;
 		    }
 		}
 
-	    }
-	else
-	    {
-	    local $^W = 0 ;
-	    @ffld = @{$$req{'ffld'}} if (defined ($$req{'ffld'})) ;
-	    if (defined ($$req{'fdat'})) 
-		{
-		%fdat = %{$$req{'fdat'}} ;
-		@ffld = values %fdat if (!defined ($$req{'ffld'})) ;
-		}
 	    }
 
     no strict ;
@@ -1375,8 +1386,8 @@ sub MailFormTo
     #die "require Net::SMTP failed: $@" if ($@); 
     require Net::SMTP ;
 
-    $smtp = Net::SMTP->new($ENV{'EMBPERL_MAILHOST'} || 'localhost') or die "Cannot connect to mailhost" ;
-    { $smtp->mail('WWW-Server');}
+    $smtp = Net::SMTP->new($ENV{'EMBPERL_MAILHOST'} || 'localhost', Debug => $ENV{'EMBPERL_MAILDEBUG'}) or die "Cannot connect to mailhost" ;
+    { $smtp->mail($ENV{'EMBPERL_MAILFROM'} || "WWW-Server\@$ENV{SERVER_NAME}");}
     $smtp->to($to);
     $ok = $smtp->data();
     $ok = $smtp->datasend("Reply-To: $ret\n") if ($ok && $ret) ;
@@ -1432,6 +1443,16 @@ sub ProxyInput
     $ua -> use_eval (0) ;
     $request  = new HTTP::Request($r -> method, $url);
 
+    if ($ENV{CONTENT_LENGTH})
+        { # pass posted data
+        my $content ;
+
+        read STDIN, $content, $ENV{CONTENT_LENGTH} ;
+        delete $ENV{CONTENT_LENGTH} ;
+
+        $request -> content($content) ;
+        }
+
     my %headers_in = $r->headers_in;
     my $key ;
     my $val ;
@@ -1443,7 +1464,7 @@ sub ProxyInput
     $response = $ua->request($request);
 
     my $code = $response -> code ;
-    my $mod  = $response -> last_modified || '???' ;
+    my $mod  = $response -> last_modified || undef ;
 
     #if ($Debugflags) 
     #    { 
@@ -1455,7 +1476,7 @@ sub ProxyInput
     #    }
             
     $$in    = $response -> content ;
-    $$mtime = $mod if ($mod ne '???') ;
+    $$mtime = { mtime => $mod, inputfile => $url} ;
 
     return $code == 200?0:$code;
     }
@@ -1717,7 +1738,7 @@ sub MailErrorsTo ()
     #die "require Net::SMTP failed: $@" if ($@); 
     require Net::SMTP ;
 
-    my $smtp = Net::SMTP->new($ENV{'EMBPERL_MAILHOST'} || 'localhost') or die "Cannot connect to mailhost" ;
+    my $smtp = Net::SMTP->new($ENV{'EMBPERL_MAILHOST'} || 'localhost', Debug => $ENV{'EMBPERL_MAILDEBUG'}) or die "Cannot connect to mailhost" ;
     $smtp->mail("Embperl\@$ENV{SERVER_NAME}");
     $smtp->to($to);
     my $ok = $smtp->data();

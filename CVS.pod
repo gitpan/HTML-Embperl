@@ -44,7 +44,7 @@ Here's a config file for the client (cvsup) to sync Embperl sources.
  *default tag=.
  # comment out the above if you want the raw CVS files
 
- *default host=apache.org
+ *default host=perl.apache.org
  *default prefix=/path/on/this/machine/to/install/
  # an existing subdir under which embperl will appear ^^^
 
@@ -62,6 +62,17 @@ Here's a config file for the client (cvsup) to sync Embperl sources.
 
 =head2 anoncvs
 
+To checkout a fresh copy from anoncvs use
+
+cvs -d "pserver:anoncvs@perl.apache.org:/home/cvspublic" login
+
+with the password "anoncvs". 
+
+cvs -d "pserver:anoncvs@perl.apache.org:/home/cvspublic" co embperl
+
+
+=head2 web-access
+
 You may browse the the I<Embperl> CVS via http://www.apache.org/websrc/cvsweb.cgi/embperl/
 
 =head2 from-cvs
@@ -69,7 +80,7 @@ You may browse the the I<Embperl> CVS via http://www.apache.org/websrc/cvsweb.cg
 A snapshot is rolled off the Embperl tree every 6 hours and placed
 here:
 
-http://dev.apache.org/from-cvs/embperl/
+http://perl.apache.org/from-cvs/embperl/
 
 A snapshot of the Apache development tree is also rolled every 6 hours
 and placed here:
@@ -78,7 +89,7 @@ http://dev.apache.org/from-cvs/
 
 and mod_perl can be found here
 
-http://dev.apache.org/from-cvs/modperl/
+http://perl.apache.org/from-cvs/modperl/
 
 =head2 MAILING LIST
 

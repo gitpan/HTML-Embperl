@@ -2,6 +2,7 @@ TODO for Embperl
 
 Features
 --------
+
 - Apache::Symbol::undef (avoid function redefinition warning)
 
 - @param -> @_
@@ -30,8 +31,6 @@ Features
 
 - BEGIN/END Blocks [Jason Bodnar 6.10.99]
 
-- MailFormTo Debug, sender addr
-
 - return value from sub
 
 - build with perl > 5.005_61
@@ -41,6 +40,16 @@ Features
 - url/html escaping [Eugene B. Byrganov 4.11.99]
 
 - accpect unclosed html structs [Eugene B. Byrganov 9.11.99]
+
+- use APXS for LIBEXECDIR etc. [Matthias Ulrichs 22.11.99]
+
+- url escape <input src>
+
+- allow null bytes in output [ARnel Estanisloa 4.12.99]
+
+- handle input image (add field.x/y to %idat) [Pierre Etchemaite 13.12.99]
+
+- make multifiled delimiter \t configurabel [Jean-Philippe FAUVELLE 13.12.99]
 
 Test
 ----
@@ -66,15 +75,15 @@ Bugs
 
 - requrie in [!  !] Blocks? [Jens Alm 22.9.99]
 
+- don´t find end of href inside of [+ +]  [James Sheridan-Peters 29.11.99]
+
+- contrib from Ken Hinckley 2.12.99
 
 Docs
 ----
 - [- -] [+ +] etc all turns into _perl_code_ in html [S Page 13.9.99]
 
-*- Performance
-*- HTML::Embperl::Session
-*- 'errors' parameter
-*- uploadInfo
+- maxrwo, maxcol [Ed Geenberg, Cliff Raymann 20.12.99]
 
 1.3
 ---

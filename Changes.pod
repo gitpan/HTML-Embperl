@@ -1,6 +1,37 @@
 =pod
 
-=head1 1.2.0 17 Nov 1999
+=head1 1.2.1  5. Jan 2000
+
+   - fdat parameter of Execute function isn´t honoured when
+     call from CGI script which has received multipart/formdata.
+     Spotted by NHan H. Trinh.
+   - @ffld was not correctly setup, when only fdat parameter is
+     given in calls to Execute.
+   - if mtime parameter is undef or 0, now the pcode really isn't
+     cached. Spotted by Neeme Vool.
+   - EMBPERL_OPTIONS and EMBPERL_DEBUG (debug, options) accepts
+     now decimal, binary, octal and hex values.
+   - fix a SIGSEGV that could occur under rare conditions in
+     cleanup. With help from Todd Eigenschink and Gary Shea.
+   - fix a problem that $req_rec is not correctly setup inside
+     imported subs. Reported by Cliff Rayman.
+   - specify domain/hostname when sending mail via MailFormTo
+   - add EMBPERL_MAILFROM config, to make sender used by
+     MailFormTo configurable    
+   - add EMBPERL_MAILDEBUG config, to allow debugging of email
+     problems in MailFormTo
+   - ProxyInput now handles posted form data. Spotted by 
+     Neeme Vool.
+   - EMBPERL_INPUT_FUNC now allows to also give the name
+     under which the source should cached, to allow correct
+     cacheing of data read via EMBPERL_INPUT_FUNC. Spotted by
+     Neeme Vool.
+   - Fixed a SIGSEGV in OPTION tag which occurs due to
+     different integer sizes on 64Bit systems. With help
+     from David Waldo. 
+
+
+=head1 1.2.0  17 Nov 1999
 
    - test script had failed in cgi mode on win32. Spotted by 
      Randy Korbes.
