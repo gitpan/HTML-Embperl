@@ -1,5 +1,26 @@
 Revision history for Perl extension HTML::Embperl.
 
+0.14-beta 30 Juni 1997  
+        - adding 8192 to EMBPERL_DEBUG and setting EMBPERL_VIRTLOG will add a link
+          to Embperl output, so you can directly view the right part of the logfile
+          with your browser
+        - added the LOG filehandle to print to the embperl logfile
+        - Add the possibility of handling multiple form fields with same name
+        - chars which are result of a perl expression will not be escaped to html if
+          they are prefixed with a backslash
+        - Added support for scanning the parameters of input tag for perl code i.e.
+          [- -] and [+ +] substituions takes place
+        - Replace carridge return in perl expression with space to avoid perl 5.004 error
+          about carridge return
+    	- added $req_rec to access the apache server api when running under mod_perl
+
+        - Fixed a bug in Safe namespace handling causing always ERR: 17 Namespace unknown
+        - Fixed a bug which caused dynamic tables to end, if a if, while etc. is included 
+        - Fixed a bug that caused [$cmd$] executed only in the first iteration of while or table
+        - Fixed some bugs in input tag interpretation
+        - Fixed a bug occured when have a input tag with value="" and %ffld=""
+	    - Fixed a bug in embpexec.pl that caused the options to be ignored when running offline
+
 0.13-beta   April 26 1997	
         - Move EPENTRY (embperl_init) down to avoid crash when compiled with
           -DEPDEBUGALL

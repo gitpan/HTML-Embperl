@@ -56,6 +56,7 @@ extern request_rec * pReq ;
 int iembperl_init (int  nIOType,
                    const char * sLogFile) ;
 int iembperl_setreqrec  (/*in*/ SV *   pReqSV) ;
+int iembperl_resetreqrec  () ;
 int iembperl_term (void) ;
 int iembperl_req  (/*in*/ char *  sInputfile,
                    /*in*/ char *  sOutputfile,
@@ -89,6 +90,12 @@ int CloseOutput () ;
 int owrite      (/*in*/ const void * ptr, size_t size, size_t nmemb) ;
 void oputc       (/*in*/ char c) ;
 int oputs (/*in*/ const char *  str) ;
+
+void OutputToMemBuf (/*in*/ char *  pBuf,
+                     /*in*/ size_t  nBufSize) ;
+void OutputToStd () ;
+
+
              
 struct tBuf *   oBegin () ;
 void oRollback (struct tBuf *   pBuf) ;

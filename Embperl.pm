@@ -22,6 +22,8 @@ package HTML::Embperl;
 
 $DefaultLog = '/tmp/embperl.log' ;
 $Outputfile = '' ;  # Default to stdout
+$LogfileURL = '' ;
+
 
 #use Carp;
 use Safe;
@@ -32,7 +34,7 @@ require DynaLoader;
 @ISA = qw(Exporter DynaLoader);
 
 
-$VERSION = '0.13-beta';
+$VERSION = '0.14-beta';
 
 #$^W = TRUE ;
 
@@ -45,12 +47,30 @@ sub	epIOMod_Perl  { 3 ; }
 sub	epIOPerl      { 4 ; }
 
 
+# Color definition for logfile output
+
+%LogFileColors = (
+    'EVAL<' => '#FF0000',
+    'EVAL>' => '#FF0000',
+    'FORM:' => '#0000FF',
+    'CMD:'  => '#FF8000',
+    'SRC:'  => '#808080',
+    'TAB:'  => '#FF0080',
+    'INPU:' => '#008040',
+                ) ;
+
+
 
 
 if (defined ($INC{'Apache.pm'}))
     { 
+    my $log ;
+
     $DefaultLog = $ENV{EMBPERL_LOG} if defined ($ENV{EMBPERL_LOG}) ;
     embperl_init (epIOMod_Perl, $DefaultLog) ;
+    $log = embperl_getloghandle () ;
+    open LOG, ">>&=$log" || print STDERR "Embperl: Cannot open LOG (fh=$log)" ;
+    autoflush LOG 1 ;
     }
 
 #######################################################################################
@@ -83,7 +103,7 @@ sub addNameSpace ($)
         }
 
 
-    $cp = new Safe ($sName) ;
+    $cp = new Safe ($sName, Safe::emptymask ()) ;
     
     $NameSpace{$sName} = $cp ;
 
@@ -95,6 +115,51 @@ sub addNameSpace ($)
     return 0 ;
     }
 
+
+#######################################################################################
+
+sub SendLogFile ($$)
+
+    {
+    my ($fn, $info) = @_ ;
+    
+    my $lastpid = 0 ;
+    my ($filepos, $pid) = split (/&/, $info) ;
+
+
+    
+    open (LOGFILE, $fn) || return 500 ;
+
+    seek (LOGFILE, $filepos, 0) || return 500 ;
+
+    print "<HTML><HEAD><TITLE>Embperl Logfile</TITLE></HEAD><BODY bgcolor=\"#FFFFFF\">\r\n" ;
+    print "Logfile = $fn, Position = $filepos, Pid = $pid<BR><CODE>\r\n" ;
+
+    while (<LOGFILE>)
+        {
+        /^\[(\d+)\](.*?)\s/ ;
+        if ($1 == $pid)
+            {
+            if (defined ($LogFileColors{$2}))
+                {
+                print "<font color=\"$LogFileColors{$2}\">" ;
+                }
+            else
+                {
+                print "<font color=0>" ;
+                }
+            s/\n/\\<BR\\>\r\n/ ;
+            embperl_output ("$_") ;
+            last if (/Request finished/) ;
+            }
+        }
+
+    print "</CODE></BODY></HTML>\r\n\r\n" ;
+
+    close (LOGFILE) ;
+
+    return 200 ;
+    }
 
 #######################################################################################
 
@@ -110,7 +175,7 @@ sub run (\@)
     my $Daemon     = 0 ;
     my $Cgi        = $#$args >= 0?0:1 ;
     my $rc         = 0 ;
-
+    my $log ;
 
 
     while ($#$args >= 0)
@@ -167,6 +232,13 @@ sub run (\@)
         $ioType = epIOPerl ;
         }
 
+    if (defined ($ENV{EMBPERL_VIRTLOG}) &&
+        $ENV{EMBPERL_VIRTLOG} eq $ENV{SCRIPT_NAME})
+        {
+        return SendLogFile ($Logfile, $ENV{QUERY_STRING}) ;
+        }
+    
+
     if (defined ($ns = $ENV{EMBPERL_NAMESPACE}))
         {
         addNameSpace ($ns) if (!defined ($NameSpace {$ns})) ;
@@ -174,14 +246,17 @@ sub run (\@)
 
 
     embperl_init ($ioType, $Logfile) ;
+    $log = embperl_getloghandle () ;
+    open LOG, "<&=$log" ;
     do
 	    {
 	    $rc = embperl_req  ($Inputfile, $Outputfile, $Debugflags, $ns) ;
 	    }
     until ($ioType != epIOProcess) ;
 
+    close LOG ;
     embperl_term () ;
-    
+
     return $rc ;
     }
 
@@ -193,21 +268,33 @@ sub run (\@)
 sub handler 
     
     {
-    my ($r) = @_ ;
+    local ($req_rec) = @_ ;
     my $rc ;
     my $ns ;
 
 
-    %ENV = $r->Apache::cgi_env;
+    %ENV = $req_rec->Apache::cgi_env;
 
     
-    if (!-e $r -> Apache::filename)
+    if (defined ($ENV{EMBPERL_VIRTLOG}) &&
+        $ENV{EMBPERL_VIRTLOG} eq $req_rec -> Apache::uri)
+        {
+        $req_rec -> content_type ('text/html') ;
+        $req_rec -> Apache::send_http_header ;
+        embperl_setreqrec ($req_rec) ;
+        $rc = SendLogFile ($DefaultLog, $ENV{QUERY_STRING}) ;
+        embperl_resetreqrec () ;
+        return $rc ;
+        }
+    
+    if (!-e $req_rec -> Apache::filename)
         {
         return 404 ;
         }
 
+    $req_rec -> Apache::send_http_header ;
     
-    $ENV{PATH_TRANSLATED} = $r -> Apache::filename ;
+    $ENV{PATH_TRANSLATED} = $req_rec -> Apache::filename ;
 
     if (defined ($ns = $ENV{EMBPERL_NAMESPACE}))
         {
@@ -215,10 +302,14 @@ sub handler
         }
 
 
-    $rc = embperl_setreqrec ($r) ;
+    $rc = embperl_setreqrec ($req_rec) ;
     
     if ($rc == 0)
         {
+        seek (LOG, 0, 2) ; # goto eof
+        my $logfilepos = tell LOG ;
+        $LogfileURL = "<A HREF=\"$ENV{EMBPERL_VIRTLOG}?$logfilepos&$$\">Logfile</A><BR>" ;
+
         $rc = embperl_req ($ENV{PATH_TRANSLATED}, '', $ENV{EMBPERL_DEBUG}, $ns) ;
         }
     
@@ -431,6 +522,12 @@ The log-output is specially intended to see what your embedded perl code
 is doing and to debug it.
 Default is B</tmp/embperl.log>
 
+=item B<EMBEPRL_VIRTLOG>
+
+gives a virtual location, where you can access the embperl logfile with a browser.
+This feature is disabled (default) if EMBPERL_VIRTLOG is not specified. See also
+dbgLogLink.
+
 =item B<EMBPERL_DEBUG>
 
 This is a bitmask which specifies what should be written to the log
@@ -478,6 +575,13 @@ not. (Showing a + or - to tell you if they are executed).
 Logs the next piece of the HTML-source which is processed. (Gives a lot
 of output!)
 
+=item dbgFunc = 4096,
+Only anvailable when compiled with -DEPDEBUGALL. Normaly only used for debugging
+Embperl itself. Logs all functionentrys to the logfile (lot of data!)
+
+=item dbgLogLink = 8192,
+Inserts a link on the top of each page, which can be used to view the log for current
+html file. See also EMBEPRL_VIRTLOG under configuration.
 
 =back
 
@@ -750,6 +854,22 @@ default is 17 which is correct for all sort of arrays. You rarely should have
 to change it.
 The two values can be added together
 
+=item B<$req_rec>
+
+This variable is only available when running under control of mod_perl. 
+It contains the request record needed to access the apache server api.
+See B<perldoc Apache> for more information.
+
+=item B<LOG>
+
+is the filehandle of the embperl logfile, by writing print LOG "something" you can add lines
+to the logfile. NOTE: The logfileline should always start with the pid of the currect process
+and continue with a four character signature delimited by a ':', which specifies the log reason.
+
+Example: print LOG "[$$]ABCD: your text\n" ;
+
+NOTE 2: You must set the dbgFlushLog (= 512) to get the right order in the logfile.
+This will not be necessary any more in one of the next releases.
 
 =back
 
@@ -802,11 +922,10 @@ B<NOTE:> You must have Net::SMTP (from libnet package) installed to use this fun
 
 =head1 BUGS
 
-In checkboxes and radiobutton there are no substitution of [+ ... +] in the
-VALUE attribute.
-
 At the moment Namespaces are at experimental state and can't be fully 
 configured. Also there seems to be a memory leak.
+
+Tainting doesn't work correct under perl5.004.
 
 =head1 FEEDBACK and BUGREPORTS
 
@@ -816,25 +935,29 @@ mailling list.
 
 >From mod_perl README:
  
->For comments, questions, bug-reports, announcements, etc., send mail
->to majordomo@listproc.itribe.net with the string "subscribe modperl"
->in the body.  (Thanks to Mark A. Imbriaco <mark@itribe.net>)
->
->Thanks to James Cooper <pixel@tiger.coe.missouri.edu>,
->there is a hypermail archive for this list at:
-> 
->http://www.coe.missouri.edu/~faq/lists/modperl/
+>For comments, questions, bug-reports, announcements, etc., join the
+>Apache/Perl mailing list by sending mail to
+>listserv@listproc.itribe.net with the string "subscribe modperl" in
+>the body.   
+
+>There is a hypermail archive for this list available from:
+>http://outside.organic.com/mail-archives/modperl/
+
 
 =head1 SUPPORT
 
-If you need commercial support for Embperl or want a web site where you can 
-run your Embperl/mod_perl scripts without setting up your own internet www-
-server, please send an email to info@ecos.de.
+You can get free support on the mod_perl mailing list (see above).
+If you need commercial support (with a garantie for response time/a solution) for Embperl
+or want a web site where you can run your Embperl/mod_perl scripts without setting
+up your own internet www-server, please send an email to info@ecos.de.
 
 =head1 WWW-LINKS
 
 mod_perl            http://www.osf.org/~dougm/apache/
+mod_perl FAQ        http://www.ping.de/~fdc/mod_perl/
+Embperl             http://www.osf.org/~dougm/apache/embperl.html
 apache web server   http://www.apache.org/
+see also            http://www.perl.com/CPAN/modules/by-module/Apache/apache-modlist.html
 
 =head1 AUTHOR
 

@@ -17,7 +17,6 @@
 
 use HTML::Embperl;
 
-
-HTML::Embperl::run () ;
+HTML::Embperl::run (@ARGV) ;
 
 

@@ -1,0 +1,87 @@
+<html>
+
+<head>
+<title>Test for interpretation of input tag</title>
+</head>
+
+
+
+<form action="inhalt.htm" method="POST">
+    <p>&nbsp;</p>
+
+    <input type="text" name="feld1" value="Wert1">
+    <input type="text" name="feld2">
+    <input type="text" size=10 name="feld3">
+    <input type="text" name="feld4" size=10>
+    
+	<input type="text" name="feld5" value="Wert5">
+    <INPUT type="text" name="feld6" VALUE="Wert6">
+    <INPUT type="text" size=10 name="feld7" VALUE="Wert7">
+    <INPUT type="text" name="feld8" size=10 VALUE="Wert8">
+    
+	
+	<input type="checkbox" value="cbv1" name="cb1" checked>
+    <input type="checkbox" checked name="cb2" value="cbv2">
+    <input type="checkbox" name="cb3" value="cbv3">
+    <input type="checkbox" value="cbv4" name="cb4">
+    
+	<input type="checkbox" value="cbv5" name="cb5" checked>
+    <input type="checkbox" checked name="cb6" value="cbv6">
+    <INPUT type="checkbox" name="cb7" value="cbv7" CHECKED>
+    <INPUT type="checkbox" value="cbv8" name="cb8" CHECKED>
+    
+	<INPUT type="checkbox" value="cbv9" name="cb9" >
+	<INPUT type="checkbox"  name="cb10" value="cbv10">
+    <INPUT type="checkbox" name="cb11"  value="cbv11">
+
+
+
+    <table border="0" width="100%">
+        <tr>
+            <td><table border="0">
+                <tr>
+                    <td valign="top"><INPUT type="checkbox"
+                    name="Region"
+                    value="Pfalz"><a
+                    href="inhalt.htm?Region=Pfalz">Pfalz</a></td>
+                </tr>
+            
+                <tr>
+                    <td valign="top"><INPUT type="checkbox"
+                    name="Region"
+                    value="Rheinhessen"><a
+                    href="inhalt.htm?Region=Rheinhessen">Rheinhessen</a></td>
+                </tr>
+            </table>
+            </td>
+            <td><table border="0">
+                <tr>
+                    <td valign="top"><p align="left"><INPUT                     type="checkbox" name="Kategorie"
+                    value="Kultur"><a
+                    href="inhalt.htm?Kategorie=Kultur">Kultur</a></p>
+                    </td>
+                </tr>
+            
+                <tr>
+                    <td valign="top"><p align="left"><INPUT                     type="checkbox" name="Kategorie"
+                    value="Sport"><a
+                    href="inhalt.htm?Kategorie=Sport">Sport</a></p>
+                    </td>
+                </tr>
+            
+                <tr>
+                    <td valign="top"><p align="left"><INPUT                     type="checkbox" name="Kategorie"
+                    value="Veranstaltungen"><a
+                    href="inhalt.htm?Kategorie=Veranstaltungen">Veranstaltungen</a></p>
+                    </td>
+                </tr>
+            </table>
+            </td>
+        </tr>
+    </table>
+    <p><input type="submit" name="Search" value="Absenden"></p>
+</form>
+
+</body>
+</html>
+

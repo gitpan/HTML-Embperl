@@ -8,7 +8,13 @@ $tmppath = './test/tmp' ;
 $cmppath = './test/cmp' ;
 
 
-@tests = ('plain.htm', 'if.htm', 'while.htm', 'table.htm', 'taint.htm' ) ;
+@tests = ('plain.htm',
+          'if.htm',
+          'while.htm?erstes=Hallo&zweites=Leer+zeichen&drittes=%21%22%23&erstes=Wert2',
+ 	  'table.htm',
+ 	  'input.htm?feld5=Wert5&feld6=Wert6&feld7=Wert7&feld8=Wert8&cb5=cbv5&cb6=cbv6&cb7=cbv7&cb8=cbv8&cb9=ncbv9&cb10=ncbv10&cb11=ncbv11',
+) ;
+# 	  'taint.htm' ) ;
 
 sub CmpFiles 
     {
@@ -24,7 +30,7 @@ sub CmpFiles
         $l2 = <F2> ;
         if ($l1 ne $l2)
             {
-            print "Error in Line $line\n Is:     $l1\nShould: $l2\n" ;
+            print "\nError in Line $line\nIs:\t$l1\Should:\t$l2\n" ;
             return $line ;
             }
         $line++ ;
@@ -48,11 +54,11 @@ use Config qw (myconfig);
 
 
 
-###BEGIN { $| = 1; print "1..1\n"; }
+BEGIN { $| = 1; print "\nloading...\t"; }
 ###END {print "not ok 1\n" unless $loaded;}
 use HTML::Embperl;
 $loaded = 1;
-print "ok loaded\n";
+print "ok\n";
 
 
 mkdir $tmppath, 0755 ;
@@ -62,15 +68,18 @@ unlink ("$tmppath/out.htm") ;
 
 -w $tmppath or die "Cannot write to $tmppath" ;
 
-foreach $file (@tests)
-	{
+foreach $url (@tests)
+    {
+    ($file, $query_info) = split (/\?/, $url) ;
+
     $page = "$inpath/$file" ;
     @testargs = ( '-o', "$tmppath/out.htm" ,
                   '-l', "$tmppath/test.log",
                   '-d', '65535',
-                   $page, 'erstes=Hallo&zweites=Leer+zeichen&drittes=%21%22%23') ;
+                   $page, $query_info) ;
     
-    print "$testargs[6] -> $testargs[1], Log = $testargs[3]\n" ;
+    #print "$testargs[6] -> $testargs[1], Log = $testargs[3]\n" ;
+    print "$file...\t" ;
     $err = HTML::Embperl::run (@testargs) ;
 
     if ($err == 0)
@@ -78,12 +87,12 @@ foreach $file (@tests)
         $page =~ /.*\/(.*)$/ ;
         $org = "$cmppath/$1" ;
 
-        print "Compare $page with $org\n" ;
+        #print "Compare $page with $org\n" ;
         $err = CmpFiles ("$tmppath/out.htm", $org) ;
         }
 
-	print "$page ok\n" unless ($err) ;
-	print "$page err ($err)\n" if ($err) ;
+	print "ok\n" unless ($err) ;
+	#print "ERROR ($err)\n" if ($err) ;
 	last if $err ;
 
 	}
@@ -91,9 +100,14 @@ foreach $file (@tests)
 	
 if ($err)
     {
+    print "Input:\t\t$page\n" ;
+    print "Output:\t\t$tmppath/out.htm\n" ;
+    print "Compared to:\t$org\n" ;
+    print "Log:\t\t$tmppath/test.log\n" ;
     print "\n ERRORS detected! NOT all test have been passed successfully\n\n" ;
     }
 else
     {
     print "\nAll test have been passed successfully!\n\n" ;
     }
+

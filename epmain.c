@@ -18,15 +18,6 @@
 #include "ep.h"
 #include "epmacro.h"
 
-// Macros
-
-#ifndef max
-#define max(a,b)            (((a) > (b)) ? (a) : (b))
-#endif
-
-#ifndef min
-#define min(a,b)            (((a) < (b)) ? (a) : (b))
-#endif
 
 // Version
 
@@ -48,7 +39,7 @@ request_rec * pReq = NULL ;
 
 int  bDebug = dbgAll & ~dbgMem & ~dbgEnv;
 
-static int  bSafeEval = 0 ;
+static int  bSafeEval = 0 ;  // Should we eval everything in a safe namespace?
 
 int  nIOType   = epIOPerl ;
 
@@ -57,22 +48,27 @@ static char sRetFifo [1024] ;
 
 static char sRetFifoName [] = "__RETFIFO" ;
 
+static char cMultFieldSep = '\t' ;  // Separator if a form filed is multiplie defined
+
 static char sEvalErrName   [] = "@" ;
 static char sEnvHashName   [] = "ENV" ;
 static char sFormHashName  [] = "HTML::Embperl::fdat" ;
 static char sFormArrayName [] = "HTML::Embperl::ffld" ;
 static char sInputHashName [] = "HTML::Embperl::idat" ;
+static char sNameSpaceHashName [] = "HTML::Embperl::NameSpace" ;
 static char sTabCountName  [] = "HTML::Embperl::cnt" ;
 static char sTabRowName    [] = "HTML::Embperl::row" ;
 static char sTabColName    [] = "HTML::Embperl::col" ;
 static char sTabMaxRowName [] = "HTML::Embperl::maxrow" ;
 static char sTabMaxColName [] = "HTML::Embperl::maxcol" ;
 static char sTabModeName   [] = "HTML::Embperl::tabmode" ;
+static char sLogfileURLName[] = "HTML::Embperl::LogfileURL" ;
 
 
 static HV *    pEnvHash ;   // environement from CGI Script
 static HV *    pFormHash ;  // Formular data
 static HV *    pInputHash ; // Data of input fields
+static HV *    pNameSpaceHash ; // Hash of NameSpace Objects
 static AV *    pFormArray ; // Fieldnames
 static SV *    pEvalErr ;   // $@ -> Result of Eval
 
@@ -121,15 +117,6 @@ struct tStackEntry
     char *          pStart ;        // Startposition fpr loops
     long            bProcessCmds ;  // Process corresponding cmds
     int             nResult ;       // Result of Command which starts the block
-    int             nCount ;        // Count for tables, lists etc
-    int             nCountUsed ;    // Count for tables, lists is used in Table 
-    int             nRow ;          // Row Count for tables, lists etc
-    int             nRowUsed ;      // Row Count for tables, lists is used in Table 
-    int             nCol ;          // Column Count for tables, lists etc
-    int             nColUsed ;      // Column Count for tables, lists is used in Table 
-    int             nMaxRow ;       // maximum rows
-    int             nMaxCol ;       // maximum columns
-    int             nTabMode ;      // table mode
     char *          sArg ;          // Argument of Command which starts the block
     struct tBuf *   pBuf ;          // Output buf for table rollback         
     } ;
@@ -145,6 +132,33 @@ struct tStackEntry State ;             // current State
 char ArgStack [16384] ;
 
 char * pArgStack = ArgStack ;
+
+
+//
+// Stack for dynamic table counters
+//
+
+struct tTableStackEntry
+    {
+    int             nResult ;       // Result of Command which starts the block
+    int             nCount ;        // Count for tables, lists etc
+    int             nCountUsed ;    // Count for tables, lists is used in Table 
+    int             nRow ;          // Row Count for tables, lists etc
+    int             nRowUsed ;      // Row Count for tables, lists is used in Table 
+    int             nCol ;          // Column Count for tables, lists etc
+    int             nColUsed ;      // Column Count for tables, lists is used in Table 
+    int             nMaxRow ;       // maximum rows
+    int             nMaxCol ;       // maximum columns
+    int             nTabMode ;      // table mode
+    } ;
+
+
+struct tTableStackEntry TableStack [nStackMax] ; // Stack for table
+
+int nTableStack = 0 ;                // Stackpointer
+
+struct tTableStackEntry TableState ;             // current State
+
 
 int nTabMode    ;    // mode for next table (only takes affect after next <TABLE>
 int nTabMaxRow  ;    // maximum rows for next table (only takes affect after next <TABLE>
@@ -179,13 +193,13 @@ int CmdEndwhile (/*in*/ const char *   sArg) ;
 int CmdHidden (/*in*/ const char *   sArg) ;
 
 int HtmlTable    (/*in*/ const char *   sArg) ;
-int HtmlList     (/*in*/ const char *   sArg) ;
 int HtmlEndtable (/*in*/ const char *   sArg) ;
 int HtmlRow      (/*in*/ const char *   sArg) ;
 int HtmlEndrow   (/*in*/ const char *   sArg) ;
 int HtmlInput    (/*in*/ const char *   sArg) ;
 int HtmlTextarea   (/*in*/ const char *   sArg) ;
 int HtmlEndtextarea(/*in*/ const char *   sArg) ;
+int HtmlBody       (/*in*/ const char *   sArg) ;
 
     
 
@@ -199,8 +213,9 @@ struct tCmd CmdTab [] =
         { "/textarea", HtmlEndtextarea, 0, 1, cmdTextarea } ,
         { "/tr",      HtmlEndrow,   0, 1, cmdTablerow } ,
         { "/ul",      HtmlEndtable, 0, 1, cmdTable } ,
-        { "dir",      HtmlList,     1, 0, cmdList } ,
-        { "dl",       HtmlList,     1, 0, cmdList } ,
+        { "body",     HtmlBody,     0, 0, cmdNorm } ,
+        { "dir",      HtmlTable,    1, 0, cmdList } ,
+        { "dl",       HtmlTable,    1, 0, cmdList } ,
         { "else",     CmdElse,      0, 0, cmdIf } ,
         { "elsif",    CmdElsif,     0, 0, cmdIf } ,
         { "endif",    CmdEndif,     0, 1, cmdIf | cmdEndif } ,
@@ -208,16 +223,23 @@ struct tCmd CmdTab [] =
         { "hidden",   CmdHidden,    0, 0, cmdNorm } ,
         { "if",       CmdIf,        1, 0, cmdIf | cmdEndif } ,
         { "input",    HtmlInput,    0, 0, cmdNorm } ,
-        { "menu",     HtmlList,     1, 0, cmdList } ,
-        { "ol",       HtmlList,     1, 0, cmdList } ,
+        { "menu",     HtmlTable,    1, 0, cmdList } ,
+        { "ol",       HtmlTable,    1, 0, cmdList } ,
         { "table",    HtmlTable,    1, 0, cmdTable } ,
         { "textarea", HtmlTextarea, 1, 0, cmdTextarea } ,
         { "tr",       HtmlRow,      1, 0, cmdTablerow } ,
-        { "ul",       HtmlList,     1, 0, cmdList } ,
+        { "ul",       HtmlTable,    1, 0, cmdList } ,
         { "while",    CmdWhile,     1, 0, cmdWhile } ,
 
     } ;
 
+//
+// forward definition for function prototypes
+//
+
+static int ScanCmdEvalsInString (/*in*/  char *   pIn,
+                                 /*out*/ char * * pOut,
+                                 /*in*/  size_t   nSize) ;
 
 //
 // print error
@@ -256,6 +278,7 @@ void LogError (/*in*/ int   rc)
         case rcEndtableWithoutTablerow: lprintf ("[%d]ERR:  %d: </tr> without <tr>\n",nPid , rc, errdat1) ; break ;
         case rcEndtextareaWithoutTextarea: lprintf ("[%d]ERR:  %d: </textarea> without <textarea>\n",nPid , rc, errdat1) ; break ;
         case rcEvalErr:             lprintf ("[%d]ERR:  %d: Error in Perl code %s\n",nPid , rc, errdat1) ; break ;
+        case rcNotCompiledForModPerl: lprintf ("[%d]ERR:  %d: Error Embperl is not compiled with mod_perl support, please rerun Makefile.PL\n",nPid , rc, errdat1) ; break ;
         default: lprintf ("[%d]ERR:  %d: Error %s\n",nPid , rc, errdat1) ; break ; 
         }
     strcpy (errdat1, "") ;
@@ -280,13 +303,23 @@ void OutputToHtml (/*i/o*/ const char *  sData)
 
     while (*sData)
         {
-        pHtml = Char2Html[(unsigned char)(*sData)].sHtml ;
-        if (*pHtml)
+        if (*sData == '\\')
             {
             if (p != sData)
                 owrite (p, 1, sData - p) ;
-            oputs (pHtml) ;
-            p = sData + 1;
+            sData++ ;
+            p = sData ;
+            }
+        else
+            {
+            pHtml = Char2Html[(unsigned char)(*sData)].sHtml ;
+            if (*pHtml)
+                {
+                if (p != sData)
+                    owrite (p, 1, sData - p) ;
+                oputs (pHtml) ;
+                p = sData + 1;
+                }
             }
         sData++ ;
         }
@@ -307,9 +340,9 @@ int EvalAll (/*in*/  const char *  sArg,
              /*out*/ SV **   pRet)             
     {
     int   num ;         
-    int   nCountUsed = State.nCountUsed ;
-    int   nRowUsed   = State.nRowUsed ;
-    int   nColUsed   = State.nColUsed ;
+    int   nCountUsed = TableState.nCountUsed ;
+    int   nRowUsed   = TableState.nRowUsed ;
+    int   nColUsed   = TableState.nColUsed ;
 #ifndef EVAL_SUB    
     SV *  pSVArg ;
 #endif
@@ -347,17 +380,17 @@ int EvalAll (/*in*/  const char *  sArg,
         {
         *pRet = POPs ;
         SvREFCNT_inc (*pRet) ;
-        if ((nCountUsed != State.nCountUsed ||
-             nColUsed != State.nColUsed ||
-             nRowUsed != State.nRowUsed) &&
+        if ((nCountUsed != TableState.nCountUsed ||
+             nColUsed != TableState.nColUsed ||
+             nRowUsed != TableState.nRowUsed) &&
               !SvOK (*pRet))
-            State.nResult = 0 ;
+            TableState.nResult = 0 ;
 
         if ((bDebug & dbgTab) &&
-            (State.nCountUsed ||
-             State.nColUsed ||
-             State.nRowUsed))
-            lprintf ("[%d]TAB:  nResult = %d\n", nPid, State.nResult) ;
+            (TableState.nCountUsed ||
+             TableState.nColUsed ||
+             TableState.nRowUsed))
+            lprintf ("[%d]TAB:  nResult = %d\n", nPid, TableState.nResult) ;
 
         if (bDebug & dbgEval)
             if (SvOK (*pRet))
@@ -401,9 +434,9 @@ int EvalSafe (/*in*/  const char *  sArg,
               /*out*/ SV **   pRet)             
     {
     int   num ;         
-    int   nCountUsed = State.nCountUsed ;
-    int   nRowUsed   = State.nRowUsed ;
-    int   nColUsed   = State.nColUsed ;
+    int   nCountUsed = TableState.nCountUsed ;
+    int   nRowUsed   = TableState.nRowUsed ;
+    int   nColUsed   = TableState.nColUsed ;
     dSP;                            /* initialize stack pointer      */
 
     EPENTRY (EvalSafe) ;
@@ -428,17 +461,17 @@ int EvalSafe (/*in*/  const char *  sArg,
         {
         *pRet = POPs ;
         SvREFCNT_inc (*pRet) ;
-        if ((nCountUsed != State.nCountUsed ||
-             nColUsed != State.nColUsed ||
-             nRowUsed != State.nRowUsed) &&
+        if ((nCountUsed != TableState.nCountUsed ||
+             nColUsed != TableState.nColUsed ||
+             nRowUsed != TableState.nRowUsed) &&
               !SvOK (*pRet))
-            State.nResult = 0 ;
+            TableState.nResult = 0 ;
 
         if ((bDebug & dbgTab) &&
-            (State.nCountUsed ||
-             State.nColUsed ||
-             State.nRowUsed))
-            lprintf ("[%d]TAB:  nResult = %d\n", nPid, State.nResult) ;
+            (TableState.nCountUsed ||
+             TableState.nColUsed ||
+             TableState.nRowUsed))
+            lprintf ("[%d]TAB:  nResult = %d\n", nPid, TableState.nResult) ;
 
         if (bDebug & dbgEval)
             if (SvOK (*pRet))
@@ -524,9 +557,9 @@ int EvalNum (/*in*/  const char *  sArg,
 
 static int notused ;
 
-INTMG (Count, State.nCount, State.nCountUsed) ;
-INTMG (Row, State.nRow, State.nRowUsed) ;
-INTMG (Col, State.nCol, State.nColUsed) ;
+INTMG (Count, TableState.nCount, TableState.nCountUsed) ;
+INTMG (Row, TableState.nRow, TableState.nRowUsed) ;
+INTMG (Col, TableState.nCol, TableState.nColUsed) ;
 INTMG (MaxRow, nTabMaxRow, notused) ;
 INTMG (MaxCol, nTabMaxCol, notused) ;
 INTMG (TabMode, nTabMode, notused) ;
@@ -595,15 +628,12 @@ static int  ProcessCmd (/*in*/ const char *    sCmdName,
 
             Stack[nStack++] = State ;
             
-            memset (&State, 0, sizeof (State)) ;
             State.nCmdType  = pCmd -> nCmdType ;
             State.bProcessCmds = Stack[nStack-1].bProcessCmds ;
             State.pStart    = pCurrPos ;
             State.sArg      = strcpy (pArgStack, sArg) ;
             pArgStack += nArgLen ;
-            State.nTabMode  = nTabMode ;
-            State.nMaxRow   = nTabMaxRow ;
-            State.nMaxCol   = nTabMaxCol ;
+            State.pBuf      = NULL ;
             }
 
     rc = (*pCmd -> pProc)(sArg) ;
@@ -964,6 +994,7 @@ static int CmpCharTrans (/*in*/ const void *  pKey,
 // The Replacement is done in place, the whole string will become shorter
 // and is padded with spaces
 // tags and special charcters which are preceeded by a \ are not translated
+// carrige returns are replaced by spaces
 //
 // i/o sData     = input:  html string
 //                 output: perl string
@@ -998,6 +1029,10 @@ void TransHtml (/*i/o*/ char *  sData)
                 }
             else
                 p++ ; // Nothing to quote
+            }
+        else if (*p == '\r')
+            {
+            *p++ = ' ' ;
             }
         else
             {
@@ -1116,7 +1151,7 @@ const char * GetHtmlArg (/*in*/  const char *    pTag,
             pEnd = pVal ;
 
         
-        if (strnicmp (pTag, pArg, l) == 0 && (pTag[l] == '=' || isspace (pTag[l]) || pTag[l] == '>'))
+        if (strnicmp (pTag, pArg, l) == 0 && (pTag[l] == '=' || isspace (pTag[l]) || pTag[l] == '>' || pTag[l] == '\0'))
             if (*pLen > 0)
                 return pVal ;
             else
@@ -1125,13 +1160,49 @@ const char * GetHtmlArg (/*in*/  const char *    pTag,
         pTag = pEnd ;
         }
 
+    *pLen = 0 ;
     return NULL ;
     }
 
 
+// ----------------------------------------------------------------------------
+// body tag ...
+//
+// ----------------------------------------------------------------------------
+
+
+int HtmlBody (/*in*/ const char *   sArg)
+    {
+    SV * pSV ;
+
+    
+    EPENTRY (HtmlBody) ;
+
+    if ((bDebug & dbgLogLink) == 0)
+        return ok ;
+
+    oputs (pCurrTag) ;
+    if (*sArg != '\0')
+    	{
+    	oputc (' ') ;
+    	oputs (sArg) ;
+    	}
+    oputc ('>') ;
+    
+    
+    pCurrPos = NULL ;
+    	
+    pSV = perl_get_sv (sLogfileURLName, FALSE) ;
+    
+    if (pSV)
+        oputs (SvPV (pSV, na)) ;
+
+    return ok ;
+    }
 
 //// ----------------------------------------------------------------------------
 //// table tag ...
+//// and various list tags ... (dir, menu, ol, ul)
 ////
 
 int HtmlTable (/*in*/ const char *   sArg)
@@ -1149,37 +1220,22 @@ int HtmlTable (/*in*/ const char *   sArg)
     
     pCurrPos = NULL ;
     	
+    if (nTableStack > nStackMax - 2)
+        return rcStackOverflow ;
 
-    State.nResult = 1 ;
-    if ((State.nTabMode & epTabRow) == epTabRowDef)
+    TableStack[nTableStack++] = TableState ;
+
+    memset (&TableState, 0, sizeof (TableState)) ;
+    TableState.nResult   = 1 ;
+    TableState.nTabMode  = nTabMode ;
+    TableState.nMaxRow   = nTabMaxRow ;
+    TableState.nMaxCol   = nTabMaxCol ;
+    
+    if ((TableState.nTabMode & epTabRow) == epTabRowDef)
         State.pBuf = oBegin () ;
     return ok ;
     }
 
-//// ----------------------------------------------------------------------------
-//// various list tags ... (dir, menu, ol, ul)
-////
-
-int HtmlList (/*in*/ const char *   sArg)
-    {
-    EPENTRY (HtmlList) ;
-
-    oputs (pCurrTag) ;
-    if (*sArg != '\0')
-    	{
-    	oputc (' ') ;
-    	oputs (sArg) ;
-    	}
-    oputc ('>') ;
-    pCurrPos = NULL ;
-
-
-    State.nResult = 1 ;
-    State.nCol    = 1 ;
-    if ((State.nTabMode & epTabRow) == epTabRowDef)
-        State.pBuf = oBegin () ;
-    return ok ;
-    }
 
 //// ----------------------------------------------------------------------------
 //// /table tag ... (and end of list)
@@ -1192,26 +1248,30 @@ int HtmlEndtable (/*in*/ const char *   sArg)
     if (State.nCmdType != cmdTable)
         return rcEndtableWithoutTable ;
 
+    if (bDebug & dbgTab)
+        lprintf ("[%d]TAB:  nResult=%d nRow=%d Used=%d nCol=%d Used=%d nCnt=%d Used=%d \n",
+               nPid, TableState.nTabMode, TableState.nResult, TableState.nRow, TableState.nRowUsed, TableState.nCol, TableState.nColUsed, TableState.nCount, TableState.nCountUsed) ;
 
-    if ((State.nTabMode & epTabRow) == epTabRowDef)
-        if (State.nResult || State.nCol > 0)
+    if ((TableState.nTabMode & epTabRow) == epTabRowDef)
+        if (TableState.nResult || TableState.nCol > 0)
             oCommit (State.pBuf) ;
         else
             oRollback (State.pBuf) ;
 
-    State.nRow++ ;
-    if (((State.nTabMode & epTabRow) == epTabRowMax ||
-         ((State.nResult || State.nCol > 0) && (State.nRowUsed || State.nCountUsed) )) &&
-          State.nRow < State.nMaxRow)
+    TableState.nRow++ ;
+    if (((TableState.nTabMode & epTabRow) == epTabRowMax ||
+         ((TableState.nResult || TableState.nCol > 0) && (TableState.nRowUsed || TableState.nCountUsed) )) &&
+          TableState.nRow < TableState.nMaxRow)
         {
         pCurrPos = State.pStart ;        
-        if ((State.nTabMode & epTabRow) == epTabRowDef)
+        if ((TableState.nTabMode & epTabRow) == epTabRowDef)
             State.pBuf = oBegin () ;
 
         return ok ;
         }
 
     State.pStart    = NULL ;
+    TableState = TableStack[--nTableStack];
 
     return ok ;
     }
@@ -1235,16 +1295,11 @@ int HtmlRow (/*in*/ const char *   sArg)
 
 
     
-    State.nResult = 1 ;
-    if (Stack[nStack-1].nCmdType == cmdTable)
-        {
-        State.nCount     = Stack[nStack-1].nCount ;
-        State.nCountUsed = Stack[nStack-1].nCountUsed ;
-        State.nRow       = Stack[nStack-1].nRow ;
-        State.nRowUsed   = Stack[nStack-1].nRowUsed ;
-        }
+    TableState.nResult    = 1 ;
+    TableState.nCol       = 0 ; 
+    TableState.nColUsed   = 0 ; 
 
-    if ((State.nTabMode & epTabCol) == epTabColDef)
+    if ((TableState.nTabMode & epTabCol) == epTabColDef)
         State.pBuf = oBegin () ;
     
     return ok ;
@@ -1262,37 +1317,32 @@ int HtmlEndrow (/*in*/ const char *   sArg)
     if (State.nCmdType != cmdTablerow)
         return rcEndtableWithoutTablerow ;
 
-    if ((State.nTabMode & epTabCol) == epTabColDef)
-        if (State.nResult || (!State.nColUsed && !State.nCountUsed && !State.nRowUsed))
+    if (bDebug & dbgTab)
+        lprintf ("[%d]TAB:  nTabMode=%d nResult=%d nRow=%d Used=%d nCol=%d Used=%d nCnt=%d Used=%d \n",
+               nPid, TableState.nTabMode, TableState.nResult, TableState.nRow, TableState.nRowUsed, TableState.nCol, TableState.nColUsed, TableState.nCount, TableState.nCountUsed) ;
+
+    
+    if ((TableState.nTabMode & epTabCol) == epTabColDef)
+        if (TableState.nResult || (!TableState.nColUsed && !TableState.nCountUsed && !TableState.nRowUsed))
             oCommit (State.pBuf) ;
         else
-            oRollback (State.pBuf), State.nCol-- ;
+            oRollback (State.pBuf), TableState.nCol-- ;
 
         
 
-    State.nCount++ ;
-    State.nCol++ ;
-    if (((State.nTabMode & epTabCol) == epTabColMax ||
-         (State.nResult && (State.nColUsed || State.nCountUsed)))
-        && State.nCol < State.nMaxCol)
+    TableState.nCount++ ;
+    TableState.nCol++ ;
+    if (((TableState.nTabMode & epTabCol) == epTabColMax ||
+         (TableState.nResult && (TableState.nColUsed || TableState.nCountUsed)))
+        && TableState.nCol < TableState.nMaxCol)
         {
         pCurrPos = State.pStart ;        
-        if ((State.nTabMode & epTabCol) == epTabColDef)
+        if ((TableState.nTabMode & epTabCol) == epTabColDef)
             State.pBuf = oBegin () ;
         }
     else
         State.pStart    = NULL ;
 
-    if (Stack[nStack-1].nCmdType == cmdTable)
-        {
-        Stack[nStack-1].nCount      = State.nCount     ;
-        Stack[nStack-1].nCountUsed  = State.nCountUsed ;
-        Stack[nStack-1].nRow        = State.nRow     ;
-        Stack[nStack-1].nRowUsed    = State.nRowUsed ;
-        Stack[nStack-1].nCol        = State.nCol     ;
-        Stack[nStack-1].nColUsed    = State.nColUsed ;
-        Stack[nStack-1].nResult     = State.nResult ;
-        }
 
     return ok ;
     }
@@ -1323,23 +1373,43 @@ int HtmlInput (/*in*/ const char *   sArg)
     char          sName [256] ;
     int           bCheck ;
     int           bEqual ;
+    SV *          pRet ;
+    int           rc ;
+    char          ArgBuf [2048] ;
+    char *        pArgBuf ;
 
 
     EPENTRY (HtmlInput) ;
 
+    pArgBuf = ArgBuf ;
+    
+    if ((rc = ScanCmdEvalsInString ((char *)sArg, &pArgBuf, sizeof (ArgBuf))) != ok)
+        return rc ;
 
+    sArg = pArgBuf ;
+
+    if ((bDebug & dbgInput) && sArg == ArgBuf)
+        lprintf ("[%d]INPU: Arg Evals to %s\n", nPid, sArg) ;
+    
     pName = GetHtmlArg (sArg, "NAME", &nlen) ;
     if (nlen == 0)
         {
         if (bDebug & dbgInput)
             lprintf ("[%d]INPU: has no name\n", nPid) ; 
+        if (sArg == ArgBuf)
+            { // write translated values
+            oputs ("<INPUT ") ;
+            oputs (sArg) ;
+            oputc ('>') ;
+            pCurrPos = NULL ;
+            }
         return ok ; // no Name
         }
 
-    nlen = min (nlen, sizeof (sName) - 1) ;
+    if (nlen >= sizeof (sName))
+        nlen = sizeof (sName) - 1 ;
     strncpy (sName, pName, nlen) ;
     sName [nlen] = '\0' ;        
-
 
     pType = GetHtmlArg (sArg, "TYPE", &tlen) ;
     if (nlen >= 0 && (strnicmp (pType, "RADIO", 5) == 0 || strnicmp (pType, "CHECKBOX", 8) == 0))
@@ -1361,6 +1431,13 @@ int HtmlInput (/*in*/ const char *   sArg)
         if (hv_store (pInputHash, sName, strlen (sName), pSV, 0) == NULL)
             return rcHashError ;
         
+        if (sArg == ArgBuf)
+            { // write translated values
+            oputs ("<INPUT ") ;
+            oputs (sArg) ;
+            oputc ('>') ;
+            pCurrPos = NULL ;
+            }
         return ok ; // has already a value
         }
 
@@ -1370,6 +1447,13 @@ int HtmlInput (/*in*/ const char *   sArg)
         {
         if (bDebug & dbgInput)
             lprintf ("[%d]INPU: %s: no data available in form data\n", nPid, sName) ; 
+        if (sArg == ArgBuf)
+            { // write translated values
+            oputs ("<INPUT ") ;
+            oputs (sArg) ;
+            oputc ('>') ;
+            pCurrPos = NULL ;
+            }
         return ok ; // no data available
         }
 
@@ -1387,7 +1471,15 @@ int HtmlInput (/*in*/ const char *   sArg)
         if (pCheck)
             {
             if (bEqual)
-                ; // Everything ok
+                { // Everything ok
+                if (sArg == ArgBuf)
+                    { // write translated values
+                    oputs ("<INPUT ") ;
+                    oputs (sArg) ;
+                    oputc ('>') ;
+                    pCurrPos = NULL ;
+                    }
+                }
             else
                 { // Remove "checked"
                 oputs ("<INPUT ") ;
@@ -1395,7 +1487,10 @@ int HtmlInput (/*in*/ const char *   sArg)
                 if (owrite (sArg, pCheck - sArg, 1) != 1)
                     return rcWriteErr ;
     
-                pCurrPos = (char *)pCheck + 7 ; // let main programm write rest of html tag
+                oputs (pCheck + 7) ; // write rest of html tag
+                oputc ('>') ;
+
+                pCurrPos = NULL ; // nothing more left of html tag
                 }
             }
         else
@@ -1403,13 +1498,20 @@ int HtmlInput (/*in*/ const char *   sArg)
             if (bEqual)
                 { // Insert "checked"
                 oputs ("<INPUT ") ;
-
-                if (owrite (sArg, (pCurrPos - 1) - sArg, 1) != 1)
-                    return rcWriteErr ;
-
+                oputs (sArg) ;
                 oputs (" CHECKED>") ;
     
                 pCurrPos = NULL ; // nothing more left of html tag
+                }
+            else
+                {
+                if (sArg == ArgBuf)
+                    { // write translated values
+                    oputs ("<INPUT ") ;
+                    oputs (sArg) ;
+                    oputc ('>') ;
+                    pCurrPos = NULL ;
+                    }
                 }
             }
         }
@@ -1424,17 +1526,22 @@ int HtmlInput (/*in*/ const char *   sArg)
         //if (owrite (pData, dlen, 1) != 1)
         //    return rcWriteErr ;
 
+        oputs (" VALUE=\"") ;
         OutputToHtml (pData) ;
+        oputs ("\" ") ;
 
-        pCurrPos = (char *)pVal + 1 ; // let main programm write rest of html tag
+        while (*pVal && !isspace(*pVal))
+            pVal++ ;
+        
+        oputs (pVal) ; // write rest of html tag
+        oputc ('>') ;
+
+        pCurrPos = NULL ; // nothing more left of html tag
         }
     else
         {
         oputs ("<INPUT ") ;
-
-        if (owrite (sArg, (pCurrPos - 1) - sArg, 1) != 1)
-            return rcWriteErr ;
-
+        oputs (sArg) ;
         oputs (" VALUE=\"") ;
         OutputToHtml (pData) ;
         oputs ("\">") ;
@@ -1509,7 +1616,8 @@ int HtmlEndtextarea (/*in*/ const char *   sArg)
         return ok ; // no Name
         }
 
-    nlen = min (nlen, sizeof (sName) - 1) ;
+    if (nlen >= sizeof (sName))
+        nlen = sizeof (sName) - 1 ;
     strncpy (sName, pName, nlen) ;
     sName [nlen] = '\0' ;        
 
@@ -1630,9 +1738,11 @@ static int GetFormData (/*in*/ char * pQueryString,
     char *  pVal ;
     SV *    pSVV ;
     SV *    pSVK ;
+    SV * *  ppSV ;
 
     EPENTRY (GetFormData) ;
 
+    hv_clear (pFormHash) ;
     
     if ((pMem = _malloc (nLen + 4)) == NULL)
         return rcOutOfMemory ;
@@ -1687,16 +1797,25 @@ static int GetFormData (/*in*/ char * pQueryString,
             
                 if (nVal > 0)
                     {
-                    pSVV = newSVpv (pVal, nVal) ;
-                    pSVK = newSVpv (pKey, nKey) ;
+                    if (ppSV = hv_fetch (pFormHash, pKey, nKey, 0))
+                        { // Field exists already -> append separator and field value
+                        sv_catpvn (*ppSV, &cMultFieldSep, 1) ;
+                        sv_catpvn (*ppSV, pVal, nVal) ;
+                        }
+                    else
+                        { // New Field -> store it
+                        pSVV = newSVpv (pVal, nVal) ;
 
-                    if (hv_store (pFormHash, pKey, nKey, pSVV, 0) == NULL)
-                        {
-                        _free (pMem) ;
-                        return rcHashError ;
+                        if (hv_store (pFormHash, pKey, nKey, pSVV, 0) == NULL)
+                            {
+                            _free (pMem) ;
+                            return rcHashError ;
+                            }
+
                         }
 
-                
+                    pSVK = newSVpv (pKey, nKey) ;
+
                     av_push (pFormArray, pSVK) ;
                 
                     if (bDebug & dbgForm)
@@ -1881,45 +2000,6 @@ static int GetInputData_CGIScript ()
     }
 
 // ----------------------------------------------------------------------------
-// Process Formdata when running under mod_perl
-//
-
-static int GetInputData_Mod_Perl ()
-
-    {
-    SV *   psv ;
-    HE *   pEntry ;
-    char * pKey ;
-    I32    l ;
-        
-    EPENTRY (GetInputData_Mod_Perl) ;
-
-    hv_iterinit (pEnvHash) ;
-    while (pEntry = hv_iternext (pEnvHash))
-        {
-        pKey = hv_iterkey (pEntry, &l) ;
-        psv  = hv_iterval (pEnvHash, pEntry) ;
-
-        if (bDebug & dbgEnv)
-            lprintf ( "[%d]ENV:  %s=%s\n", nPid, pKey, SvPV (psv, na)) ; 
-        }
-
-    hv_iterinit (pFormHash) ;
-    while (pEntry = hv_iternext (pFormHash))
-        {
-        pKey = hv_iterkey (pEntry, &l) ;
-        psv  = hv_iterval (pFormHash, pEntry) ;
-
-        if (bDebug & dbgForm)
-            lprintf ("[%d]FORM: %s=%s\n", nPid, pKey, SvPV (psv, na)) ; 
-        }
-
-    return ok ;
-    }
-
-
-
-// ----------------------------------------------------------------------------
 // scan html tag ...
 //
 // p points to '<'
@@ -2029,6 +2109,7 @@ static int ScanCmdEvals (/*in*/ char *   p)
     int     n ;
     char *  c ;
     char *  a ;
+    char    as ;
     char    nType ;
     SV *    pRet ;
 
@@ -2046,6 +2127,8 @@ static int ScanCmdEvals (/*in*/ char *   p)
 
     if (nType != '+' && nType != '-' && nType != '$' )
         { // escape (for [[ -> [)
+        if (nType != '[') 
+            oputc ('[') ;
         oputc (nType) ;
         return ok ;
         }
@@ -2105,8 +2188,10 @@ static int ScanCmdEvals (/*in*/ char *   p)
             while (*a != '\0' && !isspace (*a))
                 a++ ;
 
+            as = '\0' ;
             if (*a != '\0')
                 {
+                as = *a ;
                 *a = '\0' ;
                 a++ ;
                 }
@@ -2116,7 +2201,8 @@ static int ScanCmdEvals (/*in*/ char *   p)
             if ((rc = ProcessCmd (c, a, FALSE)) != ok)
                 return rc ;
         
-            a [-1] = ' ' ;
+            if (as != '\0')
+                a [-1] = as ;
             p [-2] = nType ;
 
             break ;
@@ -2124,6 +2210,104 @@ static int ScanCmdEvals (/*in*/ char *   p)
 
     return ok ;
     }
+
+    
+// ----------------------------------------------------------------------------
+// process commands and evals in a string ...
+//
+// pIn   points to the string to process
+// pOut  pointer to a pointer to a buffer for the output, maybe point to pIn at
+//       exit if nothing to do or the buffer is filled with processed output
+// nSize size of outputbuffer
+//
+
+
+    
+static int ScanCmdEvalsInString (/*in*/  char *   pIn,
+                                 /*out*/ char * * pOut,
+                                 /*in*/  size_t   nSize)
+    
+    
+    { 
+    int    rc ;
+    char * pSaveCurrPos  ;
+    char * pSaveCurrStart ;
+    char * pSaveEndPos ;
+    char * p = strchr (pIn, '[');    
+
+
+    EPENTRY (ScanCmdEvalsInString) ;
+
+    if (p == NULL)
+        {
+        //lprintf ("SC nothing sArg = %s\n", pIn) ;
+        *pOut = pIn ; // Nothing to do
+        return ok ;
+        }
+    //lprintf ("SC sArg = %s, p = %s\n", pIn, p) ;
+
+    // save global vars
+    pSaveCurrPos   = pCurrPos ;
+    pSaveCurrStart = pCurrStart ;
+    pSaveEndPos    = pEndPos ;
+    
+    pCurrPos = pIn ;
+    pEndPos  = pIn + strlen (pIn) ;
+
+    OutputToMemBuf (*pOut, nSize) ;
+
+    rc = ok ;
+    while (pCurrPos < pEndPos && rc == ok)
+        {
+        //
+        // execute [x ... x] and replace them if nessecary
+        //
+        if (p == NULL || *p == '\0')
+            { // output the rest of html
+            owrite (pCurrPos, 1, pEndPos - pCurrPos) ;
+            break ;
+            }
+        
+        if (State.bProcessCmds == cmdAll)
+            // output until next cmd
+            owrite (pCurrPos, 1, p - pCurrPos) ;
+        
+        if (bDebug & dbgSource)
+            {
+            char * s = p ;
+            char * n ;
+
+            while (*s && isspace (*s))
+                s++ ;
+            
+            if (*s)
+                {
+                n = strchr (s, '\n') ;
+                if (n)
+                    lprintf ("[%d]SRC: %*.*s\n", nPid, n-s, n-s, s) ;
+                else
+                    lprintf ("[%d]SRC: %70.70s\n", nPid, s) ;
+
+                }
+            }        
+
+        
+        pCurrStart = p ;
+        rc = ScanCmdEvals (p) ;
+
+        p = strchr (pCurrPos, '[') ;
+        }
+    
+    OutputToStd () ;
+    
+    pCurrPos   = pSaveCurrPos ;
+    pCurrStart = pSaveCurrStart ;
+    pEndPos    = pSaveEndPos ;
+    
+    return ok ;
+    }
+            
+    
 // ----------------------------------------------------------------------------
 // add magic to integer var
 //
@@ -2204,7 +2388,11 @@ int iembperl_init (/*in*/ int     _nIOType,
 
         switch (nIOType)
             {
+        #ifdef APACHE
             case epIOMod_Perl: p = "mod_perl"; break ;
+        #else
+            case epIOMod_Perl: p = "mod_perl UNSUPPORTED"; break ;
+        #endif
             case epIOPerl:     p = "Offline"; break ;
             case epIOCGI:      p = "CGI-Script"; break ;
             case epIOProcess:  p = "Demon"; break ;
@@ -2213,6 +2401,16 @@ int iembperl_init (/*in*/ int     _nIOType,
         
         lprintf ("[%d]INIT: Embperl %s starting... mode = %s (%d)\n", nPid, sVersion, p, nIOType) ;
         }
+
+
+#ifndef APACHE
+    if (nIOType == epIOMod_Perl)
+        {
+        LogError (rcNotCompiledForModPerl) ;
+        return 1 ;
+        }
+#endif
+
 
     if ((pEvalErr = perl_get_sv (sEvalErrName, FALSE)) == NULL)
         {
@@ -2243,6 +2441,12 @@ int iembperl_init (/*in*/ int     _nIOType,
 
 
     if ((pEnvHash = perl_get_hv (sEnvHashName, TRUE)) == NULL)
+        {
+        LogError ( rcHashError) ;
+        return 1 ;
+        }
+
+    if ((pNameSpaceHash = perl_get_hv (sNameSpaceHashName, TRUE)) == NULL)
         {
         LogError ( rcHashError) ;
         return 1 ;
@@ -2292,6 +2496,18 @@ int iembperl_setreqrec  (/*in*/ SV *   pReqSV)
         }    
     
     pReq = (request_rec *)SvIV((SV*)SvRV(pReqSV));
+    bDebug = 0 ; // set it to nothing for output of logfiles
+#endif
+
+    return ok ;
+    }
+
+
+
+int iembperl_resetreqrec  ()
+    {
+#ifdef APACHE
+    pReq = NULL ;
 #endif
 
     return ok ;
@@ -2349,7 +2565,8 @@ int iembperl_req  (/*in*/ char *  sInputfile,
 
     if (pNameSpaceName && *pNameSpaceName != '\0')
         {
-        if ((pNameSpace = perl_get_sv (pNameSpaceName, FALSE)) == NULL)
+    	SV * * ppSV = hv_fetch(pNameSpaceHash, pNameSpaceName, strlen (pNameSpaceName), 0) ;  
+    	if (ppSV == NULL)
             {
             LogError (rcUnknownNameSpace) ;
 #ifdef APACHE
@@ -2357,6 +2574,7 @@ int iembperl_req  (/*in*/ char *  sInputfile,
 #endif
             return rcUnknownNameSpace ;
             }
+	pNameSpace = * ppSV ;
         bSafeEval = TRUE ;
         }
     else
@@ -2383,10 +2601,12 @@ int iembperl_req  (/*in*/ char *  sInputfile,
         lprintf ("[%d]REQ:  %s %s", nPid, (bSafeEval)?"Namespace = ":"No Safe Eval", pNameSpaceName?pNameSpaceName:"") ;
         lprintf (" mode = %s (%d)\n", p, nIOType) ;
         }
-    nStack    = 0 ;
+    nStack      = 0 ;
+    nTableStack = 0 ;
     pArgStack = ArgStack ;
 
     memset (&State, 0, sizeof (State)) ;
+    memset (&TableState, 0, sizeof (TableState)) ;
     
     State.nCmdType      = cmdNorm ;
     State.bProcessCmds  = cmdAll ;
@@ -2418,11 +2638,6 @@ int iembperl_req  (/*in*/ char *  sInputfile,
         case epIOProcess:
             rc = GetInputData_CGIProcess () ;
             break ;
-        /*
-        case epIOMod_Perl:
-            rc = GetInputData_Mod_Perl () ;
-            break ;
-        */
         }
 
             
@@ -2452,8 +2667,6 @@ int iembperl_req  (/*in*/ char *  sInputfile,
         }
     */
 
-    if (bDebug)
-        lprintf ("[%d]Open %s for output...\n", nPid, sOutputfile) ;
 
     if ((rc = OpenOutput (sOutputfile)) != ok)
         {

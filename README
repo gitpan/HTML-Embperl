@@ -16,6 +16,7 @@ MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 OVERVIEW
 
 Look at perldoc Embperl for documentation.
+or at http://www.osf.org/~dougm/apache/embperl.html for a short description
 
 Embperl allows you to embed perl code in your HTML documents. The code can 
 be used to compute something (e.g. retrieve data from a database) or to 
@@ -25,9 +26,7 @@ process your HTML document. As fours feature some HTML tags are specially
 interpreted. This allows dynamic table creation and an easier form processing.
 
 Embperl can run offline, as CGI script or as module using mod_perl of the 
-Apache httpd (which is the fastest approach). A fours method is to let it 
-run as a separate process, which is at the moment only for debugging 
-issues.
+Apache httpd (which is the fastest approach).
 
 INSTALATION
 
@@ -56,9 +55,9 @@ build mod_perl.
 See perldoc Embperl how it goes on.
 See the eg/ directory for examples.
 
-I have successfully tested this on Linux 2.0.27, mod_perl 0.96 with perl 
-5.003 and Apache 1.2b7. Since there is (as far as I can see) no system 
-dependent stuff, it should work on other systems as well.
+I have successfully tested this on Linux 2.0.27, mod_perl 0.96 and higher,
+with perl 5.003 and 5.004 and Apache 1.2. Since there is (as far as I can see)
+no system dependent stuff, it should work on other systems as well.
 
 FEEDBACK
 
@@ -66,28 +65,31 @@ Please give me a feedback if you use/test this module. Bugs,
 questions, thinks you would find useful etc. are discussed on the mod_perl
 mailling list.
 
-From mod_perl README:
+>From mod_perl README:
  
->For comments, questions, bug-reports, announcements, etc., send mail
->to majordomo@listproc.itribe.net with the string "subscribe modperl"
->in the body.  (Thanks to Mark A. Imbriaco <mark@itribe.net>)
->
->Thanks to James Cooper <pixel@tiger.coe.missouri.edu>,
->there is a hypermail archive for this list at:
-> 
->http://www.coe.missouri.edu/~faq/lists/modperl/
+>For comments, questions, bug-reports, announcements, etc., join the
+>Apache/Perl mailing list by sending mail to
+>listserv@listproc.itribe.net with the string "subscribe modperl" in
+>the body.   
+
+>There is a hypermail archive for this list available from:
+>http://outside.organic.com/mail-archives/modperl/
 
 
 SUPPORT
 
-If you need commercial support for Embperl or want a web site where you can 
-run your Embperl/mod_perl scripts without setting up your own internet www-
-server, please send an email to info@ecos.de.
+You can get free support on the mod_perl mailing list (see above).
+If you need commercial support (with a garantie for response time/a solution) for Embperl
+or want a web site where you can run your Embperl/mod_perl scripts without setting
+up your own internet www-server, please send an email to info@ecos.de.
 
 WWW-LINKS
 
 mod_perl            http://www.osf.org/~dougm/apache/
+mod_perl FAQ        http://www.ping.de/~fdc/mod_perl/
+Embperl             http://www.osf.org/~dougm/apache/embperl.html
 apache web server   http://www.apache.org/
+see also            http://www.perl.com/CPAN/modules/by-module/Apache/apache-modlist.html
 
 AUTHOR
 

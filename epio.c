@@ -63,6 +63,10 @@ static struct tBuf *    pFirstBuf = NULL ;  // First buffer
 static struct tBuf *    pLastBuf  = NULL ;  // Last written buffer
 
 
+static char * pMemBuf ;     // temporary output
+static size_t nMemBufSize ; // remaining space in pMemBuf
+
+
 //
 // Makers for rollback output
 //
@@ -303,11 +307,18 @@ int OpenOutput (/*in*/ const char *  sFilename)
     pFirstBuf = NULL ; 
     pLastBuf  = NULL ; 
     nMarker   = 0 ;
+    pMemBuf   = NULL ;
+    nMemBufSize = 0 ;
+
 
 
 #ifdef APACHE
     if (pReq)
+        {
+        if (bDebug)
+            lprintf ("[%d]Open APACHE for output...\n", nPid) ;
         return ok ;
+        }
 #endif
 
     
@@ -319,8 +330,13 @@ int OpenOutput (/*in*/ const char *  sFilename)
     if (sFilename == NULL || *sFilename == '\0')
         {
         ofd = stdout ;
+        if (bDebug)
+            lprintf ("[%d]Open STDOUT for output...\n", nPid) ;
         return ok ;
         }
+
+    if (bDebug)
+        lprintf ("[%d]Open %s for output...\n", nPid, sFilename) ;
 
     if ((ofd = fopen (sFilename, "w")) == NULL)
         {
@@ -357,6 +373,36 @@ int CloseOutput ()
 
 ////////////////////////////////////////////////////////////////////////////////////
 //
+// set output to memory buffer
+//
+
+
+void OutputToMemBuf (/*in*/ char *  pBuf,
+                     /*in*/ size_t  nBufSize)
+
+    {
+    pMemBuf     = pBuf ;
+    nMemBufSize = nBufSize ;
+    }
+
+
+////////////////////////////////////////////////////////////////////////////////////
+//
+// set output to stdandard
+//
+
+
+void OutputToStd    ()
+
+    {
+    pMemBuf     = NULL ;
+    nMemBufSize = 0 ;
+    }
+
+
+
+////////////////////////////////////////////////////////////////////////////////////
+//
 // puts to output (web client)
 //
 
@@ -380,6 +426,18 @@ int owrite (/*in*/ const void * ptr, size_t size, size_t nmemb)
     {
     int n = size * nmemb ;
 
+    if (pMemBuf)
+        {
+        if (n >= nMemBufSize)
+            n = nMemBufSize - 1 ;
+        memcpy (pMemBuf, ptr, n) ;
+        pMemBuf += n ;
+        *pMemBuf = '\0' ;
+        nMemBufSize -= n ;
+        return n / size ;
+        }
+
+    
     if (nMarker)
         return bufwrite (ptr, n) / size ;
 
@@ -419,9 +477,9 @@ int owrite (/*in*/ const void * ptr, size_t size, size_t nmemb)
 void oputc (/*in*/ char c)
 
     {
-    if (nMarker)
+    if (nMarker || pMemBuf)
         {
-        bufwrite (&c, 1) ;
+        owrite (&c, 1, 1) ;
         return ;
         }
 
@@ -470,6 +528,18 @@ int OpenLog (/*in*/ const char *  sFilename)
         }
 
     return ok ;
+    }
+
+////////////////////////////////////////////////////////////////////////////////////
+//
+// return the handle of the log file 
+//
+
+
+int GetLogHandle ()
+
+    {
+    return fileno (lfd) ;
     }
 
 

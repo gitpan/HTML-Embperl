@@ -219,6 +219,11 @@ CODE:
 OUTPUT:
     RETVAL
 
+int
+embperl_resetreqrec()
+CODE:
+    iembperl_resetreqrec() ;
+
 
 int
 embperl_req(sInputfile, sOutputfile, bDebugFlags, pNameSpace)
@@ -246,4 +251,17 @@ embperl_logevalerr(sText)
 CODE:
      strncpy (errdat1, sText, sizeof (errdat1) - 1) ;
      LogError (rcEvalErr) ;
+
+int
+embperl_getloghandle()
+CODE:
+    RETVAL = GetLogHandle() ;
+OUTPUT:
+    RETVAL
+
+int
+embperl_output(sText)
+    char * sText
+CODE:
+    OutputToHtml (sText) ;
 

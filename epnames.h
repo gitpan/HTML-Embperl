@@ -66,6 +66,7 @@
 #define HtmlInput              EMBPERL_HtmlInput         
 #define HtmlTextarea           EMBPERL_HtmlTextarea      
 #define HtmlEndtextarea        EMBPERL_HtmlEndtextarea   
+#define HtmlBody               EMBPERL_HtmlBody
 #define LogError               EMBPERL_LogError          
 #define OutputToHtml           EMBPERL_OutputToHtml      
 #define EvalAll                EMBPERL_EvalAll           
@@ -82,3 +83,10 @@
 #define Html2Char              EMBPERL_Html2Char         
 #define sizeHtml2Char          EMBPERL_sizeHtml2Char     
 #define nPid                   EMBPERL_nPid 
+#define OutputToMemBuf         EMBPERL_OutputToMemBuf
+#define OutputToStd            EMBPERL_OutputToStd
+#define GetLogHandle           EMBPERL_GetLogHandle
+#define TableStack 	       EMBPERL_TableStack
+#define nTableStack 	       EMBPERL_nTableStack
+#define TableState 	       EMBPERL_TableState
+

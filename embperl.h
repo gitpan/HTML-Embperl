@@ -45,6 +45,7 @@ enum tRc
     rcEndtextareaWithoutTextarea,
     rcArgStackOverflow,
     rcEvalErr,
+    rcNotCompiledForModPerl,
     } ;
 
 
@@ -70,6 +71,7 @@ enum dbg
     dbgAllCmds      = 1024,
     dbgSource       = 2048,
     dbgFunc         = 4096,
+    dbgLogLink      = 8192,
     
     dbgAll  = 0xffff,
     } ;
