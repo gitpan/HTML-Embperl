@@ -11,6 +11,7 @@ eg/x/neu.htm
 eg/x/table.htm
 eg/x/while.htm
 eg/x/lists.htm
+eg/x/config.htm
 embpcgi.c
 embperl.h
 embpexec.pl

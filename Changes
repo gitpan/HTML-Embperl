@@ -1,5 +1,14 @@
 Revision history for Perl extension HTML::Embperl.
-0.18-beta
+
+0.19-beta 
+    - rewritten the code for the LOG handle. Now the handle LOG is tied so every
+      print/printf is written to embperl.log at the right position. Use this to 
+      do logging from your embeded code or modules
+    
+    - Fixed a bug which causes garbage displayed in dynamic tables or make parts
+      of the table lost at all  
+
+0.18-beta 25 Oct 97
    - Added caching of p-code. Now all perl-code is compiled only once. On the
      second request the compiled p-code is used. This makes, for example, the 
      table.htm from the test about 4 times faster on the second run then it was in

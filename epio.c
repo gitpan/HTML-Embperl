@@ -67,6 +67,7 @@ static FILE *  lfd = NULL ;  /* log file */
 #define PerlIO_flush fflush
 #define PerlIO_vprintf vfprintf
 #define PerlIO_fileno fileno
+#define PerlIO_tell ftell
 
 #define PerlIO_read(f,buf,cnt) fread(buf,cnt,1,f)
 #define PerlIO_write(f,buf,cnt) fwrite(buf,cnt,1,f)
@@ -154,8 +155,8 @@ void oRollback (struct tBuf *   pBuf)
         
         pLastFreeBuf = pLastBuf ;
         
-        pFirstBuf = NULL ;
-        nMarker = 0 ;
+        pFirstBuf   = NULL ;
+        nMarker     = 0 ;
         }
     else
 	{
@@ -234,8 +235,8 @@ static int bufwrite (/*in*/ const void * ptr, size_t size)
         return 0 ;
 
     memcpy (pBuf + 1,  ptr, size) ;
-    pBuf -> pNext = NULL ;
-    pBuf -> nSize = size ;
+    pBuf -> pNext   = NULL ;
+    pBuf -> nSize   = size ;
     pBuf -> nMarker = nMarker ;
 
     if (pLastBuf)
@@ -273,7 +274,13 @@ static void buffree ()
 
 #ifdef APACHE
     if ((bDebug & dbgMem) == 0 && pReq != NULL)
+        {
+        pFirstBuf    = NULL ;
+        pLastBuf     = NULL ;
+        pFreeBuf     = NULL ;
+        pLastFreeBuf = NULL ;
         return ; /* no need for apache to free memory */
+        }
 #endif
         
     /* first walk thru the used buffers */
@@ -773,6 +780,19 @@ int GetLogHandle ()
 
     {
     return PerlIO_fileno (lfd) ;
+    }
+
+
+/* ///////////////////////////////////////////////////////////////////////////////////
+//
+// return the current posittion of the log file 
+*/
+
+
+long GetLogFilePos ()
+
+    {
+    return PerlIO_tell (lfd) ;
     }
 
 

@@ -12,6 +12,8 @@ table.htm	simple html file which shows how to use the dynamic table
 lists.htm       shows you how to use dynamic lists and listboxes and
                 dropdownboxes
 
+config.htm      print out your perl config, like perl -V does
+
 neu.htm	        this example shows many of the feature of Embperl, as 
                 embedding various code, conditional processing and form 
 		management (It's in German but I think it can be understand 

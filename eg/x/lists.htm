@@ -28,12 +28,12 @@ content="text/html; charset=iso-8859-1">
 <form method="POST">
   <P>Select Tag</P>
 
-    If you request this document with list.htm?sel=n you can specify that the
-    nth element of the dropdownlist is initialy selected
-    
+    If you request this document with list.htm?sel=x you can specify which
+    module of the dropdownlist is initialy selected<BR>
+    eg. lists.htm?sel=Apache.pm
 
-    <p><select name="D1" size="1">
-        <option value="[+ $v[$row] +]" [+ $row + 1 == $fdat{sel}?'SELECTED':'' +]>[+ $k[$row] +]</option>
+    <p><select name="sel" size="1">
+        <option value="[+ $k[$row] +]">[+ $v[$row] +]</option>
     </select></p>
 </form>
 

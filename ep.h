@@ -140,6 +140,9 @@ int FlushLog    () ;
 int lprintf     (/*in*/ const char *  sFormat,
                  /*in*/ ...) ;
 
+long GetLogFilePos () ;
+int GetLogHandle () ;
+
 
 /* Memory Allocation */
 

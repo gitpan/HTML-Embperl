@@ -5,9 +5,12 @@ TODO for Embperl
 - Debug namespaces and operation restriction
 - Runtime configuration
 - Add a DBI databaseinterface
-- Speed optimizations
 - Automatic URL-Encode the args of the <A> tag
 - igets together with sfio
+- html to in commands i.e. [$endif<br>$]
+- html quoting on/off
+- local vars
 
+ 
 
 

@@ -177,9 +177,26 @@ CODE:
 OUTPUT:
     RETVAL
 
-int
+
+long
+embperl_getlogfilepos()
+CODE:
+    RETVAL = GetLogFilePos() ;
+OUTPUT:
+    RETVAL
+
+
+
+void
 embperl_output(sText)
     char * sText
 CODE:
     OutputToHtml (sText) ;
+
+
+void
+embperl_log(sText)
+    char * sText
+CODE:
+    lwrite (sText, strlen (sText), 1) ;
 

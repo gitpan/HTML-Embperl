@@ -1,0 +1,14 @@
+
+<html>
+<head>
+<title>Perl config (like perl -V)</title>
+</head>
+<body background="../images/jazzbkgd.gif">
+
+[- use Config qw (myconfig) ; -]
+[- $c = myconfig () -]
+[- $c =~ s/\n/\\\<BR\\\>/g -]
+[+ $c +]
+
+</body>
+</html>

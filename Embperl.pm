@@ -28,7 +28,7 @@ require DynaLoader;
 @ISA = qw(Exporter DynaLoader);
 
 
-$VERSION = '0.18-beta';
+$VERSION = '0.19-beta';
 
 
 bootstrap HTML::Embperl $VERSION;
@@ -73,8 +73,48 @@ while (($k, $v) = each (%CONSTANT))
     'INPU:' => '#008040',
                 ) ;
 
+#######################################################################################
+#
+# tie for logfile output
+#
+
+    {
+    package HTML::Embperl::Log ;
 
 
+    sub TIEHANDLE 
+
+        {
+        my $class ;
+        
+        return bless \$class, shift ;
+        }
+
+
+    sub PRINT
+
+        {
+        shift ;
+        HTML::Embperl::embperl_log(join ('', @_)) ;
+        }
+
+    sub PRINTF
+
+        {
+        shift ;
+        my $fmt = shift ;
+        HTML::Embperl::embperl_log(sprintf ($fmt, @_)) ;
+        }
+    }
+
+
+
+
+
+#######################################################################################
+#
+# init on httpd startup
+#
 
 if (defined ($INC{'Apache.pm'}))
     { 
@@ -84,9 +124,10 @@ if (defined ($INC{'Apache.pm'}))
 
     $DefaultLog = $ENV{EMBPERL_LOG} if defined ($ENV{EMBPERL_LOG}) ;
     embperl_init (&epIOMod_Perl, $DefaultLog) ;
-    $log = embperl_getloghandle () ;
-    open LOG, ">>&=$log" || print STDERR "Embperl: Cannot open LOG (fh=$log)" ;
-    autoflush LOG 1 ;
+    tie *LOG, 'HTML::Embperl::Log' ;
+    #$log = embperl_getloghandle () ;
+    #open LOG, ">>&=$log" || print STDERR "Embperl: Cannot open LOG (fh=$log)" ;
+    #autoflush LOG 1 ;
     }
 
 #######################################################################################
@@ -339,8 +380,9 @@ sub run (\@)
 
 
     embperl_init ($ioType, $Logfile) ;
-    $log = embperl_getloghandle () ;
-    open LOG, "<&=$log" ;
+    #$log = embperl_getloghandle () ;
+    #open LOG, "<&=$log" ;
+    tie *LOG, 'HTML::Embperl::Log' ;
 
     undef $cgi ;
 
@@ -368,7 +410,7 @@ sub run (\@)
 	    }
     until ($ioType != &epIOProcess) ;
 
-    close LOG ;
+    #close LOG ;
     embperl_term () ;
 
     return $rc ;
@@ -448,11 +490,12 @@ sub handler
     
     if ($rc == 0)
         {
-        seek (LOG, 0, 2) ; # goto eof
-        $logfilepos = tell LOG ;
+        $logfilepos = embperl_getlogfilepos () ;
         $LogfileURL = "<A HREF=\"$ENV{EMBPERL_VIRTLOG}?$logfilepos&$$\">Logfile</A><BR>" ;
 
         $rc = embperl_req ($ENV{PATH_TRANSLATED}, '', $ENV{EMBPERL_DEBUG}, $ns, $filesize, $pcodecache) ;
+        
+        
         }
     
     if ($rc != 0)
