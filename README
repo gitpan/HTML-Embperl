@@ -29,18 +29,6 @@ interpreted. This allows dynamic table creation and an easier form processing.
 Embperl can run offline, as CGI script or as module using mod_perl of the 
 Apache httpd (which is the fastest approach).
 
-PLEASE
-
-I think it's time to make the first release version of Embperl.
-As far as I can see I have fixed all known/reported errors and finished
-all the outstanding stuff. So I hope HTML::Embperl-0.26-beta is ready
-for turning it into a release version.
-
-So PLEASE if you use/want to use Embperl download the 0.26 and test it, so
-it can be made sure that it compiles/works without any problems.
-PLEASE give me a feedback if it works or not for you, maybe you can
-attach the platform you are using and what you are doing with Embperl.
-
 
 INSTALLATION
 
@@ -61,7 +49,8 @@ See perldoc Embperl how it goes on.
 See the eg/ directory for examples.
 
 I have successfully tested this on Linux 2.0.27, mod_perl 0.96 and higher,
-with perl 5.004 and Apache 1.2 and 1.3. Since there is (as far as I can see)
+with perl 5.004 and Apache 1.2.x and 1.3b3,5,6. It also works with Apache-SSL
+and Stronghold. Since there is (as far as I can see)
 no system dependent stuff, it should work on other systems as well.
 As far as possible use perl 5.004_04, because 5.004 has memory leaks.
 Also I suggest to use mod_perl-1.07_02 or higher because of a memory leak
@@ -77,7 +66,9 @@ to get it run with apache and mod_perl, while I was able to use the binary
 distribution (/authors/id/GSAR/perl5.00402-bindist04-bc.tar.gz) of perl for
 offline testing under Win 95.
 
- 
+NOTE: If you use mod_perl <= 1.11 you should aply the win32.patch, otherwise you will
+get a deadlock 
+
 
 On Windows 95/NT you have todo the following:
 
@@ -93,10 +84,8 @@ to
 +#line  1 "Embperl.xs"
 
 now rerun nmake and it should compile.
-If you use offline mode only and the binary distribution then
-you can do a "nmake test".
-For all other cases "nmake test" doesn't work yet!
-After that do a 
+
+"nmake test"
 "nmake install"
 
 
@@ -105,39 +94,77 @@ NOTE!
 In version 0.16 and above you need to set the 'Options ExecCGI' in your
 srm.conf for running under mod_perl!
 
-FEEDBACK
 
-Please give me a feedback if you use/test this module. Bugs, 
-questions, thinks you would find useful etc. are discussed on the mod_perl
-mailling list.
+COMPATIBILITY
 
->From mod_perl README:
+I have tested Embperl succesfully
+
+on Linux 2.x with
+
+perl5.004_04
+apache_1.2.5
+apache_1.2.6
+apache_1.3b3
+apache_1.3b5
+apache_1.3b6
+apache_ssl (Ben SSL)
+Stringhold 2.2
+
+on Windows NT 4.0 with
+
+perl5.004_04
+apache_1.3b5
+
+on Windows 95 with
+perl5.004_02 (binary distribution)
+Offline mode
+
+I know from other people that it works on many other UNIX systems
+
+
+FEEDBACK and BUG REPORTS
+
+Please let me know if you use or test this module.  Bugs, questions,
+suggestions for things you would find useful, etc., are discussed on
+the mod_perl mailling list.
+
+>From the mod_perl README:
  
->For comments, questions, bug-reports, announcements, etc., join the
->Apache/Perl mailing list by sending mail to
->listserv@listproc.itribe.net with the string "subscribe modperl" in
->the body.   
+The Apache/Perl mailing list (modperl@apache.org) is available for mod_perl
+users and developers to share ideas, solve problems and discuss things related
+to mod_perl and the Apache::* (and Embperl) modules. To subscribe to this list, send mail to
+majordomo@apache.org with the string "subscribe modperl" in the body. 
 
->There is a hypermail archive for this list available from:
->http://outside.organic.com/mail-archives/modperl/
+
+There is a hypermail archive for this list available from:
+http://outside.organic.com/mail-archives/modperl/
+
+There is an Epigone archive for the mod_perl mailing list at
+http://forum.swarthmore.edu/epigone/modperl
 
 
 SUPPORT
 
-You can get free support on the mod_perl mailing list (see above).
-If you need commercial support (with a garantie for response time/a solution)
-for Embperl or want a web site where you can run your Embperl/mod_perl scripts
-without setting up your own internet www-server, please send an email to
-info@ecos.de.
+You can get free support on the mod_perl mailing list (see above).  If
+you need commercial support (with a guarantee for response time or a
+solution) for Embperl or want a web site where you can run your
+Embperl/mod_perl scripts without setting up your own web server,
+please send email to info@ecos.de.
 
-WWW-LINKS
 
-mod_perl            http://perl.apache.org/
-mod_perl FAQ        http://www.ping.de/~fdc/mod_perl/
-Embperl             http://perl.apache.org/embperl.html
-apache web server   http://www.apache.org/
-see also            http://www.perl.com/CPAN/modules/by-module/Apache/apache-modlist.html
+REFERENCES
+
+ mod_perl               http://perl.apache.org/
+ mod_perl FAQ           http://perl.apache.org/faq
+ Embperl                http://perl.apache.org/embperl.html
+ apache web server      http://www.apache.org/
+ ben-ssl (free httpsd)  http://www.apache-ssl.org/
+ stronghold (commerical httpsd) http://www.c2.net/
+    europe              http://www.eu.c2.net/
+ see also               http://www.perl.com/CPAN/modules/by-module/Apache/apache-modlist.html
+
 
 AUTHOR
 
-Gerald Richter <richter@dev.ecos.de>
+G. Richter (richter@dev.ecos.de)
+

@@ -33,7 +33,7 @@ require DynaLoader;
 @ISA = qw(Exporter DynaLoader);
 
 
-$VERSION = '0.27-beta';
+$VERSION = '0.28-beta';
 
 
 bootstrap HTML::Embperl $VERSION;
@@ -1321,14 +1321,16 @@ Same as EMBPERL_COMPARTMENT (see below).
 
 =over 4
 
-=item B<HTML::Embperl::Init ($Logfile)>
+=item B<HTML::Embperl::Init ($Logfile, $DebugDefault)>
 
-When B<not> running under mod_perl, you must first do a call to Init before
-you can use B<Execute>. Do not call Init when running under mod_perl!
+This function can be used to setup the logfile path and (optional) 
+a default value for the debugflags, which will be used in further calls
+to Execute. There will be always only one logfile, but you can use B<Init>
+to change it at any time.
 
-=item B<HTML::Embperl::Term>
+NOTE: You do not need to call Init in version >= 0.27. The initialisation
+of Embperl takes place automaticly when it is loaded.
 
-Call this when your work is done.
 
 =item B<HTML::Embperl::ScanEnvironement (\%params)>
 
@@ -1476,6 +1478,65 @@ Perl expressions and escapes special charcaters automatically (e.g.,
 Embperl will automaticly convert the HTML input back to the Perl
 expressions as you wrote them.
 
+=item optEarlyHttpHeader = 64
+
+Normally, HTTP headers are sent after a request is finished without
+error.  This gives you the chance to set arbitrary HTTP headers within
+the page, and Embperl the chance to calculate the content length. Also
+Embperl watchs out for errors and sends an errorpage instead of the
+document if something wents wrong.
+To do this, all the output is kept in memory until the whole request is
+processed, then the HTTP headers are
+sent, and then the document.  This flag will cause the HTTP
+headers to be sent before the script is processed, and the script's
+output will be sent directly. 
+
+=item optDisableChdir = 128
+
+Without this option Embperl changes the currect directory to the one where
+the script resides. This gives you the chance to use relative pathnames. 
+Since directory-changeing takes up some millisecs, you can disable it with 
+this option if you don't need it.
+
+=item optDisableFormData = 256
+
+This option disables the setup of %fdat and @ffld. Embperl will not do anything
+with the posted form data.
+
+=item optDisableHtmlScan = 512
+
+When set, this option disables the scanning of B<all> html-tags. Embperl will only
+look for [+/-/!/$ ... $/!/-/+]. This will disable dynamic tables, processing of the
+input data and so on.
+
+=item optDisableInputScan = 1024
+
+Disables processing of all input related tags. (<INPUT><TEXTAREA><OPTION>)
+
+=item optDisableTableScan = 2048
+
+Disables processing of all table related tags. (<TABLE><TH><TR><TD><MENU><OL><SELECT><UL>)
+
+=item optDisableMetaScan = 4096
+
+Disables processing of all meta tags. (<META HTTP-EQUIV>)
+
+=item optAllFormData = 8192
+
+This option will cause Embperl to insert all formfields in %fdat and @ffld, even if they
+are empty. Empty formfields will be insert with an empty string. Without this option
+empty formfields will not be insert in %fdat and @ffld.
+
+
+=item optRedirectStdout = 16384
+
+Redirects STDOUT to the Embperl output stream before every request and reset it afterwards.
+If set, you can use a normal perl B<print> inside any perl block, to output data. 
+Without this option you can only output data by using the [+ ... +] block, or printing
+to the filehandle B<OUT>.
+
+
+
 =back
 
 
@@ -1575,17 +1636,6 @@ down Embperl dramatically.) This option is only here for debugging
 Embperls cache handling. There is no guarantee, that Embperl behaves
 the same with and without cache (actually is does not!)
 
-
-=item dbgEarlyHttpHeader = 65536
-
-Normally, HTTP headers are sent after a request is finished without
-error.  This gives you the chance to set arbitrary HTTP headers within
-the page, and Embperl the chance to calculate the content length.  To
-do this, all the output is kept in memory until the HTTP headers are
-sent, and then the document is sent.  This flag will cause the HTTP
-headers to be sent before the script is processed, and the script's
-output will be sent directly.  (Embperl versions before 0.18 did not
-have this option; all headers were sent early.)
 
 =item dbgHeadersIn = 262144
 
@@ -1909,6 +1959,24 @@ The TEXTAREA tag is treated excatly like other input fields.
 
 =back
 
+=item B<META HTTP-EQUIV= ... >
+
+<meta http-equiv= ... > will override the correspondig http header
+this avoids netscape from asking the user to reload the document
+when the content-type differs between the http header and the
+meta http-equiv
+This can also be used to set http headers. When running under mod_perl
+http-headers can also be set by the function B<header_out>
+
+    Example to set a http header:
+
+    <META HTTP-EQUIV="Language" CONTENT="DE">
+
+    same using a Apache function
+
+    [- $req_rec ->  header_out("Language" => "DE"); -]
+
+
 
 =head1 B<Variable scope and cleanup>
 
@@ -2127,10 +2195,32 @@ If you are writing a module for use under Embperl you can say
 
 to get a handle by which you can write to the Embperl logfile.
 
-=item B<param>
+=item B<OUT>
+
+This filehandle is tied to Embperls output stream. Printing to it has the same effect
+as using the [+ ... +] block. (See also B<optRedirectStdout>)
+
+=item B<@param>
 
 Will be setup by the B<'param'> parameter of the B<Execute> function. Could be used
 to pass parameters to an Embperl document and back. (see B<Execute> for further docs)
+
+=item B<$optXXX> B<$dbgXXX>
+
+All options (see B<EMBPERL_OPTIONS>) and all debugging flags (see B<EMBPERL_DEBUG>) can
+be read and set by the corresponding variables.
+
+  Example:
+
+    [- $optRawInput = 1 -] # Turn the RawInput option on
+    
+    Now write something here
+
+    [- $optRawInput = 0 -] # Turn the RawInput option off again
+
+
+    [+ $dbgCmd +] # Output the state of the dbgCmd flag
+
 
 =back
 
@@ -2267,6 +2357,243 @@ to use this function.
 =back
 
 
+=head1 Inside Embperl - How the embedded perl code is actually processed
+
+
+If Embperl encounters a pieces of perl code
+  B<([+/-/!/$ .... $/!/-/+])>
+it takes the following steps.
+
+
+=item 1.
+Remove anything which looks like an HTML tag
+
+=item 2.
+Translate HTML escapes to their corresponding ASCII characters
+
+=item 3.
+Remove all carriage returns
+
+=item 4.
+Eval the perl code into a subroutine
+
+=item 5.
+Call the subroutine
+
+=item 6.
+Escape special characters in the return value
+
+=item 7.
+Send the return value as output to the destination (browser or file)
+
+
+Steps 1-4 take place only the first time the perl code is encountered.
+Embperl stores the evaled subroutine, so all subsequent requests only
+need to execute steps 5-7.
+
+Steps 6 and 7 take place only for code surrounded by [+ ... +].
+
+
+What does this mean?
+
+Lets take a piece of code like the following:
+
+ [+ <BR>
+ $a = "This '&gt;' is a greater-than sign"
+ <BR> +]
+
+=head2 1. Remove the HTML tags.  Now it looks like
+
+ [+
+ $a = "This '&gt;' is a greater-than sign"
+ +]
+
+The <BR>s were inserted by some WYSIWYG HTML editor (e.g., by hitting
+return to make the source more readable.  Also, such editors often
+generate "random" tags like <FONT>, etc.).  Embperl removes them so
+they don't cause syntax errors.
+
+There are cases where you actually want the HTML tag to be there.  For
+example, suppose you want to output something like
+
+ [+ "<FONT COLOR=$col>" +]
+
+If you write it this way Embperl will just remove everything, leaving
+only
+
+ [+ "" +]
+
+
+There are several ways to handle this correctly.
+
+ a. <FONT COLOR=[+$col+]>
+    Move the HTML tag out of the perl code. This is the best way, but
+    not possible everytime.
+
+ b. [+ "\<FONT COLOR=$col>" +]
+    You can escape the opening angle bracket of the tag with `\'.
+
+ c. [+ "&lt;FONT COLOR=$col&gt;" +]
+
+    You can use the HTML escapes instead of the ASCII characters.
+    Most HTML editors will automatically do this.  (In this case,
+    you don't have to worry about it at all.)
+
+ d. Set optRawInput (see below).
+    This will completely disable the removal of HTML tags.
+
+NOTE: In cases b-d, you must also be aware of output escaping (see
+below).
+
+You should also be aware that Embperl will interpret the perl
+spaceship operator (<>) as an HTML tag and will remove it.  So instead
+of
+
+  [- $line = <STDIN>; -]
+
+you need to write either
+
+ a. [- $line = \<STDIN>; -]
+ b. [- $line = &lt;STDIN&gt;; -]
+
+Again, if you use a high-level HTML editor, it will probably write
+version (b) for you automatically.
+
+
+=head2 2. Translate HTML escapes to ASCII characters
+
+Since perl doesn't understand things like $a &lt; $b, Embperl will
+translate it to $a < $b.  If we take the example from earlier, it will
+now look like
+
+ [+
+ $a = "This '>' is a greater sign"
+ +]
+
+This step is done to make it easy to write perl code in a high level
+HTML editor.  You do not have to care that your editor writes &gt;
+instead of > in the source.
+
+Again, sometimes you need to have such escapes in your code.  You can
+write them
+
+ a. \&gt;
+    Escape them with a `\' and Embperl will not translate them.
+
+ b. &amp;gt;
+    Write the first `&' as its HTML escape (&amp;).  A normal HTML
+    editor will do this on its own if you enter &gt; as text.
+
+ c. Set optRawInput (see below)
+    This will completely disable the input translation.
+
+Since not all people writing in a high level or WYSIWYG HTML editor,
+there is an option to disable steps 1 and 2.  You can use the
+B<optRawInput> in EMBPERL_OPTIONS to tell Embperl to leave the perl
+code as it is.  It is highly recommended to set this options if you
+are writing your HTML in an ASCII editor. You normally don't want to
+set it if you use some sort of high level HTML editor.
+
+
+=head2 3. Remove all carriage returns
+
+All carriage returns (B<\r>) are removed from the perl code, so you
+can write source on a DOS/Windows platform and execute it on a UNIX
+server.  (perl doesn't like getting carriage returns in the code it
+parses.)
+
+
+=head2 4. Eval perl code into a subroutine
+
+The next step generates a subroutine out of your perl code.  In the
+above example it looks like:
+
+sub foo
+    {
+    $a = "This '>' is a greater sign"
+    }
+
+The subroutine is now stored in the perl interpreter in its internal
+precompiled format and can be called later as often as necessary
+without doing steps 1-4 again.  Embperl recognizes if you request the
+same document a second time and will just call the compiled
+subroutine.  This will also speed up the execution of dynamic tables
+and loops, because the code inside must be compiled only on the first
+iteration.
+
+
+=head2 5. Call the subroutine
+
+Now the subroutine can be called to actually execute the code.
+
+If Embperl isn't executing a [+ ... +] block we are done.  If it is a
+[+ ... +] block, Embperl needs to generate output, so it continues.
+
+
+=head2 6. Escape special characters in the return value
+
+Our example returns the string:
+
+"This '>' is a greater sign"
+
+The greater sign is literal text (and not a closing html tag), so
+according to the HTML specification it must be send as &gt; to the
+browser.  In most cases this won't be a problem, because the browser
+will display the correct text if we send a literal '>'.  Also we could
+have directly written &gt; in our perl string.  But when the string
+is, for example, the result of a database query and/or includes
+characters from national character sets, it's absolutely necessary to
+send them correctly escaped to the browser to get the desired result.
+
+A special case is the <A> HTML tag.  Since it includes a URL the text
+must be URL-escaped instead of HTML-escaped.  This means special
+characters like `&' must be sent by there hexadecimal ASCII code and
+blanks must be translated to a `+' sign.  If you do not do this your
+browser may not be able to interpret the URL correctly.
+
+Example:
+
+   <A HREF='http://host/script?name="[+$n+]"'>
+
+When $n is "My name" the requested URL, when you click on the
+hyperlink, will be
+
+   http://host/script?name=My+name
+
+
+In some cases it is useful to disable escaping.  This can be done by
+the variable B<$escmode>.
+
+Example: (For better readability, we assume that optRawInput is set.
+Without it, you need to cover the Embperl pre-processing described in
+steps 1-3.)
+
+    [+ "<FONT COLOR=5>" +]
+
+    This will be sent to the browser as &lt;FONT COLOR=5&gt;, so you
+    will see the tag on the browser screen instead of the browser
+    switching the color.
+
+    [+ local $escmode=0 ; "<FONT COLOR=5>" +]
+
+    This will (locally) turn off escaping and send the text as a plain
+    HTML tag to the browser, so the color of the output will change.
+
+
+=head2 7. Send the return value as output to the destination
+(browser/file)
+
+Now everything is done and the output can be send to the browser.  If
+you haven't set dbgEarlyHttpHeaders, the output is buffered until the
+successful completion of document execution of the document and sent
+to the browser along with the HTTP headers.  If an error occurs an
+error document is sent instead.
+
+The content length and every <META HTTP-EQUIV=...> is added to the
+HTTP header before sending it.  If Embperl is executed as a subrequest
+or the output is going to a file no http header is sent.
+
+
 =head1 PERFORMANCE
 
 To get the best performace from Embperl, it is necessary to restrict
@@ -2294,6 +2621,33 @@ possible, because until 1.07_01 there is a memory leak in
 Apache->push_handler.
 
 
+=head1 COMPATIBILITY
+
+I have tested Embperl succesfully
+
+on B<Linux 2.x> with
+
+perl5.004_04
+apache_1.2.5
+apache_1.2.6
+apache_1.3b3
+apache_1.3b5
+apache_1.3b6
+apache_ssl (Ben SSL)
+Stringhold 2.2
+
+on B<Windows NT 4.0> with
+
+perl5.004_04
+apache_1.3b5
+
+on B<Windows 95> with
+perl5.004_02 (binary distribution)
+Offline mode
+
+I know from other people that it works on many other UNIX systems
+
+
 =head1 FEEDBACK and BUG REPORTS
 
 Please let me know if you use or test this module.  Bugs, questions,
@@ -2302,13 +2656,17 @@ the mod_perl mailling list.
 
 >From the mod_perl README:
  
-For comments, questions, bug-reports, announcements, etc., join the
-Apache/Perl mailing list by sending mail to
-listserv@listproc.itribe.net with the string "subscribe modperl" in
-the body.
+The Apache/Perl mailing list (modperl@apache.org) is available for mod_perl
+users and developers to share ideas, solve problems and discuss things related
+to mod_perl and the Apache::* (and Embperl) modules. To subscribe to this list, send mail to
+majordomo@apache.org with the string "subscribe modperl" in the body. 
+
 
 There is a hypermail archive for this list available from:
 http://outside.organic.com/mail-archives/modperl/
+
+There is an Epigone archive for the mod_perl mailing list at
+http://forum.swarthmore.edu/epigone/modperl
 
 
 =head1 SUPPORT
@@ -2322,11 +2680,14 @@ please send email to info@ecos.de.
 
 =head1 REFERENCES
 
- mod_perl            http://perl.apache.org/
- mod_perl FAQ        http://perl.apache.org/faq
- Embperl             http://perl.apache.org/embperl.html
- apache web server   http://www.apache.org/
- see also            http://www.perl.com/CPAN/modules/by-module/Apache/apache-modlist.html
+ mod_perl               http://perl.apache.org/
+ mod_perl FAQ           http://perl.apache.org/faq
+ Embperl                http://perl.apache.org/embperl.html
+ apache web server      http://www.apache.org/
+ ben-ssl (free httpsd)  http://www.apache-ssl.org/
+ stronghold (commerical httpsd) http://www.c2.net/
+    europe              http://www.eu.c2.net/
+ see also               http://www.perl.com/CPAN/modules/by-module/Apache/apache-modlist.html
 
 
 =head1 AUTHOR

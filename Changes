@@ -1,6 +1,10 @@
 Revision history for Perl extension HTML::Embperl.
 
-0.27-beta
+0.27-beta 19 May 1998
+   - I have added a chapter "Inside Embperl" to the docs, I hope this
+     will make it clearer how escaping and unescaping works and how you
+     can get which result. Highly recommended! (Thanks for spell- and gramar-
+     checking to Todd Eigenshink)
    - make test now runs under win32 (You need to install LWP and libwin32)
      IMPORTANT: You need a mod_perl version > 1.11 or you get a deadlock
    - Compiles with apache_1.3b6

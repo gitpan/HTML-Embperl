@@ -4,30 +4,10 @@ TODO for Embperl
 - Apache::Symbol::undef (avoid function redefinition warning)
 
 +- Mail Form Return Path
-?- optDIsabelErrorPage
-?- disable request processing, what ??
-?- disable fastcwd ??
-
-?- opt/dbg test
-?- optInput/table/meta
-?- HTML::Embperl::Offline
-?- SetLog
-?- $rawinput
-?- conditional compile 
-?- meta doc
-
-?*- optEarlyHttpHeader
-
-*- no set_content_lentgh when no header
-
-
-?- Forget error at end of table
-?- print > STDOUT
-?- optAllFomrData
 
 - [$foreach$]
-- docs
-- param -> @_
+?- docs
+- @param -> @_
 
 - delete empty lines
 
