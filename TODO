@@ -31,7 +31,7 @@ Features
 
 - BEGIN/END Blocks [Jason Bodnar 6.10.99]
 
-- return value from sub
+- return value from sub -> done in 2.0
 
 - remove \n in perl code? when and how?
 
@@ -64,6 +64,7 @@ Features
 
 - pre header function [Alvar Freude 25.10.00]
 
+- discard output [ Roman Maeder 28.11.00]
 
 Test
 ----
@@ -71,17 +72,12 @@ Test
 
 Bugs
 ----
-- Embperl version number [Eric CHOLET]
-
-- errorright output
 
 - [* *] inside if [Vasco Chita 1.5.99] -> done in 2.0
 
 - StackFree in offline mode
 
 - SIG DIE missing message arg [Alex Schmelkin 24.8.99]
-
-- contrib from Ken Hinckley 2.12.99
 
 - var cleanup of in imported subs [Lai Yiu Fai 14.3.00] 
 

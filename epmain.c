@@ -692,9 +692,24 @@ static int GetInputData_CGIScript (/*i/o*/ register req * r)
 
     rc = GetFormData (r, p, len) ;
     
+#ifdef EP2
+    if (!f && len > 0)
+	{
+        if ((f = _malloc (r, len + 1)) == NULL)
+            return rcOutOfMemory ;
+
+	memcpy (f, p, len) ;
+        p[len] = '\0' ;
+	}
+    if (len > 0)
+	{
+	r -> sQueryInfo = f ;
+	f[len] = '\0' ;
+	}
+#else
     if (f)
         _free (r, f) ;
-        
+#endif        
     
     return rc ;
     }
@@ -1675,6 +1690,8 @@ tConf * SetupConfData   (/*in*/ HV *   pReqInfo,
 #ifdef EP2
     SV * *   ppSV ;
     SV *     pSV ;
+    SV * *   ppCV ;
+    int	     rc ;
 #endif
     tConf *  pConf = malloc (sizeof (tConf)) ;
     
@@ -1700,22 +1717,31 @@ tConf * SetupConfData   (/*in*/ HV *   pReqInfo,
 
 
 #ifdef EP2
-    pConf -> bEP1Compat =   GetHashValueInt (pReqInfo, "ep1compat",  pCurrReq -> pConf?pCurrReq -> pConf -> bEP1Compat:pCurrReq -> bEP1Compat) ;  /* EP1Compat */
-    /* ##ep2##
-    pConf -> sExpiresKey   = sstrdup (GetHashValueStr (pReqInfo, "expires_key",  pCurrReq -> pConf?pCurrReq -> pConf -> sExpiresKey:NULL)) ; ;
+    pConf -> bEP1Compat	    = GetHashValueInt (pReqInfo, "ep1compat",  pCurrReq -> pConf?pCurrReq -> pConf -> bEP1Compat:pCurrReq -> bEP1Compat) ;  /* EP1Compat */
 
-    pConf -> nExpiresAt    = 0 ;
-    pConf -> pExpiresCV    = NULL ;
-    ppSV = hv_fetch (pReqInfo, "expires_at", 10, 0) ;
-    if (ppSV && *ppSV && SvTYPE (*ppSV) == SVt_RV &&
-	SvTYPE (pSV = SvRV (*ppSV)) == SVt_PVCV)
-	pConf -> pExpiresCV = pSV ;
-    else if (ppSV && *ppSV)
-	pConf -> nExpiresAt = SvNV (*ppSV) ;
-    */
-    pConf -> sExpiresKey   = NULL ;
-    pConf -> nExpiresAt    = 0 ;
-    pConf -> pExpiresCV    = NULL ;
+    pConf -> sCacheKey	    = sstrdup (GetHashValueStr (pReqInfo, "cache_key",  pCurrReq -> pConf?pCurrReq -> pConf -> sCacheKey:NULL)) ; ;
+    pConf -> bCacheKeyOptions = GetHashValueInt (pReqInfo, "cache_key_options",  pCurrReq -> pConf?pCurrReq -> pConf -> bCacheKeyOptions:ckoptDefault) ;  
+
+    ppCV			    =     hv_fetch(pReqInfo, "expires_func", sizeof ("expires_func") - 1, 0) ;  
+    if (ppCV && *ppCV && SvOK (*ppCV))
+	{
+	if ((rc = EvalConfig (pCurrReq, *ppCV, 0, NULL, &pConf -> pExpiresCV)) != ok)
+	    LogError (pCurrReq, rc) ;
+	}
+    else
+	pConf -> pExpiresCV     =  pCurrReq -> pConf?pCurrReq -> pConf -> pExpiresCV:NULL ;
+    
+
+    ppCV			    =     hv_fetch(pReqInfo, "cache_key_func", sizeof ("cache_key_func") - 1, 0) ;  
+    if (ppCV && *ppCV && SvOK (*ppCV))
+	{
+	if ((rc = EvalConfig (pCurrReq, *ppCV, 0, NULL, &pConf -> pCacheKeyCV)) != ok)
+	    LogError (pCurrReq, rc) ;
+	}
+    else
+	pConf -> pCacheKeyCV     =  pCurrReq -> pConf?pCurrReq -> pConf -> pCacheKeyCV:NULL ;
+    
+    pConf -> nExpiresIn	    = GetHashValueInt (pReqInfo, "expires_in",  pCurrReq -> pConf?pCurrReq -> pConf -> nExpiresIn:0) ;  
 #endif
 
 
@@ -1763,9 +1789,12 @@ void FreeConfData       (/*in*/ tConf *   pConf)
 	free (pConf -> sReqFilename) ;
 
 #ifdef EP2
-    if (pConf -> sExpiresKey)
-	free (pConf -> sExpiresKey) ;
+    if (pConf -> sCacheKey)
+	free (pConf -> sCacheKey) ;
  
+    if (pConf -> pCacheKeyCV)
+	SvREFCNT_dec (pConf -> pCacheKeyCV) ;
+
     if (pConf -> pExpiresCV)
 	SvREFCNT_dec (pConf -> pExpiresCV) ;
 #endif
@@ -2049,6 +2078,10 @@ tReq * SetupRequest (/*in*/ SV *    pApacheReqSV,
     char *  sMode ;
     tFile * pFile ;
     HV * pReqHV  ;
+#ifdef EP2
+    SV * * ppSV ;
+    STRLEN len ;
+#endif
 
     dTHR ;
 
@@ -2119,6 +2152,9 @@ tReq * SetupRequest (/*in*/ SV *    pApacheReqSV,
     r -> bDebug          = pConf -> bDebug ;
 #ifdef EP2
     r -> bEP1Compat      = pConf -> bEP1Compat ;
+    ppSV = hv_fetch(r -> pEnvHash, "PATH_INFO", sizeof ("PATH_INFO") - 1, 0) ;  
+    if (ppSV)
+        r -> sPathInfo = SvPV (*ppSV ,len) ;
 #endif
     if (rc != ok)
         r -> bDebug = 0 ; /* Turn debbuging off, only errors will go to stderr if logfile not open */
@@ -2910,10 +2946,26 @@ static int ProcessFile (/*i/o*/ register req * r,
 #ifdef EP2
     if (!r -> bEP1Compat)
 	{
-	tProcessor p2 = {2, "Embperl", embperl_CompileProcessor, NULL, embperl_ExecuteProcessor, "", 0, NULL, NULL } ; 
-	tProcessor p1 = {1, "Parser",  embperl_ParseProcessor,   NULL, NULL,                     "", 0, NULL, &p2  } ; 
+	tConf * pConf = r -> pConf ;
+	
+	tProcessor p2 = {2, "Embperl", embperl_CompileProcessor, NULL, embperl_PreExecuteProcessor, embperl_ExecuteProcessor, "", 
+	                   pConf -> pCacheKeyCV, pConf -> bCacheKeyOptions, pConf -> nExpiresIn, pConf -> pExpiresCV, NULL } ; 
+	tProcessor p1 = {1, "Parser",  embperl_ParseProcessor,   NULL, NULL,                        NULL,                     "", NULL, 0, 0, NULL, &p2  } ; 
+
+	if (p2.pCacheKeyCV)
+	    SvREFCNT_inc (p2.pCacheKeyCV) ;
+
+	if (p2.pOutputExpiresCV)
+	    SvREFCNT_inc (p2.pOutputExpiresCV) ;
 
 	rc = embperl_CompileDocument (r, &p1) ;
+
+	if (p2.pCacheKeyCV)
+	    SvREFCNT_dec (p2.pCacheKeyCV) ;
+
+	if (p2.pOutputExpiresCV)
+	    SvREFCNT_dec (p2.pOutputExpiresCV) ;
+
 	}
     else
         {
@@ -3080,16 +3132,20 @@ int ProcessBlock	(/*i/o*/ register req * r,
 /*                                                                              */
 /* ---------------------------------------------------------------------------- */
 
-static int ReadInputFile	(/*i/o*/ register req * r)
+int ReadInputFile	(/*i/o*/ register req * r)
 
     {
     int	    rc = ok ;
     SV *    pBufSV = NULL ;
     req *   pMain = r ;
 
-#ifdef EP2
+#ifdef xxxEP2
     if (!r -> bEP1Compat)
     	{
+    	r -> Buf.pBuf		    = NULL ;
+	r -> Buf.pFile -> nFilesize     = 1 ;
+	return ok ;
+/*
     	SV * * ppSV ;
     	
     	ppSV = hv_fetch (r -> Buf.pFile -> pCacheHash, "SRCDOM", 6, 0) ;
@@ -3099,6 +3155,7 @@ static int ReadInputFile	(/*i/o*/ register req * r)
 	    r -> Buf.pFile -> nFilesize     = 1 ;
 	    return ok ;  /* source already parsed */
 	    }
+*/
 	}
 #endif
 
@@ -3253,7 +3310,11 @@ int ExecuteReq (/*i/o*/ register req * r,
         rc = StartOutput (r) ;
 
     /* --- read input file or get input file from memory --- */
+#ifdef EP2
+    if (rc == ok && r -> bEP1Compat)
+#else
     if (rc == ok)
+#endif
 	rc = ReadInputFile (r) ;
 
     if (rc == ok && r -> Buf.pBuf == NULL && r -> Buf.pFile -> nFilesize == 0)

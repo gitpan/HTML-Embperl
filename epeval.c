@@ -71,6 +71,95 @@ int EvalDirect (/*i/o*/ register req *  r,
     }
 
 
+/* -------------------------------------------------------------------------------
+*
+* Eval Config Statements 
+* 
+* in  pSV    pointer to string or CV
+* out pCV    pointer to SV contains an CV to the evaled code
+*
+------------------------------------------------------------------------------- */
+
+int EvalConfig (/*i/o*/ register req *  r,
+		/*in*/  SV *            pSV, 
+                /*in*/  int		numArgs,
+                /*in*/  SV **		pArgs,
+		/*out*/ CV **           pCV)
+    {
+    dTHXsem 
+    dSP;
+    SV *  pSVErr  ;
+    int   num ;         
+    char * s = "Needs CodeRef" ;
+
+    EPENTRY (EvalDirect) ;
+
+    tainted = 0 ;
+    pCurrReq = r ;
+
+    *pCV = NULL ;
+    if (SvPOK (pSV))
+	{
+	STRLEN l ;
+	s = SvPV (pSV, l) ;
+	if (strncmp (s, "sub ", 4) == 0)
+	    {
+	    SV * pSVErr ;
+	    SV * pRV ;
+
+	    pRV = perl_eval_pv (s, 0) ;
+	    if (SvROK (pRV))
+		{
+		*pCV = (CV *)SvRV (pRV) ;
+		SvREFCNT_inc (*pCV) ;
+		}
+
+	    pSVErr = ERRSV ;
+	    if (SvTRUE (pSVErr))
+		{
+		STRLEN l ;
+		char * p = SvPV (pSVErr, l) ;
+		if (l > sizeof (r -> errdat1) - 1)
+		    l = sizeof (r -> errdat1) - 1 ;
+		strncpy (r -> errdat1, p, l) ;
+		if (l > 0 && r -> errdat1[l-1] == '\n')
+		    l-- ;
+		r -> errdat1[l] = '\0' ;
+         
+		LogError (r, rcEvalErr) ;
+
+		sv_setpv(pSVErr,"");
+		*pCV = NULL ;
+		return rcEvalErr ;
+		}
+	    }
+	else
+	    {
+	    *pCV = perl_get_cv (s, 0) ;
+	    SvREFCNT_inc (*pCV) ;
+	    }
+	}
+    else 
+	{
+	if (SvROK (pSV))
+	    {
+	    *pCV = (CV *)SvRV (pSV) ;
+	    }
+	}
+
+    if (!*pCV || SvTYPE (*pCV) != SVt_PVCV)
+	{
+	*pCV = NULL ;
+	strcpy (r -> errdat1 ,"Config: ") ;
+	strncpy (r -> errdat2, s, sizeof (r -> errdat2) - 1) ;
+	return rcEvalErr ;
+	}
+
+    return ok ;
+    }
+
+
+    
 
 /* -------------------------------------------------------------------------------
 *

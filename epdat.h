@@ -17,6 +17,22 @@
 #ifdef EP2
 /*-----------------------------------------------------------------*/
 /*								   */
+/*  cache Options						   */
+/*								   */
+/*-----------------------------------------------------------------*/
+
+typedef enum tCacheOptions
+    {
+    ckoptCarryOver = 1,   /* use result from CacheKeyCV of preivious step if any */
+    ckoptPathInfo  = 2,   /* include the PathInfo into CacheKey */
+    ckoptQueryInfo = 4,	  /* include the QueryInfo into CacheKey */
+    ckoptDontCachePost = 8,	  /* don't cache POST requests */
+    ckoptDefault    = 15,	  /* default is all options set */
+    } tCacheOptions ;
+
+
+/*-----------------------------------------------------------------*/
+/*								   */
 /*  Processor							   */
 /*								   */
 /*-----------------------------------------------------------------*/
@@ -36,6 +52,11 @@ typedef struct tProcessor
 				     /*in*/  tDomTree **  ppDomTree,
 				     /*in*/  SV **        ppPreCompResult,
 				     /*out*/ SV **        ppCompResult) ;
+    int (* pPreExecuter)            (/*in*/  tReq *	  r,
+				     /*in*/  struct tProcessor * pProcessor,
+				     /*in*/  tDomTree **  pDomTree,
+				     /*in*/  SV **        ppPreCompResult,
+				     /*in*/  SV **        ppCompResult) ;
     int (* pExecuter)               (/*in*/  tReq *	  r,
 				     /*in*/  struct tProcessor * pProcessor,
 				     /*in*/  tDomTree **  pDomTree,
@@ -43,7 +64,9 @@ typedef struct tProcessor
 				     /*in*/  SV **        ppCompResult,
 				     /*out*/ SV **        ppExecResult) ;
 
-    const char *    sCacheKey ;
+    const char *    sCacheKey ;	    /* literal to add to key for cache */
+    CV *	    pCacheKeyCV ;   /* CV to call and add result to key for cache */
+    tCacheOptions   bCacheKeyOptions ;
     double          nOutputExpiresIn ;
     CV *            pOutputExpiresCV ;
 
@@ -99,9 +122,11 @@ typedef struct tConf
 #ifdef EP2
     bool    bEP1Compat ;    /* run in Embperl 1.x compatible mode */
     tProcessor ** pProcessor ;   /* [array] processors used to process the file */
-    char **  sExpiresKey ;  /* [array] Key used to store expires setting */
-    double * nExpiresAt ;   /* [array] Data expiers at */
-    SV **    pExpiresCV ;   /* [array] sub that is called to determinate expiration */
+    char *  sCacheKey ;    /* Key used to store expires setting */
+    CV *	    pCacheKeyCV ;   /* CV to call and add result to key for cache */
+    tCacheOptions   bCacheKeyOptions ;
+    double  nExpiresIn ;   /* Data expiers at */
+    CV *    pExpiresCV ;   /* sub that is called to determinate expiration */
 #endif    
     char *  sPath ;	    /* file search path */
     char *  sReqFilename ;  /* filename of original request */
@@ -330,6 +355,9 @@ struct tReq
     bool    bEP1Compat ;	/* run in Embperl 1.x compatible mode */    
     tPhase  nPhase ;		/* which phase of the request we are in */
 
+    char *  sPathInfo ;
+    char *  sQueryInfo ;
+    
     /* --- DomTree ---*/
 
     tNode	xDocument ;

@@ -2585,6 +2585,32 @@ I<ecos> bietet die Möglichkeit, Support für Embperl zu kaufen. Dies umfasst:
 =back
 
 Sie erreichen uns via http://www.ecos.de oder info@ecos.de
+Für weiter Informationen zu unserem Supportangebot, siehe
+
+http://www.ecos.de/x/index.htm/support/r_support.htm
+
+
+=head2 Wie kann ich die Entwicklung von Embperl unterstützen
+
+Wenn Sie I<Embperl> einsetzen und dessen weitere Entwicklung unterstützen
+möchten, gibt es zwei Möglichkeiten:
+
+=over 4
+
+=item 1 
+
+Sie implementieren ihr Wunschfeature selbst und senden uns einen Patch.
+
+=item 2
+
+Sie kaufen kommerziellen Support (siehe oben). Auch wenn sie B<vielleicht>
+die selben Antworten auf ihre Fragen auf der Mailingliste bekommen würden,
+macht es Sinn Support zu kaufen. Zum einen können sie sich dann sicher sein,
+B<immer> eine Antwort auf ihre Fragen zu bekommen, zum anderen unterstützen
+sie damit die weitere Entwicklung von I<Embperl> und ermöglichen uns
+mehr Zeit und Resourcen dafür aufzubringen.
+
+=back
 
 
 =head1 Links

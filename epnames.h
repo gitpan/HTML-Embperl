@@ -24,6 +24,7 @@
 #define oCommitToMem           EMBPERL_oCommitToMem
 #define OpenInput              EMBPERL_OpenInput         
 #define CloseInput             EMBPERL_CloseInput        
+#define ReadInputFile          EMBPERL_ReadInputFile        
 #define iread                  EMBPERL_iread             
 #define igets                  EMBPERL_igets             
 #define OpenOutput             EMBPERL_OpenOutput        
@@ -44,6 +45,7 @@
 #define Eval                   EMBPERL_Eval              
 #define EvalNum                EMBPERL_EvalNum           
 #define EvalBool               EMBPERL_EvalBool           
+#define EvalConfig             EMBPERL_EvalConfig
 #define stristr                EMBPERL_stristr           
 #define strlower               EMBPERL_strlower          
 #define TransHtml              EMBPERL_TransHtml         
@@ -299,3 +301,4 @@
 #endif /* endif WIN32 */
 
 #endif /* APACHE */
+

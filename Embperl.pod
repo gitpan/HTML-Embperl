@@ -1758,7 +1758,6 @@ Embperl to ignore the backslash when it does output escaping at all.
 B<NOTE 2:> If you want to output binary data, you must set the escmode
 to zero. (only 1.3b6 and above)
 
- 
 =over 4
 
 =item B<$escmode = 3 (or 7)>
@@ -2528,6 +2527,8 @@ I have tested Embperl successfully
 
 =item apache_1.3.12
 
+=item apache_1.3.14
+
 =item apache_ssl (Ben SSL)
 
 =item Stronghold 2.2
@@ -2616,6 +2617,31 @@ you need commercial support, ecos can provide it for you. We offer:
 =back
 
 You can reach us via http://www.ecos.de or info@ecos.de 
+For more information about our support see 
+
+http://www.ecos.de/x/index.htm/support/eng_r_support.htm
+
+
+=head2 How to Support the Developement of Embperl
+
+If you use and like Embperl and want to support it's ongoing developement
+you have two possibilities:
+
+=over 4
+
+=item 1 
+
+Send me patches for things you like to see in Embperl
+
+=item 2
+
+Buy commercial support (see above). Also you B<may> get the same answers
+to your questions on the mailing list, by buying the commercial support
+you not only buy support for yourself and can be sure you get an answer,
+you also give us the possibility to put more power in the further
+developement of Embperl.
+
+=back
 
 
 =head1 References

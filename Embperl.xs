@@ -33,6 +33,14 @@ CODE:
 OUTPUT:
     RETVAL
 
+int
+embperl_XS_Test(n)
+    int n
+CODE:
+    RETVAL = n ;
+OUTPUT:
+    RETVAL
+
 
 
 

@@ -10,7 +10,7 @@
 #   IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 #   WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 #
-#   $Id: Embperl.pm,v 1.133 2000/11/15 08:48:21 richter Exp $
+#   $Id: Embperl.pm,v 1.136 2000/12/04 07:41:00 richter Exp $
 #
 ###################################################################################
 
@@ -23,8 +23,6 @@ require Cwd ;
 
 require Exporter;
 require DynaLoader;
-
-##ep2## use HTML::Embperl::Syntax ;
 
 use strict ;
 use vars qw(
@@ -83,8 +81,7 @@ use vars qw(
 @ISA = qw(Exporter DynaLoader);
 
 
-$VERSION = '1.3b7';
-##ep2## $VERSION = '2.0a7';
+$VERSION = '1.3.0';
 
 # HTML::Embperl cannot be bootstrapped in nonlazy mode except
 # under mod_perl, because its dependencies import symbols like ap_palloc
@@ -669,10 +666,6 @@ sub ScanEnvironment
     $$req{'cookie_domain'}  = $ENV{EMBPERL_COOKIE_DOMAIN} if (exists ($ENV{EMBPERL_COOKIE_DOMAIN})) ;
     $$req{'cookie_path'}    = $ENV{EMBPERL_COOKIE_PATH} if (exists ($ENV{EMBPERL_COOKIE_PATH})) ;
     $$req{'cookie_expires'} = $ENV{EMBPERL_COOKIE_EXPIRES} if (exists ($ENV{EMBPERL_COOKIE_EXPIRES})) ;
-
-    ##ep2## $$req{'ep1compat'}   = $ENV{EMBPERL_EP1COMPAT}   || 0 ;
-
-
     }
 
 
@@ -1816,8 +1809,7 @@ sub CreateAliases
         *{"$package\:\:tabmode"} = \$HTML::Embperl::tabmode ;
         *{"$package\:\:escmode"} = \$HTML::Embperl::escmode ;
         *{"$package\:\:http_headers_out"} = \%HTML::Embperl::http_headers_out ;
-    	*{"$package\:\:req_rec"} = \$HTML::Embperl::req_rec if defined ($HTML::Embperl::req_rec) ;
-        ##ep2## *{"$package\:\:_ep_node"} = \$HTML::Embperl::_ep_node ;
+    	*{"$package\:\:req_rec"} = \$HTML::Embperl::req_rec ; 
     	if (defined (&Apache::exit))
             {
             *{"$package\:\:exit"}    = \&Apache::exit 

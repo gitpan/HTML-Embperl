@@ -526,6 +526,12 @@ int EvalSub (/*i/o*/ register req * r,
 
 int EvalMain (/*i/o*/ register req *  r) ;
 
+int EvalConfig (/*i/o*/ register req *  r,
+		/*in*/  SV *            pSV, 
+                /*in*/  int		numArgs,
+                /*in*/  SV **		pArgs,
+		/*out*/ CV **           pCV) ;
+
 
 #ifdef EP2
 int CallStoredCV  (/*i/o*/ register req * r,

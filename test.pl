@@ -84,6 +84,11 @@
         'version'    => 1,
         'cgi'        => 0,
         },
+    'varepvar.htm' => {
+	'query_info' => 'a=1&b=2',
+        'offline'    => 0,
+        'cgi'        => 0,
+	 },
     'escape.htm' => { 
         repeat => 2,
         },
@@ -466,7 +471,7 @@ use vars qw ($httpconfsrc $httpconf $EPPORT $EPPORT2 *SAVEERR *ERR $EPHTTPDDLL $
             $opt_offline $opt_ep1 $opt_cgi $opt_modperl $opt_execute $opt_nokill $opt_loop
             $opt_multchild $opt_memcheck $opt_exitonmem $opt_exitonsv $opt_config $opt_nostart $opt_uniquefn
             $opt_quite $opt_ignoreerror $opt_tests $opt_blib $opt_help $opt_dbgbreak $opt_finderr
-            $opt_ddd $opt_gdb $opt_ab $opt_start $opt_kill $opt_showcookie $opt_cache) ;
+            $opt_ddd $opt_gdb $opt_ab $opt_abpre $opt_abverbose $opt_start $opt_kill $opt_showcookie $opt_cache) ;
 
     {
     local $^W = 0 ;
@@ -541,7 +546,7 @@ $@ = "" ;
 $ret = GetOptions ("offline|o", "ep1|1", "cgi|c", "cache|a", "modperl|httpd|h", "execute|e", "nokill|r", "loop|l:i",
             "multchild|m", "memcheck|v", "exitonmem|g", "exitonsv", "config|f=s", "nostart|x", "uniquefn|u",
             "quite|q", "ignoreerror|i", "tests|t", "blib|b", "help", "dbgbreak", "finderr",
-	    "ddd", "gdb", "ab:s", "start", "kill", "showcookie") ;
+	    "ddd", "gdb", "ab:s", "abverbose", "abpre", "start", "kill", "showcookie") ;
 
 $opt_help = 1 if ($ret == 0) ;
 
@@ -607,7 +612,9 @@ if ($opt_help)
 #    print "-b      use uninstalled version (from blib/..)\n" ;
     print "--ddd    start apache under ddd\n" ;
     print "--gdb    start apache under gdb\n" ;
-    print "--ab <numreq>  run test thru ApacheBench\n" ;
+    print "--ab <numreq|options>  run test thru ApacheBench\n" ;
+    print "--abverbose   show whole ab output\n" ;
+    print "--abpre       prefetch first request\n" ;
     print "--start  start apache only\n" ;
     print "--kill   kill apache only\n" ;
     print "--showcookie  shows sent and received cookies\n" ;
@@ -1030,7 +1037,7 @@ $opt_nokill = 1 if ($opt_nostart || $opt_start) ;
 $looptest  = defined ($opt_loop)?1:0 ; # endless loop tests
 
 $outfile .= ".$$" if ($opt_uniquefn) ;
-$defaultdebug = 0 if ($opt_quite) ;
+$defaultdebug = 1 if ($opt_quite) ;
 $opt_ep1 = 0 if (!$EP2) ;
 $EP1COMPAT = 1 if ($opt_ep1) ;
 
@@ -1061,7 +1068,10 @@ if ($#ARGV >= 0)
 	}
     else
 	{
-	@tests = @ARGV ;
+        @tests = () ;
+	@testdata = () ;
+	my $i = 0 ;
+	@testdata = map { push @tests, $i ; $i+=2 ; ($_ => {}) } @ARGV ;
 	}
     }
     
@@ -1422,7 +1432,7 @@ do
 	    }
 	}
 
-    if ($EP2)
+    if ($EP2 && $opt_cache)
 	{
 	#############
 	#
@@ -1773,7 +1783,8 @@ do
                         (!$test -> {cgi} && ($test -> {offline} || $test -> {modperl})))) ;
             
 
-
+	    next if (defined ($opt_ab) && $test -> {'errors'}) ;
+ 
 =pod
 	    next if ($file =~ /\// && $loc eq $cgiloc) ;        
 	    next if ($file eq 'taint.htm' && $loc eq $cgiloc) ;
@@ -1857,10 +1868,18 @@ do
             $file .= '-1' if ($opt_ep1 && -e "$page-1") ;
             if (defined ($opt_ab))
 		{
+	        $m = REQ ("$loc$locver", $file, $test -> {query_info}, $outfile, $content, $upload, $test -> {cookie}) if ($opt_abpre) ;
+		$locver ||= '' ;
 		$opt_ab = 10 if (!$opt_ab) ;
-		my $cmd = "ab -n $opt_ab 'http://$host:$port/$loc$locver/$file?$test->{query_info}'";
-		print "$cmd\n" ;
-		system ($cmd) and die "Cannot start ab ($!)" ;
+		my $cmd = "ab -n $opt_ab 'http://$host:$port/$loc$locver/$file" . ($test->{query_info}?"?$test->{query_info}'":"'") ;
+		print "$cmd\n" if ($opt_abverbose) ;
+				
+		open AB, "$cmd|" or die "Cannot start ab ($!)" ;
+		while (<AB>)
+			{
+			print $_ if ($opt_abverbose || (/Requests/)) ;
+			}
+		close AB ;
 		}
 	    else
 		{				
@@ -1879,7 +1898,7 @@ do
 		CheckSVs ($loopcnt, $n) ;
 		
 		}
-	    if (($m || '') ne 'ok' && $errcnt == 0)
+	    if (($m || '') ne 'ok' && $errcnt == 0 && !$opt_ab)
 		{
 		$err = 1 ;
 		print "ERR:$m\n" ;
@@ -1901,7 +1920,7 @@ do
 		$err = CmpFiles ($outfile, $org) ;
 		}
 
-	    print "ok\n" unless ($err) ;
+	    print "ok\n" unless ($err || $opt_ab) ;
 	    $err = 0 if ($opt_ignoreerror) ;
 	    last if ($err) ;
 	    $n++ ;
