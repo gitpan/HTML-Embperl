@@ -1,8 +1,21 @@
 Revision history for Perl extension HTML::Embperl.
 
+0.23-beta 31 Dec 1997
+   - Fixed a bug which causes $req_rec to be not defined anymore (Thanks to
+     Todd R. Eigenschink for the hint and debugging)
+   - Fixed a bug in escaping special html char to normal ascii (Thanks to
+     Todd R. Eigenschink for the hint)  	
+   - Makefile.PL now set the path to your perl binary in embpexec.pl and
+     embpexec.test.pl, so it works regardless where your perl is located
+     (Thanks to Randal Schwarz for the hint)
+   - Added the SSLDisable to the test config when running an httpsd. (Thanks
+     to David Scott for the hint and Ralf S. Engelschall for the Syntax)
+   - Fixed a bug in <META> tag interpreation causing random errors when not
+     compiled for mod_perl
+
 0.22-beta 28 Dec 1997
     - Changed include path generated in Makefile.PL so Embperl also
-      compiles with apache_1.3b3  
+      compiles with apache_1.3b3 (Thanks to Doug Bagley for the hint)  
 
 0.21-beta 25 Dec 1997
     - Embperl offline mode now works under win 32 (mod_perl and cgi mode

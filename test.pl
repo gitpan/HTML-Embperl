@@ -26,6 +26,8 @@
  	'hidden.htm?feld1=Wert1&feld2=Wert2&feld3=Wert3&feld4=Wert4',
 	'java.htm',
 	'inputjava.htm',
+    'reqrec.htm',
+    'reqrec.htm',
     'div.htm',
  	'taint.htm???1',
     'safe/safe.htm????4',
@@ -310,6 +312,7 @@ if ($testtype =~ /o/)
     {
     ($file, $query_info, $debug, $errcnt, $option, $ns) = split (/\?/, $url) ;
     next if ($file eq 'taint.htm') ;
+    next if ($file eq 'reqrec.htm') ;
     $debug = $defaultdebug if ($debug eq '') ;	
     $page = "$inpath/$file" ;
     delete $ENV{EMBPERL_OPTIONS} ;
@@ -425,6 +428,7 @@ while ($loc ne '' && $err == 0)
 
     next if ($file =~ /\// && $loc eq $cgiloc) ;	
     next if ($file eq 'taint.htm' && $loc eq $cgiloc) ;
+    next if ($file eq 'reqrec.htm' && $loc eq $cgiloc) ;
 	
     $debug = $defaultdebug if ($debug eq '') ;	
     $page = "$inpath/$file" ;

@@ -221,6 +221,7 @@ void TransHtml (/*i/o*/ char *  sData)
                         *s++ = pChar -> c ;
                     else
                         {
+			*(p-1)=';' ;
                         p = s ;
                         s = NULL ;
                         }

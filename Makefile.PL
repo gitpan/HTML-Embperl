@@ -225,6 +225,28 @@ else
     close FH ;
     }
 
+#
+# Change path to perl binary
+#
+
+@bins = ('embpexec.pl', 'embpexec.test.pl') ;
+
+foreach $f (@bins)
+	{
+	unlink "$f.org" ;
+	rename $f, "$f.org" or die "Cannot rename $f to $f.org" ;
+	open IN, "<$f.org" or die "Cannot open $f.org" ;
+	open OUT, ">$f" or die "Cannot open $f" ;
+	while (<IN>)
+		{
+		s/\#\!\/.*?\/perl.*?\s(.*?)/#!$Config{'perlpath'} $1/ ;
+		print OUT $_ ;
+		}
+	close IN ;
+	close OUT ;
+	chmod 0755, $f or die "Cannot set executable $f" ;
+	}
+
 WriteMakefile(
     'NAME'	   => 'HTML::Embperl',
     'VERSION_FROM' => 'Embperl.pm', 		# finds $VERSION

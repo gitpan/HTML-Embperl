@@ -44,6 +44,7 @@ test/html/inputjava.htm
 test/html/tagscan.htm
 test/html/div.htm
 test/html/taint.htm
+test/html/reqrec.htm
 test/html/safe/safe.htm
 test/html/opmask/opmask.htm
 test/html/opmask/opmasktrap.htm
@@ -67,6 +68,7 @@ test/cmp/tagscan.htm
 test/cmp/div.htm
 test/cmp/safe.htm
 test/cmp/taint.htm
+test/cmp/reqrec.htm
 test/cmp/opmask.htm
 test/cmp/opmasktrap.htm
 test/conf/httpd.conf.src

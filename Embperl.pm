@@ -30,7 +30,7 @@ require DynaLoader;
 @ISA = qw(Exporter DynaLoader);
 
 
-$VERSION = '0.22-beta';
+$VERSION = '0.23-beta';
 
 
 bootstrap HTML::Embperl $VERSION;
@@ -346,13 +346,14 @@ sub CheckFile
         *{"$package\:\:tabmode"} = \$tabmode ;
         *{"$package\:\:escmode"} = \$escmode ;
         *{"$package\:\:MailFormTo"} = \&MailFormTo ;
+    	*{"$package\:\:req_rec"} = \$req_rec if defined ($req_rec) ;
         
         #print LOG "Created Aliases for $package\n" ;
         }
 
 
 
-	if (!defined($mtime{$filename}) || $mtime{$filename} != $mtime)
+    if (!defined($mtime{$filename}) || $mtime{$filename} != $mtime)
         {
         # clear out any entries in the cache
         delete $cache{$filename} ;
@@ -383,6 +384,7 @@ sub run (\@)
     my $ioType ;
     my $ns ;
 
+    undef $req_rec ;
     
     $Debugflags = $ENV{EMBPERL_DEBUG} || 0 ;
 
@@ -524,7 +526,7 @@ sub run (\@)
 sub handler 
     
     {
-    local ($req_rec) = @_ ;
+    $req_rec = $_[0] ;
     my $rc ;
     my $ns ;
     my $pcodecache ;

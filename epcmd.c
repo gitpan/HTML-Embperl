@@ -678,8 +678,8 @@ static int HtmlMeta (/*in*/ const char *   sArg)
                                  pstrndup (pReq->pool, pContent, clen));
     
     
-    return ok ;
 #endif
+    return ok ;
     }
 
 /* ---------------------------------------------------------------------------- */

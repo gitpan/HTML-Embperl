@@ -92,3 +92,6 @@ TransferLog /dev/null
 ScoreBoardFile /dev/null
 LockFile tmp/httpd.lock
 
+<IfModule apache_ssl.c>
+SSLDisable
+</IfModule>
