@@ -1,5 +1,4 @@
 <html>
-
 <head>
 <title>Test for interpretation of input tag</title>
 </head>
@@ -212,6 +211,80 @@ $kats[2]{Id} = 'Veranstaltungen' ;
 	<input type="checkbox" value="Wert7" name="mult" checked>
 	<input type="checkbox" value="Wert7" name="mult">
     
+
+	<input type="checkbox" value="cbv1" name="cb1">
+		<input type="checkbox" value="cbv1" name="cb1">
+		<input type="checkbox" value="cbv2" name="cb1">
+		<input type="checkbox" value="cbv3" name="cb1">
+		<input type="checkbox" value="cbv4" name="cb1">
+		<input type="checkbox" value="cbv5" name="cb1">
+		<input type="checkbox" value="cbv6" name="cb1">
+	<input type="checkbox" value="cbv5" name="cb5">
+		<input type="checkbox" value="cbv1" name="cb5">
+		<input type="checkbox" value="cbv2" name="cb5">
+		<input type="checkbox" value="cbv3" name="cb5">
+		<input type="checkbox" value="cbv4" name="cb5">
+		<input type="checkbox" value="cbv5" name="cb5">
+		<input type="checkbox" value="cbv6" name="cb5">
+
+
+	<INPUT TYPE="CHECKBOX" VALUE="cbv1" NAME="cb1">
+		<INPUT TYPE="CHECKBOX" VALUE="cbv1" NAME="cb1">
+		<INPUT TYPE="CHECKBOX" VALUE="cbv2" NAME="cb1">
+		<INPUT TYPE="CHECKBOX" VALUE="cbv3" NAME="cb1">
+		<INPUT TYPE="CHECKBOX" VALUE="cbv4" NAME="cb1">
+		<INPUT TYPE="CHECKBOX" VALUE="cbv5" NAME="cb1">
+		<INPUT TYPE="CHECKBOX" VALUE="cbv6" NAME="cb1">
+	<INPUT TYPE="CHECKBOX" VALUE="cbv5" NAME="cb5">
+		<INPUT TYPE="CHECKBOX" VALUE="cbv1" NAME="cb5">
+		<INPUT TYPE="CHECKBOX" VALUE="cbv2" NAME="cb5">
+		<INPUT TYPE="CHECKBOX" VALUE="cbv3" NAME="cb5">
+		<INPUT TYPE="CHECKBOX" VALUE="cbv4" NAME="cb5">
+		<INPUT TYPE="CHECKBOX" VALUE="cbv5" NAME="cb5">
+		<INPUT TYPE="CHECKBOX" VALUE="cbv6" NAME="cb5">
+
+
+
+	<input type="checkbox" value="cbv2" name="cb2">
+		<input type="checkbox" value="cbv1" name="cb2">
+		<input type="checkbox" value="cbv2" name="cb2">
+		<input type="checkbox" value="cbv3" name="cb2">
+		<input type="checkbox" value="cbv4" name="cb2">
+		<input type="checkbox" value="cbv5" name="cb2">
+		<input type="checkbox" value="cbv6" name="cb2">
+	<input type="checkbox" value="cbv6" name="cb6">
+		<input type="checkbox" value="cbv1" name="cb6">
+		<input type="checkbox" value="cbv2" name="cb6">
+		<input type="checkbox" value="cbv3" name="cb6">
+		<input type="checkbox" value="cbv4" name="cb6">
+		<input type="checkbox" value="cbv5" name="cb6">
+		<input type="checkbox" value="cbv6" name="cb6">
+
+
+	[$ foreach $i (1,5,2,6) $]
+		<input type="checkbox" value="cbv[+ $i +]" name="cb[+ $i +]">
+		<input type="checkbox" value="cbv1" name="cb[+ $i +]">
+		<input type="checkbox" value="cbv2" name="cb[+ $i +]">
+		<input type="checkbox" value="cbv3" name="cb[+ $i +]">
+		<input type="checkbox" value="cbv4" name="cb[+ $i +]">
+		<input type="checkbox" value="cbv5" name="cb[+ $i +]">
+		<input type="checkbox" value="cbv6" name="cb[+ $i +]">
+		<input type="text"     name="feld[+ $i +]" value="[+ $i > 2?"feld$i":'' +]">
+        <input type="text"     name="feld[+ $i +]">
+
+	[$endforeach$]
+
+
+	[$ foreach $i (5,2,6,1) $]
+        <p>
+        i = [+ $i +] fdat{feld5} [+ $fdat{feld5} +]<br>
+		<input type="checkbox" value="cbv[+ $i +]" name="cb[+ $i +]">
+		<input type="text"     name="feld[+ $i +]" value="[+ $i > 2?"feld$i":'' +]">
+		<input type="text"     name="feld[+ $i +]">
+        </p>
+	[$endforeach$]
+
+
 	ks = [+ do { @ks = sort keys %idat ; "@ks" } +]<p>
 
 	<table border=10>

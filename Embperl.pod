@@ -79,6 +79,8 @@ B<embpcgi.pl>
 B<embpcgi.bat>
 
 Use embpcgi.pl on Unix systems and embpcgi.bat on Win32 systems.
+You can also run Embperl with B<FastCGI>, in this case use embpfastcgi.pl
+as cgi script. You must have FCGI.pm installed.
 
 If C<embpcgi.pl/embpcgi.bat> is invoked without any parameters and the
 environment variable B<PATH_TRANSLATED> is set, it runs itself as a CGI
@@ -606,6 +608,12 @@ you can retrieve the error messages with
 
 where C<$errors> is a array reference. (1.3b5+)
 
+=item optShowBacktrace = 0x8000000
+
+When set every error message not only show the sourcefiles, but all files
+from which this file was called by Execute.
+
+
 =item optSafeNamespace = 4
 
 Tells Embperl to execute the embedded code in a safe namespace so the
@@ -1066,7 +1074,9 @@ Example:
 
 =head2 EMBPERL_SESSION_HANDLER_CLASS (1.3b3 and higher)
 
-Set the class that performs the Embperl session handling. Default is
+Set the class that performs the Embperl session handling. Default until
+1.3.3 was C<HTML::Embperl::Session>, starting with 1.3.4 it is 
+C<Apache::SessionX>. To get the old session behaviour set it to
 C<HTML::Embperl::Session>. You can overwrite I<HTML::Embperl::Session> and
 specify the name of your class within this variable. This gives you
 the possibility to implement your own session handling.
@@ -1797,6 +1807,11 @@ to zero. (only 1.3b6 and above)
 
 =over 4
 
+=item B<$escmode = 8 (or 15)> (2.0b4 and above)
+
+The result of a Perl expression is always XML-escaped (e.g., `>'
+becomes `&gt;' and ' become &apos;).
+
 =item B<$escmode = 3 (or 7)>
 
 The result of a Perl expression is HTML-escaped (e.g., `>' becomes
@@ -1946,8 +1961,18 @@ From 1.2b2 and higher Embperl is able to handle per module/page persistent data
 for you. You can store any data in the L<%mdat> hash and if any request comes
 to the same Embperl document, you will see the same values in that hash again. 
 
+Session handling has changed from 1.3.3 to 1.3.4 and 2.0b3 to 2.0b4. You must either
+install Apache::SessionX or set
+
+    PerlSetEnv EMBPERL_SESSION_HANDLER_CLASS "HTML::Embperl::Session"
+
+to get the old behaviour. If you have Apache::SessionX installed, you
+don't have to make addtional configuration, otherwise you must do the following
+things. You are also able to override the Apache::SessionX defaults, by
+using the following parameters:
+
 To configure I<Embperl> to do session management for you, you must
-have installed I<Apache::Session> (B<1.00 or higher>) and tell Embperl which
+have installed I<Apache::Session> (B<1.53 or higher>) and tell Embperl which
 storage and locker classes you would like to use for
 I<Apache::Session>. This is done by setting the environment variable 
 C<EMBPERL_SESSION_CLASSES>.
@@ -2730,6 +2755,11 @@ http://www.aarg.net/erik/mmm-embperl.el
 The documentation for using these is included in those two elisp files.
 
 =head2 VIM
+
+Vim Syntaxfile for Vim 5.x & 6.x from Lukas Zapletal with syntax highliting for JavaScript, VBScript,
+Perl+Embperl, CSS and HTML, yellow background for Perl`s code (like M$ Interdev) and
+working Perl folding can be found at
+http://vim.sourceforge.net/scripts/search_results.php?keywords=Embperl
 
 Vim Syntaxfile from Steve Willer can be found at http://www.interlog.com/~willer/embperl.vim
 

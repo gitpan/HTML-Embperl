@@ -10,7 +10,7 @@
 #   IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 #   WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 #
-#   $Id: epnames.h,v 1.28 2001/05/29 06:28:11 richter Exp $
+#   $Id: epnames.h,v 1.19.4.13 2001/11/12 14:43:19 richter Exp $
 #
 ###################################################################################*/
 
@@ -121,7 +121,10 @@
 #define ArrayClone		    EMBPERL_ArrayClone		   
 #define ArrayFree		    EMBPERL_ArrayFree		   
 #define ArrayGetSize		    EMBPERL_ArrayGetSize		   
+#ifndef DMALLOC
 #define ArrayNew		    EMBPERL_ArrayNew		   
+#define ArrayNewZero		    EMBPERL_ArrayNewZero
+#endif
 #define ArraySet		    EMBPERL_ArraySet		   
 #define ArraySetSize		    EMBPERL_ArraySetSize		   
 #define ArraySub		    EMBPERL_ArraySub		   
@@ -194,6 +197,7 @@
 #define xDomTreeAttr		    EMBPERL_xDomTreeAttr		   
 #define xNoName			    EMBPERL_xNoName			   
 #define xOrderIndexAttr		    EMBPERL_xOrderIndexAttr		   
+#define Escape		            EMBPERL_Escape		   
  
  
 #ifndef PERL_VERSION
@@ -350,7 +354,7 @@
 #undef apache_mode_t
 #endif
 
-#ifdef apache_stat
+#ifdef xxxapache_stat
 #undef stat
 #define stat apache_stat
 #undef apache_stat
@@ -393,3 +397,4 @@
 #endif /* endif WIN32 */
 
 #endif /* APACHE */
+

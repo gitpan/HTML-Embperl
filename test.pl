@@ -11,7 +11,7 @@
 #   IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 #   WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 #
-#   $Id: test.pl,v 1.109 2001/06/03 18:15:45 richter Exp $
+#   $Id: test.pl,v 1.70.4.96 2001/11/20 15:15:41 richter Exp $
 #
 ###################################################################################
 
@@ -35,12 +35,19 @@
 # param =>
 # reqbody =>
 # respheader => \%
+# recipe =>
+# xsltstylesheet =>
+# syntax =>
+# msg =>
 
 @testdata = (
     'ascii' => { },
     'pure.htm' => {
 #        'noloop'     => 1,
      },
+    'nooutput.htm' => {
+        repeat => 2,
+        },
     'plain.htm' => {
         repeat => 3,
         },
@@ -51,11 +58,13 @@
         'repeat'     => 3,
         'errors'     => 8,
         'version'    => 1,
+        'noloop'     => 1, # Perl leaks on eval syntax error
         },
     'error.htm' => { 
         'repeat'     => 3,
         'errors'     => 6,
         'version'    => 2,
+        'noloop'     => 1, # Perl leaks on eval syntax error
         },
     'errormismatch.htm' => { 
         'errors'     => '1',
@@ -94,6 +103,7 @@
         'errors'     => 6,
         'version'    => 2,
         'cgi'        => 0,
+        'noloop'     => 1, # Perl leaks on eval syntax error
         },
     'errdoc/epl/errdoc2.htm' => { 
         'option'     => '262144',
@@ -107,7 +117,7 @@
         'errors'     => 6,
         'version'    => 2,
         'cgi'        => 0,
-        'noloop'     => 1,
+        'noloop'     => 1, # Perl leaks on eval syntax error
         },
     'rawinput/rawinput.htm' => { 
         'option'     => '16',
@@ -118,7 +128,20 @@
         'errors'     => -1,
         'noloop'     => 1,
         'condition'  => '$] < 5.006000', 
+        offline      => 1,
         },
+#    'varerr.htm' => { 
+#        'errors'     => 8,
+#        'noloop'     => 1,
+#        'condition'  => '$] < 5.006000', 
+#        cgi          => 1,
+#        },
+#    'varerr.htm' => { 
+#        'errors'     => 8,
+#        'noloop'     => 1,
+#        'condition'  => '$] < 5.006000', 
+#        modperl      => 1,
+#        },
     'varerr.htm' => { 
         'errors'     => 7,
         'noloop'     => 1,
@@ -132,6 +155,7 @@
         'condition'  => '$] >= 5.006000', 
         'cmpext'     => '56',
         'version'    => 2,
+        'noloop'     => 1, # Perl leaks on eval syntax error
         },
     'varerr.htm' => { 
         'errors'     => 2,
@@ -236,6 +260,8 @@
     'rawinput/include.htm' => { 
         'option'     => '16',
         'version'    => 2,
+        'cgi'        => 0,
+        'repeat'     => 2,
         },
     'includeerr1.htm' => { 
         'errors'     => '1',
@@ -292,8 +318,8 @@
         },
     'importmodule.htm' => { 
         },
-    'recursexec.htm' => { 
-        },
+#    'recursexec.htm' => { 
+#        },
     'nph/div.htm' => { 
         'option'     => '64',
         },
@@ -500,6 +526,59 @@
         'query_info' => 'val=3',
         'cookie'     => 'expectnew,cookie=1234567890abcdefABCDEF',
         },
+    'uidurl/seturlsess.htm' => { 
+        'modperl'    => 1,
+        'query_info' => 'a=1',
+        'cookie'     => 'expectnew,url',
+        'aliasdir'   => 1,
+        'version'    => 1,
+        },
+    'uidurl/getnourlsess.htm' => { 
+        'modperl'    => 1,
+        'query_info' => 'nocookie=2',
+        'cookie'     => 'nocookie,nosave,url',
+        'aliasdir'   => 1,
+        'version'    => 1,
+        },
+    'uidurl/geturlsess.htm' => {
+        'modperl'    => 1,
+        'cookie'     => 'expectsame,url',
+        'query_info' => 'foo=1',
+        'aliasdir'   => 1,
+        'version'    => 1,
+        },
+    'suidurl/seturlsess.htm' => { 
+        'modperl'    => 1,
+        'query_info' => 'a=1',
+        'cookie'     => 'expectnew,url,nocookie',
+        'aliasdir'   => 1,
+        'version'    => 1,
+        },
+    'suidurl/getnourlsess.htm' => { 
+        'modperl'    => 1,
+        'query_info' => 'nocookie=2',
+        'cookie'     => 'nocookie,nosave,url',
+        'aliasdir'   => 1,
+        'version'    => 1,
+        },
+    'suidurl/geturlsess.htm' => {
+        'modperl'    => 1,
+        'cookie'     => 'url',
+        'query_info' => 'foo=1',
+        'aliasdir'   => 1,
+        'version'    => 1,
+        },
+    'sidurl/setsdaturlsess.htm' => { 
+        'modperl'    => 1,
+        'query_info' => 'sdat=99',
+        'cookie'     => 'expectnew,url,nocookie',
+        'version'    => 1,
+        },
+    'sidurl/getsdaturlsess.htm' => {
+        'modperl'    => 1,
+        'cookie'     => 'expectnew,url',
+        'version'    => 1,
+        },
     'EmbperlObject/epopage1.htm' => {
         'offline'    => 0,
         'repeat'     => 2,
@@ -571,10 +650,12 @@
     'SSI/ssibasic.htm' => { 
         'version'    => 2,
         'syntax'     => 'SSI',
+        'cgi'        => 0,
         },
     'SSIEP/ssiep.htm' => { 
         'version'    => 2,
         'syntax'     => 'Embperl SSI',
+        'cgi'        => 0,
         },
     'inctext.htm' => { 
         'ep1compat'    => 0,
@@ -590,6 +671,9 @@
         'version'    => 2,
         'repeat'     => 2,
         },
+    'tagintag.htm' => { 
+        'version'    => 2,
+        },
     'rtf/rtfbasic.asc' => { 
         'version'    => 2,
         'syntax'     => 'RTF',
@@ -602,6 +686,20 @@
         'offline'    => 1,
         'param'      => { 'Nachname' => 'Richter', Vorname => 'Gerald' },
         },
+    'rtf/rtfadv.asc' => { 
+        'version'    => 2,
+        'syntax'     => 'RTF',
+        'offline'    => 1,
+        'param'      => [
+                        { 'adressen_anrede' => 'Herr', 'adressen_name' => 'Richter', 'adressen_vorname'  => 'Gerald', anschreiben_typ => 'Dienstadresse', adressen_dienststelle => 'adr dienst', adressen_dienstbezeichnung => 'DBEZ', adressen_dienst_strasse => 'dstr 1', adressen_priv_strasse => 'pstr 1' },
+                        { 'adressen_anrede' => 'Herr', 'adressen_name' => 'Richter2', 'adressen_vorname'  => 'Gerald2', anschreiben_typ => 'Dienstadresse', adressen_dienststelle => 'adr dienst 2', adressen_dienstbezeichnung => 'DBEZ2' },
+                        { 'adressen_anrede' => 'Frau', 'adressen_name' => 'Weis',    'adressen_vorname'  => 'Ulrike' },
+                        { 'adressen_anrede' => 'Frau', 'adressen_name' => 'Weis',    'adressen_vorname'  => 'Sarah' },
+                        { 'adressen_anrede' => 'Frau', 'adressen_name' => 'Weis',    'adressen_vorname'  => 'Marissa' },
+                        { 'adressen_anrede' => 'Frau', 'adressen_name' => 'Weis',    'adressen_vorname'  => 'Gerald2', anschreiben_typ => 'Dienstadresse', adressen_dienststelle => 'adr dienst 2', adressen_dienstbezeichnung => 'DBEZ2' },
+                        { 'adressen_anrede' => 'Frau', 'adressen_name' => 'Weis',    'adressen_vorname'  => 'Gerald2', anschreiben_typ => 'Privatadresse', adressen_dienststelle => 'adr dienst 2', adressen_dienstbezeichnung => 'DBEZ2', adressen_dienst_strasse => 'dstr 2', adressen_priv_strasse => 'pstr 2'  },
+                        ]
+        },
     'rtf/rtfloop.asc' => { 
         'version'    => 2,
         'syntax'     => 'RTF',
@@ -613,6 +711,165 @@
                         { 'Kunde' => 'blabla', Kurs => 'blubblub', 'Nachname' => 'Richter4', Vorname => 'Gerald4' },
                         { 'Kunde' => 'blabla', Kurs => 'blubblub', 'Nachname' => 'Richter5', Vorname => 'Gerald5' },
                         ]
+        },
+    'rtf/rtfmeta.asc' => { 
+        'version'    => 2,
+        'syntax'     => 'RTF',
+        'offline'    => 1,
+        'param'      => [
+                        { 'adressen_anrede' => 'Herr', 'adressen_name' => 'Richter', 'nr' => 11 },
+                        { 'adressen_anrede' => 'Herr', 'adressen_name' => 'Richter', 'nr' => 12 },
+                        { 'adressen_anrede' => 'Herr', 'adressen_name' => 'Richter', 'nr' => 13 },
+                        { 'adressen_anrede' => 'Frau', 'adressen_name' => 'Weis',    'nr' => 21 },
+                        { 'adressen_anrede' => 'Frau', 'adressen_name' => 'Weis',    'nr' => 22 },
+                        ]
+        },
+    'crypto.htm' => { 
+        'condition'  => '$EPC_ENABLE', 
+        },
+    'pod/pod.asc' => { 
+        'version'    => 2,
+        'syntax'     => 'POD',
+        'condition'  => '!$EPWIN32', 
+        'cgi'        => 0,
+        },
+    'xml/pod.xml' => { 
+        'version'    => 2,
+        'recipe'     => 'EmbperlLibXSLT',
+        'xsltstylesheet'     => "$inpath/xml/pod.xsl",
+        'offline'    => 1,
+        'condition'  => '$LIBXSLTVERSION', 
+        'msg'        => ' embperl -> libxslt',
+        },
+    'xml/pod.xml' => { 
+        'version'    => 2,
+        'recipe'     => 'EmbperlXalanXSLT',
+        'xsltstylesheet'     => "$inpath/xml/pod.xsl",
+        'offline'    => 1,
+        'condition'  => '$XALANPATH', 
+        'cmpext'     => '.xalan',
+        'msg'        => ' embperl -> xalan',
+        },
+    'xml/pod.xml' => { 
+        'version'    => 2,
+        'recipe'     => 'EmbperlXSLT',
+        'xsltstylesheet'     => "$inpath/xml/pod.xsl",
+        'xsltproc'   => 'libxslt',
+        'offline'    => 1,
+        'condition'  => '$LIBXSLTVERSION', 
+        'msg'        => ' embperl -> xslt (libxslt)',
+        },
+    'xml/pod.xml' => { 
+        'version'    => 2,
+        'recipe'     => 'EmbperlXSLT',
+        'xsltstylesheet'     => "$inpath/xml/pod.xsl",
+        'offline'    => 1,
+        'xsltproc'   => 'xalan',
+        'condition'  => '$XALANPATH', 
+        'cmpext'     => '.xalan',
+        'msg'        => ' embperl -> xslt (xalan)',
+        },
+    'xml/pod.xml' => { 
+        'version'    => 2,
+        'recipe'     => 'LibXSLT',
+        'xsltstylesheet'     => "$inpath/xml/pod.xsl",
+        'offline'    => 1,
+        'condition'  => '$LIBXSLTVERSION', 
+        'msg'        => ' libxslt',
+        },
+    'xml/pod.xml' => { 
+        'version'    => 2,
+        'recipe'     => 'XalanXSLT',
+        'xsltstylesheet'     => "$inpath/xml/pod.xsl",
+        'offline'    => 1,
+        'condition'  => '$XALANPATH', 
+        'cmpext'     => '.xalan',
+        'msg'        => ' xalan',
+        },
+    'xml/pod.xml' => { 
+        'version'    => 2,
+        'recipe'     => 'XSLT',
+        'xsltstylesheet'     => "$inpath/xml/pod.xsl",
+        'xsltproc'   => 'libxslt',
+        'offline'    => 1,
+        'condition'  => '$LIBXSLTVERSION', 
+        'msg'        => ' xslt (libxslt)',
+        },
+    'xml/pod.xml' => { 
+        'version'    => 2,
+        'recipe'     => 'XSLT',
+        'xsltstylesheet'     => "$inpath/xml/pod.xsl",
+        'offline'    => 1,
+        'xsltproc'   => 'xalan',
+        'condition'  => '$XALANPATH', 
+        'cmpext'     => '.xalan',
+        'msg'        => ' xslt (xalan)',
+        },
+    'pod/pod.asc' => { 
+        'version'    => 2,
+        'syntax'     => 'POD',
+        'recipe'     => 'EmbperlLibXSLT',
+        'xsltstylesheet'     => "$inpath/xml/pod.xsl",
+        'cmpext'     => '.htm',
+        'offline'    => 1,
+        'msg'        => ' libxslt',
+        'condition'  => '$LIBXSLTVERSION', 
+        },
+    'pod/pod.asc' => { 
+        'version'    => 2,
+        'syntax'     => 'POD',
+        'recipe'     => 'EmbperlXalanXSLT',
+        'xsltstylesheet'     => "$inpath/xml/pod.xsl",
+        'cmpext'     => '.xalan.htm',
+        'offline'    => 1,
+        'msg'        => ' xalan',
+        'condition'  => '$XALANPATH', 
+        },
+    'libxslt/pod.xml' => { 
+        'version'    => 2,
+        'modperl'    => 1,
+        'aliasdir'   => 1,
+        'msg'        => ' libxslt',
+        'condition'  => '$LIBXSLTVERSION', 
+        },
+    'xalan/pod.xml' => { 
+        'version'    => 2,
+        'cmpext'     => '.xalan',
+        'modperl'    => 1,
+        'aliasdir'   => 1,
+        'msg'        => ' xalan',
+        'condition'  => '$XALANPATH', 
+        },
+    'asclibxslt/pod.asc' => { 
+        'version'    => 2,
+        'cmpext'     => '.htm',
+        'modperl'    => 1,
+        'aliasdir'   => 1,
+        'msg'        => ' libxslt',
+        'condition'  => '$LIBXSLTVERSION', 
+        },
+    'ascxalan/pod.asc' => { 
+        'version'    => 2,
+        'cmpext'     => '.xalan.htm',
+        'modperl'    => 1,
+        'aliasdir'   => 1,
+        'msg'        => ' xalan',
+        'condition'  => '$XALANPATH', 
+        },
+    'incxmlLibXSLT.htm' => { 
+        'version'    => 2,
+        'condition'  => '$LIBXSLTVERSION', 
+        'msg'        => ' libxslt',
+        },
+#    'incxmlLibXSLT2.htm' => { 
+#        'version'    => 2,
+#        'condition'  => '$LIBXSLTVERSION', 
+#        'msg'        => ' libxslt',
+#        },
+    'incxmlXalanXSLT.htm' => { 
+        'version'    => 2,
+        'condition'  => '$XALANPATH', 
+        'msg'        => ' xalan',
         },
 ) ;
 
@@ -628,7 +885,7 @@ for ($i = 0 ; $i < @testdata; $i += 2)
 
 use vars qw ($httpconfsrc $httpconf $EPPORT $EPPORT2 *SAVEERR *ERR $EPHTTPDDLL $EPSTARTUP $EPDEBUG
              $testshare
-            $EPSESSIONDS $EPSESSIONCLASS $EPSESSIONVERSION $EP1COMPAT $EPAPACHEVERSION
+            $EPSESSIONDS $EPSESSIONCLASS $EPSESSIONVERSION $EP1COMPAT $EPAPACHEVERSION $EPC_ENABLE
             $opt_offline $opt_ep1 $opt_cgi $opt_modperl $opt_execute $opt_nokill $opt_loop
             $opt_multchild $opt_memcheck $opt_exitonmem $opt_exitonsv $opt_config $opt_nostart $opt_uniquefn
             $opt_quite $opt_qq $opt_ignoreerror $opt_tests $opt_blib $opt_help $opt_dbgbreak $opt_finderr
@@ -684,7 +941,7 @@ BEGIN
     print "\nloading...                    ";
     
 
-    $defaultdebug = 0x7fc5ffd ;
+    $defaultdebug = 0xffffdffd ;
     #$defaultdebug = 1 ;
 
     #### setup paths #####
@@ -697,6 +954,7 @@ BEGIN
 
     $ENV{EMBPERL_LOG} = $logfile ;
     $ENV{EMBPERL_DEBUG} = $defaultdebug ;
+    $ENV{DMALLOC_OPTIONS} = "log=$tmppath/dmalloc.log,debug=0x3f03" ;
 
     unlink ($logfile) ;
     }
@@ -824,6 +1082,34 @@ $vmmaxsize = 0 ;
 $vminitsize = 0 ;
 $vmhttpdsize = 0 ;
 $vmhttpdinitsize = 0 ;
+
+
+#####################################################
+#
+# test for output tie
+#
+
+    {
+    package HTML::Embperl::Test::STDOUT ;
+
+    sub TIEHANDLE 
+
+        {
+        my $class ;
+        
+        return bless \$class, shift ;
+        }
+
+
+    sub PRINT
+
+        {
+        shift ;
+        $output .= shift ;
+        }
+    }
+
+
 
 #####################################################
 
@@ -1008,13 +1294,27 @@ sub REQ
 	{
 	$url = new URI::URL("http://$host:$port/$loc/$file?$query");
 
+        if ($cookie && ($cookieaction =~ /url/) && !($cookieaction =~ /nocookie/) ) 
+            {
+            if ($url =~ /\?/)
+                {
+                $url .= "&$cookie" ;
+                }
+            else
+                {
+                $url .= "?$cookie" ;
+                }
+            $sendcookie = $cookie ;
+            }
+
+        
 	$request = new HTTP::Request($content?'POST':'GET', $url);
         if ($cookieaction =~ /cookie=(.*?)$/)
             {
             $request -> header ('Cookie' => $1) ;
             $sendcookie = $1 ;
             }
-        elsif ($cookie && !($cookieaction =~ /nocookie/)) 
+        elsif ($cookie && !($cookieaction =~ /nocookie/) && !($cookieaction =~ /url/)) 
             {             
             $request -> header ('Cookie' => $cookie) ;
             $sendcookie = $cookie ;
@@ -1044,7 +1344,16 @@ sub REQ
     print FH $response -> content ;
     close FH ;
 
-    my $c = $response -> header ('Set-Cookie') || '' ;
+    my $c ;
+    if ($cookieaction =~ /url/)
+        {
+        $response -> content =~ /(EMBPERL_UID=.*?)\"/ ;
+        $c = $1 || '' ;
+        }
+    else
+        {
+        $c = $response -> header ('Set-Cookie') || '' ;
+        }
     $cookie = $c if (($c =~ /EMBPERL_UID/) && !($cookieaction =~ /nosave/)) ;  
     $cookie = undef if (($c =~ /EMBPERL_UID=;/) && !($cookieaction =~ /nosave/)) ;  
 
@@ -1239,7 +1548,7 @@ if (!$opt_modperl && !$opt_cgi && !$opt_offline && !$opt_execute && !$opt_cache 
     }
 
 
-$opt_modperl = $opt_cgi = $opt_offline = $opt_execute = $opt_cache = 0 if ($opt_start || $opt_startinter || $opt_kill) ;
+$opt_ep1 = $opt_modperl = $opt_cgi = $opt_offline = $opt_execute = $opt_cache = 0 if ($opt_start || $opt_startinter || $opt_kill) ;
 
 $opt_nokill = 1 if ($opt_nostart || $opt_start || $opt_startinter) ;
 $looptest  = defined ($opt_loop)?1:0 ; # endless loop tests
@@ -1324,9 +1633,21 @@ $cp = HTML::Embperl::AddCompartment ('TEST') ;
 $cp -> deny (':base_loop') ;
 $cp -> share ('$testshare') ;
 
-$ENV{EMBPERL_ALLOW} = 'asc|\\.htm$|\\.htm-1$' ;
+$ENV{EMBPERL_ALLOW} = 'asc|\\.xml$|\\.htm$|\\.htm-1$' ;
 
 #HTML::Embperl::log ("Start testing...\n") ; # force logfile open
+
+
+if ($EPC_ENABLE)
+    {
+    print "\nCreate crypted source...\n" ;
+    my $rc = system ("crypto/epcrypto test/html/plain.htm test/html/crypto.htm") ;
+    if ($rc)
+        {
+        print "Source encryption failed\n" ;
+        exit (1) ;
+        }
+    }
 
 do  
     {
@@ -1394,6 +1715,12 @@ do
 	        $ENV{EMBPERL_OPTIONS} = $test -> {option} if (defined ($test -> {option})) ;
 	        delete $ENV{EMBPERL_SYNTAX} ;
                 $ENV{EMBPERL_SYNTAX} = $test -> {syntax} if (defined ($test -> {syntax})) ;
+	        delete $ENV{EMBPERL_RECIPE} ;
+                $ENV{EMBPERL_RECIPE} = $test -> {recipe} if (defined ($test -> {recipe})) ;
+	        delete $ENV{EMBPERL_XSLTSTYLESHEET} ;
+                $ENV{EMBPERL_XSLTSTYLESHEET} = $test -> {xsltstylesheet} if (defined ($test -> {xsltstylesheet})) ;
+	        delete $ENV{EMBPERL_XSLTPROC} ;
+                $ENV{EMBPERL_XSLTPROC} = $test -> {xsltproc} if (defined ($test -> {xsltproc})) ;
 	        delete $ENV{EMBPERL_COMPARTMENT} if (defined ($ENV{EMBPERL_COMPARTMENT})) ;
 	        $ENV{EMBPERL_COMPARTMENT} = $test -> {compartment} if (defined ($test -> {compartment})) ;
 	        delete $ENV{EMBPERL_PACKAGE}  if (defined (delete $ENV{EMBPERL_PACKAGE})) ;
@@ -1405,7 +1732,7 @@ do
 			       $page, $test -> {query_info} || '') ;
 	        unshift (@testargs, 'dbgbreak') if ($opt_dbgbreak) ;
     
-	        $txt = "#$testnum ". $file . ($debug != $defaultdebug ?"-d $debug ":"") . '...' ;
+	        $txt = "#$testnum ". $file . ($debug != $defaultdebug ?"-d $debug ":"") . ($test->{msg} || '') . '...' ;
 	        $txt .= ' ' x (30 - length ($txt)) ;
 	        print $txt ; 
     
@@ -1508,7 +1835,7 @@ do
 
 		unlink ($outfile) ;
 		$t1 = HTML::Embperl::Clock () ;
-		$err = HTML::Embperl::Execute ({'input'      => \$indata,
+                $err = HTML::Embperl::Execute ({'input'      => \$indata,
 						'inputfile'  => 'i1',
 						'mtime'      => 1,
 						'outputfile' => $outfile,
@@ -1542,6 +1869,34 @@ do
 	
 		open FH, ">$outfile" or die "Cannot open $outfile ($!)" ;
 		print FH $outdata ;
+		close FH ;
+		$err = CmpFiles ($outfile, $org)  if ($err == 0) ;
+		print "ok\n" unless ($err) ;
+		}
+
+	    if ($err == 0 || $opt_ignoreerror)
+		{
+		$txt2 = "$txt to tied handle...";
+		$txt2 .= ' ' x (30 - length ($txt2)) ;
+		print $txt2 ; 
+
+		my $outdata ;
+                my @errors ;
+		unlink ($outfile) ;
+		$HTML::Embperl::Test::STDOUT::output = '' ;
+                tie *STDOUT, 'HTML::Embperl::Test::STDOUT' ;
+                $t1 = HTML::Embperl::Clock () ;
+		$err = HTML::Embperl::Execute ({'inputfile'  => $src,
+						'mtime'      => 1,
+						'debug'      => $defaultdebug,
+						}) ;
+		$t_exec += HTML::Embperl::Clock () - $t1 ; 
+		untie *STDOUT ;
+                    
+		$err = CheckError ($errcnt) if ($err == 0) ;
+	
+		open FH, ">$outfile" or die "Cannot open $outfile ($!)" ;
+		print FH $HTML::Embperl::Test::STDOUT::output ;
 		close FH ;
 		$err = CmpFiles ($outfile, $org)  if ($err == 0) ;
 		print "ok\n" unless ($err) ;
@@ -1611,9 +1966,9 @@ do
 		    
                 $err = CheckError ($EP2?6:8) if ($err == 0) ;
 
-                if (@errors != ($EP2?2:12))
+                if (@errors != ($EP2?5:12))
                     {
-                    print "\n\n\@errors does not return correct number of errors (is " . scalar(@errors) . ", should 2)\n" ;
+                    print "\n\n\@errors does not return correct number of errors (is " . scalar(@errors) . ", should 5)\n" ;
                     $err = 1 ;
                     }
 
@@ -1701,7 +2056,7 @@ do
                     },
                     { 
                     text  => 'Wait for expire',
-                    'sleep' => 2,
+                    'sleep' => 3,
                     },
                     { 
                     text  => 'Expires in 1 sec (reexec)',
@@ -1808,7 +2163,7 @@ do
                     },
                     { 
                     text  => 'Wait for expire',
-                    'sleep' => 2,
+                    'sleep' => 3,
                     },
                     { 
                     text  => '$EXPIRES in source (reexc)',
@@ -1892,6 +2247,9 @@ do
 
     if (($loc ne '' && $err == 0 && $loopcnt == 0 && !$opt_nostart) || $opt_start || $opt_startinter)
 	{
+
+        system "kill `cat $tmppath/httpd.pid`  2> /dev/null" if (!$EPWIN32 && $opt_start) ;
+
 	#### Configure httpd conf file
 	$EPDEBUG = $defaultdebug ;
 
@@ -1954,7 +2312,7 @@ do
 	    sleep (7) ;
 	    if (!open FH, "$tmppath/httpd.pid")
 		{
-		sleep (7) ;
+		sleep (($opt_gdb || $opt_ddd)?15:7) ;
 		if (!open FH, "$tmppath/httpd.pid")
                     {
             	    open (FERR, "$httpderr") ;  
@@ -2075,7 +2433,7 @@ do
 		$upload = "f1=abc1\r\n&f2=1234567890&f3=" . 'X' x 8192 ;
 		}
 
-            if (!$EPWIN32 && $loc eq $embploc && !($file =~ /notfound\.htm/))
+            if (!$EPWIN32 && !$test -> {aliasdir} && $loc eq $embploc && !($file =~ /notfound\.htm/))
                 {
                 print "ERROR: Missing read permission for file $inpath/$file\n" if (!-r $page) ;
                 local $> = $httpduid ;
@@ -2156,7 +2514,8 @@ do
 
 	if ($opt_cgi && $err == 0 && $loc ne $cgiloc && $loopcnt == 0)   
 	    { 
-	    $loc = $EP2?'':$cgiloc ; # currently disable cgi mode at all for Embperl 2.x
+	    #$loc = $EP2?'':$cgiloc ; # currently disable cgi mode at all for Embperl 2.x
+	    $loc = $cgiloc ; 
 	    }
 	else
 	    {

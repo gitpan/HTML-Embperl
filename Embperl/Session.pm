@@ -239,6 +239,11 @@ sub init
 
     my $session_id = $self->{data}->{_session_id} ;
 
+    if (!$session_id && $self -> {idfrom})
+        {
+        $session_id = $self->{data}->{_session_id} = &{$self->{generate}}($self, $self -> {idfrom})  ;
+        }
+
     $self->{initial_session_id} ||= $session_id ;
 
     $self->populate;
@@ -409,6 +414,16 @@ sub setid {
     $self->{data}->{_session_id} = $self->{initial_session_id} = shift ;
 
 }
+
+sub setidfrom {
+    my $self = shift;
+
+    $self->{'status'} = 0 ;
+    $self->{data}->{_session_id} = $self->{initial_session_id} = undef ;
+    $self->{idfrom} = shift ;
+
+}
+
 
 sub getid {
     my $self = shift;

@@ -5,6 +5,7 @@
 
 <body>
 
+
 <p> $tabmode = default <p>
 
 <hr><p>Display an two dimensional array with one, two and three columns !<BR>
@@ -38,7 +39,6 @@ Please take a look at the source in your browser to see the difference<BR>
    $a[2][[2] = '3/3' ;<BR>
 
 <P>$tabmode = default <P>
-
 
 <table>
     <tr>
@@ -247,6 +247,44 @@ $kats[3]{Id} = '' ;
      <td align="center"><font size="+1">[+ $multi[$row][$col] +]</font></td>
    </tr>
 </table>
+
+
+<table border="14"><tr><td>[+ $a[$row][0] +]</td></tr></table>
+<table border="15"><tr><td>[+ $a[2][$col] +]</td></tr></table>
+<table border="16"><tr><td>[+ $a[$row][$col] +]</td></tr> </table>
+
+<table border="17">
+  <tr>
+	<td>[+ $a[$icon_height=$row][0] +]</td>
+	<td>
+		[- $icon_width = 5 ; -]
+
+		<IMG 
+		[$ if (($server_type eq "iii")) $]
+		SRC="/i/www.[+ $server_type +]/[+ $badge || "iiilogo_narrow_if" +].gif" WIDTH="[+ $icon_width +]" HEIGHT="[+ $icon_height +]" BORDER="0"
+		[$ else $]
+		SRC="/icons/[+ $badge || "iiilogo_narrow_else" +].gif" WIDTH="[+ $icon_width +]" HEIGHT="[+ $icon_height +]" BORDER="0" 
+		[$ endif $]
+		[$ if ($badge eq "iit") $]
+			ALT="iit logo"
+		[$ else $]
+			ALT="iii logo"
+		[$ endif $]>
+	</td>
+  </tr>
+</table>
+
+<table>
+    <tr>
+        <td>[+ $a[$row][0] +]</td>
+    </tr> 
+</table>
+<table>
+    <tr>
+        <td>[+ $a[2][$col] +]</td>
+    </tr> 
+</table>
+
 
 </body>
 </html>

@@ -21,9 +21,8 @@ used to build mod_perl.
 
 - B<make install>
 
-B<NOTE 1:> (only Embperl-1.2b1 or higher) For using session handling you need
-Apache::Session-1.00 or higher. If possible use Apache::Session 1.52 or higher.
-Starting with Embperl 1.3b7 Apache::Session 0.17 is B<NOT> supported anymore.
+B<NOTE 1:> For using session handling you need
+Apache::Session 1.53 and Apache::SessionX 2.00b3 or higher. 
 
 B<NOTE 2:> I<Embperl> runs without additional Perl modules, but the C<make test>
 needs the following modules to work:
@@ -68,6 +67,36 @@ parameter:
 
 will show you a list of available option. Most of them you will never need,
 they are mainly nesseccary for debugging I<Embperl> itself.
+
+=head2 XML and XSLT support
+
+Starting with Embperl 2.0b4 it has a build in XSLT support. You can either
+use the Apache Xerces-C and Xalan-C and/or Gnome libxml and libxslt.
+Embperl is currently tested with Xalan 1.2 and libxslt 1.0.4.
+
+To install Xalan, download the Xalan archive for your OS from 
+http://xml.apache.org/dist/xalan-c/
+ 
+For Linux it is Xalan-C_1_2-linux.tar.gz
+For Solaris it is Xalan-C_1_2-solaris.tar.gz
+ 
+Extract the archive and make the shared libraries available to the system,
+either by adding the directories to LD_LIBRARY_PATH or by coping them to
+a library directory, e.g. /usr/local/lib and run ldconfig -v. The two
+ncessary libraries can be found under
+ 
+    xerces-c1_5_1-linux/lib/libxerces-c1_5_1.so
+    xml-xalan/c/lib/libxalan-c1_2.so
+
+Now you only have to enter the basepath of where you have extraced the 
+Xalan archive, when Makefile.PL asks you for it and proceed as normal.
+
+B<NOTE:> For special hints on compiling XALAN see below
+
+To use libxml/libxslt, download them from http://xmlsoft.org/ and install
+them on your system. Makefile.PL will automaticly detect the installed
+libraries and linked them into Embperl. (you have to make sure
+that xml2-config and xslt-config can be found and run by Makefile.PL)
 
 
 =head2 Debian packages
@@ -161,9 +190,8 @@ B<NOTE:> nmake test needs libwin32, libwww and HTML::Parser installed to work
 
 B<nmake install>
 
-B<NOTE 1:> (only Embperl-1.2b1 or higher) For using session handling you need
-Apache::Session-1.00 or higher. If possible use Apache::Session 1.52 or higher.
-Starting with Embperl 1.3b7 Apache::Session 0.17 is B<NOT> supported anymore.
+B<NOTE 1:> For using session handling you need
+Apache::Session 1.53 and Apache::SessionX 2.00b3 or higher. 
 
 B<NOTE 2:> I<Embperl> runs without additional Perl modules, but the C<make test>
 needs the following modules to work:
@@ -246,6 +274,21 @@ Now you can continue by running
   nmake install  
 
 
+=head2 WIN 32: Install Apache and non Apache version on the same system
+
+Unlike Unix, Windows loads any needed DLL (dynamic libraries) at startup. This 
+causes trouble when Embperl is compiled for use with Apache and mod_perl, but 
+is used outside of Apache, because Windows tries to load F<ApacheCore.dll>.
+To solve this problem Embperl 1.3.4+ can install a Apache and a non Apache
+version. To do this first install the Apache version as decribed above 
+(includeing the C<nmake install>) . 
+Afterwards rerun Makefile.PL, when ask for mod_perl support answer no, now
+Makefile.PL detects that a mod_perl version was already compiled and asks
+if you what a separte non Apache version. Just say yes here and compile
+and install this version too. When Embperl is loaded it detects if runs in-
+or outside of Apache and loads the correct library.
+
+
 =head2 How to continue
 
 You can view the documentation at any time from the Embperl source directory,
@@ -292,4 +335,73 @@ See B<perldoc EmbperlD> for complete documentation.
 
 or you can view it online on http://www.ecos.de/embperl/
 
+
+=head2 Compiling XALAN
+
+Normaly you should be fine with the binary packages that are provided for 
+XALAN. If you want to compile XALAN from the sources there should be normaly
+no problem as long as you use GNU gcc on Unix or Microsoft VC++ on Windows.
+
+Here are some hints how to compile XALAN 1.2 with the sun C++ 5.1:
+
+=over 4
+
+=item * Get the sources for XERCES and XALAN
+
+=item * Untar the files 
+
+Use GNU tar, solaris tar doesn't work! GNU tar can be found at
+ftp://ftp.mcc.ac.uk/pub/gnu/tar/tar-1.13.tar.gz
+
+=item * Set the root directories
+
+    export XERCESCROOT=/path/to/xerces-c-src1_5_1
+    export XALANCROOT=/path/to/xml-xalan/c
+ 
+=item * Compile XERCES
+
+    cd xerces-c-src1_5_1/src
+    sh runConfigure -p solaris -c cc -x CC
+    make
+
+=item * Patch XALAN
+
+There must be one typecast inserted in the following three files:
+
+    
+    "c/src/XSLT/ExtensionFunctionHandler.cpp", line 156
+    156c156
+    < 	return m_functions.find(function) != m_functions.end();
+    ---
+    > 	return StringSetType::const_iterator(m_functions.find(function)) != m_functions.end();
+
+    "c/src/XSLT/ExtensionNSHandler.cpp", line 200
+    200c200
+    <     return (m_elements.find(element) != m_elements.end());
+    ---
+    >     return (ExtensionSetType::const_iterator(m_elements.find(element)) !=  m_elements.end());
+
+    "c/src/XSLT/NamespacesHandler.cpp", line 366
+    366c366
+    < 			|| m_extensionNamespaceURIs.find(theURI) != m_extensionNamespaceURIs.end()
+    ---
+    > 			|| ExtensionNamespaceURISetType::const_iterator(m_extensionNamespaceURIs.find(theURI)) != m_extensionNamespaceURIs.end()
+
+
+
+=item * Compile XALAN
+
+    cd xml-xalan/c/src
+    sh runConfigure -p solaris -c cc -x CC -z "-D__GNUC__"
+    make
+
+B<NOTE:> I found that only the above parameters to configure work.
+Don't worry that __GNUC__ is defined. It works with sun C++ 5.1.
+When using sun C++ 5.1 you don't need the STLPort template library.
+
+=item * Make the libraries available
+
+    export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/path/to/xerces-c-src1_5_1/lib:/path/to/xml-xalan/c/lib 
+
+=item * Now you can run Embperl's Makefile.PL as described above
 

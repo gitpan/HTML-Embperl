@@ -1,8 +1,9 @@
 #
 # Building Makefile for Embperl
 #
-# (C) 1997-1999 G.Richter (richter@dev.ecos.de) / ECOS
+# (C) 1997-2001 G.Richter (richter@dev.ecos.de) / ECOS
 #
+# $Id: Makefile.PL,v 1.31.4.35 2001/11/12 12:45:39 richter Exp $
 #
 
 
@@ -164,6 +165,40 @@ sub MY::dist_test
         return $txt ;
 	}
 	
+sub MY::dynamic 
+	{
+	my $self = shift ;
+        
+        my $txt = $self -> MM::dynamic (@_) ;
+
+        $txt .= "\tcd crypto && \$(MAKE) SSL_BASE=$sslbase\n" if ($epc_enable) ;
+        
+        return $txt ;
+	}
+
+sub MY::c_o
+	{
+	my $self = shift ;
+        
+        my $txt = $self -> MM::c_o (@_) ;
+
+        $txt =~ s/\$\*/-o \$*\$(OBJ_EXT) \$*/g ;
+        my @txt = split (/\n/, $txt) ;
+        my $cpp = 0 ;
+        foreach (@txt)
+            {
+            if (/\$\*\.cpp/)
+                {
+                s/\$\(CCCMD\)/\$(CPPCMD) \$(CPPFLAGS)/ ;
+                }
+            }
+        $txt = join ("\n", @txt) ;
+
+        return $txt ;
+	}
+
+
+
 sub MY::cflags 
 	{
 	my $self = shift ;
@@ -173,6 +208,19 @@ sub MY::cflags
         
         return $txt ;
 	}
+
+sub MY::const_cccmd 
+	{
+	my $self = shift ;
+        
+        my $txt = $self -> MM::const_cccmd (@_) ;
+        my $txt2 = $txt ;
+        $txt2 =~ s/\$\(CC\)/\$(CPP)/ ;
+        $txt2 =~ s/CCCMD/CPPCMD/ ;
+
+        return "$txt\n\n$txt2"  ;
+	}
+
 
 	
  sub MY::post_initialize
@@ -204,6 +252,20 @@ sub MY::cflags
             }
 
        $self -> MM::post_initialize (@_) ;
+       }
+
+
+ sub MY::post_constants
+       {
+       my $self = shift ;
+
+
+       my $txt = $self -> MM::post_constants (@_) ;
+
+       $txt .= "\n# Change name of dynamic lib, in case we need two of them (with and w/o Apache support)\nINST_DYNAMIC = \$(INST_ARCHAUTODIR)\\\$(DLBASE).NoApache.\$(DLEXT)\n" if ($EPNOAPACHELIB) ;
+
+       return $txt ;
+
        }
 
 ## ----------------------------------------------------------------------------
@@ -251,14 +313,14 @@ sub search_config
     my ($key, $path) = @_ ;
 
 
-    open FH, $path or return undef ;
+    open CFGFH, $path or return undef ;
 
-    while (<FH>)
+    while (<CFGFH>)
         {
-        return $1 if (/^$key\s*=\s*(.*?)$/) ;
+        return $1 if (/^$key\s*(?:=|\s)\s*(.*?)$/) ;
         }
 
-    close FH ;
+    close CFGFH ;
     return undef ;
     }
 
@@ -300,11 +362,11 @@ sub start
     $cmd =~ s/\//\\/g if ($win32) ;
 
     
-    open FH, "$cmd|" or die "\nCannot start $cmd\nPlease make sure you have build Apache and mod_perl before makeing Embperl\n" ;
+    open STFH, "$cmd|" or die "\nCannot start $cmd\nPlease make sure you have build Apache and mod_perl before makeing Embperl\n" ;
 
-    my @x = <FH> or die "\nCannot start $cmd\nPlease make sure you have build Apache and mod_perl before makeing Embperl\n" ;
+    my @x = <STFH> or die "\nCannot start $cmd\nPlease make sure you have build Apache and mod_perl before makeing Embperl\n" ;
 
-    close FH ;
+    close STFH ;
     return @x ;
     }
 
@@ -321,13 +383,13 @@ sub start_errcode
     $cmd =~ s/\//\\/g if ($win32) ;
 
     
-    open FH, "$cmd|" or return 1 ;
+    open STFH, "$cmd|" or return 1 ;
 
-    my @x = <FH> ;
+    my @x = <STFH> ;
 
     #print "@x" ;
 
-    my $code = close FH ;
+    my $code = close STFH ;
     #print "Code = $code ; ? = $?\n" ;
 
     return $? ;
@@ -373,6 +435,8 @@ $b = 0 ;
 
 $ccdebug = '' ;
 $lddebug = '' ;
+$libs    = '' ;
+$d       = '' ;
 
 if ($ARGV[0] eq 'debug')
     {
@@ -386,6 +450,19 @@ if ($ARGV[0] eq 'debug')
         {
         $ccdebug = '-ggdb' ;
         $lddebug = '-g' ;
+        }
+    }
+
+if ($ARGV[0] eq 'dmalloc')
+    {
+    shift @ARGV;
+    if ($win32)
+        {
+        }
+    else
+        {
+        $libs .= '-L/usr/local/lib -ldmalloc' ;
+        $d    .= '-DDMALLOC' ;
         }
     }
 
@@ -417,10 +494,11 @@ if (!$apache && $apache_src eq '')
         }
     }
 
+eval 'do "test/conf/config.pl"' ;
+
+
 if (!$apache && $apache_src eq '')
     {
-    eval 'do "test/conf/config.pl"' ;
-
     $apache_src = $EPAPACHESRC ;
     $loadmodules = $EPMODPERL ;
     }
@@ -564,24 +642,30 @@ if ($b && $apache && $apache_src ne '')
         $i = "-I$inc_dir -I$apache_src/regex -I$apache_src/os/unix" ; 
         $o = '' ;
         }
-    $d = "-DAPACHE" ;
-
+    $d .= ' -DAPACHE' ;
+    $EPNOAPACHELIB = 0 ;
     }
 else
     {
     $apache = 0 ;
+    if ($win32 && ($EPAPACHESRC || $EPNOAPACHELIB) && -f 'blib/arch/auto/HTML/Embperl/Embperl.dll')
+        {
+        print "\nYou have already build Embperl with support for Apache mod_perl\n" ;
+        $EPNOAPACHELIB = GetYesNo ("Do you want to build a separate dynamic library for use without Apache?", 'y') ;
+        }
+
+
     print "Will build without mod_perl support\n" ;
     $i = '' ;
-    $d = '' ;
     $o = '' ;
     }
 		
 
 if ($win32 && $apache)
     {	# borrowed from mod_perl
-    local *FH;
-    open FH, ">dirent.h" || die "can't write dirent.h $!";
-    print FH <<EOF;
+    local *DEFH;
+    open DEFH, ">dirent.h" || die "can't write dirent.h $!";
+    print DEFH <<EOF;
 /* major kludge to workaround conflict(s) between perl's dirent.h and apache's readdir.h */
 
 #ifdef WIN32
@@ -592,7 +676,7 @@ if ($win32 && $apache)
 #endif
 
 EOF
-    close FH;
+    close DEFH;
 
     if ($ENV{APACHE_PERL_DLL})
 	{
@@ -645,9 +729,12 @@ if ($b && $apache)
         }
     else
         {
-        $EPHTTPD = "$EPHTTPDDLL/Apache.exe" ;
-        $EPHTTPD =~ s#core([rd])/Apache.exe#Apache$1/Apache.exe#i ;
-        $EPHTTPD =~ s#libexec/Apache.exe#Apache.exe#i ;
+        if (!$EPHTTPD || !-e $EPHTTPD)
+            {
+            $EPHTTPD = "$EPHTTPDDLL/Apache.exe" ;
+            $EPHTTPD =~ s#core([rd])/Apache.exe#Apache$1/Apache.exe#i ;
+            $EPHTTPD =~ s#libexec/Apache.exe#Apache.exe#i ;
+            }
         $EPUSER  = 'www' ; # dummy value
         $EPGROUP = 'www' ;
         if (!-e $EPHTTPD)
@@ -683,7 +770,7 @@ if ($b && $apache)
 	if (!grep (/$mod/, @modules))
 	    { # module not linked staticly
 	    $paths = $win32?$opt->{win32path}:$opt->{path} ;
-	    $modfile = $win32?$opt->{win32file}:$opt->{file} ;
+	    $modfile = $win32?$opt->{win32file}:$opt->{file}[0] ;
 	    $modfiletext = ($win32?$opt->{win32filetext}:$opt->{filetext}) || $modfile ;
 	    $found = 2 ;
 	    searchmod:
@@ -756,7 +843,7 @@ if ($b && $apache)
     require Apache::src;
     $dynlib->{'OTHERLDFLAGS'} = Apache::src->new->otherldflags if (defined (&Apache::src::otherldflags)) ;
 
-    
+
     if ($EPSTRONGHOLD) 
         {
         $i .= " -I$apache_src/../ssl/include" ;
@@ -770,9 +857,8 @@ if ($b && $apache)
         }
     elsif ($EPMOD_SSL)
         {
-        my $sslbase = search_config ('SSL_BASE', "$apache_src/Configuration.apaci") ;
+        $sslbase = search_config ('SSL_BASE', "$apache_src/Configuration.apaci") ;
         $sslbase = search_config ('SSL_BASE', "$apache_src/Configuration") if (!$sslbase) ;
-        $i .= " -I$sslbase/include" ;
         print " + found mod_ssl\n" ;
         $EPSSLDISABLE = !start_errcode ("$EPHTTPD -t -f $EPPATH/test/conf/ssldisable.conf") ;
         }
@@ -802,6 +888,21 @@ if ($b && $apache)
         $EPSTRONGHOLDKEY = '' ;
         }
 
+    $epc_enable = search_config ('\s*#define\s+EPC_ENABLE', "crypto/epcrypto_config.h") ;
+    if ($epc_enable)
+        {
+        $sslbase = search_config ('SSL_BASE', "$apache_src/Configuration.apaci") if (!$sslbase) ;
+        $sslbase = search_config ('SSL_BASE', "$apache_src/Configuration") if (!$sslbase) ;
+        $sslbase = '/usr/local/ssl' if (!$sslbase) ;
+        $libs .= " -L$sslbase/lib -lcrypto" ;
+        $o    .= ' crypto/epcrypto$(OBJ_EXT) ' ;
+        print "Enable crypted sourcefiles\n" ;
+        }
+
+    if ($sslbase) 
+        {
+        $i .= " -I$sslbase/include" 
+        }
 
     print "Test start $EPHTTPD\n" ;
     print "Test httpd will run as user $EPUSER and group $EPGROUP\n" if (!$win32) ;
@@ -853,6 +954,7 @@ if ($b && $apache)
             }
         }
 
+    $SessXVer = CheckModule ("Apache::SessionX", "-> Disable tests for persistent data storage") || '' if ($SessVer) ;
     $SessVer ||= 0 ;
 
     if (($FSVer = CheckModule ("File::Spec", "-> Required for EmbperlObject, make test will fail whithout File::Spec")) < 0.8)
@@ -882,8 +984,11 @@ if ($b && $apache)
     print FH "\$EPSTARTUP='" . cnvpath($EPSTARTUP) . "';\n" ;
     print FH "\$EPAPACHEVERSION='$EPAPACHEVERSION[0]';\n" ;
     print FH "\$EPSESSIONVERSION='$SessVer';\n" ;
+    print FH "\$EPSESSIONXVERSION='$SessXVer';\n" ;
     print FH "\$EP2='$EP2';\n" ;
     print FH "\$EPMODPERLVERSION='$MPVer';\n" ;
+    print FH "\$EPC_ENABLE='$epc_enable';\n" ;
+    print FH "\$EPNOAPACHELIB='$EPNOAPACHELIB';\n" ;
     if ($win32)
         {
         print FH "\$EPNULL='nul';\n" ;
@@ -895,7 +1000,6 @@ if ($b && $apache)
 
 
 
-    close FH ;
     }
 else
     {
@@ -910,6 +1014,7 @@ else
         $SessVer = 0 ;
         }
 
+    $SessXVer = CheckModule ("Apache::SessionX", "-> Disable tests for persistent data storage") || '' if ($SessVer) ;
     $SessVer ||= 0 ;
 
     ### write out test configuration file ###
@@ -921,9 +1026,16 @@ else
     print FH "\$EPHTTPD='' ;\n" ;
     print FH "\$EPWIN32='$win32' ;\n" ;
     print FH "\$EPSESSIONVERSION='$SessVer';\n" ;
+    print FH "\$EPSESSIONXVERSION='$SessXVer';\n" ;
     print FH "\$EPSSLDISABLE='$EPSSLDISABLE' ;\n" ;
     print FH "\$EP2='$EP2';\n" ;
-    close FH ;
+    print FH "\$EPNOAPACHELIB='$EPNOAPACHELIB';\n" ;
+    print FH "\$EPC_ENABLE='$epc_enable';\n" ;
+    print FH "\$EPHTTPD='" . cnvpath($EPHTTPD) . "' ;\n" ;
+    print FH "\$EPHTTPDDLL='" . cnvpath($EPHTTPDDLL) . "' ;\n" ;
+    print FH "\$EPWIN32='$win32' ;\n" ;
+    print FH "\$EPAPACHESRC='" . cnvpath($EPAPACHESRC) . "' ;\n" ;
+    print FH "\$EPMODPERL='" . cnvpath2unix($loadmodules) . "';\n" ;
     }
 
 # $d .= ' -DPERL_IS_5_6 ' if $] >= 5.006;
@@ -941,19 +1053,19 @@ if ($win32)
     my $os_h = "$inc_dir/os.h" ;
     $os_h = "$inc_dir/../os/win32/os.h" if (!-e $os_h) ;
     
-    if (open FH, $os_h )
+    if (open FH2, $os_h )
         {
-        my @conf = <FH> ;
-        close FH ;
+        my @conf = <FH2> ;
+        close FH2 ;
 
         if (grep (/winsock2\.h/, @conf))
             {
             $d .= ' -D_WINSOCK2API_ -D_MSWSOCK_ ' ;
             }
-        elsif (open FH, "$inc_dir/ap_config.h")
+        elsif (open FH2, "$inc_dir/ap_config.h")
             {
-            @conf = <FH> ;
-            close FH ;
+            @conf = <FH2> ;
+            close FH2 ;
 
             if (grep (/winsock2\.h/, @conf))
                 {
@@ -971,13 +1083,62 @@ $d .= ' -DEP2' if ($EP2) ;
 
 $dynlib->{'OTHERLDFLAGS'} .= " $lddebug" ;
 
+# 
+# See if we need to link to any other libraries
+#
+
+my $makemacros = {} ;
+if ($EP2)
+    {
+    opendir DH, "driver" or die "Cannot open directory driver ($!)" ;
+    my @files = readdir DH ;
+    closedir DH ;
+    my @makefiles = grep (/\.MAKEPL$/, @files) ;
+
+    foreach my $makepl (@makefiles)
+        {
+        #print "Exec driver/$makepl\n" ;
+        my $result = do "driver/$makepl" ;
+        if ($@)
+            {
+            print $@ ;
+            next ;
+            }
+        if (ref $result)
+            {
+            #while (my ($k, $v) = each %$result)
+            #    {
+            #    print "$k = $v\n" ;
+            #    }
+            $libs .= ' ' . $result->{libs} ;
+            $i    .= ' ' . $result->{cflags} ;
+            $d    .= ' ' . $result->{defines} ;
+            $o    .= ' ' . $result->{objects} ;
+            $makemacros->{CPP} = $result->{cpp} if ($result->{cpp}) ;
+            $makemacros->{CPPFLAGS} = $result->{cppflags} if ($result->{cppflags}) ;
+            if ($result->{save})
+                {
+                while (($k, $v) = each (%{$result->{save}}))
+                    {
+                    print FH "$k='" . $v . "';\n" ;
+                    }
+                }           
+            }
+        }
+
+    }
+
+
+close FH ;
+
+
 
 WriteMakefile(
     'NAME'	   => 'HTML::Embperl',
     'VERSION_FROM' => 'Embperl.pm', 		# finds $VERSION
     'OBJECT'       => 'Embperl$(OBJ_EXT) epmain$(OBJ_EXT) epio$(OBJ_EXT) epchar$(OBJ_EXT) epcmd$(OBJ_EXT) eputil$(OBJ_EXT) epeval$(OBJ_EXT) epapinit$(OBJ_EXT) ' . 
-                       ($EP2?'epcmd2$(OBJ_EXT) epparse$(OBJ_EXT) epdom$(OBJ_EXT) epcomp$(OBJ_EXT)':'') . $o,
-    'LIBS'	   => [''],   			 
+                       ($EP2?'epcmd2$(OBJ_EXT) epparse$(OBJ_EXT) epdom$(OBJ_EXT) epcomp$(OBJ_EXT) epcache$(OBJ_EXT) epprovider$(OBJ_EXT)':'') . $o,
+    'LIBS'	   => [$libs || ''],   			 
     'DEFINE'	   => "$d \$(DEFS)", 			 
     'INC'	   => $i,     			 
     'EXE_FILES'    => [ 'embpexec.pl' ],
@@ -988,7 +1149,8 @@ WriteMakefile(
     'PREREQ_PM'    => { 'File::Spec' => 0.8 },
     'ABSTRACT'     => 'Embed Perl code in HTML documents',
     'AUTHOR'       => 'Gerald Richter <richter@dev.ecos.de>',
-
+    'macro'        => $makemacros,
+    $EP2?('depend'       => { 'Embperl.c' => 'Embperl.xs DOM.xs Cmd.xs Syntax.xs' }):(),
 );
 
 
@@ -999,6 +1161,7 @@ WriteMakefile(
 
 @bins = ('embpexec.pl','embpexec.bat', 
          'embpcgi.pl', 'embpcgi.test.pl', 'embpcgi.bat',
+	 'embpfastcgi.pl',
          'epocgi.pl', 'epocgi.test.pl', 'epocgi.bat') ;
 
 

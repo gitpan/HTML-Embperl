@@ -10,7 +10,7 @@
 #   IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 #   WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 #
-#   $Id: embperl.h,v 1.25 2001/05/29 06:28:09 richter Exp $
+#   $Id: embperl.h,v 1.19.4.15 2001/11/16 08:08:07 richter Exp $
 #
 ###################################################################################*/
 
@@ -72,7 +72,20 @@ enum tRc
     rcNotAllowed,
     rcNotHashRef,
     rcTagMismatch,
-    rcCleanupErr
+    rcCleanupErr,
+    rcCryptoWrongHeader,
+    rcCryptoWrongSyntax,
+    rcCryptoNotSupported,
+    rcCryptoBufferOverflow,
+    rcCryptoErr,
+    rcUnknownProvider,
+    rcXalanError,
+    rcLibXSLTError,
+    rcMissingParam,
+    rcNotCodeRef,
+    rcUnknownRecipe,
+    rcTypeMismatch,
+    rcChdirError
     } ;
 
 
@@ -97,9 +110,9 @@ enum dbg
     dbgFunc         = 4096,
     dbgLogLink      = 8192,
     dbgDefEval      = 16384,
-    dbgCacheDisable     = 0x08000,
-    dbgEarlyHttpHeader  = 0x10000,
-    dbgWatchScalar      = 0x20000,
+    dbgOutput           = 0x08000,
+    dbgDOM              = 0x10000,
+    dbgRun              = 0x20000,
     dbgHeadersIn        = 0x40000,
     dbgShowCleanup      = 0x80000,
     dbgProfile          = 0x100000,
@@ -109,6 +122,10 @@ enum dbg
     dbgParse            = 0x1000000,
     dbgObjectSearch     = 0x2000000,
     dbgCache            = 0x4000000,
+    dbgCompile          = 0x8000000,
+    dbgXML              = 0x10000000,
+    dbgXSLT             = 0x20000000,
+    dbgCheckpoint       = 0x40000000,
     
     dbgAll  = -1
     } ;
@@ -142,7 +159,11 @@ enum opt
     optKeepSpaces	       = 0x100000,
     optOpenLogEarly            = 0x200000,
     optNoUncloseWarn	       = 0x400000,
-    optDisableSelectScan       = 0x800000
+    optDisableSelectScan       = 0x800000,
+    optAddUserSessionToLinks   = 0x1000000,
+    optAddStateSessionToLinks  = 0x2000000,
+    optNoSessionCookies        = 0x4000000,
+    optShowBacktrace           = 0x8000000
     } ;
 
 /*
@@ -186,7 +207,8 @@ enum tEscMode
     escHtml = 1,
     escUrl  = 2,
     escStd  = 3,
-    escEscape  = 4
+    escEscape  = 4,
+    escXML  = 8
     } ;
 
 

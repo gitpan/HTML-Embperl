@@ -1,0 +1,412 @@
+HTML::Embperl - Building dynamic Websites with Perl
+
+Copyright (c) 1997-2001 Gerald Richter / ECOS GmbH
+
+You may distribute under the terms of either the GNU General Public 
+License or the Artistic License, as specified in the Perl README file.
+
+THIS PACKAGE IS PROVIDED "AS IS" AND WITHOUT ANY EXPRESS OR IMPLIED 
+WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF 
+MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+
+$Id: README.v2,v 1.1.4.20 2001/11/20 15:15:41 richter Exp $
+
+
+### !! IMPORTANT !! IMPORTANT !! IMPORTANT !! IMPORTANT !! IMPORTANT !! 
+###
+###
+### This is the fours BETA release of Embperl 2.0, before installing
+### please read the README.v2. Documentation is not yet updated to
+### reflect the changes in 2.0, everything that has changed is
+### documented in README.v2. Since the last beta I have fixed a lot
+### of smaller bugs and use it now in production environment on my own.
+### But be carefull this release may still contain bugs.
+###
+### The current stable release is Embperl 1.3.3
+###
+### !! IMPORTANT !! IMPORTANT !! IMPORTANT !! IMPORTANT !! IMPORTANT !! 
+
+
+Hints for using Embperl 2.x
+---------------------------
+
+Embperl 2 has a totaly rewritten core. It contains nearly 7500 lines 
+new (mostly C-) code. Also I have done a lot of testing, there may
+be still undiscovered bugs!
+
+Please report any weired behaviour to the embperl mailing list, but
+be sure to read this whole README to understand what can't work so far.
+
+The Embperl core now works in a totaly different way. It is divided into
+smaller steps:
+
+    1 reading the source
+    2 parseing 
+    3 compiling 
+    4 executing
+    5 outputing
+
+Further version will allow to replace every single step of this pipeline
+with custom modules. Also it will be possible to cascade multiple
+processors. This allows for example to have Embperl and SSI in one file
+and to parse the file only once, feeding it first to the SSI processor and
+afterwards to the Embperl processor. Also the parser will be exchangeable
+in future version to allow for example to use an XML parser and an
+XSLT stylesheet processor.
+
+These new execution scheme is also faster, because html tags and metacommands
+are parsed only once (Perl code was also (and is still) cached in 1.x)
+My first benchmarks show 50%-100% faster execution under mod_perl for pages
+longer then 20K (For short pages ( < 5K ouput) you won't see such a great difference)
+and without any external database access.
+
+Another new feature is that the syntax of the Embperl parser is defined
+within the module HTML::Embperl::Syntax and can be modified as nessecary.
+Embperl comes with a set syntax definitons which can be extened modified by
+the user. So far there are syntaxdefinitions for SSI, Text only, Perl only,
+ASP and a Mail taglib. You can tell Embperl which syntax to use either in
+the configuration via EMBPERL_SYNTAX, or with the syntax parameter of
+Execute or you change the syntax dynamicly inside the page via the
+[$syntax   $] command. You also could specify more then one syntax at the same
+time e.g. [$syntax Embperl SSI $] to mix Embperl tags and SSI tags in the same
+page.
+
+If you like to create your own syntax read 
+
+perldoc HTML::Embperl::Syntax
+
+and look at the files under Embperl/Syntax/ for examples how to do it.
+
+Also new is the possibility to cache (parts of) the output. See
+for the new configuration directives below
+
+
+Debugging
+---------
+
+Starting with 2.0b2 Embperl files can debugged via the interavtive debugger.
+The debugger shows the Embperl page source along with the correct linenumbers. 
+You can do anything you can do inside a normal Perl programm via the debugger,
+e.g. show variables, modify variables, single step, set breakpoints etc.
+
+You can use the Perl interacive command line debugger via
+
+    perl -d embpexec.pl file.epl  
+
+or if you prefer a graphical debugger, try ddd (http://www.gnu.org/software/ddd/)
+it's a great tool, also for debugging any other perl script:
+
+    ddd --debugger 'perl -d embpexec.pl file.epl'
+
+
+NOTE: embpexec.pl could be found in the Embperl source directory
+
+If you want to debug your pages, while running under mod_perl, Apache::DB is the
+right thing. Apache::DB is available from CPAN.
+
+
+The following difference to Embperl 1.x apply:
+------------------------------------------------------
+
+- The following options can currently only set from the httpd.conf:
+     optRawInput, optKeepSpaces
+
+- The following options are currently not supported:
+     optDisableHtmlScan, optDisableTableScan,
+     optDisableInputScan, optDisableMetaScan
+
+  optDisableHtmlScan can be replaced by switching the syntax e.g.
+
+  [$syntax EmbperlBlocks $]  # same as [- $optDisableHtmlScan = 1 -]
+
+  here goes your code, Embperl will not interpret any html tags here 
+
+  [$syntax Embperl $]        # same as [- $optDisableHtmlScan = 0 -]
+
+
+- Nesting must be properly. I.e. you cannot put a <table> tag (for an
+  dynamic table) inside an if and the </table> inside another if.
+  (That still works for static tables)
+
+- optUndefToEmptyValue is always set and cannot be disabled.
+
+- [$ foreach $x (@x) $] requires now the brackets around the
+  array (like Perl)
+
+- [+ +] blocks must now contain a valid Perl expression. Embperl 1.x
+  allows you to put multiple statements into such a block. For performance
+  reasons this is not possible anymore. Also the expression must _not_
+  terminated with a semikolon. To let old code work, just wrap it into a do
+  e.g. [+ do { my $a = $b + 5 ; $a } +]
+
+
+The following things are not fully tested/working yet:
+------------------------------------------------------
+
+- [- exit -]
+
+- safe namespaces
+
+- print to OUT does not work correctly inside of loops
+
+
+Embperl 1.x compatibility flag
+------------------------------
+
+If you don't have a separate computer to make the test setup, you can
+include
+
+PerlSetEnv EMBPERL_EP1COMPAT 1
+
+at the top level of your httpd.conf, then Embperl will behave just the same
+like Embperl 1.3b7. In the directories where you make your tests, you
+include a
+
+PerlSetEnv EMBPERL_EP1COMPAT 0
+
+to enable the new engine.
+
+but _DON'T_ use this one a production machine. While this compatibility mode
+is tested and shows no problems for me, it's not so hard tested as 1.3b7
+itself!
+
+
+Addtional Config directives
+---------------------------
+
+Caching parameter
+-----------------
+
+execute parameter / httpd.conf environment variable / name inside page (must set inside [! !])
+
+
+cache_key / EMBPERL_CACHE_KEY / $CACHE_KEY 
+
+literal string that is appended to the cache key
+
+
+cache_key_options / EMBPERL_CACHE_KEY_OPTIONS / $CACHE_KEY_OPTIONS
+
+    ckoptCarryOver = 1,     use result from CacheKeyFunc of preivious step if any 
+    ckoptPathInfo  = 2,     include the PathInfo into CacheKey 
+    ckoptQueryInfo = 4,	    include the QueryInfo into CacheKey 
+    ckoptDontCachePost = 8, don't cache POST requests  (not yet implemented)
+
+    Default: all options set
+
+
+cache_key_func / EMBPERL_CACHE_KEY_FUNC / &CACHE_KEY
+
+function that should be called when build a cache key. The result is
+appended to the cache key.
+
+
+expires_func / EMBPERL_EXPIRES_FUNC / &EXPIRES
+
+function that is called everytime before data is taken from the cache.
+If this funtion returns true, the data from the cache isn't used anymore,
+but rebuild.
+
+
+Function could be either a coderef (when passed to Execute), a name of a
+subroutine or a string starting with "sub " in which case it is compiled
+as anoymous subroutine.
+
+
+expires_in / EMBPERL_EXPIRES_IN / $EXPIRES
+
+Time in seconds that the output schould be cached. (0 = never, -1 = forever)
+
+expires_in / EMBPERL_EXPIRES_FILENAME / $EXPIRES_FILENAME
+
+Expires when the given file has changed
+
+
+Syntax switching
+----------------
+
+syntax / EMBPERL_SYNTAX / [$ syntax $]
+
+Used to tell Embperl which syntax to use inside a page. Embperl comes with
+the following syntaxes: 
+
+    - EmbperlHTML       # all the HTML tag that Embperl recognizes by default
+    - EmbperlBlocks     # all the [ ] blocks that Embperl supports
+    - Embperl           # (default; contains EmbperlHtml and EmbperlBlocks)
+    - ASP               # <%  %> and <%=  %>, see perldoc HTML::Embperl::Syntax::ASP
+    - SSI               # Server Side Includes, see perldoc HTML::Embperl::Syntax::SSI
+    - Perl              # File contains pure Perl (similar to Apache::Registry), but
+                        #  can be used inside EmbperlObject
+    - Text              # File contains only Text, no actions is taken on the Text
+    - Mail              # Defines the <mail:send> tag, for sending mail. This is an
+                        # example for a taglib, which could be a base for writing
+                        # your own taglib to extent the number of available tags
+    - POD               # translates pod files to XML, which can be converted to 
+                        # the desired output format by an XSLT transformation
+    - RTF               # Can be used to process word processing documents in RTF format
+
+You can get a description for each syntax if you type
+
+    perldoc HTML::Embperl::Syntax::xxx
+
+where xxx is the name of the syntax.
+
+You can also specify multiple syntaxes e.g.
+
+    PerlSetEnv EMBPERL_SYNTAX "Embperl SSI"
+
+    Execute ({inputfile => '*', syntax => 'Embperl ASP'}) ;
+
+The syntax metacommand allows to switch the syntax or to 
+add or subtract syntaxes e.g.
+
+    [$ syntax + Mail $]
+
+will add the Mail taglib so the <mail:send> tag is available after
+this line.
+
+    [$ syntax - Mail $]
+
+now the <mail:send> tag is unknown again
+
+    [$ syntax SSI $]
+
+now you can only use SSI commands inside your page.
+
+
+Session handling
+----------------
+
+Session handling has changed from 1.3.3 to 1.3.4 and 2.0b3 to 2.0b4. You must either
+install Apache::SessionX or set
+
+    PerlSetEnv EMBPERL_SESSION_HANDLER_CLASS "HTML::Embperl::Session"
+
+to get the old behaviour.
+
+
+Recipes
+-------
+
+Starting with 2.0b4 Embperl introduces the concept of recipes. A recipe basicly
+tells Embperl how the request should be processed. While before 2.0b4 you can 
+have only one processor that works on the request (the Embperl processor, also
+you are able to define different syntaxes), now you can have multiple of them
+arragend in a pipeline or even a tree. While you are able to give the full
+recipe when calling Execute, this is not very convenient, so normaly you
+will only give the name of a recipe, either as parameter 'recipe' to
+Execute or as EMBPERL_RECIPE in your httpd.conf. Of course you can have
+different recipes for different locations and/or files. A recipe is constructed
+out of providers. A provider can either be read some source or do some
+processing on a source. There is no restriction what sort of data a provider
+has as in- and output you just have to make sure that output format of
+a provider matches the input format of the next provider. In the current 
+implementation Embperl comes with a set of build in providers:
+
+- file                  read file data
+- memory                get data from a scalar
+- epparse               parse file into a Embperl tree structure
+- epcompile             compile Embperl tree structure
+- eprun                 execute Embperl tree structure
+- eptostring            convert Embperl tree structure to string
+- libxslt-parse-xml     parse xml source for libxslt
+- libxslt-compile-xsl   parse and compile stylesheet for libxslt
+- libxslt               do a xsl transformation via libxslt
+- xalan-parse-xml       parse xml source for xalan
+- xalan-compile-xsl     parse and compile stylesheet for xalan
+- xalan                 do a xsl transformation via xalan
+
+There is a C interface, so new custom providers can be written, but what it
+make real usefull is, that the next release of Embperl will contain a
+Perl interface, so you can write your own providers in Perl.
+
+The default recipe is named Embperl and contains the following providers:
+
+    +-----------+
+    + file      +
+    +-----------+
+          |
+          v
+    +-----------+
+    + epparse   +
+    +-----------+
+          |
+          v
+    +-----------+
+    + epcompile +
+    +-----------+
+          |
+          v
+    +-----------+
+    + eprun     +
+    +-----------+
+
+This cause Embperl to behave like it has done in the past, when no
+recipes exists.
+
+Each intermediate result could be cached. So for example you are able
+to cache the already parsed XML or compiled stylesheet in memory,
+without the need to reparse/recompile it over and over again.
+
+Another nice thing of recipes are that they are not staticly. A recipe
+is defined by a recipe object. When a request comes in Embperl calls
+the new method of the recipe object, which should return a hash
+that describes what Embperl has to do. The new method can of course
+build the hash dynamicly, looking, for example, at the request parameters
+like filename, formvalues, mime type or whatever. For example if you
+give a scalar as input the Embperl recipe replaces the file provider
+with a memory provider. Addtionaly you can specify more then one
+recipe (spearated by spaces). Embperl will all the new methods in
+turn until the first not returns undef. This way you can create recipes
+that are know for what they are responsible. One possibility would be
+to check the file extention and only return the recipe if it matches.
+Much more sophistcated things are possible...
+
+See perldoc HTML::Embperl::Recipe how to create your own provider.
+
+
+XML, XSLT
+---------
+
+As written above Embperl now contains provider for doing XSLT transformations.
+More XML will come in the next releases. The easiest thing is to use the XSLT
+stuff thru the predefined recipes:
+
+    EmbperlLibXSLT      the result of Embperl will run thru the Gone libxslt
+    EmbperlXalanXSLT    the result of Embperl will run thru Xalan-C
+    EmbperlXSLT         the result of Embperl will run thru the XSL transformer
+                        given by xsltproc or EMBPERL_XSLTPROC
+
+    LibXSLT             run source thru the Gone libxslt
+    XalanXSLT           run source thru Xalan-C
+    XSLT                run source thru the XSL transformer given by xsltproc or 
+                        EMBPERL_XSLTPROC
+
+For example including the result of an XSLT 
+transformation into your html page could look like this:
+
+
+    <html><head><title>Include XML via XSLT</title></head>
+    <body>
+
+    <h1>Start xml</h1>
+    [- Execute ({inputfile => 'foo.xml', recipe => 'EmbperlXalanXSLT', xsltstylesheet => 'foo.xsl'}) ; -]
+    <h1>END</h1>
+
+    </body>
+    </html>
+
+As you already guess the xsltstylesheet parameter gives the name of the xsl 
+file. You can also use the EMBPERL_XSLTSTYLESHEET configuration directive
+to set it from your configuration file.
+
+By setting EMBPERL_ESCMODE (or $escmode) to 15 you get the correct escaping
+for XML.
+
+-------------------
+
+
+Enjoy
+
+Gerald
+

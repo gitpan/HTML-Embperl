@@ -1,8 +1,6 @@
+HTML::Embperl - Embed Perl in Your HTML Documents
 
-HTML::Embperl - Building dynamic Websites with Perl
----------------------------------------------------
-
-Copyright (c) 1997-2001 Gerald Richter / ecos gmbh
+Copyright (c) 1997-2001 Gerald Richter / ECOS GmbH
 
 You may distribute under the terms of either the GNU General Public 
 License or the Artistic License, as specified in the Perl README file.
@@ -11,7 +9,22 @@ THIS PACKAGE IS PROVIDED "AS IS" AND WITHOUT ANY EXPRESS OR IMPLIED
 WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF 
 MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 
-$Id: README,v 1.28 2001/05/16 05:37:09 richter Exp $
+$Id: README,v 1.19.6.12 2001/11/20 15:15:41 richter Exp $
+
+
+### !! IMPORTANT !! IMPORTANT !! IMPORTANT !! IMPORTANT !! IMPORTANT !! 
+###
+###
+### This is the fours BETA release of Embperl 2.0, before installing
+### please read the README.v2. Documentation is not yet updated to
+### reflect the changes in 2.0, everything that has changed is
+### documented in README.v2. Since the last betas I have fixed a lot
+### of smaller bugs and use it now in production environment on my own.
+### But be carefull this release may still contain bugs.
+###
+### The current stable release is Embperl 1.3.3
+###
+### !! IMPORTANT !! IMPORTANT !! IMPORTANT !! IMPORTANT !! IMPORTANT !! 
 
 
 OVERVIEW
@@ -51,12 +64,13 @@ Frequent Asked Questions:       perldoc Faq.pod
 Tips and Tricks:                perldoc TipsAndTricks.pod
 Changes:                        perldoc Changes.pod
 Examples:		        eg/x/README
+Sourcecode encryption:          crypto/README
 
 All the above and further information can be found at the Embperl website 
 
     http://perl.apache.org/embperl/
 
-The following documentation is available in GERMAN
+The following documentation is available in GERMAM
 
 Features of Embperl:        perldoc FeaturesD.pod
 Introduction to Embperl:    perldoc IntroD.pod
@@ -127,6 +141,8 @@ FEATURES
   to a email address
 
 
+---> See README.v2 for addtional features of Embperl 2.0 <---
+
 
 COMPATIBILITY
 =============
@@ -138,8 +154,6 @@ on Linux 2.x with
 perl5.004_04
 perl5.005_01/02/03
 perl5.6.0
-perl5.6.1
-perl5.7.1
 apache_1.3.0 - apache_1.3.19
 apache + mod_ssl
 apache_ssl (Ben SSL)
@@ -234,4 +248,5 @@ AUTHOR
 ======
 
 G. Richter (richter@dev.ecos.de)
+
 

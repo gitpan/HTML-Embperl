@@ -9,7 +9,7 @@
 #   IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 #   WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 #
-#   $Id: Mail.pm,v 1.31 2001/02/13 05:39:40 richter Exp $
+#   $Id: Mail.pm,v 1.29.4.3 2001/09/13 07:29:44 richter Exp $
 #
 ###################################################################################
 
@@ -32,7 +32,7 @@ use vars qw(
 @ISA = qw(HTML::Embperl);
 
 
-$VERSION = '1.3.1';
+$VERSION = '1.3.4';
 
 
 
@@ -121,7 +121,9 @@ sub Execute
                 }
             }
         $smtp->datasend("\n")  or die "smtp datasend failed" ;
-        $smtp->datasend($data)  or die "smtp datasend failed" ;
+	# make sure we have only \n line endings (is made to \r\n by Net::SMTP)
+        $data =~ s/\r//g ;
+	$smtp->datasend($data)  or die "smtp datasend failed" ;
         $smtp->quit or die "smtp quit failed" ; 
         } ;
 

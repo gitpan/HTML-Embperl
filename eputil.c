@@ -10,7 +10,7 @@
 #   IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 #   WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 #
-#   $Id: eputil.c,v 1.23 2001/06/05 03:22:09 richter Exp $
+#   $Id: eputil.c,v 1.15.4.29 2001/11/16 11:29:02 richter Exp $
 #
 ###################################################################################*/
 
@@ -129,6 +129,84 @@ void OutputEscape (/*i/o*/ register req * r,
         owrite (r, p, sData - p) ;
     }
 
+/* ---------------------------------------------------------------------------- */
+/*                                                                              */
+/* Escape a string and return a sv                                              */
+/*                                                                              */
+/* in sData     = input:  string                                                */
+/*    nDataLen  = input:  length of string                                      */
+/*    pEscTab   = input:  escape table                                          */
+/*    cEscChar  = input:  char to escape escaping (0 = off)                     */
+/*                                                                              */
+/* ---------------------------------------------------------------------------- */
+
+SV * Escape	  (/*i/o*/ register req * r,
+ 		   /*in*/  const char *   sData,
+ 		   /*in*/  int            nDataLen,
+ 		   /*in*/  int            nEscMode,
+ 		   /*in*/  struct tCharTrans *   pEscTab,
+ 		   /*in*/  char           cEscChar)
+
+    {
+    char * pHtml  ;
+    const char * p ;
+    int	         l ;
+    SV *         pSV = newSVpv("",0) ;
+
+    EPENTRY (Escape) ;
+
+
+    if (nEscMode >= 0)
+	{	    
+	if (nEscMode & escXML && !r -> bEscInUrl)
+	    pEscTab = Char2XML ;
+	if (nEscMode & escHtml && !r -> bEscInUrl)
+	    pEscTab = Char2Html ;
+	else if (nEscMode & escUrl)
+	    pEscTab = Char2Url ;
+	else 
+	    pEscTab = NULL ;
+	if (nEscMode & escEscape)
+	    cEscChar = '\0' ;
+	else
+	    cEscChar = '\\' ;
+	}
+
+    if (pEscTab == NULL)
+        {
+        sv_setpvn (pSV, sData, nDataLen) ;
+        return pSV ;
+        }
+
+    p = sData ;
+    l = nDataLen ;
+
+    while (l > 0)
+        {
+        if (cEscChar && *sData == cEscChar)
+            {
+            if (p != sData)
+		sv_catpvn (pSV, (char *)p, sData - p) ;
+            sData++, l-- ;
+            p = sData ;
+            }
+        else
+            {
+            pHtml = pEscTab[(unsigned char)(*sData)].sHtml ;
+            if (*pHtml)
+                {
+                if (p != sData)
+                    sv_catpvn (pSV, (char *)p, sData - p) ;
+                sv_catpv (pSV, pHtml) ;
+                p = sData + 1;
+                }
+            }
+        sData++, l-- ;
+        }
+    if (p != sData)
+        sv_catpvn (pSV, (char *)p, sData - p) ;
+    return pSV ;
+    }
 
 #if 0
 
@@ -315,6 +393,23 @@ int   TransHtml (/*i/o*/ register req * r,
 	return nLen ; 	
         }
         
+#ifdef EP2
+    if (bInUrl == 16)
+	{ 
+	/* Just remove \ for rtf */
+	if (nLen == 0)
+	    nLen = strlen (sData) ;
+	e = sData + nLen ;
+	while (p < e)
+	    {
+	    if (*p == '\\' && p[1] != '\0')
+	    	*p++ = ' ' ;
+	    p++ ;
+	    }	
+	return nLen ; 	
+        }
+#endif
+
     s = NULL ;
     if (nLen == 0)
         nLen = strlen (sData) ;
@@ -606,6 +701,24 @@ IV    GetHashValueInt (/*in*/  HV *           pHash,
     return nDefault ;
     }
 
+UV    GetHashValueUInt (/*in*/  HV *           pHash,
+                        /*in*/  const char *   sKey,
+                        /*in*/  UV            nDefault)
+
+    {
+    SV **   ppSV ;
+
+    /*EPENTRY (GetHashValueInt) ;*/
+    
+    ppSV = hv_fetch(pHash, (char *)sKey, strlen (sKey), 0) ;  
+    if (ppSV != NULL && *ppSV)
+        {
+        return SvUV ((*ppSV)) ;
+        }
+
+    return nDefault ;
+    }
+
 
 char * GetHashValueStr (/*in*/  HV *           pHash,
                         /*in*/  const char *   sKey,
@@ -648,6 +761,135 @@ char * GetHashValueStrDup (/*in*/  HV *           pHash,
     }
 
 
+void GetHashValueStrOrHash (/*in*/  HV *           pHash,
+                              /*in*/  const char *   sKey,
+                              /*out*/ char * *       sValue,
+                              /*out*/ HV * *         pHV)
+
+    {
+    SV **   ppSV ;
+    STRLEN  l ;
+
+    ppSV = hv_fetch(pHash, (char *)sKey, strlen (sKey), 0) ;  
+    if (ppSV != NULL)
+        if (!SvROK(*ppSV) || SvTYPE (SvRV(*ppSV)) != SVt_PVHV)
+            *sValue = SvPV (*ppSV, l), *pHV = NULL ;
+        else
+            *pHV = (HV *)SvRV(*ppSV), *sValue = NULL ;
+    }
+
+
+SV * GetHashValueSVinc    (/*in*/  HV *           pHash,
+                           /*in*/  const char *   sKey,
+                           /*in*/  SV *         sDefault)
+    {
+    SV **   ppSV ;
+    STRLEN  l ;
+    char *  s ;
+
+    ppSV = hv_fetch(pHash, (char *)sKey, strlen (sKey), 0) ;  
+    if (ppSV != NULL)
+        {
+	SvREFCNT_inc (*ppSV) ;
+        return *ppSV ;
+	}
+
+    if (sDefault)
+        return SvREFCNT_inc (sDefault) ;
+    else
+	return NULL ;
+    }
+
+
+SV * GetHashValueSV    (/*in*/  HV *           pHash,
+                           /*in*/  const char *   sKey)
+    {
+    SV **   ppSV ;
+    STRLEN  l ;
+    char *  s ;
+
+    ppSV = hv_fetch(pHash, (char *)sKey, strlen (sKey), 0) ;  
+    if (ppSV != NULL)
+        {
+        return *ppSV ;
+	}
+
+    return NULL ;
+    }
+
+int GetHashValueHREF      (/*in*/  req *          r,
+                           /*in*/  HV *           pHash,
+                           /*in*/  const char *   sKey,
+                           /*out*/ HV * *         ppHV)
+    {
+    SV **   ppSV ;
+    STRLEN  l ;
+    char *  s ;
+    HV *    pHV ;
+
+    ppSV = hv_fetch(pHash, (char *)sKey, strlen (sKey), 0) ;  
+    if (ppSV != NULL)
+        {
+        if (!SvROK(*ppSV))
+            {
+            strncpy (r -> errdat2, sKey, sizeof(r -> errdat1) - 1) ;
+            return rcNotHashRef ; 
+            }
+        pHV = (HV *)SvRV(*ppSV) ;
+        if (SvTYPE(pHV) != SVt_PVHV)
+            {
+            strncpy (r -> errdat2, sKey, sizeof(r -> errdat1) - 1) ;
+            return rcNotHashRef ; 
+            }
+        *ppHV = pHV ;
+        return ok ;
+	}
+
+    strncpy (r -> errdat2, sKey, sizeof(r -> errdat1) - 1) ;
+    return rcNotHashRef ; 
+    }
+
+
+int GetHashValueCREF      (/*in*/  req *          r,
+                           /*in*/  HV *           pHash,
+                           /*in*/  const char *   sKey,
+                           /*out*/ CV * *         ppCV)
+    {
+    int     rc ;
+    SV **   ppSV ;
+    STRLEN  l ;
+    char *  s ;
+    CV *    pCV ;
+
+    ppSV = hv_fetch(pHash, (char *)sKey, strlen (sKey), 0) ;  
+    if (ppSV != NULL)
+        {
+        if (SvPOK(*ppSV))
+            {
+	    if ((rc = EvalConfig (pCurrReq, *ppSV, 0, NULL, ppCV)) != ok)
+	        return rc ;
+            return ok ;
+            }
+        if (!SvROK(*ppSV))
+            {
+            strncpy (r -> errdat2, sKey, sizeof(r -> errdat1) - 1) ;
+            return rcNotCodeRef ; 
+            }
+        pCV = (CV *)SvRV(*ppSV) ;
+        if (SvTYPE(pCV) != SVt_PVCV)
+            {
+            strncpy (r -> errdat2, sKey, sizeof(r -> errdat1) - 1) ;
+            return rcNotCodeRef ; 
+            }
+        *ppCV = (CV *)SvREFCNT_inc ((SV *)pCV) ;
+        return ok ;
+	}
+
+    *ppCV = NULL ;
+    return ok ; 
+    }
+
+
 void SetHashValueStr   (/*in*/  HV *           pHash,
                         /*in*/  const char *   sKey,
                         /*in*/  char *         sValue)
@@ -660,7 +902,55 @@ void SetHashValueStr   (/*in*/  HV *           pHash,
     hv_store(pHash, (char *)sKey, strlen (sKey), pSV, 0) ;  
     }
 
+void SetHashValueInt   (/*in*/  HV *           pHash,
+                        /*in*/  const char *   sKey,
+                        /*in*/  IV             nValue)
 
+    {
+    SV *   pSV  ;
+
+    /*EPENTRY (GetHashValueInt) ;*/
+
+    tainted = 0 ; /* doesn't make sense to taint an integer */
+    pSV = newSViv (nValue) ;
+    hv_store(pHash, (char *)sKey, strlen (sKey), pSV, 0) ;  
+
+    }
+
+
+SV * CreateHashRef   (/*in*/  char *   sKey, ...)
+    
+    {
+    va_list         marker;
+    SV *            pVal ;
+    HV *            pHash = newHV() ;
+    int             nType ;
+
+    va_start (marker, sKey);     
+    while (sKey)
+        {
+        nType = va_arg (marker, int) ;
+        if (nType == hashtstr)
+            {
+            char * p = va_arg(marker, char *) ;
+            if (p)
+                pVal = newSVpv (p, 0) ;
+            else
+                pVal = NULL ;
+            }
+        else if (nType == hashtint)
+            pVal = newSViv (va_arg(marker, int)) ;
+        else
+            pVal = va_arg(marker, SV *) ;
+
+        if (pVal)
+            hv_store (pHash, sKey, strlen(sKey), pVal, 0) ;
+        sKey = va_arg(marker, char *) ;
+        }
+    va_end (marker) ;
+
+    return newRV_noinc ((SV *)pHash) ;
+    }
 
 
 
@@ -677,7 +967,7 @@ void SetHashValueStr   (/*in*/  HV *           pHash,
 
 
 int GetLineNoOf (/*i/o*/ register req * r,
-               /*in*/  char * pPos)
+               /*in*/   char * pPos)
 
     {
 
@@ -928,6 +1218,7 @@ void ClearSymtab (/*i/o*/ register req * r,
     */
 
     pSV = newSVpvf ("%s::CLEANUP", sPackage) ;
+    newSVpvf2(pSV) ;
     s   = SvPV (pSV, l) ;
     pCV = perl_get_cv (s, 0) ;
     if (pCV)
@@ -961,11 +1252,12 @@ void ClearSymtab (/*i/o*/ register req * r,
     (void)hv_iterinit(symtab);
     while ((val = hv_iternextsv(symtab, &key, &klen))) 
 	{
-	if(SvTYPE(val) != SVt_PVGV)
+	if(SvTYPE(val) != SVt_PVGV || SvANY(val) == NULL)
 	    {
-	    if (bDebug)
-	        lprintf (r, "[%d]CUP: Ignore ??? because it's no gv\n", r -> nPid) ;
-	    
+	    /*
+            if (bDebug)
+	        lprintf (r, "[%d]CUP: Ignore %s because it's no gv\n", r -> nPid, key) ;
+	    */
 	    continue;
 	    }
 
@@ -976,8 +1268,10 @@ void ClearSymtab (/*i/o*/ register req * r,
 
 	if (ppSV && *ppSV && SvIV (*ppSV) == 0)
 	    {
-	    if (bDebug)
+	    /*
+            if (bDebug)
 	        lprintf (r, "[%d]CUP: Ignore %s because it's in %%CLEANUP\n", r -> nPid, s) ;
+            */
 	    continue ;
 	    }
 
@@ -986,16 +1280,20 @@ void ClearSymtab (/*i/o*/ register req * r,
 	    {
 	    if(GvIMPORTED((GV*)val))
 		{
-		if (bDebug)
+		/*
+                if (bDebug)
 		    lprintf (r, "[%d]CUP: Ignore %s because it's imported\n", r -> nPid, s) ;
+                */
 		continue ;
 		}
 	    
 	    if (s[0] == ':' && s[1] == ':')
 		{
-		if (bDebug)
+		/*
+                if (bDebug)
 		    lprintf (r, "[%d]CUP: Ignore %s because it's special\n", r -> nPid, s) ;
-		continue ;
+		*/
+                continue ;
 		}
 	    
 	    /*
@@ -1011,7 +1309,7 @@ void ClearSymtab (/*i/o*/ register req * r,
 	
 	sObjName = NULL ;
 	
-        lprintf (r, "[%d]CUP: type = %d flags=%x\n", r -> nPid, SvTYPE (GvSV((GV*)val)), SvFLAGS (GvSV((GV*)val))) ;
+        /* lprintf (r, "[%d]CUP: type = %d flags=%x\n", r -> nPid, SvTYPE (GvSV((GV*)val)), SvFLAGS (GvSV((GV*)val))) ; */
         if((sv = GvSV((GV*)val)) && SvTYPE (sv) == SVt_PVMG)
 	    {
             HV * pStash = SvSTASH (sv) ;
@@ -1022,6 +1320,7 @@ void ClearSymtab (/*i/o*/ register req * r,
                 if (sObjName && strcmp (sObjName, "DBIx::Recordset") == 0)
                     {
                     SV * pSV = newSVpvf ("DBIx::Recordset::Undef ('%s')", s) ;
+		    newSVpvf2(pSV) ;
 
 	            if (bDebug)
 	                lprintf (r, "[%d]CUP: Recordset *%s\n", r -> nPid, s) ;
@@ -1034,13 +1333,14 @@ void ClearSymtab (/*i/o*/ register req * r,
         if((sv = GvSV((GV*)val)) && SvROK (sv) && SvOBJECT (SvRV(sv)))
 	    {
             HV * pStash = SvSTASH (SvRV(sv)) ;
-        lprintf (r, "[%d]CUP: rv type = %d\n", r -> nPid, SvTYPE (SvRV(GvSV((GV*)val)))) ;
+	    /* lprintf (r, "[%d]CUP: rv type = %d\n", r -> nPid, SvTYPE (SvRV(GvSV((GV*)val)))) ; */
             if (pStash)
                 {
                 sObjName = HvNAME(pStash) ;
                 if (sObjName && strcmp (sObjName, "DBIx::Recordset") == 0)
                     {
                     SV * pSV = newSVpvf ("DBIx::Recordset::Undef ('%s')", s) ;
+		    newSVpvf2(pSV) ;
 
 	            if (bDebug)
 	                lprintf (r, "[%d]CUP: Recordset *%s\n", r -> nPid, s) ;
@@ -1056,9 +1356,11 @@ void ClearSymtab (/*i/o*/ register req * r,
 	
 	    if ((sv = GvSV((GV*)val)) && SvREADONLY (sv))
 	        {
-	        if (bDebug)
+	        /*
+                if (bDebug)
 	            lprintf (r, "[%d]CUP: Ignore %s because it's readonly\n", r -> nPid, s) ;
-	        }
+	        */
+                }
             else
                 {
 	        sv_unmagic (sv, 'q') ; /* untie */
@@ -1127,4 +1429,185 @@ void UndefSub    (/*i/o*/ register req * r,
     _free (r, sFullname) ;
     cv_undef (pCV) ;
     }
+
+
+/* ---------------------------------------------------------------------------- */
+/*                                                                              */
+/* Get Session ID                                                               */
+/*                                                                              */
+/* ---------------------------------------------------------------------------- */
+
+
+char * GetSessionID (/*i/o*/ register req * r,
+   		     /*in*/  HV * pSessionHash,
+		     /*out*/ char * * ppInitialID,
+		     /*out*/ IV * pModified)
+    
+    {
+    SV **   ppSVID ;
+    SV *    pSVID = NULL ;
+    MAGIC * pMG ;
+    char *  pUID = "" ;
+    STRLEN  ulen = 0 ;
+    STRLEN  ilen = 0 ;
+
+    if (r -> nSessionMgnt)
+	{			
+	SV * pUserHashObj = NULL ;
+	if ((pMG = mg_find((SV *)pSessionHash,'P')))
+	    {
+	    dSP;                            /* initialize stack pointer      */
+	    int n ;
+	    pUserHashObj = pMG -> mg_obj ;
+
+	    PUSHMARK(sp);                   /* remember the stack pointer    */
+	    XPUSHs(pUserHashObj) ;            /* push pointer to obeject */
+	    PUTBACK;
+	    n = perl_call_method ("getids", G_ARRAY) ; /* call the function             */
+	    SPAGAIN;
+	    if (n > 2)
+		{
+		int  savewarn = dowarn ;
+		dowarn = 0 ; /* no warnings here */
+		*pModified = POPi ;
+		pSVID = POPs;
+		pUID = SvPV (pSVID, ulen) ;
+		pSVID = POPs;
+		*ppInitialID = SvPV (pSVID, ilen) ;
+		dowarn = savewarn ;
+		}
+	    PUTBACK;
+	    }
+        }
+    return pUID ;
+    }
+
+/* ---------------------------------------------------------------------------- */
+/*                                                                              */
+/* Change Dir to sourcefile dir                                                 */
+/*                                                                              */
+/* ---------------------------------------------------------------------------- */
+
+void ChdirToSource (/*i/o*/ register req * r,
+                    /*in*/  char *         sInputfile)
+
+    {
+    if ((r -> bOptions & optDisableChdir) == 0 && sInputfile != NULL && sInputfile != '\0' && 
+	!SvROK(r -> pInData) && !r -> sResetDir[0])
+	{
+	char dir[PATH_MAX];
+#ifdef WIN32
+	char drive[_MAX_DRIVE];
+	char fname[_MAX_FNAME];
+	char ext[_MAX_EXT];
+	char * c = sInputfile ;
+
+	while (*c)
+	    { /* convert / to \ */
+ 	    if (*c == '/')
+		*c = '\\' ;
+	    c++ ;
+	    }
+
+	r -> nResetDrive = _getdrive () ;
+	getcwd (r -> sResetDir, sizeof (r -> sResetDir) - 1) ;
+
+	_splitpath(sInputfile, drive, dir, fname, ext );
+   	_chdrive (drive[0] - 'A' + 1) ;
+#else
+	Dirname (sInputfile, dir, sizeof (dir) - 1) ;
+	getcwd (r -> sResetDir, sizeof (r -> sResetDir) - 1) ;
+#endif
+	if (dir[0])
+	    {
+	    if (chdir (dir) < 0)
+		{
+		strncpy (r -> errdat1, dir, sizeof(r -> errdat1) - 1) ;
+		LogError (r, rcChdirError) ;
+		}
+	    else
+		{
+		if (!(dir[0] == '/'  
+	    #ifdef WIN32
+		    ||
+		    dir[0] == '\\' || 
+			(isalpha(dir[0]) && dir[1] == ':' && 
+			  (dir[2] == '\\' || dir[2] == '/')) 
+	    #endif                  
+		    ))            
+		    {
+		    strcpy (r->sCWD,r -> sResetDir) ;
+		    strcat (r->sCWD,"/") ;
+		    strcat (r->sCWD,dir) ;
+		    }
+		else
+		    strcpy (r->sCWD,dir) ;
+		}
+	    }
+	else
+	    r -> bOptions |= optDisableChdir ;
+	}
+    else
+	r -> bOptions |= optDisableChdir ;
+    
+
+
+
+
+    }
+
+
+
+
+/* ---------------------------------------------------------------------------- */
+/*                                                                              */
+/* Memory debugging functions                                                   */
+/*                                                                              */
+/* ---------------------------------------------------------------------------- */
+
+
+#ifdef DMALLOC
+
+static int RemoveDMallocMagic (pTHX_ SV * pSV, MAGIC * mg)
+
+    {
+    char * s = *((char * *)(mg -> mg_ptr)) ;
+    _free_leap(__FILE__, __LINE__, s) ;
+    return ok ;
+    }
+
+static MGVTBL DMalloc_mvtTab = { NULL, NULL, NULL, NULL, RemoveDMallocMagic } ;
+
+SV * AddDMallocMagic (/*in*/ SV *	pSV,
+		      /*in*/ char *     sText,
+		      /*in*/ char *     sFile,
+		      /*in*/ int        nLine) 
+
+    {
+    if (pSV && (!SvMAGICAL(pSV) || !mg_find (pSV, '~')))
+	{
+	char * s = _strdup_leap(sFile, nLine, sText) ;
+	struct magic * pMagic ;
+    
+	if ((!SvMAGICAL(pSV) || !(pMagic = mg_find (pSV, '~'))))
+	    {
+	    sv_magic ((SV *)pSV, NULL, '~', (char *)&s, sizeof (s)) ;
+	    pMagic = mg_find (pSV, '~') ;
+	    }
+
+	if (pMagic)
+	    {
+	    pMagic -> mg_virtual = &DMalloc_mvtTab ;
+	    }
+	else
+	    {
+	    LogError (pCurrReq, rcMagicError) ;
+	    }
+	}
+
+    return pSV ;
+    }
+
+
+#endif
 

@@ -13,12 +13,13 @@ my $data = <DATA> ;
 
 # compile page
 
+my $pn = __PACKAGE__ ;
 HTML::Embperl::Execute ({inputfile => __FILE__, 
 			input => \$data,
 			mtime => -M __FILE__ ,
 			import => 0,
 			options => HTML::Embperl::optKeepSrcInMemory,
-			package => __PACKAGE__}) ;
+			package => $pn . $ENV{EMBPERL_EP1COMPAT}}) ;
 
 
 }
@@ -28,9 +29,10 @@ HTML::Embperl::Execute ({inputfile => __FILE__,
 sub import
 
     {
+    my $pn = __PACKAGE__ ;
     HTML::Embperl::Execute ({inputfile => __FILE__, 
 			    import => 2,
-			    package => __PACKAGE__}) ;
+			    package => $pn . $ENV{EMBPERL_EP1COMPAT}}) ;
 
 
     1 ;
@@ -78,20 +80,3 @@ params in sub.pm  = [+ "@_" +]
 [$endsub$]
 
 
-[###### table header #####]
-[$sub tabheader $]
-
-<table>
-<tr><th>1</th><th>2></th></tr>
-<tr>
-
-[$endsub$]
-
-
-[###### table footer #####]
-[$sub tabfooter $]
-
-</tr>
-</table>
-
-[$endsub$]

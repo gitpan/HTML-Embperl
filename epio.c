@@ -10,16 +10,14 @@
 #   IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 #   WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 #
-#   $Id: epio.c,v 1.17 2001/02/13 05:39:22 richter Exp $
+#   $Id: epio.c,v 1.16.4.4 2001/11/06 15:37:03 richter Exp $
 #
 ###################################################################################*/
 
 
 #include "ep.h"
 #include "epmacro.h"
-
-
-
+#include "crypto/epcrypto.h"
 
 
 static char sLogFilename [512] = "" ;
@@ -40,6 +38,7 @@ static char sLogFilename [512] = "" ;
 #define PerlIO_vprintf vfprintf
 #define PerlIO_fileno fileno
 #define PerlIO_tell ftell
+#define PerlIO_seek fseek
 
 #define PerlIO_read(f,buf,cnt) fread(buf,1,cnt,f)
 #define PerlIO_write(f,buf,cnt) fwrite(buf,1,cnt,f)
@@ -339,11 +338,26 @@ int OpenInput (/*i/o*/ register req * r,
 			/*in*/ const char *  sFilename)
 
     {
+    MAGIC *mg;
+    GV *handle ;
+
 #ifdef APACHE
     if (r -> pApacheReq)
         return ok ;
 #endif
     
+    handle = gv_fetchpv("STDIN", TRUE, SVt_PVIO) ;
+    if (handle && SvMAGICAL(handle) && (mg = mg_find((SV*)handle, 'q')) && mg->mg_obj) 
+	{
+	r -> ifdobj = mg->mg_obj ;
+	if (r -> bDebug)
+	    {
+	    char *package = HvNAME(SvSTASH((SV*)SvRV(mg->mg_obj)));
+	    lprintf (r, "[%d]Open TIED STDIN %s...\n", r -> nPid, package) ;
+	    }
+	return ok ;
+	}
+
     if (r -> ifd && r -> ifd != PerlIO_stdinF)
         PerlIO_close (r -> ifd) ;
 
@@ -387,6 +401,21 @@ int OpenInput (/*i/o*/ register req * r,
 int CloseInput (/*i/o*/ register req * r)
 
     {
+    if (0) /* r -> ifdobj) */
+	{	    
+	dSP;
+	ENTER;
+	SAVETMPS;
+	PUSHMARK(sp);
+	XPUSHs(r -> ifdobj);
+	PUTBACK;
+	perl_call_method ("CLOSE", G_VOID | G_EVAL) ; 
+	FREETMPS;
+	LEAVE;
+	r -> ifdobj = NULL ;
+	}
+
+
 #ifdef APACHE
     if (r -> pApacheReq)
         return ok ;
@@ -417,6 +446,43 @@ int iread (/*i/o*/ register req * r,
     
     if (size == 0)
         return 0 ;
+
+    if (r -> ifdobj)
+	{	    
+	int num ;
+	int n ;
+	SV * pBufSV ;
+
+	dSP;
+	ENTER;
+	SAVETMPS;
+	PUSHMARK(sp);
+	XPUSHs(r -> ifdobj);
+	XPUSHs(sv_2mortal(pBufSV = NEWSV(0, 0)));
+	PUTBACK;
+	num = perl_call_method ("READ", G_SCALAR) ; 
+	SPAGAIN;
+	n = 0 ;
+	if (num > 0)
+	    {
+	    int  n = POPi ;
+	    char * p ;
+	    STRLEN l ;
+	    if (n >= 0)
+		{
+		p = SvPV (pBufSV, l) ;
+		if (l > size)
+		    l = size ;
+		if (l > n)
+		    l = n ;
+		memcpy (ptr, p, l) ;
+		}
+	    }
+	PUTBACK;
+	FREETMPS;
+	LEAVE;
+	return n ;
+	}
 
 #if defined (APACHE)
     if (r -> pApacheReq)
@@ -497,7 +563,7 @@ int ReadHTML (/*i/o*/ register req * r,
 #endif
     
     if (r -> bDebug)
-        lprintf (r, "[%d]Reading %s as input using %s ...\n", r -> nPid, sInputfile, FILEIOTYPE) ;
+        lprintf (r, "[%d]Reading %s as input using %s (%d Bytes)...\n", r -> nPid, sInputfile, FILEIOTYPE, *nFileSize) ;
 
 #ifdef WIN32
     if ((ifd = PerlIO_open (sInputfile, "rb")) == NULL)
@@ -510,14 +576,46 @@ int ReadHTML (/*i/o*/ register req * r,
         return rcFileOpenErr ;
         }
 
-    if ((long)nFileSize < 0)
+    if ((long)*nFileSize < 0)
 	return rcFileOpenErr ;
-    
+
+
     pBufSV = sv_2mortal (newSV(*nFileSize + 1)) ;
     pData = SvPVX(pBufSV) ;
 
+#if EPC_ENABLE
+    
+    if (*nFileSize)
+        {
+        int rc ;
+        char * syntax ;
+
+#ifndef EP2
+        syntax = (r -> pTokenTable && strcmp ((char *)r -> pTokenTable, "Text") == 0)?"Text":"Embperl" ;
+#else
+        syntax = r -> pTokenTable -> sName ;
+#endif
+
+        if ((rc = do_crypt_file (ifd, NULL, pData, *nFileSize, 0, syntax, EPC_HEADER)) <= 0)
+            {
+            if (rc < -1 || !EPC_UNENCYRPTED)
+                {
+                sprintf (r -> errdat1, "%d", rc) ;
+                return rcCryptoWrongHeader + -rc - 1;
+                }
+
+            PerlIO_seek (ifd, 0, SEEK_SET) ;
+            *nFileSize = PerlIO_read (ifd, pData, *nFileSize) ;
+            }
+        else
+            *nFileSize = rc ;
+        }
+#else
+    
     if (*nFileSize)
         *nFileSize = PerlIO_read (ifd, pData, *nFileSize) ;
+
+#endif
 
     PerlIO_close (ifd) ;
     
@@ -544,6 +642,9 @@ int OpenOutput (/*i/o*/ register req * r,
 			/*in*/ const char *  sFilename)
 
     {
+    MAGIC *mg;
+    GV *handle ;
+    
     r -> pFirstBuf = NULL ; 
     r -> pLastBuf  = NULL ; 
     r -> nMarker   = 0 ;
@@ -561,16 +662,6 @@ int OpenOutput (/*i/o*/ register req * r,
 
     if (sFilename == NULL || *sFilename == '\0')
         {
-        /*
-        GV * io = gv_fetchpv("STDOUT", TRUE, SVt_PVIO) ;
-        if (io == NULL || (r -> ofd = IoOFP(io)) == NULL)
-            {
-            if (r -> bDebug)
-                lprintf ("[%d]Cannot get Perl STDOUT, open os stdout\n", r -> nPid) ;
-            r -> ofd = PerlIO_stdoutF ;
-            }
-        */
-
 #if defined (APACHE)
 	if (r -> pApacheReq)
 	    {
@@ -579,7 +670,20 @@ int OpenOutput (/*i/o*/ register req * r,
 	    return ok ;
 	    }
 #endif
-        r -> ofd = PerlIO_stdoutF ;
+
+	handle = gv_fetchpv("STDOUT", TRUE, SVt_PVIO) ;
+	if (handle && SvMAGICAL(handle) && (mg = mg_find((SV*)handle, 'q')) && mg->mg_obj) 
+	    {
+	    r -> ofdobj = mg->mg_obj ;
+	    if (r -> bDebug)
+		{
+		char *package = HvNAME(SvSTASH((SV*)SvRV(mg->mg_obj)));
+		lprintf (r, "[%d]Open TIED STDOUT %s for output...\n", r -> nPid, package) ;
+		}
+	    return ok ;
+	    }
+	
+	r -> ofd = PerlIO_stdoutF ;
         
         if (r -> bDebug)
             {
@@ -630,6 +734,20 @@ int CloseOutput (/*i/o*/ register req * r)
     if (r -> pApacheReq)
         return ok ;
   #endif */
+
+    if (0) /* r -> ofdobj) */
+	{	    
+	dSP;
+	ENTER;
+	SAVETMPS;
+	PUSHMARK(sp);
+	XPUSHs(r -> ifdobj);
+	PUTBACK;
+	perl_call_method ("CLOSE", G_VOID | G_EVAL) ; 
+	FREETMPS;
+	LEAVE;
+	r -> ofdobj = NULL ;
+	}
 
     if (r -> ofd && r -> ofd != PerlIO_stdoutF)
         PerlIO_close (r -> ofd) ;
@@ -747,6 +865,22 @@ int owrite (/*i/o*/ register req * r,
     if (r -> nMarker)
         return bufwrite (r, ptr, n) ;
 
+    if (r -> ofdobj)
+	{	    
+	dSP;
+	ENTER;
+	SAVETMPS;
+	PUSHMARK(sp);
+	XPUSHs(r -> ofdobj);
+	XPUSHs(sv_2mortal(newSVpv((char *)ptr,size)));
+	PUTBACK;
+	perl_call_method ("PRINT", G_SCALAR) ; 
+	FREETMPS;
+	LEAVE;
+	return size ;
+	}
+
+
 #if defined (APACHE)
     if (r -> pApacheReq && r -> ofd == NULL)
         {
@@ -785,7 +919,7 @@ void oputc (/*i/o*/ register req * r,
 			/*in*/ char c)
 
     {
-    if (r -> nMarker || r -> pMemBuf)
+    if (r -> nMarker || r -> pMemBuf || r -> ofdobj)
         {
         owrite (r, &c, 1) ;
         return ;
@@ -1143,7 +1277,8 @@ char * _memstrcat (/*i/o*/ register req * r,
     sum = 0 ;
     while (p)
         {
-        sum += va_arg (ap, int) ;
+        sum += strlen (p) ;
+        lprintf (r, "sum = %d p = %s\n", sum, p) ;
         p = va_arg (ap, char *) ;
         }
     sum++ ;
@@ -1157,8 +1292,9 @@ char * _memstrcat (/*i/o*/ register req * r,
     p = (char *)s ;
     while (p)
         {
-        l = va_arg (ap, int) ;
-        memcpy (str, p, l) ;
+        l = strlen (p) ;
+        lprintf (r, "l = %d p = %s\n", l, p) ;
+	memcpy (str, p, l) ;
         str += l ;
         p = va_arg (ap, char *) ;
         }

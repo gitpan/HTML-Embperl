@@ -22,9 +22,13 @@ StartServers 2
 MaxClients 2
 MaxRequestsPerChild 0
 
+
 #PerlFixupHandler test::handler
+
 #PerlInitHandler Apache::Reload 
+
 #PerlInitHandler Apache::StatINC 
+
 
 EOD
     }
@@ -53,6 +57,9 @@ SetEnv EMBPERL_LOG \"$EPPATH/test/tmp/test.log\"
 
 PerlSetEnv EMBPERL_SRC \"$EPPATH\"
 SetEnv EMBPERL_SRC \"$EPPATH\"
+
+PerlSetEnv DMALLOC_OPTIONS \"log=$EPPATH/test/tmp/httpd.dmalloc.log,debug=0x3f03\" 
+SetEnv DMALLOC_OPTIONS \"log=$EPPATH/test/tmp/httpd.dmalloc.log,debug=0x3f03\" 
 
 EOD
 
@@ -100,10 +107,19 @@ EOD
 	}
 
 
+if (!$EPSESSIONXVERSION)
+    {
+print OFH <<EOD ;
+
+PerlSetEnv EMBPERL_SESSION_HANDLER_CLASS no
+SetEnv EMBPERL_SESSION_HANDLER_CLASS no
+EOD
+    }
+
 
 print OFH <<EOD ;
 
-SetEnv EMBPERL_ALLOW asc|\\.htm\$
+SetEnv EMBPERL_ALLOW (asc|\\.xml\$|\\.htm\$)
 
 PerlScript \"$EPPATH/test/conf/$EPSTARTUP\"
 
@@ -118,6 +134,12 @@ AddType text/html .html
 AddType text/html .htm
 AddType text/html .xhtm
 
+Alias /embperl/asclibxslt \"$EPPATH/test/html/pod\"
+Alias /embperl/ascxalan \"$EPPATH/test/html/pod\"
+Alias /embperl/libxslt \"$EPPATH/test/html/xml\"
+Alias /embperl/xalan \"$EPPATH/test/html/xml\"
+Alias /embperl/uidurl/ \"$EPPATH/test/html/sidurl/\"
+Alias /embperl/suidurl/ \"$EPPATH/test/html/sidurl/\"
 Alias /embperl/sub/ \"$EPPATH/test/html/\"
 Alias /embperl/ \"$EPPATH/test/html/\"
 Alias /embperl2/ \"$EPPATH/test/html2/\"
@@ -153,6 +175,32 @@ Options ExecCGI
 PerlSetEnv EMBPERL_OPTIONS 4
 </Location>
 
+
+
+<Location /embperl/libxslt>
+PerlSetEnv EMBPERL_RECIPE EmbperlLibXSLT
+PerlSetEnv EMBPERL_XSLTSTYLESHEET \"$EPPATH/test/html/xml/pod.xsl\"
+</Location>
+
+<Location /embperl/asclibxslt>
+PerlSetEnv EMBPERL_RECIPE EmbperlLibXSLT
+PerlSetEnv EMBPERL_XSLTSTYLESHEET \"$EPPATH/test/html/xml/pod.xsl\"
+PerlSetEnv EMBPERL_SYNTAX POD
+</Location>
+
+<Location /embperl/xalan>
+PerlSetEnv EMBPERL_RECIPE EmbperlXalanXSLT
+PerlSetEnv EMBPERL_XSLTSTYLESHEET \"$EPPATH/test/html/xml/pod.xsl\"
+</Location>
+
+<Location /embperl/ascxalan>
+PerlSetEnv EMBPERL_RECIPE EmbperlXalanXSLT
+PerlSetEnv EMBPERL_XSLTSTYLESHEET \"$EPPATH/test/html/xml/pod.xsl\"
+PerlSetEnv EMBPERL_SYNTAX POD
+</Location>
+
+
+
 <Location /embperl/opmask>
 SetHandler perl-script
 PerlHandler HTML::Embperl
@@ -167,6 +215,11 @@ SetHandler perl-script
 PerlHandler HTML::Embperl
 Options ExecCGI
 PerlSetEnv EMBPERL_OPTIONS 16
+</Location>
+
+<Location /cgi-bin/rawinput>
+PerlSetEnv EMBPERL_OPTIONS 16
+SetEnv EMBPERL_OPTIONS 16
 </Location>
 
 <Location /embperl/nochdir>
@@ -294,11 +347,19 @@ PerlSetEnv EMBPERL_OUTPUT_FUNC \"LogOutput, $EPPATH/test/tmp/log.out\"
 </Location>
 
 
+Alias /cgi-bin/uidurl/ \"$EPPATH/test/html/sidurl/\"
+Alias /cgi-bin/suidurl/ \"$EPPATH/test/html/sidurl/\"
 Alias /cgi-bin/ \"$EPPATH/test/html/\"
+Alias /cgi-bin2/ \"$EPPATH/test/html2/\"
 Alias /cgi-bin-32/ \"$EPPATH/test/html/\"
 ScriptAlias /cgi/ \"$EPPATH/\"
 
 <Location /cgi-bin>
+Action text/html /cgi/embpcgi.test.pl
+Options ExecCGI
+</Location>
+
+<Location /cgi-bin2>
 Action text/html /cgi/embpcgi.test.pl
 Options ExecCGI
 </Location>
@@ -329,19 +390,19 @@ PerlHandler Apache::Registry
 Options ExecCGI
 </Location>
 
-<Location /registrydbg/>
-PerlFixupHandler Apache::DB
-SetHandler perl-script
-PerlHandler Apache::Registry
-Options ExecCGI
-</Location>
-
-<Location /embperldbg/>
-PerlFixupHandler Apache::DB
-SetHandler perl-script
-PerlHandler HTML::Embperl
-Options ExecCGI
-</Location>
+#<Location /registrydbg/>
+#PerlFixupHandler Apache::DB
+#SetHandler perl-script
+#PerlHandler Apache::Registry
+#Options ExecCGI
+#</Location>
+#
+#<Location /embperldbg/>
+#PerlFixupHandler Apache::DB
+#SetHandler perl-script
+#PerlHandler HTML::Embperl
+#Options ExecCGI
+#</Location>
 
 
 
@@ -385,6 +446,26 @@ PerlSetEnv EMBPERL_SYNTAX SSI
 PerlSetEnv EMBPERL_SYNTAX "Embperl SSI"
 </Location>
 
+<Location /embperl/pod/>
+PerlSetEnv EMBPERL_SYNTAX POD
+</Location>
+
+
+
+<Location /cgi-bin/SSI/>
+SetEnv EMBPERL_SYNTAX SSI
+</Location>
+
+<Location /cgi-bin/SSIEP/>
+SetEnv EMBPERL_SYNTAX "Embperl SSI"
+</Location>
+
+<Location /cgi-bin/pod/>
+SetEnv EMBPERL_SYNTAX POD
+</Location>
+
+
+
 <Location /eg>
 SetHandler perl-script
 PerlHandler HTML::Embperl
@@ -425,6 +506,70 @@ SSLCacheServerPath tmp
 </IfModule>
 EOD
     }
+
+if ($EPSESSIONVERSION)
+
+	{
+
+print OFH <<EOD ;
+
+
+
+
+
+<Location /embperl/sidurl>
+
+SetHandler perl-script
+
+PerlHandler HTML::Embperl
+
+Options ExecCGI
+
+PerlSetEnv EMBPERL_OPTIONS 0x6000000
+
+</Location>
+
+
+
+<Location /embperl/uidurl>
+
+SetHandler perl-script
+
+PerlHandler HTML::Embperl
+
+Options ExecCGI
+
+PerlSetEnv EMBPERL_OPTIONS 0x5000000
+
+</Location>
+
+
+
+<Location /embperl/suidurl>
+
+SetHandler perl-script
+
+PerlHandler HTML::Embperl
+
+Options ExecCGI
+
+PerlSetEnv EMBPERL_OPTIONS 0x7000000
+
+</Location>
+
+
+
+
+
+
+
+EOD
+
+
+
+       }
+
+
 
 
 print OFH <<EOD ;

@@ -83,6 +83,14 @@ What is the EscMode? 3
 Now a Url: <A HREF="http://localhost/tests?id=abcdefghijklmnopqrstuvwxyz&text=This%20is%20a%20text%20%3F%20%26%20%2B%20-%20%2521">Here it goes</A>
 
 What is the EscMode? 3
+15
+Now lets look what we are getting from this:<BR>
+(this is the value in $a) (this is the value in $a) הצüהצü???&lt;&amp;+   &apos;&quot;&lt;&gt;<BR>
+
+What is the EscMode? 15
+Now a Url: <a href="http://localhost/tests?id=abcdefghijklmnopqrstuvwxyz&text=This%20is%20a%20text%20%3F%20%26%20%2B%20-%20%2521 %27%22%3C%3E">Here it goes</A>
+
+What is the EscMode? 15
 file.html?name=abcd&amp;data=xyz
 Now we localy set $escmode:<BR>
 (this is the value in $a) הצüהצü???<&+    \<a><BR>
@@ -159,9 +167,16 @@ This should also work for [* foo *]  <br>
 </TR>
 </table>
 
+Escape method:
 
-
-
+0: (this is the value in $a) הצüהצü???<&+  
+1: (this is the value in $a) &auml;&ouml;&uuml;&auml;&ouml;&uuml;???&lt;&amp;+  
+2: (this%20is%20the%20value%20in%20$a)%20הצüהצü%3F%3F%3F%3C%26%2B%20%20
+3: (this is the value in $a) &auml;&ouml;&uuml;&auml;&ouml;&uuml;???&lt;&amp;+  
+4: (this is the value in $a) הצüהצü???<&+  
+5: (this is the value in $a) &auml;&ouml;&uuml;&auml;&ouml;&uuml;???&lt;&amp;+  
+6: (this%20is%20the%20value%20in%20$a)%20הצüהצü%3F%3F%3F%3C%26%2B%20%20
+7: (this is the value in $a) &auml;&ouml;&uuml;&auml;&ouml;&uuml;???&lt;&amp;+  
 <P>Ok.<P>
 
 

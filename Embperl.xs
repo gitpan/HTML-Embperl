@@ -195,12 +195,13 @@ OUTPUT:
 
 
 void
-embperl_GetPackageOfFile(sSourcefile, sPackage, mtime)
+embperl_GetPackageOfFile(sSourcefile, sPackage, mtime, bEP1Compat)
     char * sSourcefile
     char * sPackage
     double mtime
+    int    bEP1Compat
 PPCODE:
-    tFile * pFile = GetFileData (sSourcefile, sPackage, mtime) ;
+    tFile * pFile = GetFileData (sSourcefile, sPackage, mtime, bEP1Compat) ;
     EXTEND(SP,2) ;
     PUSHs(sv_2mortal(newSViv(pFile -> mtime == -1?1:0))) ;
     PUSHs(sv_2mortal(newSVpv(pFile -> sCurrPackage, pFile -> nCurrPackage))) ;
@@ -267,8 +268,11 @@ CODE:
     if (!r->bEP1Compat)
 	{
 	char * p = SvPV (sText, l) ;
-        /* Node_appendChild (DomTree_self (r -> xCurrDomTree), ntypCDATA, 0, p, l, r -> xCurrNode, 0, 0) ; */
-        r -> xCurrNode = Node_insertAfter_CDATA (p, l, (r -> nCurrEscMode & 3)== 3?1 + (r -> nCurrEscMode & 4):r -> nCurrEscMode, DomTree_self (r -> xCurrDomTree), r -> xCurrNode) ; 
+        /*if Node_self(DomTree_self (r -> xCurrDomTree), r -> xCurrNode) -> nType == ntypDocumentFraq)
+            Node_appendChild (DomTree_self (r -> xCurrDomTree), r -> xCurrNode, r -> nCurrRepeatLevel, ntypCDATA, 0, p, l, 0, 0, NULL) ; 
+                else*/
+        r -> xCurrNode = Node_insertAfter_CDATA (p, l, (r -> nCurrEscMode & 3)== 3?1 + (r -> nCurrEscMode & 4):r -> nCurrEscMode, DomTree_self (r -> xCurrDomTree), r -> xCurrNode, r -> nCurrRepeatLevel) ; 
+        
         }
     else
 #endif
@@ -718,6 +722,18 @@ log_svs(r,sText)
 CODE:
     lprintf (r,"[%d]MEM:  %s: SVs: %d OBJs: %d\n", r->nPid, sText, sv_count, sv_objcount) ;
 
+SV *
+embperl_Escape(r, str, mode)
+    tReq * r
+    char *   str = NO_INIT 
+    int      mode
+PREINIT:
+    STRLEN len ;
+CODE:
+    str = SvPV(ST(1),len) ;
+    RETVAL = Escape(r, str, len, mode, NULL, 0) ; 
+OUTPUT:
+    RETVAL
 
 
 int
@@ -781,12 +797,14 @@ CODE:
     RETVAL = r -> pCodeSV ;
     if (items > 1)
         {
+        if (r -> pCodeSV)
+            SvREFCNT_dec (r -> pCodeSV) ;
         r -> pCodeSV = ST(1) ;
         SvREFCNT_inc (r -> pCodeSV) ;
         }
     ST(0) = RETVAL;
-    if (RETVAL != &sv_undef)
-        sv_2mortal(ST(0));
+    /*if (RETVAL != &sv_undef)
+        sv_2mortal(ST(0));*/
 
 
 

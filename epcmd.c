@@ -10,7 +10,7 @@
 #   IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 #   WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 #
-#   $Id: epcmd.c,v 1.41 2001/05/16 03:56:54 richter Exp $
+#   $Id: epcmd.c,v 1.37.4.7 2001/11/13 07:35:16 richter Exp $
 #
 ###################################################################################*/
 
@@ -62,6 +62,8 @@ static int HtmlTableHead (/*i/o*/ register req * r,
 			/*in*/ const char *   sArg) ;
 static int HtmlSelect (/*i/o*/ register req * r,
 			/*in*/ const char *   sArg) ;
+static int HtmlEndselect (/*i/o*/ register req * r,
+			/*in*/ const char *   sArg) ;
 static int HtmlOption (/*i/o*/ register req * r,
 			/*in*/ const char *   sArg) ;
 static int HtmlEndtable (/*i/o*/ register req * r,
@@ -82,7 +84,11 @@ static int HtmlA (/*i/o*/ register req * r,
 			/*in*/ const char *   sArg) ;
 static int HtmlIMG (/*i/o*/ register req * r,
 			/*in*/ const char *   sArg) ;
+static int HtmlASRC (/*i/o*/ register req * r,
+			/*in*/ const char *   sArg) ;
 static int HtmlForm (/*i/o*/ register req * r,
+			/*in*/ const char *   sArg) ;
+static int HtmlEndform (/*i/o*/ register req * r,
 			/*in*/ const char *   sArg) ;
 static int HtmlMeta (/*i/o*/ register req * r,
 			/*in*/ const char *   sArg) ;
@@ -94,9 +100,10 @@ struct tCmd CmdTab [] =
         /* cmdname    function        push pop  type         scan save no          disable            bHtml  */
         { "/dir",     HtmlEndtable,     0, 1, cmdTable,         0, 0, cnDir    , optDisableTableScan, 1 } ,
         { "/dl",      HtmlEndtable,     0, 1, cmdTable,         0, 0, cnDl     , optDisableTableScan, 1 } ,
+        { "/form",    HtmlEndform,      0, 0, cmdNorm,          0, 0, cnNop    , 0                  , 1 } ,
         { "/menu",    HtmlEndtable,     0, 1, cmdTable,         0, 0, cnMenu   , optDisableTableScan, 1 } ,
         { "/ol",      HtmlEndtable,     0, 1, cmdTable,         0, 0, cnOl     , optDisableTableScan, 1 } ,
-        { "/select",  HtmlEndtable,     0, 1, cmdTable,         0, 0, cnSelect , optDisableSelectScan, 1 } ,
+        { "/select",  HtmlEndselect,    0, 1, cmdTable,         0, 0, cnSelect , optDisableSelectScan, 1 } ,
         { "/table",   HtmlEndtable,     0, 1, cmdTable,         0, 0, cnTable  , optDisableTableScan, 1 } ,
         { "/textarea", HtmlEndtextarea, 0, 1, cmdTextarea,      0, 0, cnNop    , optDisableInputScan, 1 } ,
         { "/tr",      HtmlEndrow,       0, 1, cmdTablerow,      0, 0, cnTr     , optDisableTableScan, 1 } ,
@@ -108,20 +115,20 @@ struct tCmd CmdTab [] =
         { "do",       CmdDo,            1, 0, cmdDo,            0, 0, cnNop    , 0                  , 0 } ,
         { "else",     CmdElse,          0, 0, cmdIf,            0, 0, cnNop    , 0                  , 0 } ,
         { "elsif",    CmdElsif,         0, 0, cmdIf,            0, 0, cnNop    , 0                  , 0 } ,
-        { "embed",    HtmlIMG,          0, 0, cmdNorm,          0, 0, cnNop    , 0                  , 1 } ,
+        { "embed",    HtmlASRC,          0, 0, cmdNorm,          0, 0, cnNop    , 0                  , 1 } ,
         { "endforeach", CmdEndforeach,  0, 1, cmdForeach,       0, 0, cnNop    , 0                  , 0 } ,
         { "endif",    CmdEndif,         0, 1, (enum tCmdType)(cmdIf | cmdEndif), 0, 0, cnNop    , 0,  0 } ,
         { "endsub",   CmdEndsub,        0, 1, cmdSub,           0, 0, cnNop    , 0                  , 0 } ,
         { "endwhile", CmdEndwhile,      0, 1, cmdWhile,         0, 0, cnNop    , 0                  , 0 } ,
         { "foreach",  CmdForeach,       1, 0, cmdForeach,       0, 1, cnNop    , 0                  , 0 } ,
         { "form",     HtmlForm,         0, 0, cmdNorm,          0, 0, cnNop    , 0                  , 1 } ,
-        { "frame",    HtmlIMG,          0, 0, cmdNorm,          0, 0, cnNop    , 0                  , 1 } ,
+        { "frame",    HtmlASRC,          0, 0, cmdNorm,          0, 0, cnNop    , 0                  , 1 } ,
         { "hidden",   CmdHidden,        0, 0, cmdNorm,          0, 0, cnNop    , 0                  , 0 } ,
         { "if",       CmdIf,            1, 0, (enum tCmdType)(cmdIf | cmdEndif), 0, 0, cnNop    , 0,  0 } ,
-        { "iframe",   HtmlIMG,          0, 0, cmdNorm,          0, 0, cnNop    , 0                  , 1 } ,
+        { "iframe",   HtmlASRC,          0, 0, cmdNorm,          0, 0, cnNop    , 0                  , 1 } ,
         { "img",      HtmlIMG,          0, 0, cmdNorm,          0, 0, cnNop    , 0                  , 1 } ,
         { "input",    HtmlInput,        0, 0, cmdNorm,          1, 0, cnNop    , optDisableInputScan, 1 } ,
-        { "layer",    HtmlIMG,          0, 0, cmdNorm,          0, 0, cnNop    , 0                  , 1 } ,
+        { "layer",    HtmlASRC,          0, 0, cmdNorm,          0, 0, cnNop    , 0                  , 1 } ,
         { "menu",     HtmlTable,        1, 0, cmdTable,         1, 0, cnMenu   , optDisableTableScan, 1 } ,
         { "meta",     HtmlMeta,         0, 0, cmdNorm,          1, 0, cnNop    , optDisableMetaScan , 1 } ,
         { "ol",       HtmlTable,        1, 0, cmdTable,         1, 0, cnOl     , optDisableTableScan, 1 } ,
@@ -879,6 +886,7 @@ static int CmdVar (/*i/o*/ register req * r,
     pSV = newSVpvf("package %s ; \n#line %d %s\n use vars qw(%s); map { $%s::CLEANUP{substr ($_, 1)} = 1 } qw(%s) ;\n",
 	           r -> Buf.sEvalPackage, r -> Buf.nSourceline, r -> Buf.pFile -> sSourcefile, sArg,
 		   r -> Buf.sEvalPackage, sArg) ;
+    newSVpvf2(pSV) ;
 
     rc = EvalDirect (r, pSV, 0, NULL) ;
     SvREFCNT_dec(pSV);
@@ -1064,7 +1072,8 @@ static int HtmlBody (/*i/o*/ register req * r,
 
 static int URLEscape   (/*i/o*/ register req * r,
 			/*in*/  const char *   sArg,
-			/*in*/  const char *   sAttrName)
+			/*in*/  const char *   sAttrName,
+			/*in*/  int            bAppendSessionID)
     {
     int    rc ;
     char * pArgBuf  = NULL ;
@@ -1127,7 +1136,22 @@ static int URLEscape   (/*i/o*/ register req * r,
 		}
 	    oputs (r, pArgBuf) ;
 
-	    r -> bEscInUrl = FALSE ;
+	    
+	    if (bAppendSessionID && r -> sSessionID)
+                {
+                if (strchr(pArgBuf, '?'))
+                    {
+                    oputc(r, '&') ;
+                    }
+                else
+                    {
+                    oputc(r, '?') ;
+                    }
+                oputs (r, r -> sSessionID) ;
+                }
+            
+            
+            r -> bEscInUrl = FALSE ;
 	    NewEscMode (r, NULL) ;
 	    if (pFreeBuf)
 		_free (r, pFreeBuf) ;
@@ -1190,7 +1214,7 @@ static int HtmlA (/*i/o*/ register req * r,
     {
     EPENTRY (HtmlA) ;
 
-    return URLEscape (r, sArg, "HREF") ;
+    return URLEscape (r, sArg, "HREF", 1) ;
     }
 
 /* ---------------------------------------------------------------------------- */
@@ -1205,7 +1229,22 @@ static int HtmlIMG     (/*i/o*/ register req * r,
     {
     EPENTRY (HtmlIMG) ;
 
-    return URLEscape (r, sArg, "SRC") ;
+    return URLEscape (r, sArg, "SRC", 0) ;
+    }
+
+/* ---------------------------------------------------------------------------- */
+/*                                                                              */
+/* tag with SRC attribute...                                                    */
+/*                                                                              */
+/* ---------------------------------------------------------------------------- */
+
+
+static int HtmlASRC     (/*i/o*/ register req * r,
+			/*in*/ const char *   sArg)
+    {
+    EPENTRY (HtmlASRC) ;
+
+    return URLEscape (r, sArg, "SRC", 1) ;
     }
 
 
@@ -1221,7 +1260,40 @@ static int HtmlForm    (/*i/o*/ register req * r,
     {
     EPENTRY (HtmlForm) ;
 
-    return URLEscape (r, sArg, "ACTION") ;
+    return URLEscape (r, sArg, "ACTION", 0) ;
+    }
+
+/* ---------------------------------------------------------------------------- */
+/*                                                                              */
+/* /Form tag ...                                                                 */
+/*                                                                              */
+/* ---------------------------------------------------------------------------- */
+
+
+static int HtmlEndform (/*i/o*/ register req * r,
+			/*in*/ const char *   sArg)
+    {
+    char * sid = r -> sSessionID ;
+
+    EPENTRY (HtmlFormEnd) ;
+
+
+    if (sid)
+        {
+	char * val = strchr (sid, '=') ;
+	if (val)
+	    {
+	    oputs(r, "<input type=\"hidden\" name=\"") ;
+	    owrite(r, sid, val - sid) ;
+	    val++ ;
+	    oputs(r, "\" value=\"") ;
+	    oputs (r, val) ;
+	    oputs(r, "\">") ;
+	    }
+        }
+
+
+    return ok ;
     }
 
 
@@ -1663,6 +1735,32 @@ static int HtmlOption (/*i/o*/ register req * r,
         }
     }
 
+
+/* ---------------------------------------------------------------------------- */
+/*                                                                              */
+/* /select tag ...                                                               */
+/*                                                                              */
+/* ---------------------------------------------------------------------------- */
+
+static int HtmlEndselect (/*i/o*/ register req * r,
+		 	  /*in*/ const char *   sArg)
+    {
+    if (r -> bOptions & optAllFormData)
+	{
+	char *        pName ;
+	int           l ;
+	EPENTRY (HtmlEndselect) ;
+
+	pName = r -> HtmlStack.State.sArg?r -> HtmlStack.State.sArg:"" ;
+	l     = strlen (pName) ;
+        
+	if (!hv_exists (r -> pInputHash, pName, l))
+	    if (hv_store (r -> pInputHash, pName, l, &sv_undef, 0) == NULL)
+		return rcHashError ;
+	}
+
+    return HtmlEndtable (r, sArg) ;
+    }
 
                         
 

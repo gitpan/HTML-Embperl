@@ -32,14 +32,4 @@ $cp -> deny (':base_loop') ;
 $testshare = "Shared Data" ;
 $cp -> share ('$testshare') ;  
 
-#sub test::handler
-#
-#    {
-#        while (($k, $v) = each %ENV)
-#		{
-#                warn "init env $k = ->$v<-" ;
-#		}
-#    return 0 ;
-#    }
-
 1 ;

@@ -11,7 +11,7 @@
 #   IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 #   WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 #
-#   $Id: embpcgi.test.pl.templ,v 1.2 2001/02/13 05:39:15 richter Exp $
+#   $Id: embpcgi.test.pl.templ,v 1.1.4.2 2001/10/31 13:26:42 richter Exp $
 #
 ###################################################################################
 
@@ -22,6 +22,15 @@ BEGIN
     use ExtUtils::testlib ;
     eval { require Apache::Session; } if ($ENV{EMBPERL_SESSION_CLASSES}) ;	
     $@ = '' ;
+
+    my $cwd       = $ENV{EMBPERL_SRC} ;
+    my $i = 0 ;
+    foreach (@INC)
+        {
+        $INC[$i] = "$cwd/$_" if (/^(\.\/)?blib/) ;
+        $i++ ;
+        }
+   
     }	
 
 

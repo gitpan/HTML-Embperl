@@ -17,7 +17,7 @@ my $fn = $r -> filename ;
 chdir(dirname ($fn)) ;
 
 
-$HTML::Embperl::DebugDefault = 811005 ;
+$HTML::Embperl::DebugDefault = 0xffffdffd ;
 
 
 $tst1 = '<P>Here is some text</P>' ;
@@ -72,7 +72,8 @@ print "<H1> 5.) Use \@param to pass parameters</H1>\n" ;
 
 HTML::Embperl::Execute ({input		=> \'<P>Use @param to transfer some data ([+ "@param" +]) !</P>',
 						 inputfile	=> 'Param',
-						 req_rec    => $r,
+                         debug      => 0xffffdffd,
+    					 req_rec    => $r,
 						 param      => [1, 2, 3, 4] }
 						 ) ;
 

@@ -10,7 +10,7 @@
 #   IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 #   WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 #
-#   $Id: EmbperlObject.pm,v 1.44 2001/05/15 04:50:06 richter Exp $
+#   $Id: EmbperlObject.pm,v 1.36.4.7 2001/09/01 21:50:00 richter Exp $
 #
 ###################################################################################
 
@@ -256,7 +256,7 @@ sub Execute
         {
         print HTML::Embperl::LOG "[$$]EmbperlObject Found Base: $fn\n"  if ($debug);
         print HTML::Embperl::LOG "[$$]EmbperlObject path: $searchpath\n"  if ($debug);
-        my ($basenew, $basepackage) = HTML::Embperl::GetPackageOfFile ($fn, $req -> {'package'} || '', -M _) ;
+        my ($basenew, $basepackage) = HTML::Embperl::GetPackageOfFile ($fn, $req -> {'package'} || '', -M _, $ENV{EMBPERL_EP1COMPAT} || 0) ;
 
         if (!-f $filename && exists $req -> {object_fallback})
             {
@@ -268,7 +268,7 @@ sub Execute
 
 
         my ($new, $package)  ;
-        ($new, $package) = HTML::Embperl::GetPackageOfFile ($filename, $req -> {'package'} || '', -M _) if (!$fallback) ;
+        ($new, $package) = HTML::Embperl::GetPackageOfFile ($filename, $req -> {'package'} || '', -M _, $ENV{EMBPERL_EP1COMPAT} || 0) if (!$fallback) ;
 
         if ($basenew)
             {
@@ -276,10 +276,16 @@ sub Execute
             
             HTML::Embperl::Execute ({%$req, inputfile => $fn, import => 0 }) ;
 
-            no strict ;
-            @{"$basepackage\:\:ISA"} = ($req -> {object_handler_class} || 'HTML::Embperl::Req') ;
-            use strict ;
+            #no strict ;
+            #@{"$basepackage\:\:ISA"} = ($req -> {object_handler_class} || 'HTML::Embperl::Req') ;
+            #use strict ;
             }
+        no strict ;
+        if (!@{"$basepackage\:\:ISA"})
+            {
+            @{"$basepackage\:\:ISA"} = ($req -> {object_handler_class} || 'HTML::Embperl::Req') ;
+            }
+        use strict ;
 
         if ($new || $fallback)
             {

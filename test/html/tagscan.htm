@@ -1,4 +1,3 @@
-
 <html bgcolor="[+ 'blue' +]">
 <head bgcolor="[+ 'blue' +]">
 <title>Some tests for Embperl</title>
@@ -99,6 +98,12 @@ Testing ... length of STUFF=[+ length($stuff) +]<p>
 [- $stuff = "X" x 30000; -]
 Testing ... length of STUFF=[+ length($stuff) +]<p>
 <input type="hidden" name="STUFF" value="[+ $stuff +]">
+
+<[+ 'b' +]>
+
+[$ foreach $tag ('a', 'b', 'c') $]
+    <[+ $tag +]>
+[$endforeach$]
 
 
 

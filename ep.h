@@ -144,24 +144,10 @@ extern "C" {
 #endif
 
 
-module MODULE_VAR_EXPORT embperl_module;
+void embperl_ApacheAddModule () ;
 
 
 #endif
-
-struct tReq ;
-
-typedef struct tReq req ;
-typedef struct tReq tReq ;
-
-#include "epnames.h"
-
-#ifdef EP2
-#include "epdom.h"
-#endif
-#include "epdat.h"
-#include "embperl.h"
-
 
 #ifdef WIN32
 #define PATH_MAX _MAX_DIR
@@ -170,6 +156,35 @@ typedef struct tReq tReq ;
 #ifndef PATH_MAX
 #define PATH_MAX 512
 #endif
+
+
+struct tReq ;
+
+typedef struct tReq req ;
+typedef struct tReq tReq ;
+
+#include "epnames.h"
+
+
+#if defined (_DEBUG) && defined (WIN32)
+#define _CRTDBG_MAP_ALLOC
+#undef malloc
+#undef calloc
+#undef realloc
+#undef free
+#include <crtdbg.h>
+#endif
+
+#ifdef DMALLOC
+#define DMALLOC_FUNC_CHECK 
+#include "dmalloc.h"
+#endif
+
+#ifdef EP2
+#include "epdom.h"
+#endif
+#include "epdat.h"
+#include "embperl.h"
 
 
 /* ---- global variables ---- */
@@ -220,7 +235,8 @@ tFile * SetupFileData   (/*i/o*/ register req * r,
 
 tFile * GetFileData     (/*in*/  char *  sSourcefile,
                          /*in*/  char *  sPackage,
-                         /*in*/  double  mtime) ;
+                         /*in*/  double  mtime,
+			 /*in*/  int     bEP1Compat) ;
 
 			 
 tConf * SetupConfData   (/*in*/ HV *   pReqInfo,
@@ -372,6 +388,7 @@ struct tCharTrans
 
 extern struct tCharTrans Char2Html [] ;
 extern struct tCharTrans Char2Url  [] ; 
+extern struct tCharTrans Char2XML  [] ; 
 extern struct tCharTrans Html2Char [] ;
 extern int sizeHtml2Char ;
 
@@ -418,6 +435,12 @@ IV    GetHashValueInt (/*in*/  HV *           pHash,
                         /*in*/  const char *   sKey,
                         /*in*/  IV            nDefault) ;
 
+UV    GetHashValueUInt (/*in*/  HV *           pHash,
+                        /*in*/  const char *   sKey,
+                        /*in*/  UV            nDefault) ;
+
+#define GetHashValuePtr(pHash,sKey,nDefault) (void *)GetHashValueUInt(pHash,sKey,(UV)nDefault)
+
 char * GetHashValueStr (/*in*/  HV *           pHash,
                         /*in*/  const char *   sKey,
                         /*in*/  char *         sDefault) ;
@@ -425,6 +448,46 @@ char * GetHashValueStr (/*in*/  HV *           pHash,
 char * GetHashValueStrDup (/*in*/  HV *           pHash,
                            /*in*/  const char *   sKey,
                            /*in*/  char *         sDefault) ;
+
+SV * GetHashValueSVinc    (/*in*/  HV *           pHash,
+                           /*in*/  const char *   sKey,
+                           /*in*/  SV *         sDefault) ;
+
+SV * GetHashValueSV       (/*in*/  HV *           pHash,
+                           /*in*/  const char *   sKey) ;
+
+void GetHashValueStrOrHash (/*in*/  HV *           pHash,
+                              /*in*/  const char *   sKey,
+                              /*out*/ char * *       sValue,
+                              /*out*/ HV * *         pHV) ;
+
+int GetHashValueHREF      (/*in*/  req *          r,
+                           /*in*/  HV *           pHash,
+                           /*in*/  const char *   sKey,
+                           /*out*/ HV * *         ppHV) ;
+
+int GetHashValueCREF      (/*in*/  req *          r,
+                           /*in*/  HV *           pHash,
+                           /*in*/  const char *   sKey,
+                           /*out*/ CV * *         ppCV) ;
+enum tHashItemType
+    {
+    hashtstr,
+    hashtint,
+    hashtsv
+    } ;
+
+SV * CreateHashRef   (/*in*/  char *   sKey, ...) ;
+
+void SetHashValueStr   (/*in*/  HV *           pHash,
+                        /*in*/  const char *   sKey,
+                        /*in*/  char *         sValue) ;
+
+void SetHashValueInt   (/*in*/  HV *           pHash,
+                        /*in*/  const char *   sKey,
+                        /*in*/  IV             nValue) ;
+
+
 
 const char * GetHtmlArg (/*in*/  const char *    pTag,
                          /*in*/  const char *    pArg,
@@ -438,6 +501,12 @@ void OutputEscape (/*i/o*/ register req * r,
  		   /*in*/  int            nDataLen,
  		   /*in*/  struct tCharTrans *   pEscTab,
  		   /*in*/  char           cEscChar) ;
+SV * Escape	  (/*i/o*/ register req * r,
+ 		   /*in*/  const char *   sData,
+ 		   /*in*/  int            nDataLen,
+ 		   /*in*/  int            nEscMode,
+ 		   /*in*/  struct tCharTrans *   pEscTab,
+ 		   /*in*/  char           cEscChar) ;
 
 int TransHtml (/*i/o*/ register req * r,
 		/*i/o*/ char *         sData,
@@ -449,7 +518,7 @@ void TransHtmlSV (/*i/o*/ register req * r,
 int GetLineNo (/*i/o*/ register req * r) ;
 
 int GetLineNoOf (/*i/o*/ register req * r,
-               /*in*/  char * pPos) ;
+               /*in*/   char * pPos) ;
 
 #ifndef WIN32
 #define strnicmp strncasecmp
@@ -577,3 +646,63 @@ int SetupDebugger (/*i/o*/ register req * r) ;
 #include "ep2.h"
 #endif
 
+/* memory debugging stuff */
+
+#ifdef DMALLOC
+
+
+SV * AddDMallocMagic (/*in*/ SV *	pSV,
+		      /*in*/ char *     sText,
+		      /*in*/ char *     sFile,
+		      /*in*/ int        nLine) ;
+
+
+#undef newSV
+#define newSV(len) AddDMallocMagic(Perl_newSV((len)), "newSV  ", __FILE__, __LINE__) 
+
+#undef newSViv
+#define newSViv(i) AddDMallocMagic(Perl_newSViv((i)), "newSViv  ", __FILE__, __LINE__) 
+#define newSVivDBG1(i,txt) AddDMallocMagic(Perl_newSViv((i)), txt, __FILE__, __LINE__) 
+
+#undef newSVnv
+#define newSVnv(n) AddDMallocMagic(Perl_newSVnv((n)), "newSVnv  ", __FILE__, __LINE__) 
+
+#undef newSVpv
+#define newSVpv(s,len) AddDMallocMagic(Perl_newSVpv((s),(len)), "newSVpv  ", __FILE__, __LINE__) 
+
+#undef newSVpvn
+#define newSVpvn(s,len) AddDMallocMagic(Perl_newSVpvn((s),(len)), "newSVpvn  ", __FILE__, __LINE__) 
+
+#undef newSVrv
+#define newSVrv(rv,c) AddDMallocMagic(Perl_newSVrv((rv),(c)), "newSVrv  ", __FILE__, __LINE__) 
+
+#undef newSVsv
+#define newSVsv(sv) AddDMallocMagic(Perl_newSVsv((sv)), "newSVsv  ", __FILE__, __LINE__) 
+
+#undef newSVpvf2
+#define newSVpvf2(sv) AddDMallocMagic((sv), "newSVsvf  ", __FILE__, __LINE__) ; SvTAINTED_off (sv) 
+
+#undef perl_get_sv
+#define perl_get_sv(name,create) AddDMallocMagic(perl_get_sv(name,create), "perl_get_sv  ", __FILE__, __LINE__) 
+
+#undef perl_get_cv
+#define perl_get_cv(name,create) (CV *)AddDMallocMagic((SV *)perl_get_cv(name,create), "perl_get_cv  ", __FILE__, __LINE__) 
+
+#undef perl_get_hv
+#define perl_get_hv(name,create) (HV *)AddDMallocMagic((SV *)perl_get_hv(name,create), "perl_get_hv  ", __FILE__, __LINE__) 
+
+#undef perl_get_av
+#define perl_get_av(name,create) (AV *)AddDMallocMagic((SV *)perl_get_av(name,create), "perl_get_av  ", __FILE__, __LINE__) 
+
+#undef newHV
+#define newHV() (HV *)AddDMallocMagic((SV *)Perl_newHV(), "newHV  ", __FILE__, __LINE__) 
+
+#undef newAV
+#define newAV() (AV *)AddDMallocMagic((SV *)Perl_newAV(), "newAV  ", __FILE__, __LINE__) 
+
+#else
+
+#define newSVivDBG1(i,txt) newSViv(i)
+#define newSVpvf2(sv)
+
+#endif

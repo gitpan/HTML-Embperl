@@ -10,13 +10,16 @@
 #   IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 #   WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 #
-#   $Id: epdat.h,v 1.31 2001/05/29 06:28:10 richter Exp $
+#   $Id: epdat.h,v 1.20.4.34 2001/11/16 11:29:02 richter Exp $
 #
 ###################################################################################*/
 
 
 
 #ifdef EP2
+
+struct tCacheItem ;
+
 /*-----------------------------------------------------------------*/
 /*								   */
 /*  cache Options						   */
@@ -29,7 +32,7 @@ typedef enum tCacheOptions
     ckoptPathInfo  = 2,   /* include the PathInfo into CacheKey */
     ckoptQueryInfo = 4,	  /* include the QueryInfo into CacheKey */
     ckoptDontCachePost = 8,	  /* don't cache POST requests */
-    ckoptDefault    = 15,	  /* default is all options set */
+    ckoptDefault    = 15	  /* default is all options set */
     } tCacheOptions ;
 
 
@@ -108,13 +111,14 @@ struct tToken
     const char *	    sEndText ;	/* string which ends the block */
     const char *	    sNodeName;	/* name of the node to create */
     int			    nNodeName ;	/* index in string table of node name */
-    enum tNodeType	    nNodeType ;	/* type of the node that should be created */
-    enum tNodeType	    nCDataType ;/* type for sub nodes that contains text */
-    enum tNodeType	    nForceType ;/* force this type for sub nodes */
+    tNodeType		    nNodeType ;	/* type of the node that should be created */
+    tNodeType		    nCDataType ;/* type for sub nodes that contains text */
+    tNodeType		    nForceType ;/* force this type for sub nodes */
     int			    bUnescape ;	/* translate input?  */
     int			    bAddFlags ;	/* add flags to node  */
     int			    bRemoveSpaces ;	/* 1 remove spaces before tag, 2 remove after */
     unsigned char *	    pContains ;	/* chars that could be contained in the string */
+    int			    bInsideMustExist ;	/* if inside definition doesn't exists, ignore whole tag */
     struct tTokenTable *    pFollowedBy;/* table of tokens that can follow this one */
     struct tTokenTable *    pInside ;	/* table of tokens that can apear inside this one */
     struct tToken      *    pStartTag ;	/* token that contains definition for the start of the current token */
@@ -131,6 +135,7 @@ struct tTokenTable
     struct tToken * pTokens ;	    /* table with all tokens */
     int             numTokens ;	    /* number of tokens in above table */
     int		    bLSearch ;	    /* when set perform a linear, instead of a binary search */
+    int		    nDefNodeType ;  /* either ntypCDATA or ntypText */
     struct tToken * pContainsToken ;/* pointer to the token that has a pContains defined (could be only one per table) */
     } ;
 
@@ -154,6 +159,7 @@ typedef void * tTokenTable ;
 
 typedef struct tConf
     {
+    HV *    pReqParameter ; /* parameters passed to this request */
     int     bDebug ;	    /* Debugging options */
     int     bOptions ;	    /* Options */
     char *  sPackage ;	    /* Packagename */
@@ -176,6 +182,7 @@ typedef struct tConf
     tCacheOptions   bCacheKeyOptions ;
     double  nExpiresIn ;   /* Data expiers at */
     CV *    pExpiresCV ;   /* sub that is called to determinate expiration */
+    char *  sRecipe ;      /* name of recipe used to process the current file */
 #endif    
     char *  sPath ;	    /* file search path */
     char *  sReqFilename ;  /* filename of original request */
@@ -401,6 +408,15 @@ struct tReq
     int	    nInsideSub ;	/* Are we inside of a sub? */
     int	    bExit ;		/* We should exit the page */
     int	    nPathNdx ;		/* gives the index in the path where the current file is found */
+    char    sCWD[PATH_MAX] ;    /**< Current working directory */
+    char    sResetDir[PATH_MAX] ; /**< Reset directory to */
+#ifdef WIN32
+    char    nResetDrive ;       /**< Reset drive to */
+#endif
+    int     nRequestCount ;     /**< increments by one on each request */
+    time_t  nRequestTime ;      /**< time when request starts */
+
+    char *  sSessionID ;        /* stores session name and id for status session data */
 #ifdef EP2
     bool    bEP1Compat ;	/* run in Embperl 1.x compatible mode */    
     tPhase  nPhase ;		/* which phase of the request we are in */
@@ -412,8 +428,13 @@ struct tReq
 
     tNode	xDocument ;	/* Document node */
     tNode	xCurrNode ;	/* node that was last executed */
+    tRepeatLevel nCurrRepeatLevel ; /* repeat level for node that was last executed */
+    tIndex      nCurrCheckpoint ; /* next checkpoint that should be passed if execution order is unchanged (i.e. no loop/if) */
     tIndex	xCurrDomTree ;	/* DomTree we are currently working on */
     tIndex	xSourceDomTree ;/* DomTree which contains the source */
+
+    struct tCacheItem * pOutputCache ;  /* Cache which hold the final output */
+    SV *       pOutputSV ;	/* set if output is text and not a tree */
 #endif
     struct tTokenTable *  pTokenTable ; /* holds the current syntax */
 
@@ -480,6 +501,9 @@ struct tReq
     FILE *  lfd  ;      /* log file */
     #endif
 
+    SV *    ofdobj ;	/* perl object that is tied to stdout, if any */
+    SV *    ifdobj ;	/* perl object that is tied to stdin, if any */
+
     long    nLogFileStartPos ; /* file position of logfile, when logfile started */
     char *  sOutputfile ;      /* name of output file */
     bool    bAppendToMainReq ; /* append output to main request */
@@ -518,7 +542,8 @@ struct tReq
     HV *    pFormSplitHash ;  /* Formular data split up at \t */
     HV *    pInputHash ; /* Data of input fields */
     AV *    pFormArray ; /* Fieldnames */
-    HV *    pUserHash ;  /* User data */
+    HV *    pUserHash ;  /* Session User data */
+    HV *    pStateHash ; /* Session State data */
     HV *    pModHash ;   /* Module data */
     HV *    pHeaderHash ;/* http headers */
 #ifdef EP2
@@ -552,6 +577,14 @@ struct tReq
 
     SV *   pCodeSV ;		/* contains currently compiled line */
 #endif
+
+#if defined (_DEBUG) && defined (WIN32)
+    _CrtMemState MemCheckpoint ;             /* memory leak debugging */    
+#endif    
+
+#ifdef DMALLOC
+    unsigned long MemCheckpoint ;             /* memory leak debugging */    
+#endif    
 
     } ;
 

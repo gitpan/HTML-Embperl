@@ -1,4 +1,4 @@
-
+[- $r = shift -]
 <html>
 <head>
 <title>Some tests for Embperl escaping</title>
@@ -103,6 +103,17 @@ Now a Url: <A HREF="http://localhost/tests?id=[+%20$id +]&text=[+$text+]">Here i
 
 What is the EscMode? [+ $escmode +]
 
+[+ $escmode = 15 +]
+
+Now lets look what we are getting from this:<BR>
+[+ $a +] [+ $b +] [+ q{'"<>} +]<BR>
+
+What is the EscMode? [+ $escmode +]
+
+Now a Url: <A HREF="http://localhost/tests?id=[+%20$id +]&text=[+$text+] [+ q{'"<>} +]">Here it goes</A>
+
+What is the EscMode? [+ $escmode +]
+
 [!
     sub foo($)
         {
@@ -183,7 +194,18 @@ This should also work for [[* foo *]  <br>
 </TR>
 </table>
 
+Escape method:
 
+[- $escmode = 0 -]
+
+0: [+ $r -> Escape($b, 0) +] 
+1: [+ $r -> Escape($b, 1) +] 
+2: [+ $r -> Escape($b, 2) +] 
+3: [+ $r -> Escape($b, 3) +] 
+4: [+ $r -> Escape($b, 4) +] 
+5: [+ $r -> Escape($b, 5) +] 
+6: [+ $r -> Escape($b, 6) +] 
+7: [+ $r -> Escape($b, 7) +] 
 
 
 <P>Ok.<P>

@@ -110,8 +110,9 @@ geschrieben werden. (siehe L<"EMBPERL_DEBUG"> für mögliche Werte)
 
 Um I<Embperl> als B<CGI Skript> zu nutzen, müssen Sie die Datei
 C<embpcgi.pl> (bzw. C<embpcgi.bat> unter Windows) in Ihr CGI
-Verzeichnis kopieren (oft C</cgi-bin>). Zum Aufrufen verwenden Sie
-die URL
+Verzeichnis kopieren (oft C</cgi-bin>). Zur Benutzung mit FastCGI
+zusammen, verwenden Sie die Datei embpfastcgi.pl.
+Zum Aufrufen verwenden Sie die URL
 
  http://www.domain.de/cgi-bin/embpcgi.pl/uri/ihres/embperl/dokuments
 
@@ -553,6 +554,10 @@ möglich die Embperlfehlermeldungen mittels
 
 zu ermitteln, wobei C<$errors> eine Arrayreferenz ist. (1.3b5+)
 
+=item optShowBacktrace = 0x8000000
+
+Wenn gesetzt wird bei der Ausgabe von Fehlermeldungen zusätzlich eine Liste
+aller Dateien ausgegeben diese die aktulle Sourcedatei aufgerufen haben.
 
 =item optSafeNamespace = 4
 
@@ -989,9 +994,11 @@ Beispiel:
 
 =head2 EMBPERL_SESSION_HANDLER_CLASS (ab 1.3b3)
 
-Bestimmt die Klasse die das Session Handling für I<Embperl durchführt>.
-Default ist C<HTML::Embperl::Session>. Sie können eine eigene Klasse von 
-I<HTML::Embperl::Session> ableiten und diese hier angeben um Ihr eigenes
+Bestimmt die Klasse die das Session Handling für I<Embperl> durchführt.
+Default war bis 1.3.3 I<HTML::Embperl::Session>. Ab 1.3.4 ist der Default 
+I<Apache::SessionX>. Um das alte Sessionhandling zu verwenden, können Sie den
+Parameter auf I<HTML::Embperl::Session> setzen. Sie können eine eigene Klasse von 
+I<Apache::SessionX> ableiten und diese hier angeben um Ihr eigenes
 Session Handling zu implementieren.
 
 =head2 EMBPERL_COOKIE_NAME (ab 1.2b4) 
@@ -1711,6 +1718,11 @@ B<Hinweis 2:>Um binäre Daten auszugeben muß escmode auf Null gesetzt werden (ab 
 
 =over 4
 
+=item B<$escmode = 8 (oder 15)> (2.0b4 und höher)
+
+Das Resultat von Perlausdrücken wird immer XML Kodiert 
+(z.B. '>' wird zu '&gt;' und ' zu &apos;).
+
 =item $escmode = 3 (oder 7)
 
 Das Resultat von Perlausdrücken wird HTML Kodiert (z.B. '>' wird zu '&gt;')
@@ -1858,7 +1870,18 @@ von C<%udat> und C<%mdat> bei entsprechender Konfiguration, auch über Prozeß-
 oder sogar Rechnergrenzen hinweg möglich. I<Embperl> bedient sich dazu
 des Perlmodules I<Apache::Session>.
 
-Um das Session Management zu aktivieren muß I<Apache::Session> (Version 1.00
+Ab 1.3.4 verwendet I<Embperl> I<Apache::SessionX> für das Sessing handling.
+Dadurch ist keine weitere Konfiguration mehr nötig. Wenn Sie das alte 
+Sessionhandling (ohne I<Apache::SessionX>) beibehalten wollen, müssen
+Sie 
+
+    PerlSetEnv EMBPERL_SESSION_HANDLER_CLASS HTML::Embperl::Session
+
+in Ihrer httpd.conf eintragen und folgende Parameter konfigurieren. Sie
+können die folgenden Parameter auch zum überschreiben der 
+Standardkonfiguration von I<Apache::SessionX> benutzen.
+
+Um das Session Management zu aktivieren muß I<Apache::Session> (Version 1.53
 oder höher) installiert sein. Außerdem müssen Sie I<Embperl>, via 
 C<EMBPERL_SESSION_CLASSES>, mitteilen, welcher
 Speicher- und Lockingmechanismus genutzt werden soll, ggf. müssen Sie
@@ -2701,6 +2724,11 @@ http://www.aarg.net/erik/mmm-embperl.el
 Dokumentation ist in den Dateien enthalten.
 
 =head2 VIM
+
+Vim Syntaxfile für Vim 5.x & 6.x von Lukas Zapletal mit syntax highliting für JavaScript, VBScript,
+Perl+Embperl, CSS und HTML, gelbem Hintergrund für Perl code (wie M$ Interdev) und
+funktionierendem Perl folding:
+http://vim.sourceforge.net/scripts/search_results.php?keywords=Embperl
 
 Vim Syntaxfile von Steve Willer: http://www.interlog.com/~willer/embperl.vim
 

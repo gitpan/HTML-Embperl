@@ -10,7 +10,7 @@
 #   IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 #   WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 #
-#   $Id: epapinit.c,v 1.2 2001/04/27 06:37:57 richter Exp $
+#   $Id: epapinit.c,v 1.1.2.5 2001/09/20 08:23:55 richter Exp $
 #
 ###################################################################################*/
 
@@ -19,24 +19,9 @@
 
 #ifdef APACHE
 
-static void embperl_ApacheInitCleanup (void * p)
 
-    {
-    /* make sure embperl module is removed before mod_perl */
-    ap_remove_module (&embperl_module) ;
-    }
-
-
-static void embperl_ApacheInit (server_rec *s, pool *p)
-
-    {
-    pool * subpool = ap_make_sub_pool(p);
-
-    ap_register_cleanup(subpool, NULL, embperl_ApacheInitCleanup, embperl_ApacheInitCleanup);
-    ap_add_version_component ("Embperl/"VERSION) ;
-    }
-
-
+static void embperl_ApacheInit (server_rec *s, pool *p) ;
+static void embperl_ApacheInitCleanup (void * p) ;
 
 
 static const command_rec embperl_cmds[] =
@@ -45,7 +30,8 @@ static const command_rec embperl_cmds[] =
 };
 
 
-module MODULE_VAR_EXPORT embperl_module = {
+/* static module MODULE_VAR_EXPORT embperl_module = { */
+static module embperl_module = {
     STANDARD_MODULE_STUFF,
     embperl_ApacheInit,         /* initializer */
     NULL,                       /* dir config creater */
@@ -67,5 +53,27 @@ module MODULE_VAR_EXPORT embperl_module = {
     NULL                        /* post read-request */
 };
 
+
+void embperl_ApacheAddModule ()
+
+    {
+    ap_add_module (&embperl_module) ;
+    }
+
+static void embperl_ApacheInit (server_rec *s, pool *p)
+
+    {
+    pool * subpool = ap_make_sub_pool(p);
+
+    ap_register_cleanup(subpool, NULL, embperl_ApacheInitCleanup, embperl_ApacheInitCleanup);
+    ap_add_version_component ("Embperl/"VERSION) ;
+    }
+
+static void embperl_ApacheInitCleanup (void * p)
+
+    {
+    /* make sure embperl module is removed before mod_perl */
+    ap_remove_module (&embperl_module) ;
+    }
 
 #endif
