@@ -27,7 +27,7 @@ PerlWarn On
 
 
 
-SetEnv EMBPERL_DEBUG 811005
+SetEnv EMBPERL_DEBUG $EPDEBUG
 SetEnv EMBPERL_VIRTLOG /embperl/log
 PerlSetEnv EMBPERL_LOG $EPPATH/test/tmp/test.log
 SetEnv EMBPERL_LOG $EPPATH/test/tmp/test.log

@@ -63,7 +63,7 @@ HTML::Embperl::Execute ({input		=> \'<P>Transfer some vars [+ $Var +] !</P>',
 print "<H1> 5.) Use \@param to pass parameters</H1>\n" ;
 
 
-HTML::Embperl::Execute ({input		=> \'<P>Use @param to transfer some data ([+ "@param" +]) !</P>',
+HTML::Embperl::Execute ({input		=> \'<P>Use \@param to transfer some data ([+ " @param " +]) !</P>',
 						 inputfile	=> 'Param',
 						 req_rec    => $r,
 						 param      => [1, 2, 3, 4] }

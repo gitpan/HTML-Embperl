@@ -1,12 +1,15 @@
-Changes
+Changes.pod
 Embperl.pm
 Embperl.xs
 MANIFEST
 Makefile.PL
 README
 TODO
-Faq
+Faq.pod
 CVS.pod
+INSTALL.pod
+Intro.pod
+Embperl.pod
 eg/README
 eg/images/jazzbkgd.gif
 eg/x/neu.htm
@@ -20,6 +23,7 @@ eg/x/dbi2.htm
 eg/x/input.htm
 eg/x/recordset.htm
 eg/x/Execute.pl
+eg/x/upload.htm
 embpcgi.c
 embperl.h
 embpexec.pl
@@ -71,6 +75,7 @@ test/html/http.htm
 test/html/exit.htm
 test/html/exit2.htm
 test/html/post.htm
+test/html/upload.htm
 test/html/nochdir/nochdir.htm
 test/html/allform/allform.htm
 test/html/stdout/stdout.htm
@@ -119,6 +124,7 @@ test/cmp/http.htm
 test/cmp/exit.htm
 test/cmp/exit2.htm
 test/cmp/post.htm
+test/cmp/upload.htm
 test/cmp/npherr.htm
 test/cmp/div.asc
 test/conf/httpd.conf.src

@@ -223,4 +223,10 @@
 #ifndef maxo
 #define maxo PL_maxo
 #endif
+#else
+
+#define ERRSV GvSV(errgv)
+#define dTHR
+
+
 #endif /* PERL5_005 */

@@ -24,6 +24,7 @@ extern "C" {
 
 #include "epnames.h"
 #include "embperl.h"
+#include <time.h>
 
 static int
 not_here(s)
@@ -269,3 +270,15 @@ log_svs(sText)
 CODE:
         lprintf ("[%d]MEM:  %s: SVs: %d OBJs: %d\n", nPid, sText, sv_count, sv_objcount) ;
 
+
+
+double
+Clock()
+CODE:
+#ifdef CLOCKS_PER_SEC
+        RETVAL = clock () * 1000 / CLOCKS_PER_SEC / 1000.0 ;
+#else
+        RETVAL = clock () ;
+#endif        
+OUTPUT:
+    RETVAL

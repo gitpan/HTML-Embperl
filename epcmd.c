@@ -1251,8 +1251,10 @@ static int HtmlTableHead (/*in*/ const char *   sArg)
 /* ---------------------------------------------------------------------------- */
 
 
-static void SplitFdat     (/*in*/  SV ** ppSVfdat,
-                           /*out*/ SV ** ppSVerg)
+static SV * SplitFdat     (/*in*/  SV ** ppSVfdat,
+                           /*out*/ SV ** ppSVerg,
+                           /*in*/  char * pName,
+                           /*in*/  STRLEN nlen)
 
     {
     STRLEN dlen ;
@@ -1260,9 +1262,13 @@ static void SplitFdat     (/*in*/  SV ** ppSVfdat,
     char * s ;
     char * p ;
     
-    if (SvOK (*ppSVerg))
-        return ;
-    
+    if (ppSVerg && *ppSVerg)
+        lprintf ("ok refcnt = %d type=%d\n", SvREFCNT (*ppSVerg), SvTYPE (*ppSVerg)) ;
+    if (ppSVerg && *ppSVerg && SvTYPE (*ppSVerg))
+        {
+        return *ppSVerg ;
+        }
+
     pData = SvPV (*ppSVfdat, dlen) ;
     s = pData ;
 
@@ -1282,18 +1288,22 @@ static void SplitFdat     (/*in*/  SV ** ppSVfdat,
         l = dlen - (s - pData) ;
         if (l > 0)
             hv_store (pHV, s, l, &sv_undef, 0) ;
-        *ppSVerg = (SV *)pHV ;
+        hv_store (pFormSplitHash, (char *)pName, nlen, (SV *)pHV, 0) ;
         if (bDebug & dbgInput)
             lprintf ("[%d]INPU: <mult values>\n", nPid) ; 
+        lprintf ("new hv refcnt = %d type=%d dat=%s\n", SvREFCNT (pHV), SvTYPE (pHV), pData) ;
+        return (SV *)pHV;
         }
     else
         {
-        *ppSVerg = *ppSVfdat ;
-        SvREFCNT_inc (*ppSVerg) ;
+        SvREFCNT_inc (*ppSVfdat) ;
+        hv_store (pFormSplitHash, (char *)pName, nlen, *ppSVfdat, 0) ;
+        lprintf ("new refcnt = %d type=%d dat=%s\n", SvREFCNT (*ppSVfdat), SvTYPE (*ppSVfdat), pData) ;
         if (bDebug & dbgInput)
-            lprintf ("[%d]INPU: value = %s\n", nPid, SvPV(*ppSVerg, na)) ; 
+            lprintf ("[%d]INPU: value = %s\n", nPid, SvPV(*ppSVfdat, na)) ; 
+        return *ppSVfdat ;
         }
-   }    
+    }    
 
 /* ---------------------------------------------------------------------------- */
 /*                                                                              */
@@ -1335,11 +1345,9 @@ static int HtmlSelect (/*in*/ const char *   sArg)
             }
         else
             {
-            SV * * ppSVerg = hv_fetch(pFormSplitHash, (char *)pName, nlen, 1) ;  
+            SV * * ppSVerg = hv_fetch(pFormSplitHash, (char *)pName, nlen, 0) ;  
 
-            SplitFdat (ppSV, ppSVerg) ;
-
-            HtmlState.pSV = *ppSVerg ;
+            HtmlState.pSV = SplitFdat (ppSV, ppSVerg, (char *)pName, nlen) ;
             SvREFCNT_inc (HtmlState.pSV) ;
             if (bDebug & dbgInput)
                 lprintf ("[%d]INPU: Select %s = %s\n", nPid, HtmlState.sArg, SvPV(HtmlState.pSV, na)) ; 
@@ -1551,22 +1559,22 @@ static int HtmlInput (/*in*/ const char *   sArg)
         
         if (vlen > 0 && ppSV)
             {
-            SV * * ppSVerg = hv_fetch(pFormSplitHash, (char *)pName, nlen, 1) ;  
-
-            SplitFdat (ppSV, ppSVerg) ;
+            SV * pSV ;
+            SV * * ppSVerg = hv_fetch(pFormSplitHash, (char *)pName, nlen, 0) ;  
+            lprintf ("ref name = <%s> %d\n", pName, nlen) ; 
+            pSV = SplitFdat (ppSV, ppSVerg, (char *)pName, nlen) ;
     
-            if (SvTYPE (*ppSVerg) == SVt_PVHV)
+            if (SvTYPE (pSV) == SVt_PVHV)
                 { /* -> Hash -> check if key exists */
-                if (hv_exists ((HV *)*ppSVerg, (char *)pVal, vlen))
+                if (hv_exists ((HV *)pSV, (char *)pVal, vlen))
                     bEqual = 1 ;
                 }
             else
                 {
-                pData = SvPV (*ppSVerg, dlen) ;
+                pData = SvPV (pSV, dlen) ;
                 if (dlen == vlen && strncmp (pVal, pData, dlen) == 0)
                     bEqual = 1 ;
                 }
-            
             }
        
         pCheck = GetHtmlArg (sArg, "CHECKED", &clen) ;

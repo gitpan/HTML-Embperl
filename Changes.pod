@@ -1,0 +1,580 @@
+=pod
+
+=head1 1.1.1  15 Sep 1998
+
+   - A lot of documentation updates. Now Embperl ships with most of 
+     the documentation which is also available on 
+           http://perl.apache.org/embperl/
+     This includes:
+     - Intro.pod  an introduction to Embperl
+     - Faq.pod    an new very much extented version of the FAQ
+     and a lot of spell checking, gramar checking and so on
+     Thanks very much to Nora Mikes for putting together the FAQ
+     and doing a lot of proof reading.
+   - eg/x/upload.htm an example for file upload within Embperl
+   - splited documentation out of Embperl.pm into Embperl.pod
+     to make it load a little bit faster (Embperl.pm is now 30K
+     instead of 90K)
+   - Optimized the loading of other modules. Other modules are now
+     only loaded when really necessary. This make Embperl in CGI mode
+     about 2 times faster then version 1.1.0 was.
+   - Added a test for file-upload
+   - Embperl compiles and works now with threaded perl, but Embperl
+     is currently B<not> threadsafe. So you can use Embperl in a
+     threaded environement, but you have to make sure that only one
+     thread useses Embperl at a time.
+   - Fixed a memory leak which has occured in checkboxes and selects 
+   - Enhanced test.pl
+   - MailFormTo: Send \n after mail header to work correctly with all 
+     mail servers, added EMBPERL_MAILHOST to specify mail server hostname,
+     MailFormTo dies when it can't connect to mailserver. Spotted by
+     Steffen Geschke.
+
+=head1 1.1.0  28 Jul 98
+
+   - Added support for perl5.005 (currently only without threads!)
+   - Nesting of metacommands and HTML tags are now independent of
+     each other. 
+   - Added examples in eg/x for do .. until, foreach, if, 
+     DBI datbase access, DBIx::Recordset database access and a
+     input- / confirmation form.
+   - Added optUndefToEmptyValue which will cause Embperl to treat non-
+     existent values in %fdat as an empty string in input tags, as suggested
+     by Steve Willer.
+   - Catch "die" within EMBPERL_INPUT/OUTPUT_FUNC and write error
+     message to the logfile
+   - Write error message of LWP::UserAgent in ProxyInput to logfile
+     if any
+   - Added test for POST Requests
+   - Added support for tests when mod_perl is built with USE_DSO. 
+     Spotted by Christian Oyarzun.
+
+   - Selects and checkboxes are setup correctly if state is set via %fdat.
+     Spotted by Todd Eigenschink and Steve Willer.
+   - Changes URL escaping so that only space, '+', '&', '=' and chars < 0x20
+     will be escaped to avoid problems with older netscape browsers.
+   - Added missing documentation for req_rec parameter of the Execute
+     function. Spotted by Eric Cholet.
+   - Send correct http header for error page, spotted by Steve Willer
+   - Fixed a memory leak in foreach metacommand
+   - Removed limit of 2048 Bytes for GET request data (there is no
+     limit anymore). Spotted by Steve Willer
+   - Read all POSTed data (not just the first 1024 Bytes). Patch from
+     Steve Willer.
+   - Removed some compiler warnings spotted by Tarang Kumar Patel
+   - Make sure all data is flushed to the logfile at the end of
+     each request
+   - Fixed a bug that causes Init to set DebugFlags to 1 instead of 0.
+     Spotted by Eric Cholet.
+
+=head1 1.1b2  27 Jun 98
+
+   - Added an additional note for input- and output- escaping
+     which is described in "Inside Embperl" section.
+     It's very important to understand this if you have any
+     problems with HTML tags or filehandles in your Perl code.
+   - Embperl will recognize Apache::exit. If called inside an
+     Embperl page or in a module called from an Embperl page,
+     the processing of the document is immediately aborted. 
+     Everything processed so far is output/sent to the browser.
+     Based on a patch from Steve Willer.
+   - When running under mod_perl, 'exit' is an alias for Apache::exit
+     in every document.
+   - Enhanced the format of the Errorpage. Thanks for the patch
+     from Steve Willer
+   - Added a [$ foreach $] and a [$ do $] ... [$ until $]
+     metacommand
+
+   - Now multiple checkboxes with the same name will be set
+     correctly, to the values posted to the document. Spotted
+     by Todd Eigenshink and Nathan Krislock.
+   - [+ local $escmode = 0 .... +] works now. The first setting
+     of $escmode in a [+ ... +] block will now applied to the
+     whole block. You cannot change $escmode inside a [+ ... +]
+     block. Spotted by Chris Thormann. 
+   - Fixed the return path setting in MailFormFields
+   - ProxyInput now passes http headers, so authentification
+     will be passed thru.
+   - Removed the limit 2048 for the length of HTML tags when [+ ... +]
+     are included. Now there is no limit anymore. Spotted by Doug Bagley
+
+
+=head1 1.1b1  14 Jun 98
+
+   - Now you can set custom input and/or output functions via
+     EMBPERL_INPUT_FUNC and EMBPERL_OUTPUT_FUNC. This can be
+     used to chain modules together or to get the input from
+     (or put the output to) non-standard locations.
+   - Added a function ProxyInput which can be used to fetch 
+     the input from another URL instead of the disk. One possible
+     usage for this is to let mod_include parse the document first 
+     and then let Embperl process it. Suggested by Steffen Geschke.
+   - Added a function LogOutput, which will write every generated
+     document to a unique file in addition to sending it to the
+     browser. Suggested by Dan Peterson.
+   - EMBPERL_FILESMATCH allows you to select which files in
+     a Location should be processed by Embperl. The rest are handled
+     by the Apache default handler. This allows you to have 
+     Embperl and non-Embperl documents (like gifs etc.) in
+     the same directory.
+
+   - Logfile was displayed at the wrong position when requested via the
+     browser the first time after the httpd was started.
+
+=head1 1.0.0  12 Jun 98
+
+   - Make test runs with Apache 1.3.0, spotted by Eric Cholet
+   - Added a definition for MAX_PATH, which is not there on SunOS 4.1.4.
+     Spotted by Dan Peterson
+   - Fixed a bug that causes Makefile.PL to interpret MakeMaker parameters
+     spotted by Jason Bodnar
+   - Fixed a bug that caused EMBPERL_PACKAGE not to be recognized.
+   - Fixed a bug that caused optDisableFormData not to be recognized for
+     multipart formdata.
+
+=head1 0.28-beta 19 May 1998
+
+   - I have added a chapter "Inside Embperl" to the docs, I hope this
+     will make it clearer how escaping and unescaping works and how you
+     can get desired results. Highly recommended! (Thanks for spell- and 
+     grammar-checking to Todd Eigenshink)
+   - make test now runs under win32 (You need to install LWP and libwin32)
+     IMPORTANT: You need a mod_perl version > 1.11 or you get a deadlock.
+   - Compiles with apache_1.3b6
+   - Added support for Stronghold and Apache_SSL to Makefile.PL and test.pl
+   - Changed dbgEarlyHttpHeader to optEarlyHttpHeader because it's not a
+     debugging option. dbgEarlyHttpHeader still persists, but will be removed
+     in one of the following versions
+   - Embperl does not change the current working directory when optDisableChdir
+     is set, this saves some milliseconds per request, also the cwd is moved
+     to the c code, so it runs faster then Cwd::fastwd.
+     Thanks to Doug Bagley for the profile which has shown how much time 
+     Cwd::fastcwd consumes
+   - You can set optDisableHtmlScan in EMBPERL_OPTIONS. If set, Embperl only
+     recongizes [+/-/$/! ... !/$/-/+], but will not do anything with HTML tags,
+     as suggested by Randy Harmon.
+   - optDisableInputScan, optDisableTableScan and optDisableMetaScan can be
+     used to disable only some of the HTML tag processing
+   - You can set optDisableFormData in EMBPERL_OPTIONS. If set, Embperl
+     will not setup the %fdat and @ffld, as suggested by Doug Bagley
+   - If you use Execute, the explicit call to Init/Term isn't needed anymore,
+     because Embperl performs the Init automatically when it is loaded. The 
+     Init function can still be used to change the path of logfile. Suggested
+     by Honza Jirousek
+   - All options and debugging flags can now be read/set at runtime. For
+     example $optRawInput = 1 sets the optRawInputFlag. Some of the options
+     are read-only, because they must be known before the request.   
+   - Added more tests  
+   - Embperl discards all errors which occur in an expression after the end
+     of a dynamic table, and which are only evaluated to detect the table end and
+     never displayed. This allows usage of object methods in dynamic tables,
+     where the table end is caused by an undefined object. (see
+     test/html/object.htm for an example). Spotted by Jason Bodnar.
+   - Printing to filehandle OUT has the same effect as using [+ .. +] 
+     (including html-escaping)
+   - Setting optRedirectStdout causes Embperl to tie STDOUT to the Embperl
+     output stream (same as print OUT ...), suggested by Jason Bodar
+   - Setting optAllFormData will make empty formfields occur in %fdat and @ffld
+     with an empty string value, suggested by Dan Peterson
+
+   - Embperl now handles SELECT MULTIPLE correct. All OPTIONs which are
+     posted to the document will now be selected by Embperl, spotted by
+     Todd Eigenschink
+   - Fixed a bug that caused a '>' inside a [$/! ... !/$] block to be 
+     interpreted as the end of a HTML tag, spotted by Todd Eigenschink.
+   - Fixed a bug which caused the SELECT/OPTIONS tag to not insert their
+     values in %idat and therefore made [$hidden$] work incorrectly, spotted by
+     Dave Paris [aka Spider]
+   - Fixed a bug that caused the INPUT CHECKBOX tag to not insert its  
+     value in %idat when the value wasn't in %fdat and therefore made [$hidden$] 
+     work incorrectly.
+   - Fixed a problem that caused magical variables to be handled as if they
+     were undefined, which caused dynamic tables to end, sometimes prematurely.
+   - Closing HTML tags will be correctly removed form Perl source again
+     (when optRawInput is not set)
+   - &nbsp; will be translated to space (0x20) instead of 0xf0
+   - When EMBPERL_DEBUG is set 0, only errors and warnings will be written to
+     the logfile
+   - MailFormTo will generate the correct TO header and insert a Return-Path
+     from the posted e-mail address
+   - Changed detection of mod_perl to $ENV{MOD_PERL}. This makes sure that
+     it will work correctly, even if Apache.pm isn't loaded.
+   - Re-entered the optDisableEmbperlErrorPage, which was lost in one of the last
+     releases, spotted by Doug Bagley.
+   - The content_length of the Apache request_rec will only be set when a http
+     header is sent.
+   - If, Elsif and While metacommands now use SvTRUE instead of a != 0 to test the
+     evaluated expression, so they now behave like the Perl ones do. Spotted by Jason 
+     Bondar
+
+=head1 0.27-beta not available
+
+=head1 0.26-beta 16 Mar 98
+
+   - Adapt include pass to compile with apache_1.3b5
+   - Applied patch from Dan Walters to make Embperl compile with 
+     apache_1.3b3 and mod_perl on Win 32
+   - Changed the order of included c headers and undef some macros 
+     inbetween (copied from mod_perl.c) to compile with Apache on Win 32
+   - Embperl works with apache_1.3b5 on Win NT ('make test' does not yet)
+     (You need the Apache source and must compile Perl with the vc++)
+
+   - Added the 'param' parameter to the 'Execute' function to pass parameters
+     from and to the Embperl document.
+   - Added the 'fdat' and 'ffld' parameter to the 'Execute' function to
+     setup %fdat and @ffld   
+	
+   - Fixed a problem which displayed tables a second time after the end of 
+     the document, if dbgEarly HttpHeaders was on, thanks to Ask Bjorn Hansen
+     for spotting this.
+   - Fixed the return values of CheckFile, which was not correct after a change
+     from 0.24 to 0.25. Thanks to Todd Eigenschrink for spotting this.
+   - Fixed an error which was causing Embperl to crash on an HTML input tag without
+     the 'type' parameter. Thanks to Todd Eigenschrink for the hint.
+   - Fixed a problem that caused Embperl to not recognize errors correctly 
+     when reading the sourcefile
+     
+
+=head1 0.25-beta 17 Feb 1998
+
+   - Included the "translation" of the Embperl POD to a human-readable
+     form done by Todd Eigenschink
+   - Started a FAQ file from the questions I answered by e-mail
+   - Added the function Execute, which can be called from Perl programs
+     (or Apache::Registry scripts), and can take input from (and/or
+     output to) memory, as suggested by Doug Bagley and Randy Harmon
+     (Look at test/html/registry/Execute.htm for an example)
+   - Changed the source so that it will compile on aix, spotted by
+     Patrick McAuliffe 
+   - Access sys_errlist via perl macro Strerror to avoid errors with
+     redeclaration, thanks for spotting this to Honza Jirousek
+   - Changed the tab size from 4 to 8 in my editor to be compatible with
+     Unix standard
+   - Added warning if dbgLogLink is set and EMBPERL_VIRTLOG is not
+   - Changed the delimiter of metacommand from space to any non-alpha char
+     to allow writing [$while(a==b)$] as suggested by Michael D. Dowling
+   - Added config variable EMBPERL_ESCMODE to set inital values of $escmode
+     as suggested by Todd Eigenschink
+   - Added [! ... !]. Does just the same as [- ... -] but will only execute
+     on the first request for that document. This can be used to do one-time
+     initialization and to define subroutines.
+   - Changed push_handlers to register_cleanup, so PERL_STACKED_HANDLERS and
+     PERL_CLEANUP aren't necessary anymore, as suggested by Doug MacEachern
+   - If it exists, the function CLEANUP of the processed document will be called
+     before the variable cleanup, but after the connection to the client is closed
+   - Added a closing </font> in the logfile which is sent to the browser, otherwise 
+     MS IE 4 can't handle it     
+   - Changed Perl constants in Perl part from subroutines to "real" constants
+   - Did some general rearranging of code
+
+   - Fixed a memory leak which caused Embperl to lose one sv per Perl
+     block when a document is reloaded
+   - Fixed a bug which caused [+... +] within the Textarea tag to be ignored,
+     spotted by Todd Eigenschink
+   - Fixed a bug in sorting hidden fields
+   - Fixed a wrong argument to MakeMaker, which was causing Embperl to not be able
+     to build statically, spotted by Anatoli Belomestnov (and added a 
+     description to the Faq on how to build a copy of Embperl which is statically-
+     linked to mod_perl)
+   - Fixed a problem which was causing the LOG filehandle to not be imported in 
+     the documents package, this was causing everything printed to LOG to sort 
+     of disappear 
+   
+=head1 0.24-beta 13 Jan 1998 
+
+   - Added the option optRawInput which causes Embperl not to pre-process the
+     source for a Perl expression (the only exception is that CR will be removed).
+     This option should be set when you are writing your code with an ascii editor. 
+     If you are using a WYSIWYG editor, which inserts unwanted HTML tags in your
+     Perl expressions and escapes special characters automatically (i.e.
+     < will occur as &lt; in the source), you should not set this option, and
+     Embperl will automatically convert the HTML input back to the Perl
+     expression you have written. (Thanks to Todd R. Eigenschink for a patch)
+   - $0 is set to the filename of the HTML source
+   - Change Current Working Directory to directory of HTML source
+   - Warning messages are now also logged in logfile at the correct
+     position, next to the source line
+   - Perl error and warning messages contain the filename and correct
+     linenumber of the HTML source
+   - Sourcelines in logfile contain linenumbers
+   - Output via [+ ... +] of undefined values at the end of a dynamic table
+     (which must be there to end the table) do not generate a warning anymore  
+     NOTE: If you use them in an expression (such as $a = $arr[$row] or simply
+     inside " ", you will still get a warning)  
+   - Open HTML source in binary mode on Win32 to avoid overhead of crlf -> lf
+     translation.
+   - Use aplog_error for apache_1.3 to avoid senseless os errors written to
+     httpd error log
+
+   - Removed some uninitializied value messages when running with
+     -w / PerlWarn on, spotted by Todd R. Eigenschink 
+   - Fixed a bug which has caused nested 'while' loops to execute incorrectly 
+     if the condition of the outer one is false 
+
+=head1 0.23-beta 31 Dec 1997
+
+   - Fixed a bug which caused $req_rec to be not defined anymore (Thanks to
+     Todd R. Eigenschink for the hint and debugging)
+   - Fixed a bug in escaping special HTML char to normal ascii (Thanks to
+     Todd R. Eigenschink for the hint)  	
+   - Makefile.PL now sets the path to your Perl binary in embpexec.pl and
+     embpexec.test.pl, so that it works regardless of where your Perl is located
+     (Thanks to Randall Schwartz for the hint)
+   - Added the SSLDisable to the test config when running an httpsd. (Thanks
+     to David Scott for the hint and Ralf S. Engelschall for the Syntax)
+   - Fixed a bug in <META> tag interpretation which was causing random errors 
+     when not compiled for mod_perl
+
+=head1 0.22-beta 28 Dec 1997
+
+    - Changed include path generated in Makefile.PL so Embperl also
+      compiles with apache_1.3b3 (Thanks to Doug Bagley for the hint)  
+
+=head1 0.21-beta 25 Dec 1997
+
+    - Embperl offline mode now works under Win 32 (mod_perl and cgi mode
+      not tested under Win 32 yet, but maybe it works too)
+    - Totally reworked safenamespace and operatormask handling. Works now
+      without memory leak, is fully configurable and also does p-code
+      caching. If you use it, please look at the documentation, because
+      the configuration has changed.
+    - Embperl now sends its own error document if it detects an error.
+      The page contains all the error messages and if you have the
+      dbgLogLink enabled, all errors are links to the corresponding
+      line in the logfile. (this can be disabled with optDisableEmbperlErrorPage)
+    - Added new metacommand [$VAR ... $], which can be used to declare
+      variables and apply the strict pragma (same as use strict ; use vars )  
+    - Added debug flag dbgHeadersIn which causes Embperl to log all http 
+      headers which are received from the client
+    - Don't change any unknown HTML Escapes (i.e. && has been translated
+      to ? in versions < 0.21)
+    - dbgShowCleanup logs all variables which are automatically undefined at the
+      end of a request (for scalars the value is also shown)
+    - Error messages will also be cached, so that the compiling of the code
+      only takes place once, because erroneous Perl code will cause memory
+      leaks in Perl itself if it's compiled on and on and on.
+    - Optimized the compiling of the embedded Perl code
+    - Changed use Apache::Constants to conform with the new default exports
+      introduced in mod_perl-1.07_01
+    - Output of the 'hidden' metacommand is sorted in the same order as the input
+      from the formfields (sorting order can also be supplied as third argument)
+    - <meta http-equiv= ... > will override the corresponding http header
+      (this keeps netscape from asking the user to reload the document
+      when the content-type differs between the http header and the
+      meta http-equiv)
+      This can also be used to set http headers
+      
+    - Fixed a problem that Embperl magic variables do not work when
+      the package exists before the first call to Embperl
+    - Fixed a problem that caused a SIGSEGV when retrieving the same document
+      containing a Perl error for the second time from the same child
+    - Fixed a problem that caused Embperl to terminate in offline/cgi-mode
+      when the file was not found or when access was forbidden
+    - Fixed a problem with the 'hidden' metacommand, which came up when 
+      arguments were supplied with surrounding spaces
+    - Fixed a problem that Embperl did not handle metacommands correctly
+      when HTML tags (e.g. <br>) were embedded
+      
+=head1 0.20-beta 15 Nov 97
+
+    - Every file is executed in a separate package (don't confuse this 
+      with safe namespaces) to reduce unwanted effects on each other
+    - Added the configuration directive EMBPERL_PACKAGE which can be used to override
+      the automatically-generated package name
+    - The namespace (package) used by a request is cleaned up afterwards.
+      That means that every scalar, hash or array is undef'ed after the 
+      request to make sure nothing is lying around to possibly make the next request
+      misbehave.
+      This requires mod_perl with PERL_CLEANUP=1 and PERL_STACKED_HANDLER=1!
+      NOTE: To get persistent variables, place them in another namespace i.e.
+      write $persistent::x instead of $x 
+    - Added configuration directive EMBPERL_OPTIONS to configure various runtime
+      options. Now only the scalar cleanup can be disabled.
+    - use log_error for writing to Apache error log to get timestamp
+    - Escaping inside an <A> tag is changed from an HTML escape to a URL escape
+      i.e. the space is translated to + and & is translated to %26 and so on
+    - Escaping can now be turned on and off via $escmode
+    - Concats ENV and cgi_env under mod_perl so that PerlSetEnv can be used
+      instead of SetEnv for configuration. In contrast to SetEnv, PerlSetEnv
+      allows different values per directory/virtual host
+    - Added two links to show source-loglines and eval-loglines when dbgLogLink
+      is enabled to have a quick jump to the logfile
+    - Reget pid for every request, so the correct one will be written to the
+      logfile, also when Embperl is loaded at server startup
+    - Check error log in make test, added test for error output
+
+    - Fixed a bug which causes Embperl to cause a SIGSEGV when a Perl syntax
+      error occurred
+    - Fixed a bug so that a '>' inside of [+/- ... -/+] is not detected as the end
+      of an HTML tag (Thanks to Todd R. Eigenschink)
+
+=head1 0.19-beta 29 Oct 97
+
+    - Rewrote the code for the LOG handle. Now the handle LOG is tied so that every
+      print/printf is written to embperl.log at the right position. Use this to 
+      do logging from your embedded code or modules
+    
+    - Fixed a bug which caused garbage to be displayed in dynamic tables (or made 
+      parts of the table disappear) 
+
+=head1 0.18-beta 25 Oct 97
+
+   - Added caching of p-code. Now all Perl code is compiled only once. On the
+     second request, the compiled p-code is used. This makes, for example, the 
+     table.htm from the test about 4 times faster on the second run then it was in
+     previous versions of Embperl. Also, tables and loops are faster in the first
+     request, because the code is only compiled in the first iteration.  
+   - <Select>/<option> is now handled like <input>, this means that if a value
+     for the select exists in %fdat, the corresponding option is automatically
+     selected.
+   - Added support for table heading (<th> tag). If all cells in a row are surrounded
+     by <th>/</th> instead of <td>/</td> the row is interpreted as column headings and
+     printed only once. Row headings are not supported yet, but in one of the next versions... 
+   - Added support for multipart/formdata to support fileupload. Embperl automatically 
+     detects  multipart/formdata and lets CGI.pm handle it. The results are also
+     present in @ffld and %fdat like for normal formdata. See CGI.pm for more docs.
+     (Thanks to eigenstr@mixi.net for the idea and material)
+   - Now all the output is kept in memory and the http-header are sent when the
+     processing is finish. This gives the ability to set http-headers (only under mod_perl)
+     within the page. Also now the Content-Length can be sent in the http-header.
+     (Thanks to eigenstr@mixi.net for the idea and material)
+   - Added tests for mod_perl mode and running as cgi-script, if compilation
+     for mod_perl is enabled (Thanks to Doug MacEachern for lots of ideas
+     and code I have borrowed from his mod_perl)
+   - Removed "= true" in MailFormTo which caused a warning and didn't declare
+     syserr_list in ep.h on FreeBSD (Thanks to Michael Fuhr for the hints)
+   - Added SYSNOPSIS section to docs to avoid pod2man warning and changed
+     apache/src/regx to apache/src/regex in Makefile.PL (Thanks to Bob Wilkinson)
+   - Splitted C-sources in some more source files
+
+   - Fixed two minor memory leaks. Now the Embperl test suite can run 1000 times and
+     more without making the httpd grow!
+
+=head1 0.17-beta  30 Aug 97
+
+   - Removed some Compiler Warnings (Thanks to Ian Kallen for reporting them)
+
+=head1 0.16-beta  29 Aug 97
+
+   - Added more restrictive access check when running under mod_perl 
+     * Option ExecCGI must be set
+     * must not be a directory
+   - Added a (few) more docs about how to view the Embperl logfile with
+     your browser
+   - Added a declaration for error-dependent stuff to compile on Solaris, check errno before
+     accessing sys_errlist to avoid SIGSEVs, Fixed another warning from Sun Pro C Compiler
+     (Thanks to Dan Peterson)
+   - Switched I/O to PerlIO if supported by installed Perl version.
+     Should now work with sfio (not tested yet)
+   - Added possibilty to include Embperl commands in all HTML tags 
+     (did not work for body, table and tr tags in previous versions)
+   - Will now preserve case of HTML tags
+   - Do not interpret unknown HTML tags in any way, so as to handle "<" characters
+     which do not start a HTML tag better 
+   - Do not display the time needed for the request if CLOCKS_PER_SEC not
+     defined (e.g. SunOS - Thanks to Dan Peterson)
+   - Added apache_xx/src/regx to include path, to avoid problems when
+     Apache was built with its own regx library
+   - Now Embperl shows which tags don't match in error message (table, dir, select etc.)
+   
+   - Fixed a bug which caused "[" characters to be printed even in a false 
+     if path   
+
+
+=head1 0.15-beta  11 July 1997
+
+    - Added interpretation of SELECT Tag to generate dynamic listboxes
+      from an arrary 
+    - Fixed a problem with dynamic lists
+    - Fixed some warnings displayed by the Sun Pro C Compiler (Thanks to Dan Peterson)
+    - Fixed an error message about missing IO::Handle 
+    - Changed all // comments to /* */ to be more compatible with compilers other
+      than the gnu-c compiler
+    - Inserted a missing return in oputc which caused a SIGSEV on Solaris  (Thanks 
+      to Dan Peterson) 
+    - Checked return code of Logfile open, to prevent a SIGSEV when Embperl cannot
+      write to the logfile (it now writes an error message in server's errorlog)  
+      (Thanks to Dan Peterson)
+    - Errors will also be logged to the server's error log (written to stderr)
+          
+
+=head1 0.14-beta 30 Juni 1997  
+
+    - adding 8192 to EMBPERL_DEBUG and setting EMBPERL_VIRTLOG will add a link
+      to Embperl output, so you can directly view the right part of the logfile
+      with your browser
+    - Added the LOG filehandle to print to the Embperl logfile
+    - Added the possibility to handle multiple form fields with same name
+    - chars which are a result of a Perl expression will not be escaped to HTML if
+      they are prefixed with a backslash
+    - Added support for scanning the parameters of input tags for Perl code i.e.
+      [- -] and [+ +] substitution takes place
+    - Replaced carriage return in Perl expression with space to avoid Perl 5.004 error
+      about carriage return
+    - added $req_rec to access the Apache server api when running under mod_perl
+
+    - Fixed a bug in Safe namespace handling which was always causing ERR: 17 Namespace unknown
+    - Fixed a bug which caused dynamic tables to end, if a 'if', 'while' and etc. was included 
+    - Fixed a bug that caused [$cmd$] to be executed only in the first iteration of a 'while' 
+      or a table
+    - Fixed some bugs in input tag interpretation
+    - Fixed a bug which occurred when Embperl encountered an input tag with value="" and %ffld=""
+    - Fixed a bug in embpexec.pl that caused the options to be ignored when running offline
+
+=head1 0.13-beta   April 26 1997
+
+    - Moved EPENTRY (embperl_init) down to avoid crashing when compiled with
+      -DEPDEBUGALL
+    - Added #undefs for stdio function to compile with Perl > 5.003
+      NOTE: This is a quick hack, and will be changed to use PerlIO in
+      one of the next releases, so we can tie stdout of Embperl
+    - Added pids (to distinguish between muliplite requests) and time to
+      logfile output
+    - Made many functions static and names of externals more unique to
+      avoid conflicts of symbolnames with other modules
+    - If file not found return status 404 instead of 500
+    - Add Apache::Embperl so the module shows at CPAN also under 
+      module/by-module/Apache/ as suggested by Doug MacEachern
+
+=head1 0.12-beta not publicly released
+
+    - The mask has been removed from namespace option so it can be used
+      with safe.pm > 2
+    - Embperl works with -T / PerlTaintCheck on
+    - Add function MailFormTo to send form contents via email
+    - The dbgSource option displays only one line for better overview
+    - Fixed a bug which caused the Perl operator '<' to be interpreted 
+      as an HTML tag in tables or while loops after the first iteration
+    - Added ffld array for mod_perl mode to get the order of form fields
+    - Removed vsnprintf since its not available on all platforms
+    - Corrected handling of empty dynamic tables
+    - Fixed a bug which was causing a Segmentaion Fault when the first 
+      table is empty
+    - Added a script for make test
+    - Fixed Error with nested if
+    - Log compilation errors of embedded Perl code
+    - Avoid some warnings in Embperl.pm
+
+=head1 0.11-beta      March 25 1997
+
+    - Name changed from Embperl to HTML::Embperl!!!!!!!!
+    - FORM & ENV debug output now available in all modes
+    - Output from [+  +] and INPUT fields are escaped
+      (e.g. < is send as &lt; )
+    - Added two-dimensional tables
+    - Fixed a bug which caused an endless loop when using a \ 
+    - Fixed escaping of special HTML chars above ascii code 128
+    - Added support for list tags (dir, menu, ol, ul, dl)
+    - Added support for textarea tag
+    - Fixed some errors
+
+=head1 0.10b-beta	Jan 23 1997
+
+    - fixed some errors
+
+=head1 0.10beta 	Jan 18 1997
+
+    - first public beta release
+
+
+

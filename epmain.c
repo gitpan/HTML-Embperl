@@ -61,6 +61,7 @@ static char sInputHashName [] = "HTML::Embperl::idat" ;
 static char sErrArrayName  [] = "HTML::Embperl::errors" ;
 static char sErrFillName   [] = "HTML::Embperl::errfill" ;
 static char sErrStateName  [] = "HTML::Embperl::errstate" ;
+static char sHeaderArrayName  [] = "HTML::Embperl::headers" ;
 static char sTabCountName  [] = "HTML::Embperl::cnt" ;
 static char sTabRowName    [] = "HTML::Embperl::row" ;
 static char sTabColName    [] = "HTML::Embperl::col" ;
@@ -84,6 +85,7 @@ AV *    pFormArray ; /* Fieldnames */
 AV *    pErrArray ;  /* Errors to show on Error response */
 AV *    pErrFill ;   /* AvFILL of pErrArray, index is nMarker */
 AV *    pErrState ;  /* bError, index is nMarker  */
+/*AV *    pHeaderArray ;*/ /* contains http headers in cgi mode */
 
 HV *    pCacheHash ; /* Hash containing CVs to precompiled subs */
 
@@ -479,16 +481,6 @@ static int GetFormData (/*in*/ char * pQueryString,
             
                 if (nKey > 0 && (nVal > 0 || (bOptions & optAllFormData)))
                     {
-                    /* store the name\tvalue pair */
-                    pSVV = newSVpv (pVal, nVal) ;
-
-                    /*
-                    if (hv_store (pFormNameValueHash, pKey, p - pKey - 1, pSVV, 0) == NULL)
-                        {
-                        _free (pMem) ;
-                        return rcHashError ;
-                        }
-                    */
                     if (pVal > pKey)
                         pVal[-1] = '\0' ;
                     
@@ -499,7 +491,7 @@ static int GetFormData (/*in*/ char * pQueryString,
                         }
                     else
                         { /* New Field -> store it */
-                        /*SvREFCNT_inc (pSVV) ;*/
+                        pSVV = newSVpv (pVal, nVal) ;
                         if (hv_store (pFormHash, pKey, nKey, pSVV, 0) == NULL)
                             {
                             _free (pMem) ;
@@ -1281,6 +1273,14 @@ int iembperl_init (/*in*/ int           _nIOType,
         return 1 ;
         }
 
+    /*
+    if ((pHeaderArray = perl_get_av (sHeaderArrayName, TRUE)) == NULL)
+        {
+        LogError (rcArrayError) ;
+        return 1 ;
+        }
+    */
+
     if ((pInputHash = perl_get_hv (sInputHashName, TRUE)) == NULL)
         {
         LogError ( rcHashError) ;
@@ -1485,10 +1485,10 @@ static int SetupRequest   (/*in*/ char *  sInputfile,
     GV *    gv;
     char *  sMode ;
 
-    
+	dTHR ;
+
     EPENTRY (SetupRequest) ;
-
-
+	
     startclock      = clock () ;
     stsv_count      = sv_count ;
     stsv_objcount   = sv_objcount ;
@@ -1664,13 +1664,9 @@ static int StartOutput (/*in*/ char *  sOutputfile,
         }
     else
         {
-#ifdef APACHE
-        if (pReq == NULL && nIOType != epIOPerl && (bOptions & optSendHttpHeader))
-#else
-        if (nIOType != epIOPerl && (bOptions & optSendHttpHeader))
-#endif
+        if (nIOType == epIOCGI && (bOptions & optSendHttpHeader))
             oputs ("Content-type: text/html\n\n") ;
-
+            
         oBegin () ;
         }
 
@@ -1712,10 +1708,10 @@ static int EndOutput (/*in*/ int    rc,
         }
     
 
-    if (!(bOptions & optEarlyHttpHeader))
+    if (!(bOptions & optEarlyHttpHeader) && (bOptions & optSendHttpHeader) && !bOutToMem)
         {  /* --- send http headers if not alreay done --- */
 #ifdef APACHE
-        if (pReq && !bOutToMem && (bOptions & optSendHttpHeader))
+        if (pReq)
             {
             set_content_length (pReq, GetContentLength () + 2) ;
             send_http_header (pReq) ;
@@ -1737,8 +1733,22 @@ static int EndOutput (/*in*/ int    rc,
                 	lprintf ( "[%d]HDR:  %s=%s\n", nPid, hdrs[i].key, hdrs[i].val) ; 
         	}
             }
+       else
 #endif
-        }
+           { 
+            /*
+           if (nIOType == epIOCGI)
+                {            
+                char txt[100] ;
+
+                oputs ("Content-type: text/html\n") ;
+                sprintf (txt, "Content-Length: %d\n", GetContentLength () + 2) ;
+                oputs (txt) ;
+                oputs ("\n") ;
+                }
+            */
+           }
+       }
 
     /* --- output the content if not alreay done --- */
 

@@ -9,7 +9,5 @@ TODO for Embperl
 - delete empty lines
 
 
-- multiply checkboxes setup via %fdat
-
-- apache with DSO, make test
+- dSP; at setup request [Philip Chu]
 

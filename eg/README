@@ -45,6 +45,8 @@ Execute.pl      This is an perl script which shows how to use the function
                 HTML::Embperl::Execute. It runs under Apache::Registry or
                 offline.
 
+upload.htm      Shows how to do a file upload with Embperl
+
 You can also look at the directory test/html. The files found here
 will transformed to the files found in test/cmp, the request for that can
 be found at the beginning of test.pl.

@@ -74,6 +74,9 @@ static char sLogFilename [512] = "" ;
 
 #ifdef APACHE
 #define DefaultLog "/tmp/embperl.log"
+
+
+static request_rec * pAllocReq = NULL ;
 #endif
 
 /*
@@ -311,7 +314,7 @@ static void buffree ()
     struct tBuf * pBuf ;
 
 #ifdef APACHE
-    if ((bDebug & dbgMem) == 0 && pReq != NULL)
+    if ((bDebug & dbgMem) == 0 && pAllocReq != NULL)
         {
         pFirstBuf    = NULL ;
         pLastBuf     = NULL ;
@@ -653,7 +656,7 @@ int CloseOutput ()
     
     /* make sure all buffers are freed */
 
-    buffree () ;
+    /* buffree () ; */
 
 #if defined (APACHE)
     if (pReq)
@@ -1023,7 +1026,7 @@ void _free (void * p)
     size_t * ps ;
 
 #ifdef APACHE
-    if (pReq && !(bDebug & dbgMem))
+    if (pAllocReq && !(bDebug & dbgMem))
         return ;
 #endif
 
@@ -1052,6 +1055,8 @@ void * _malloc (size_t  size)
     size_t * ps ;
 
 #ifdef APACHE
+    pAllocReq = pReq ;
+
     if (pReq)
         {
         p = palloc (pReq -> pool, size + sizeof (size)) ;

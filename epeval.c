@@ -34,7 +34,8 @@ int  bStrict ; /* aply use strict in each eval */
 int EvalDirect (/*in*/    SV * pArg) 
     {
     dSP;
-    
+    SV *  pSVErr  ;
+
     EPENTRY (EvalDirect) ;
 
     tainted = 0 ;
@@ -43,22 +44,23 @@ int EvalDirect (/*in*/    SV * pArg)
     perl_eval_sv(pArg, G_SCALAR | G_KEEPERR);
 
 
-    if (SvTRUE (GvSV(errgv)))
-         {
-         STRLEN l ;
-         char * p = SvPV (GvSV(errgv), l) ;
-         if (l > sizeof (errdat1) - 1)
-             l = sizeof (errdat1) - 1 ;
-         strncpy (errdat1, p, l) ;
-         if (l > 0 && errdat1[l-1] == '\n')
-             l-- ;
-         errdat1[l] = '\0' ;
+    pSVErr = ERRSV ;
+    if (SvTRUE (pSVErr))
+	{
+        STRLEN l ;
+        char * p = SvPV (pSVErr, l) ;
+        if (l > sizeof (errdat1) - 1)
+            l = sizeof (errdat1) - 1 ;
+        strncpy (errdat1, p, l) ;
+        if (l > 0 && errdat1[l-1] == '\n')
+            l-- ;
+        errdat1[l] = '\0' ;
          
-	 LogError (rcEvalErr) ;
+	LogError (rcEvalErr) ;
 
-	 sv_setpv(GvSV(errgv),"");
-         return rcEvalErr ;
-         }
+	sv_setpv(pSVErr,"");
+        return rcEvalErr ;
+        }
 
     return ok ;
     }
@@ -83,6 +85,8 @@ static int EvalAll (/*in*/  const char *  sArg,
     static char sFormatArray []       = "package %s ; sub { \n#line %d %s\n[%s]\n}" ;
     static char sFormatStrictArray [] = "package %s ; use strict ; sub {\n#line %d %s\n[%s]\n}" ; 
     SV *   pSVCmd ;
+    SV *   pSVErr ;
+
     dSP;
     
     EPENTRY (EvalAll) ;
@@ -116,23 +120,24 @@ static int EvalAll (/*in*/  const char *  sArg,
     if (bDebug & dbgMem)
         lprintf ("[%d]SVs:  %d\n", nPid, sv_count) ;
     
-    if (SvTRUE (GvSV(errgv)))
-         {
-         STRLEN l ;
-         char * p = SvPV (GvSV(errgv), l) ;
-         if (l > sizeof (errdat1) - 1)
-             l = sizeof (errdat1) - 1 ;
-         strncpy (errdat1, p, l) ;
-         if (l > 0 && errdat1[l-1] == '\n')
-             l-- ;
-         errdat1[l] = '\0' ;
+    pSVErr = ERRSV ;
+    if (SvTRUE (pSVErr))
+        {
+        STRLEN l ;
+        char * p = SvPV (pSVErr, l) ;
+        if (l > sizeof (errdat1) - 1)
+            l = sizeof (errdat1) - 1 ;
+        strncpy (errdat1, p, l) ;
+        if (l > 0 && errdat1[l-1] == '\n')
+            l-- ;
+        errdat1[l] = '\0' ;
          
-	 *pRet = newSVpv (errdat1, 0) ;
+	*pRet = newSVpv (errdat1, 0) ;
          
-         LogError (rcEvalErr) ;
-	 sv_setpv(GvSV(errgv),"");
-         return rcEvalErr ;
-         }
+        LogError (rcEvalErr) ;
+	sv_setpv(pSVErr, "");
+        return rcEvalErr ;
+        }
 
     return ok ;
     }
@@ -159,6 +164,7 @@ static int EvalAllNoCache (/*in*/  const char *  sArg,
 #ifndef EVAL_SUB    
     SV *  pSVArg ;
 #endif
+    SV *  pSVErr ;
     dSP;                            /* initialize stack pointer      */
 
     EPENTRY (EvalAll) ;
@@ -216,21 +222,22 @@ static int EvalAllNoCache (/*in*/  const char *  sArg,
              TableState.nRowUsed))
             lprintf ("[%d]TAB:  nResult = %d\n", nPid, TableState.nResult) ;
         }
-     else
+    else
         {
         *pRet = NULL ;
         if (bDebug & dbgEval)
             lprintf ("[%d]EVAL> <NULL>\n", nPid) ;
         }
 
-     PUTBACK;
+	PUTBACK;
 
-     if (SvTRUE (GvSV(errgv)))
-         {
-         strncpy (errdat1, SvPV (GvSV(errgv), na), sizeof (errdat1) - 1) ;
-         LogError (rcEvalErr) ;
-	 num = rcEvalErr ;
-         }
+    pSVErr = ERRSV ;
+    if (SvTRUE (pSVErr))
+        {
+        strncpy (errdat1, SvPV (pSVErr, na), sizeof (errdat1) - 1) ;
+        LogError (rcEvalErr) ;
+	num = rcEvalErr ;
+        }
     else
         num = ok ;
 
@@ -286,7 +293,7 @@ static int CallCV  (/*in*/  const char *  sArg,
     int   nRowUsed   = TableState.nRowUsed ;
     int   nColUsed   = TableState.nColUsed ;
     int   bDynTab    = 0 ;
-    SV *  pErr ;
+    SV *  pSVErr ;
 
     SV *  pSVArg ;
     dSP;                            /* initialize stack pointer      */
@@ -362,49 +369,50 @@ static int CallCV  (/*in*/  const char *  sArg,
      /*if (SvREFCNT(*pRet) != 2)
             lprintf ("[%d]EVAL refcnt != 2 !!= %d !!!!!\n", nPid, SvREFCNT(*pRet)) ;*/
 
-
      PUTBACK;
      FREETMPS ;
      LEAVE ;
 
-     
-     pErr = GvSV(errgv) ;
-     if (SvTRUE (pErr))
+
+     pSVErr = ERRSV ;
+     if (SvTRUE (pSVErr))
         {
         STRLEN l ;
         char * p ;
 
-        if (SvMAGICAL (pErr) && mg_find (pErr, 'U'))
+        if (SvMAGICAL (pSVErr) && mg_find (pSVErr, 'U'))
             {
  	    /* On an Apache::exit call, the function croaks with error having 'U' magic.
  	     * When we get this return, we'll just give up and quit this file completely,
  	     * without error. */
              
-            struct magic * m = SvMAGIC (pErr) ;
+            struct magic * m = SvMAGIC (pSVErr) ;
 
-            sv_unmagic(pErr,'U');
- 	    sv_setpv(pErr,"");
+            sv_unmagic(pSVErr,'U');
+	    sv_setpv(pSVErr,"");
 
             return rcExit ;
             }
 
-         p = SvPV (pErr, l) ;
-         if (l > sizeof (errdat1) - 1)
-             l = sizeof (errdat1) - 1 ;
-         strncpy (errdat1, p, l) ;
-         if (l > 0 && errdat1[l-1] == '\n')
+        p = SvPV (pSVErr, l) ;
+        if (l > sizeof (errdat1) - 1)
+            l = sizeof (errdat1) - 1 ;
+        strncpy (errdat1, p, l) ;
+        if (l > 0 && errdat1[l-1] == '\n')
              l-- ;
-         errdat1[l] = '\0' ;
+        errdat1[l] = '\0' ;
          
-	 LogError (rcEvalErr) ;
+	LogError (rcEvalErr) ;
 
-	 sv_setpv(pErr,"");
-         return rcEvalErr ;
-         }
+	sv_setpv(pSVErr,"");
+
+	return rcEvalErr ;
+        }
 
      if (bDebug & dbgWatchScalar)
          Watch () ;
 
+     
     return ok ;
     }
 

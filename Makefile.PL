@@ -38,6 +38,21 @@ sub MY::xs_c
 	$txt =~ s/\&\&/\n\t/ if ($win32) ;
 	return $txt ;
 	}
+
+sub MY::dist_test 
+	{
+	my $self = shift ;
+        
+        my $txt = $self -> MM::dist_test (@_) ;
+	$txt =~ s/-I\$\(PERL_ARCHLIB\) -I\$\(PERL_LIB\)// ;
+	$txt =~ s/\$\(PERL\)/\$\(PERLDT\)/ ;
+	
+        $main::perlbinpath = $self -> {FULLPERL} ;
+        
+        return $txt ;
+	}
+	
+
 	
 
 ## ----------------------------------------------------------------------------
@@ -407,11 +422,29 @@ else
     close FH ;
     }
 
+WriteMakefile(
+    'NAME'	   => 'HTML::Embperl',
+    'VERSION_FROM' => 'Embperl.pm', 		# finds $VERSION
+    'OBJECT'     => 'Embperl$(OBJ_EXT) epmain$(OBJ_EXT) epio$(OBJ_EXT) epchar$(OBJ_EXT) epcmd$(OBJ_EXT) eputil$(OBJ_EXT) epeval$(OBJ_EXT)' . $o,
+    'LIBS'	   => [''],   			 
+    'DEFINE'	   => "$d \$(DEFS)", 			 
+    'INC'	   => $i,     			 
+    'MAN3PODS'     => { 'Embperl.pod' => 'Embperl' }, 
+    'clean'        => { FILES => 'dirent.h' },
+    'dist'         => { COMPRESS => 'gzip', SUFFIX => 'gz'},
+);
+
+
+
 #
 # Change path to perl binary
 #
 
 @bins = ('embpexec.pl', 'embpexec.test.pl', 'embpexec.bat', 'embpexec.test.bat') ;
+
+
+die "Missing path to perl binary" if (!$perlbinpath) ;
+
 
 foreach $f (@bins)
 	{
@@ -424,8 +457,8 @@ foreach $f (@bins)
 		{
 		if ($l++ < 10)
                     {
-                    s/^\#\!.*?perl.*?\s(.*?)/#!$Config{'perlpath'} $1/ ;
-		    s/^.*?perl.*?\s-x/$Config{'perlpath'} -x/ ;
+                    s/^\#\!.*?perl.*?\s(.*?)/#!$perlbinpath $1/ ;
+		    s/^.*?perl.*?\s-x/$perlbinpath -x/ ;
                     }
 		print OUT $_ ;
 		}
@@ -434,13 +467,3 @@ foreach $f (@bins)
 	chmod 0755, $f or die "Cannot set executable $f" ;
 	}
 
-WriteMakefile(
-    'NAME'	   => 'HTML::Embperl',
-    'VERSION_FROM' => 'Embperl.pm', 		# finds $VERSION
-    'OBJECT'     => 'Embperl$(OBJ_EXT) epmain$(OBJ_EXT) epio$(OBJ_EXT) epchar$(OBJ_EXT) epcmd$(OBJ_EXT) eputil$(OBJ_EXT) epeval$(OBJ_EXT)' . $o,
-    'LIBS'	   => [''],   			 
-    'DEFINE'	   => "$d \$(DEFS)", 			 
-    'INC'	   => $i,     			 
-    'clean'        => { FILES => 'dirent.h' },
-    'dist'         => { COMPRESS => 'gzip', SUFFIX => 'gz'},
-);

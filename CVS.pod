@@ -1,49 +1,48 @@
-=head1 NAME
 
-CVS - Access to the Embperl CVS development tree
+=head1 CVS - Access to the Embperl CVS development tree
 
-=head1 DESCRIPTION
+=head2 DESCRIPTION
 
 The Embperl development tree lives on the same machine as
 perl.apache.org.  This tree contains the latest Embperl bug fixes and
 developments that have not made it to CPAN yet.  Welcome to the
 bleeding edge. 
 
-=head1 SYNOPSIS
+=head2 SYNOPSIS
 
-Just as cvs access to the Apache development tree, the Embperl code
-pulled from cvs is not guaranteed to do anything, especially not
-compile or work.  But, that's exactly why we are using cvs, so
-everyone has access the latest version and can help see to it that
+Just like CVS access to the Apache development tree, the Embperl code
+pulled from CVS is not guaranteed to do anything, especially not
+compile or work.  But - that's exactly why we are using CVS - so that
+everyone has access the latest version and can help ensure  that
 Embperl does compile and work on all platforms, with the various
-versions and configurations of Perl and Apache.  Patches are always
-welcome, simply testing the latest snapshots is just as, if not more
+versions and configurations of Perl and Apache, once it is really 
+supposed to.  Patches are always
+welcome. Simply testing the latest snapshots is just as (if not 
+even more)
 helpful. 
 
 
-Here are the several ways to access the cvs tree.
+There are several ways to access the CVS tree:
 
-=over 4
-
-=item cvsup
+=head2 cvsup
 
 Cvsup has come out of the FreeBSD group. It's a client/server
 beast that offers an efficient way to sync collections of files over
 the net, and it is very CVS aware, allowing syncronisation of repositories
-or checked out files using the cvs deltas to bring the client side
+or checked out files using the CVS deltas to bring the client-side
 files up to date with minimal data transfer.
 
 For a FreeBSD cvsup client see:
 
 http://www.freebsd.org/cgi/ports.cgi?query=cvsup&stype=all
 
-Others (SunOS, alpha.osf, linux, Solaris2.4, HPAA 10.2, irix)
+Others (SunOS, alpha.osf, linux, Solaris2.4, HPAA 10.2, Irix)
 ftp://ftp.postgresql.org/pub/CVSup/
 
 Here's a config file for the client (cvsup) to sync Embperl sources.
 
  *default tag=.
- # comment out the above if you want the raw cvs files
+ # comment out the above if you want the raw CVS files
 
  *default host=apache.org
  *default prefix=/path/on/this/machine/to/install/
@@ -61,14 +60,14 @@ Here's a config file for the client (cvsup) to sync Embperl sources.
  #uncomment these three for the latest apache src, docs and/or mod_perl
  #  if you want them
 
-=item anoncvs
+=head2 anoncvs
 
 See http://dev.apache.org/anoncvs.txt.  The difference
 is that you use "embperl" instead of "apache-x.x".
 
-=item from-cvs
+=head2 from-cvs
 
-A snapshot is rolled of the Embperl tree every 6 hours and placed
+A snapshot is rolled off the Embperl tree every 6 hours and placed
 here:
 
 http://dev.apache.org/from-cvs/embperl/
@@ -82,15 +81,13 @@ and mod_perl can be found here
 
 http://dev.apache.org/from-cvs/modperl/
 
-=back
+=head2 MAILING LIST
 
-=head1 MAILING LIST
-
-There is a cvs mailing list for Embperl (This is B<not> a list for asking
+There is a CVS mailing list for Embperl (This is CVS - B<not> a list for asking
 questions about Embperl!!!). This list receives all changes which are
-commited to the cvs. If you want to know whats going on which Embperl,
-you can subcribe by sending a mail to B<embperl-cvs-request@apache.org>
-with B<subcribe> in the body.
+commited to the CVS. If you want to know what's going on which Embperl,
+you can subscribe by sending a mail to B<embperl-cvs-request@apache.org>
+with B<subscribe> in the body.
 
 
 =head1 SEE ALSO
