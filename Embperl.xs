@@ -118,7 +118,7 @@ OUTPUT:
 # /* ----- Request data ----- */
 
 tReq *
-embperl_SetupRequest(req_rec,sInputfile,mtime,filesize,nFirstLine,sOutputfile,pConf,nIOtype,pIn,pOut,sSubName,sImport) 
+embperl_SetupRequest(req_rec,sInputfile,mtime,filesize,nFirstLine,sOutputfile,pConf,nIOtype,pIn,pOut,sSubName,sImport,nSessionMgnt) 
     SV *    req_rec
     char *  sInputfile
     double  mtime
@@ -131,13 +131,14 @@ embperl_SetupRequest(req_rec,sInputfile,mtime,filesize,nFirstLine,sOutputfile,pC
     SV *    pOut
     char *  sSubName 
     char *  sImport
+    int     nSessionMgnt
 INIT:
     if (SvOK(ST(5)))
         sOutputfile = SvPV(ST(5), na);
     else
         sOutputfile = "\1" ; 
 CODE:        
-    RETVAL = SetupRequest(req_rec,sInputfile,mtime,filesize,nFirstLine,sOutputfile,pConf,nIOtype,pIn,pOut,sSubName,sImport) ;
+    RETVAL = SetupRequest(req_rec,sInputfile,mtime,filesize,nFirstLine,sOutputfile,pConf,nIOtype,pIn,pOut,sSubName,sImport,nSessionMgnt) ;
 OUTPUT:
     RETVAL
 
@@ -388,6 +389,16 @@ CODE:
 OUTPUT:
     RETVAL
 
+
+int
+embperl_SessionMgnt(r,...)
+    tReq * r
+CODE:
+    RETVAL = r -> nSessionMgnt ;
+    if (items > 1)
+        r -> nSessionMgnt = (int)SvIV(ST(1)) ;
+OUTPUT:
+    RETVAL
 
 
 int

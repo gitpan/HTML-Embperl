@@ -120,7 +120,8 @@ tReq * SetupRequest (/*in*/ SV *    pApacheReqSV,
                      /*in*/ SV *    pIn,
                      /*in*/ SV *    pOut,
     		     /*in*/ char *  sSubName,
-		     /*in*/ char *  sImport) ;
+		     /*in*/ char *  sImport,
+		     /*in*/ int	    nSessionMgnt) ;
 
 void FreeRequest (/*i/o*/ register req * r) ;
                    

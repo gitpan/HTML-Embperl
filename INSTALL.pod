@@ -22,7 +22,7 @@ used to build mod_perl.
 - B<make install>
 
 B<NOTE:> (only Embperl-1.2b1 or higher) For using session handling you need
-Apache::Session-0.17 or higher.
+Apache::Session-0.17 or higher. If possible use Apache::Session 1.01 or higher.
 
 =head2 WIN 32
 
@@ -62,7 +62,7 @@ B<NOTE:> nmake test needs libwin32, libwww and HTML::Parser installed to work
 B<nmake install>
 
 B<NOTE:> (only Embperl-1.2b1 or higher) For using session handling you need
-Apache::Session-0.17 or higher.
+Apache::Session-0.17 or higher. If possible use Apache::Session 1.01 or higher.
 
 
 =head2 Further Documentation

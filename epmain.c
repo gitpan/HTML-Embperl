@@ -1743,7 +1743,8 @@ tReq * SetupRequest (/*in*/ SV *    pApacheReqSV,
                      /*in*/ SV *    pIn,
                      /*in*/ SV *    pOut,
 		     /*in*/ char *  sSubName,
-		     /*in*/ char *  sImport)
+		     /*in*/ char *  sImport,
+		     /*in*/ int	    nSessionMgnt)
 
     {
     int     rc ;
@@ -1805,7 +1806,7 @@ tReq * SetupRequest (/*in*/ SV *    pApacheReqSV,
     /*r -> nIOType         = InitialReq.nIOType ;*/
 
     r -> sSubName        = sSubName ;
-    
+    r -> nSessionMgnt    = nSessionMgnt ;    
     r -> pConf           = pConf ;
 
     r -> pFiles2Free	 = NULL ;
@@ -2182,15 +2183,46 @@ static int EndOutput (/*i/o*/ register req * r,
             {
             if (!r -> bAppendToMainReq)
                 {                    
-		SV ** ppSVID ;
-                
+		SV **   ppSVID ;
+		SV *    pSVID ;
+                MAGIC * pMG ;
+		char *  pUID = NULL ;
+	        STRLEN  ulen = 0 ;
+
 		set_content_length (r -> pApacheReq, GetContentLength (r) + 2) ;
 		
-                ppSVID = hv_fetch (r -> pUserHash, sUIDName, sizeof (sUIDName) - 1, 0) ;
-		if (ppSVID && *ppSVID)
-		    {
-		    STRLEN ulen ;
-		    char * pUID = SvPV (*ppSVID, ulen) ;
+                
+		if (r -> nSessionMgnt)
+		    {			
+		    if (r -> nSessionMgnt == 2)
+			{			
+			if (pMG = mg_find((SV *)r -> pUserHash,'P'))
+			    {
+			    dSP;                            /* initialize stack pointer      */
+			    SV * pUserHashObj = pMG -> mg_obj ;
+			    int n ;
+
+
+			    PUSHMARK(sp);                   /* remember the stack pointer    */
+			    XPUSHs(pUserHashObj) ;            /* push pointer to obeject */
+			    PUTBACK;
+			    n = perl_call_method ("getid", 0) ; /* call the function             */
+			    SPAGAIN;
+			    if (n > 0)
+				{
+				pSVID = POPs;
+				pUID = SvPV (pSVID, ulen) ;
+				}
+			    PUTBACK;
+			    }
+			}
+		    else
+			{
+			ppSVID = hv_fetch (r -> pUserHash, sUIDName, sizeof (sUIDName) - 1, 0) ;
+			if (ppSVID && *ppSVID)
+			    pUID = SvPV (*ppSVID, ulen) ;
+			}
+		
 		    if (ulen > 0)
 			{
 			table_add(r -> pApacheReq->headers_out, sSetCookie, 
@@ -2202,7 +2234,6 @@ static int EndOutput (/*i/o*/ register req * r,
 			
 			}
 		    }
-		
 		
 		send_http_header (r -> pApacheReq) ;
 #ifndef WIN32

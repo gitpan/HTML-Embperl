@@ -260,6 +260,7 @@ struct tReq
     int     nIOType ;
     bool    bSubReq ;           /* This is a sub request (called inside an Embperl page) */
     char *  sSubName ;          /* subroutine to call */
+    int	    nSessionMgnt ;	/* how to retrieve the session id */
 
     
     /* --- Source in memory --- */

@@ -664,12 +664,16 @@ if ($b && $apache)
 
     $SessVer = CheckModule ("Apache::Session", "-> Disable tests for persistent data storage") || '' ;
 
-    if ($SessVer && !($SessVer =~ /0\.17/))
+    if ($SessVer && !($SessVer >= 1.01))
         {
-        print "-> Embperl works only with Apache::Session 0.17.x\n" ;
-        print "-> Disable tests for persistent data storage\n" ;
-        $SessVer = '0' ;
+        if ($SessVer && !($SessVer =~ /0\.17/))
+            {
+            print "-> Embperl works only with Apache::Session 0.17.x or 1.01 and higher\n" ;
+            print "-> Disable tests for persistent data storage\n" ;
+            $SessVer = '0' ;
+            }
         }
+
     $SessVer ||= 0 ;
 
     CheckModule ("CGI", "-> File Upload will not work without CGI.pm installed") ;

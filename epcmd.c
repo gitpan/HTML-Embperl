@@ -1700,7 +1700,7 @@ static int HtmlInput (/*i/o*/ register req * r,
     
     
     pVal = GetHtmlArg (sArg, "VALUE", &vlen) ;
-    if ((pVal || vlen != 0) && bCheck == 0)    
+    if ((pVal && vlen != 0) && bCheck == 0)    
         {
         pSV = newSVpv ((char *)pVal, vlen) ;
         TransHtmlSV (r, pSV) ;

@@ -204,7 +204,7 @@ int   TransHtml (/*i/o*/ register req * r,
 	    p++ ;
 	    }	
 
-    	return ; 	
+	return nLen ; 	
         }
         
     s = NULL ;

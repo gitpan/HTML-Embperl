@@ -937,7 +937,13 @@ Default is none.
 (only 1.2b4 or above) Set the expiration date that Embperl uses for the cookie with the session id.
 Default is none.
 
+=head2 EMBPERL_SESSION_CLASSES
 
+Space separted list of object store and lock manager for Apache::Session (see L<"Session handling">)
+
+=head2 EMBPERL_SESSION_ARGS
+
+List of arguments for Apache::Session classes (see L<"Session handling">)
 
 =head1 SYNTAX
 
@@ -1753,10 +1759,32 @@ From 1.2b2 and higher Embperl is able to handle per module/page persitent data f
 in the L<%mdat> hash and if any request comes to the same Embperl document, you will see the same 
 values in that hash again. (see B<IMPORTANT NOTE:> below for %mdat storage)
 
-To configure Embperl to do session management for you, you must have installed Apache::Session (0.17 or higher) and
-loaded it before you load Embperl and you must tell Embperl which storage you would like to use for
-Apache::Session, by setting the environement variable EMBPERL_SESSION_CLASS.
+To configure Embperl to do session management for you, you must
+have installed Apache::Session (1.01 or higher) and
+loaded it before you load Embperl and you must tell Embperl which
+storage and locker classes you would like to use for
+Apache::Session, by setting the environement variable EMBPERL_SESSION_CLASSES.
 You may have a B<startup.pl> for your httpd which looks like this:
+
+ $ENV{EMBPERL_SESSION_CLASSES} = "DBIStore SysVSemaphoreLocker" ;
+ $ENV{EMBPERL_SESSION_ARGS}    = "DataSource=dbi:mysql:session UserName=test" ;
+ use Apache::Session;
+ use HTML::Embperl ;
+
+or put it in the httpd/srm.conf like this
+
+ PerlSetEnv EMBPERL_SESSION_CLASSES "DBIStore SysVSemaphoreLocker"
+ PerlSetEnv EMBPERL_SESSION_ARGS "DataSource=dbi:mysql:session UserName=test"
+ PerlModule Apache::Session;
+ PerlModule HTML::Embperl ;
+
+
+C<EMBPERL_SESSION_ARGS> is a space separated list of name/value pairs, which gives
+additional arguments for Apache::Session classes.
+
+Older versions of I<Embperl> need I<Apache::Session> 0.17. You can use it like
+the following, but you should as soon as possible upgrade to newer Apache::Session
+an Embperl version:
 
 
  $ENV{SESSION_FILE_DIRECTORY}='/tmp/sessions' ;
@@ -1794,7 +1822,8 @@ operating modes.
 
 
 
-B<IMPORTANT NOTE for DBI and %mdat usage:> The storage of %mdat requires a proper serialization of the access.
+B<IMPORTANT NOTE for DBI and %mdat usage and Apache::Session 0.17 B<not> valid for 1.01!:> The
+storage of %mdat requires a proper serialization of the access.
 Apache::Session (version 0.17) is not able to provide this. While this is no problem when using the
 Apache::Session::Win32
 as storage class, this will be a problem for all other storage medias. The Embperl distribution comes with
@@ -2031,33 +2060,19 @@ it takes the following steps.
 
 =over 4
 
-=item 1.
+=item 1. Remove anything which looks like an HTML tag
 
-Remove anything which looks like an HTML tag
+=item 2. Translate HTML escapes to their corresponding ASCII characters
 
-=item 2.
+=item 3. Remove all carriage returns
 
-Translate HTML escapes to their corresponding ASCII characters
+=item 4. Eval the Perl code into a subroutine
 
-=item 3.
+=item 5. Call the subroutine
 
-Remove all carriage returns
+=item 6. Escape special characters in the return value
 
-=item 4.
-
-Eval the Perl code into a subroutine
-
-=item 5.
-
-Call the subroutine
-
-=item 6.
-
-Escape special characters in the return value
-
-=item 7.
-
-Send the return value as output to the destination (browser or file)
+=item 7. Send the return value as output to the destination (browser or file)
 
 =back
 
@@ -2319,7 +2334,7 @@ I have tested Embperl succesfully
 
 =item perl5.004_04
 
-=item perl5.005_01
+=item perl5.005_03
 
 =item apache_1.2.5
 
@@ -2335,13 +2350,19 @@ I have tested Embperl succesfully
 
 =item apache_1.3.4
 
+=item apache_1.3.5
+
+=item apache_1.3.6
+
 =item apache_ssl (Ben SSL)
 
 =item Stronghold 2.2
 
 =item Stronghold 2.4.1
 
-=item Apache_1.3.3 with mod_ssl
+=item Apache_1.3.3 with mod_ssl 2.0.13
+
+=item Apache_1.3.6 with mod_ssl 2.3.5
 
 =back
 
@@ -2357,17 +2378,18 @@ I know from other people that it works on many other UNIX systems
 
 =item apache_1.3.1
 
-=item apache_1.3.2
+=item apache_1.3.6
 
 =back
 
-=head2 on Windows 95 with
+=head2 on Windows 95/98 with
 
 =over 4
 
-=item perl5.004_02 (binary distribution)
+=item perl5.004_02 (binary distribution, only Offline Mode)
 
-=item Offline mode
+=item perl5.005_02 + apache_1.3.6
+
 
 =back
 

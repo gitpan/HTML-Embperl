@@ -1,5 +1,16 @@
 =pod
 
+=head1 1.2b7 (BETA) 30 Aug 1999
+
+   - Embperl works now with Apache::Session 1.01 
+     (1.01 _not_ 1.00 or below!)
+   - Cookie for session id is only send the first time and not
+     resend if it's already known by the browser. Suggested
+     by Roman Maeder.	
+   - Fixed a SIGSEGV that occurs with $optRawInput = 1 and a 
+     value is in %fdat, but not in the input html tag. Spotted
+     by Robert.	
+
 =head1 1.2b6 (BETA) 19 Aug 1999
 
    - When call another page via Execute EMBPERL_VIRTLOG will

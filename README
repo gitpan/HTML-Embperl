@@ -79,11 +79,12 @@ apache_1.3b5
 apache_1.3.0
 apache_1.3.1
 apache_1.3.4
+apache_1.3.6
 
-on Windows 95 with
+on Windows 95/98 with
 perl5.004_02 (binary distribution)
 Offline mode
-it's reported that it also work with mod_perl on Win95
+perl5.005_03 + apache_1.3.6 
 
 I know from other people that it works on many other UNIX systems
 

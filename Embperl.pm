@@ -74,7 +74,7 @@ use vars qw(
 @ISA = qw(Exporter DynaLoader);
 
 
-$VERSION = '1.2b6';
+$VERSION = '1.2b7';
 
 
 # HTML::Embperl cannot be bootstrapped in nonlazy mode except
@@ -341,14 +341,46 @@ tie *OUT, 'HTML::Embperl::Out' ;
 $SessionMgnt = 0 ;
 if (exists $INC{'Apache/Session.pm'})
     {
-    $SessionMgnt = 1 ;
-    tie %udat, 'Apache::Session', $ENV{EMBPERL_SESSION_CLASS} || 'Win32',
-                  undef, {not_lazy=>0, autocommit=>0, lifetime=>&Apache::Session::LIFETIME} ;
-    tie %mdat, 'Apache::Session', $ENV{EMBPERL_SESSION_CLASS} || 'Win32', 
-                  undef, {not_lazy=>0, autocommit=>0, lifetime=>&Apache::Session::LIFETIME} ;
-    warn "[$$]SES:  Embperl Session management enabled\n" ;
-    }
+    if (defined (&Apache::Session::cleanup))
+	{ # Apache::Session > 1.00
+	my ($os, $lm) = split /\s*,\s*|\s+/, $ENV{EMBPERL_SESSION_CLASSES} ;
+        if (!$os || !$lm)
+            {
+            warn "[$$]SES:  EMBPERL_SESSION_CLASSES must be set properly (is $ENV{EMBPERL_SESSION_CLASSES})" ;
+            }
+        else
+            {
+	    my @args  ;
+            if (defined ($ENV{EMBPERL_SESSION_ARGS}))
+                {
+                @args = split /\s*=\s*|\s*,\s*|\s+/, $ENV{EMBPERL_SESSION_ARGS} ;
+	        push @args, '' if (($#args & 1) == 0) ; # make even
+                }
 
+            my %sargs = (
+	        @args,
+                lazy	   => 1,
+	        create_unknown => 1,
+	        object_store   => $os,
+	        lock_manager   => $lm
+	        ) ;
+
+	    tie %udat, 'Apache::Session', undef, \%sargs ;
+	    tie %mdat, 'Apache::Session', undef, \%sargs ;
+	    $SessionMgnt = 2 ;
+	    warn "[$$]SES:  Embperl Session management enabled (1.xx)\n" ;
+            }
+	}
+    else
+	{ # Apache::Session = 0.17
+	$SessionMgnt = 1 ;
+	tie %udat, 'Apache::Session', $ENV{EMBPERL_SESSION_CLASS} || 'Win32',
+		      undef, {not_lazy=>0, autocommit=>0, lifetime=>&Apache::Session::LIFETIME} ;
+	tie %mdat, 'Apache::Session', $ENV{EMBPERL_SESSION_CLASS} || 'Win32',
+		      undef, {not_lazy=>0, autocommit=>0, lifetime=>&Apache::Session::LIFETIME} ;
+	warn "[$$]SES:  Embperl Session management enabled (0.17)\n" ;
+	}
+   }
 #######################################################################################
 
 #no strict ;
@@ -684,7 +716,7 @@ use strict ;
 	}
 
     my $r = SetupRequest ($req_rec, $Inputfile, $mtime, $filesize, ($$req{firstline} || 1), $Outputfile, $conf,
-                          &epIOMod_Perl, $In, $Out, $Sub, exists ($$req{import})?scalar(caller ($$req{import} > 0?$$req{import} - 1:0)):'') ;
+                          &epIOMod_Perl, $In, $Out, $Sub, exists ($$req{import})?scalar(caller ($$req{import} > 0?$$req{import} - 1:0)):'',$SessionMgnt) ;
     
     my $package = $r -> CurrPackage ;
     $evalpackage = $package ;   
@@ -760,25 +792,33 @@ use strict ;
 
 	if ($SessionMgnt && !$r -> SubReq)
 	    {
-	    my $cookie_name = $r -> CookieName ;
 	    $udat = tied(%udat) ;
+	    $mdat = tied(%mdat) ;
+	    my $sessid ;
+	    my $cookie_name = $r -> CookieName ;
 
 	    if (defined ($ENV{HTTP_COOKIE}) && ($ENV{HTTP_COOKIE} =~ /$cookie_name=(.*?)(\;|\s|$)/))
 		{
-		$udat -> {ID} = $1 ;
+		$sessid = $1 ;
 		print LOG "[$$]SES:  Received session cookie $1\n" if ($dbgSession) ;
+                $r -> SessionMgnt (0) ; # do not resend cookie
+		}
+
+	    if ($SessionMgnt == 1)
+		{
+		$udat -> {ID} = $sessid ;
+		$udat -> {DIRTY} = 0 ;
+
+		$mdat -> {ID} = substr(MD5 -> hexhash ($Inputfile), 0, &Apache::Session::ID_LENGTH );
+		$mdat -> {DIRTY} = 0 ;
 		}
 	    else
 		{
-		$udat -> {ID} = undef ;
+		$udat -> setid ($sessid) ;
+		$mdat -> setid (substr(MD5 -> hexhash ($Inputfile), 0, 16));
 		}
-    
-	    $udat -> {DIRTY} = 0 ;
-
-	    $mdat = tied(%mdat) ;
-	    $mdat -> {ID} = substr(MD5 -> hexhash ($Inputfile), 0, &Apache::Session::ID_LENGTH ); 
-	    $mdat -> {DIRTY} = 0 ;
 	    }
+
 
 	    {
 	    local $SIG{__WARN__} = \&Warn ;
@@ -822,28 +862,37 @@ use strict ;
     
 	if ($SessionMgnt && !$r -> SubReq)
 	    {
-	    
-	    if ($udat->{'DIRTY'})
+	    if ($SessionMgnt == 1)
 		{
-		print LOG "[$$]SES:  Store session data of \%udat id=$udat->{ID}\n" if ($dbgSession) ;
-		$udat->{'DATA'}->store ;
+		if ($udat->{'DIRTY'})
+		    {
+		    print LOG "[$$]SES:  Store session data of \%udat id=$udat->{ID}\n" if ($dbgSession) ;
+		    $udat->{'DATA'}->store ;
+		    }
+		else
+		    {
+		    print LOG "[$$]SES:  session data not dirty, do not store \%udat\n" if ($dbgSession) ;
+		    }
+
+		$udat->{'DATA'} = undef ;
+		$udat -> {ID}	= undef ;
+		if ($mdat->{'DIRTY'})
+		    {
+		    print LOG "[$$]SES:  Store session data of \%mdat id=$mdat->{ID}\n" if ($dbgSession) ;
+		    $mdat->{'DATA'}->store ;
+		    }
+
+		$mdat->{'DATA'} = undef ;
+		$mdat -> {ID}	= undef ;
 		}
 	    else
-		{	
-		print LOG "[$$]SES:  session data not dirty, do not store \%udat\n" if ($dbgSession) ;
-		}
-
-	    $udat->{'DATA'} = undef ;
-	    $udat -> {ID}   = undef ;
-	    if ($mdat->{'DIRTY'})
 		{
-		print LOG "[$$]SES:  Store session data of \%mdat id=$mdat->{ID}\n" if ($dbgSession) ;
-		$mdat->{'DATA'}->store ;
+		$udat -> cleanup ;
+		$mdat -> cleanup ;
 		}
-
-	    $mdat->{'DATA'} = undef ;
-	    $mdat -> {ID}   = undef ;
 	    }
+
+
 
      
         $r -> Export ($exports, caller ($$req{import} - 1)) if ($$req{import} && ($exports = $r -> ExportHash)) ;

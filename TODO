@@ -56,6 +56,8 @@ Bugs
 
 - StackFree in offline mode
 
+- SIG DIE missing message arg [Alex Schmelkin 24.8.99]
+
 Docs
 ----
 - Docs about EmbperlChain [Eric CHOLET]
